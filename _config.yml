@@ -1,8 +1,11 @@
-title: Just the Docs Template
-description: A starter template for a Jeykll site using the Just the Docs theme!
+title: Jason's Blog
+description: Logging my life
 theme: just-the-docs
 
-url: https://just-the-docs.github.io
+url: https://jasonleex1995.github.io
+
+search_enabled: true
+favicon_ico: "/assets/chopper.ico"
 
 aux_links:
-  Template Repository: https://github.com/just-the-docs/just-the-docs-template
+  GitHub Repository: https://github.com/jasonleex1995
