@@ -7,7 +7,7 @@ nav_order: 2
 ## Experience
 
 - `Oct, 2022` ~ `Dec, 2024` : AI Researcher (full-time), ActionPower  
-  final position: Leader of AI Innovation Research, AI Prototyping  
+  final position: Leader of AI Innovation Research & AI Prototyping  
   projects: text refinement, 3D reconstruction, video inpainting, Code-Switching Automatic Speech Recognition (CS-ASR), dataset construction, data filtering
 
 - `Sep, 2021` ~ `Aug, 2022` : Machine Learning Engineer (full-time), DeepBio  
