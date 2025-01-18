@@ -5,7 +5,7 @@ theme: just-the-docs
 url: https://jasonleex1995.github.io
 
 search_enabled: true
-favicon_ico: "/assets/chopper.ico"
+favicon_ico: "/assets/chopper_small.ico"
 
 aux_links:
   GitHub: https://github.com/jasonleex1995
