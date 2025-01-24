@@ -5,6 +5,8 @@ theme: just-the-docs
 favicon_ico: "/assets/JS.ico"
 url: https://jasonleex1995.github.io
 
+math: mathjax
+
 search_enabled: true
 
 back_to_top: true
