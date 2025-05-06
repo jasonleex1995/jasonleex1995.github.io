@@ -42,7 +42,7 @@ Simulating stochastic differential equations (SDEs) → diffusion models
   Function that maps time and location to a velocity in space.  
   $$u: \mathbb{R}^d \times [0, 1] \rightarrow \mathbb{R}^d, (x, t) \mapsto u_t(x)$$  
 
-- Ordinary Differential Equation (ODE)
+- Ordinary Differential Equation (ODE)  
   Imposes a condition on a trajectory $$X$$ that "follows along the lines" of the vector field $$u_t$$, starting at the point $$x_0$$.  
   $$X_0 = x_{0}, \frac{d}{dt} X_t = u_t(X_t)$$  
 
@@ -85,9 +85,9 @@ Goal: $$X_1 \sim p_{data}$$
 - Brownian Motion (= Wiener process)  
   Continuous stochastic process, but not differentiable due to stochasticity.  
   $$W = (W_t)_{t \geq 0}$$ is characterized by following 3 properties.  
-  1. $$W_0 = 0$$  
-  2. Gaussian increments: $$W_t - W_s \sim \mathcal{N}(0, (t-s)I_d)$$ for all $$0 \leq s < t$$.  
-  3. Independent increments: $$W_{t_1} - W_{t_0}, \cdots W_{t_n} - W_{t_{n-1}}$$ are independent for any $$0 \leq t_0 < t_1 < \cdots < t_n$$.  
+  - $$W_0 = 0$$  
+  - Gaussian increments: $$W_t - W_s \sim \mathcal{N}(0, (t-s)I_d)$$ for all $$0 \leq s < t$$.  
+  - Independent increments: $$W_{t_1} - W_{t_0}, \cdots W_{t_n} - W_{t_{n-1}}$$ are independent for any $$0 \leq t_0 < t_1 < \cdots < t_n$$.  
 
 - Diffusion Coefficient  
   Inject stochasticity (randomness) into ODE.  
@@ -117,7 +117,7 @@ Goal: $$X_1 \sim p_{data}$$
 
 
 <details><summary>Sampling from a Diffusion Model (Euler-Maruyama method)</summary>
-<img width="70%" alt="Algorithm2" src="https://github.com/user-attachments/assets/57645d75-dd31-4bf4-b746-13fe82af1690">
+<img width="75%" alt="Algorithm2" src="https://github.com/user-attachments/assets/57645d75-dd31-4bf4-b746-13fe82af1690">
 </details>
 
 
