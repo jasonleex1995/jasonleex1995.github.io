@@ -85,9 +85,9 @@ Goal: $$X_1 \sim p_{data}$$
 - Brownian Motion (= Wiener process)  
   Continuous stochastic process, but not differentiable due to stochasticity.  
   $$W = (W_t)_{t \geq 0}$$ is characterized by following 3 properties.  
-  - $$W_0 = 0$$  
-  - Gaussian increments: $$W_t - W_s \sim \mathcal{N}(0, (t-s)I_d)$$ for all $$0 \leq s < t$$.  
-  - Independent increments: $$W_{t_1} - W_{t_0}, \cdots W_{t_n} - W_{t_{n-1}}$$ are independent for any $$0 \leq t_0 < t_1 < \cdots < t_n$$.  
+  1. Initial condition: $$W_0 = 0$$  
+  2. Gaussian increments: $$W_t - W_s \sim \mathcal{N}(0, (t-s)I_d)$$ for all $$0 \leq s < t$$.  
+  3. Independent increments: $$W_{t_1} - W_{t_0}, \cdots W_{t_n} - W_{t_{n-1}}$$ are independent for any $$0 \leq t_0 < t_1 < \cdots < t_n$$.  
 
 - Diffusion Coefficient  
   Inject stochasticity (randomness) into ODE.  
