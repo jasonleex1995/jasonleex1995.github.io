@@ -13,6 +13,7 @@ layout: default
 - [3. Constructing a Training Target](#3-constructing-a-training-target)  
 
 
+
 > Links: [project page](https://diffusion.csail.mit.edu/), [YouTube playlist](https://www.youtube.com/playlist?list=PL57nT7tSGAAUDnli1LhTOoCxlEPGS19vH)  
 
 
@@ -61,6 +62,7 @@ Simulating stochastic differential equations (SDEs) → diffusion models
 
 Does a solution exist and if so, is it unique?  
 In machine learning, unique solutions to ODEs exist.  
+(see more details on proof)  
 
 
 ### 2.1.3. Simulating ODE
@@ -107,6 +109,7 @@ Goal: $$X_1 \sim p_{\mathrm{data}}$$
 
 Does a solution exist and if so, is it unique?  
 In machine learning, unique solutions to SDEs exist.  
+(see more details on proof)  
 
 
 ### 2.2.3. Simulating SDE
@@ -156,7 +159,7 @@ Marginal = across distribution of data points
 - Marginal probability path: $$p_t$$  
   Interpolates between $$p_{\mathrm{init}}$$ and $$p_{\mathrm{data}}$$.  
   Sampling from marginal path: $$z \sim p_{\mathrm{data}}, \ x \sim p_t(\cdot | z) \ \Rightarrow \ x \sim p_t$$  
-  Density of marginal path: $$p_t(x) = \int p_t(x|z) p_{\mathrm{data}}(z) dz$$  
+  Density of marginal path: $$p_t(x) = \int p_t(x|z) \ p_{\mathrm{data}}(z) \ dz$$  
   Noise-data interpolation: $$p_0 = p_{\mathrm{init}}, \ p_1 = p_{\mathrm{data}}$$  
   
 
@@ -168,13 +171,22 @@ let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote an ***conditional vector field***,
 defined so that the corresponding ODE yields the conditional probability path $$p_t(\cdot | z)$$.  
 Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \ \Rightarrow \ X_t \sim p_t(\cdot | z) \ (0 \leq t \leq 1)$$  
 
-If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz$$, then the ODE follows the marginal probability path $$p_t$$.  
+If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \ \frac{p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$, 
+then the ODE follows the marginal probability path $$p_t$$.  
 Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$  
-In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "$$u_t^{\mathrm{target}}(x)$$ converts noise $$p_{\mathrm{init}}$$ into data $$p_{\mathrm{data}}$$".  
+In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so we can say "$$u_t^{\mathrm{target}}(x)$$ converts $$p_{\mathrm{init}}$$ into $$p_{\mathrm{data}}$$".  
+
+We can prove this by using continuity equation.  
+(see more details on proof)  
+
+
+## 3.3. 
 
 
 
 
+
+---
 # Proof
 ## Flow and Diffusion Models
 
@@ -185,7 +197,6 @@ In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "
 - From ODEs to SDEs  
   $$\frac{d}{dt} X_t = u_t(X_t)$$  
   $$\frac{1}{h} (X_{t+h} - X_t) = u_t(X_t) + R_t(h)$$  
-  ($$R_t(h)$$: error term such that $$\underset{h \to 0}{\mathrm{lim}} R_t(h) = 0$$)  
   $$X_{t+h} = X_t + h u_t(X_t) + \sigma_t(W_{t+h} - W_t) + h R_t(h)$$  
   $$dX_t = u_t(X_t)dt + \sigma_t dW_t$$  
 
@@ -196,9 +207,20 @@ In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "
 
 ## Constructing a Training Target
 
+- Continuity Equation  
+  <img width="100%" alt="Continuity equation" src="https://github.com/user-attachments/assets/ad52ae18-05b6-4cb0-a4a5-310955aaee9f">  
+  Use the continuity equation of conditional vector field.  
+  $$\partial_t p_t(x) = \partial_t \int p_t(x|z) \ p_{\mathrm{data}}(z) dz$$  
+  $$ = \int \partial_t p_t(x|z) \ p_{\mathrm{data}}(z) dz$$  
+  $$ = \int - \mathrm{div} \left ( p_t(\cdot | z) \ u_t^{\mathrm{target}} (\cdot | z) \right ) (x) \ p_{\mathrm{data}}(z) \ dz$$  
+  $$ = - \mathrm{div} \left ( \int p_t(x | z) \ u_t^{\mathrm{target}} (x | z) \ p_{\mathrm{data}}(z) \ dz \right )$$  
+  $$ = - \mathrm{div} \left ( \int \ u_t^{\mathrm{target}} (x | z) \frac{p_t(x | z) \ p_{\mathrm{data}}(z)}{p_{t}(x)} \ p_t(x) \ dz \right )$$  
+  $$ = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x)$$  
+
 - Gaussian Conditional Vector Field  
-  $$X_t = \psi_t^{\mathrm{target}}(X_0 | z) = \alpha_t z + \beta_t X_0 \sim \mathcal{N}(\alpha_t z, \beta^2_t I_d) = p_t(\cdot | z)$$ (define a flow)  
-  $$\frac{d}{dt} \psi_t^{target}(x | z) = u_t^{\mathrm{target}}(\psi_t^{\mathrm{target}} (x|z) | z)$$ (definition of flow)  
-  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t x = u_t^{\mathrm{target}}(\alpha_t z + \beta_t x | z)$$ (Use definition of $$\psi_t^{\mathrm{target}}(x|z)$$)  
-  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t (\frac{x - \alpha_t z}{\beta_t}) = u_t^{\mathrm{target}}(x|z)$$ (reparemeterize)  
-  $$\Leftrightarrow \ (\dot{\alpha}_t - \frac{\dot{\beta}_t}{\beta_t} \alpha_t) z + \frac{\dot{\beta}_t}{\beta_t} x = u_t^{\mathrm{target}}(x|z)$$ (algebra)  
+  $$X_t = \psi_t^{\mathrm{target}}(X_0 | z) = \alpha_t z + \beta_t X_0 \sim \mathcal{N}(\alpha_t z, \beta^2_t I_d) = p_t(\cdot | z)$$  
+  $$\frac{d}{dt} \psi_t^{\mathrm{target}}(x | z) = u_t^{\mathrm{target}}(\psi_t^{\mathrm{target}} (x|z) \ | \ z)$$  
+  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t x = u_t^{\mathrm{target}}(\alpha_t z + \beta_t x | z)$$  
+  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t (\frac{x - \alpha_t z}{\beta_t}) = u_t^{\mathrm{target}}(x|z)$$  
+  $$\Leftrightarrow \ (\dot{\alpha}_t - \frac{\dot{\beta}_t}{\beta_t} \alpha_t) z + \frac{\dot{\beta}_t}{\beta_t} x = u_t^{\mathrm{target}}(x|z)$$  
+
