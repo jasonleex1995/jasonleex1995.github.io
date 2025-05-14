@@ -163,11 +163,13 @@ Marginal = across distribution of data points
 ## 3.2. Conditional and Marginal Vector Fields
 <img width="100%" alt="ODE trajectory" src="https://github.com/user-attachments/assets/00bc7de6-63e9-46c8-ab75-ba5e676e4f8a">
 
-For every data point $$z \in \mathbb{R}^d$$, let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote an ***conditional vector field***, defined so that the corresponding ODE yields the conditional probability path $$p_t(\cdot | z)$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \ \Rightarrow \ X_t \sim p_t(\cdot | z) \quad (0 \leq t \leq 1)$$  
+For every data point $$z \in \mathbb{R}^d$$,
+let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote an ***conditional vector field***,
+defined so that the corresponding ODE yields the conditional probability path $$p_t(\cdot | z)$$.  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \ \Rightarrow \ X_t \sim p_t(\cdot | z) \ (0 \leq t \leq 1)$$  
 
 If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz$$, then the ODE follows the marginal probability path $$p_t$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \quad (0 \leq t \leq 1)$$  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$  
 In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "$$u_t^{\mathrm{target}}(x)$$ converts noise $$p_{\mathrm{init}}$$ into data $$p_{\mathrm{data}}$$".  
 
 
@@ -195,8 +197,8 @@ In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "
 ## Constructing a Training Target
 
 - Gaussian Conditional Vector Field  
-  Define flow: $$X_t = \psi_t^{\mathrm{target}}(X_0 | z) = \alpha_t z + \beta_t X_0 \sim \mathcal{N}(\alpha_t z, \beta^2_t I_d) = p_t(\cdot | z)$$  
-  Use defintion of a flow: $$\frac{d}{dt} \psi_t^{target}(x | z) = u_t^{\mathrm{target}}(\psi_t^{\mathrm{target}} (x|z) | z)$$  
-  Use definition of $$\psi_t^{\mathrm{target}}(x|z)$$: $$\Leftrightarrow \quad \dot{\alpha}_t z + \dot{\beta}_t x = u_t^{\mathrm{target}}(\alpha_t z + \beta_t x | z)$$  
-  Reparemeterize: $$\Leftrightarrow \quad \dot{\alpha}_t z + \dot{\beta}_t (\frac{x - \alpha_t z}{\beta_t}) = u_t^{\mathrm{target}}(x|z)$$  
-  Algebra: $$\Leftrightarrow \quad (\dot{\alpha}_t - \frac{\dot{\beta}_t}{\beta_t} \alpha_t) z + \frac{\dot{\beta}_t}{\beta_t} x = u_t^{\mathrm{target}}(x|z)$$  
+  $$X_t = \psi_t^{\mathrm{target}}(X_0 | z) = \alpha_t z + \beta_t X_0 \sim \mathcal{N}(\alpha_t z, \beta^2_t I_d) = p_t(\cdot | z)$$ (define a flow)  
+  $$\frac{d}{dt} \psi_t^{target}(x | z) = u_t^{\mathrm{target}}(\psi_t^{\mathrm{target}} (x|z) | z)$$ (definition of flow)  
+  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t x = u_t^{\mathrm{target}}(\alpha_t z + \beta_t x | z)$$ (Use definition of $$\psi_t^{\mathrm{target}}(x|z)$$)  
+  $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t (\frac{x - \alpha_t z}{\beta_t}) = u_t^{\mathrm{target}}(x|z)$$ (reparemeterize)  
+  $$\Leftrightarrow \ (\dot{\alpha}_t - \frac{\dot{\beta}_t}{\beta_t} \alpha_t) z + \frac{\dot{\beta}_t}{\beta_t} x = u_t^{\mathrm{target}}(x|z)$$ (algebra)  
