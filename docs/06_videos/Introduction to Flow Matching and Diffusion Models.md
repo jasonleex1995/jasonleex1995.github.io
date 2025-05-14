@@ -4,11 +4,20 @@ parent: Videos
 layout: default
 ---
 
+# Table of Contents
+
+- [1. From Generation to Sampling](#1-from-generation-to-sampling)  
+- [2. Flow and Diffusion Models](#2-flow-and-diffusion-models)  
+  - [2.1. Flow Models](#21-flow-models)  
+  - [2.2. Diffusion Models](#22-diffusion-models)  
+- [3. Constructing a Training Target](#3-constructing-a-training-target)  
+
+
 > Links: [project page](https://diffusion.csail.mit.edu/), [YouTube playlist](https://www.youtube.com/playlist?list=PL57nT7tSGAAUDnli1LhTOoCxlEPGS19vH)  
 
 
-
-# 1: From Generation to Sampling  
+---
+# 1. From Generation to Sampling  
 
 What is generative modeling?  
 Model the generation as sampling from the data distribution.  
@@ -19,7 +28,7 @@ Transform samples from an initial distribution into samples from the data distri
 Simply, generate by converting $$x \sim p_{\mathrm{init}}$$ into $$z \sim p_{\mathrm{data}}$$.  
 
 
-
+---
 # 2. Flow and Diffusion Models
 
 Simulating a differential equation can transform an initial distribution into the data distribution.  
@@ -40,12 +49,12 @@ Simulating stochastic differential equations (SDEs) → diffusion models
 
 - Ordinary Differential Equation (ODE)  
   Imposes a condition on a trajectory $$X$$ that "follows along the lines" of the vector field $$u_t$$, starting at the point $$x_0$$.  
-  $$X_0 = x_{0}, \quad \frac{d}{dt} X_t = u_t(X_t)$$  
+  $$X_0 = x_{0}, \ \frac{d}{dt} X_t = u_t(X_t)$$  
 
 - Flow  
   Collections of solutions to an ODE for lots of initial conditions.  
   $$\psi: \mathbb{R}^d \times [0, 1] \rightarrow \mathbb{R}^d, \ (x_0, t) \mapsto \psi_t(x_0)$$  
-  $$\psi_0(x_0) = x_0, \quad \frac{d}{dt} \psi_t(x_0) = u_t(\psi_t(x_0))$$  
+  $$\psi_0(x_0) = x_0, \ \frac{d}{dt} \psi_t(x_0) = u_t(\psi_t(x_0))$$  
 
 
 ### 2.1.2. ODE Solution Existence and Uniqueness
@@ -91,7 +100,7 @@ Goal: $$X_1 \sim p_{\mathrm{data}}$$
 
 - Stochastic Differential Equation (SDE)  
   Extend the deterministic dynamics of an ODE by adding stochastic dynamics driven by Brownian motion.  
-  $$X_0 = x_{0}, \quad dX_t = u_t(X_t)dt + \sigma_t dW_t$$  
+  $$X_0 = x_{0}, \ dX_t = u_t(X_t)dt + \sigma_t dW_t$$  
 
 
 ### 2.2.2. SDE Solution Existence and Uniqueness
@@ -102,7 +111,7 @@ In machine learning, unique solutions to SDEs exist.
 
 ### 2.2.3. Simulating SDE
 
-Euler-Maruyama method: $$X_{t+h} = X_t + h u_t(X_t) + \sqrt{h} \sigma_t \epsilon_t, \quad \epsilon_t \sim \mathcal{N}(0, I_d)$$  
+Euler-Maruyama method: $$X_{t+h} = X_t + h u_t(X_t) + \sqrt{h} \sigma_t \epsilon_t, \ \epsilon_t \sim \mathcal{N}(0, I_d)$$  
 
 
 ### 2.2.4. Diffusion Models
@@ -117,7 +126,7 @@ Goal: $$X_1 \sim p_{\mathrm{data}}$$
 </details>
 
 
-
+---
 # 3. Constructing a Training Target
 
 Goal: find an equation for the training target $$u_t^{\mathrm{target}}$$ such that the corresponding ODE/SDE converts $$p_{\mathrm{init}}$$ into $$p_{\mathrm{data}}$$  
@@ -139,26 +148,26 @@ Marginal = across distribution of data points
 <img width="100%" alt="Probability Path" src="https://github.com/user-attachments/assets/0ae82300-f04f-4123-beed-25ad66412859">
 
 - Probability path  
-  Path from initial distribution $$p_{\mathrm{init}}$$ to data distribution $$p_{\mathrm{data}}$$  
+  Path from initial distribution $$p_{\mathrm{init}}$$ to data distribution $$p_{\mathrm{data}}$$.  
 
 - Conditional probability path: $$p_{t}(\cdot | z)$$   
-  Given a single data point $$z$$, path from initial distribution $$p_{\mathrm{init}}$$ to a single data point distribution $$\delta_z$$  
+  Given a single data point $$z$$, path from initial distribution $$p_{\mathrm{init}}$$ to a single data point distribution $$\delta_z$$.  
   
 - Marginal probability path: $$p_t$$  
-  Interpolates between $$p_{\mathrm{init}}$$ and $$p_{\mathrm{data}}$$  
-  Sampling from marginal path: $$z \sim p_{\mathrm{data}}, \quad x \sim p_t(\cdot | z) \quad \Rightarrow \quad x \sim p_t$$  
+  Interpolates between $$p_{\mathrm{init}}$$ and $$p_{\mathrm{data}}$$.  
+  Sampling from marginal path: $$z \sim p_{\mathrm{data}}, \ x \sim p_t(\cdot | z) \ \Rightarrow \ x \sim p_t$$  
   Density of marginal path: $$p_t(x) = \int p_t(x|z) p_{\mathrm{data}}(z) dz$$  
-  Noise-data interpolation: $$p_0 = p_{\mathrm{init}}, \quad p_1 = p_{\mathrm{data}}$$  
+  Noise-data interpolation: $$p_0 = p_{\mathrm{init}}, \ p_1 = p_{\mathrm{data}}$$  
   
 
 ## 3.2. Conditional and Marginal Vector Fields
 <img width="100%" alt="ODE trajectory" src="https://github.com/user-attachments/assets/00bc7de6-63e9-46c8-ab75-ba5e676e4f8a">
 
 For every data point $$z \in \mathbb{R}^d$$, let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote an ***conditional vector field***, defined so that the corresponding ODE yields the conditional probability path $$p_t(\cdot | z)$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \quad \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \quad \Rightarrow \quad X_t \sim p_t(\cdot | z) \quad (0 \leq t \leq 1)$$  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \ \Rightarrow \ X_t \sim p_t(\cdot | z) \quad (0 \leq t \leq 1)$$  
 
 If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz$$, then the ODE follows the marginal probability path $$p_t$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \quad \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \quad \Rightarrow \quad X_t \sim p_t \quad (0 \leq t \leq 1)$$  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \quad (0 \leq t \leq 1)$$  
 In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so that we can say "$$u_t^{\mathrm{target}}(x)$$ converts noise $$p_{\mathrm{init}}$$ into data $$p_{\mathrm{data}}$$".  
 
 
