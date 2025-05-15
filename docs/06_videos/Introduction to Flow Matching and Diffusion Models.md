@@ -173,16 +173,24 @@ Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(
 
 If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \ \frac{p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$, 
 then the ODE follows the marginal probability path $$p_t$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$.  
 In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so we can say "$$u_t^{\mathrm{target}}(x)$$ converts $$p_{\mathrm{init}}$$ into $$p_{\mathrm{data}}$$".  
 
 We can prove this by using continuity equation.  
 (see more details on proof)  
 
 
-## 3.3. 
+## 3.3. Conditional and Marginal Score Functions
 
+Conditional score function: $$\nabla_x \mathrm{log} p_t(x | z)$$  
+Marginal score function: $$\nabla_x \mathrm{log} p_t(x) = \int \nabla_x \mathrm{log} p_t(x|z) \frac{\ p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$  
 
+Define the condtional and marginal vector fields $$u_t^{\mathrm{target}} (x|z)$$ and $$u_t^{\mathrm{target}} (x)$$ as before. Then, for diffusion coefficient $$\sigma_t \geq 0$$, we may construct an SDE which follows the same probability path.  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ dX_t = [u_t^{\mathrm{target}}(X_t) + \frac{\sigma_t^2}{2} \nabla \mathrm{log} p_t(X_t) ]dt + \sigma_t dW_t \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$.  
+In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this SDE.  
+
+We can prove this by using Fokker-Planck equation.  
+(see more details on proof)  
 
 
 
@@ -208,7 +216,7 @@ We can prove this by using continuity equation.
 ## Constructing a Training Target
 
 - Continuity Equation  
-  <img width="100%" alt="Continuity equation" src="https://github.com/user-attachments/assets/ad52ae18-05b6-4cb0-a4a5-310955aaee9f">  
+  <img width="100%" alt="Continuity Equation" src="https://github.com/user-attachments/assets/e0f3201e-a520-4a15-a571-da36dd304edf">  
   Use the continuity equation of conditional vector field.  
   $$\partial_t p_t(x) = \partial_t \int p_t(x|z) \ p_{\mathrm{data}}(z) dz$$  
   $$ = \int \partial_t p_t(x|z) \ p_{\mathrm{data}}(z) dz$$  
@@ -216,6 +224,25 @@ We can prove this by using continuity equation.
   $$ = - \mathrm{div} \left ( \int p_t(x | z) \ u_t^{\mathrm{target}} (x | z) \ p_{\mathrm{data}}(z) \ dz \right )$$  
   $$ = - \mathrm{div} \left ( \int \ u_t^{\mathrm{target}} (x | z) \frac{p_t(x | z) \ p_{\mathrm{data}}(z)}{p_{t}(x)} \ p_t(x) \ dz \right )$$  
   $$ = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x)$$  
+
+
+- Fokker-Planck Equation  
+  <img width="100%" alt="Fokker-Planck equation" src="https://github.com/user-attachments/assets/ecab0df1-b83c-4bca-b404-a2ecae5dd2f6">  
+  Use the continuity equation of marginal vector field.  
+  $$\partial_t p_t(x) = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x)$$  
+  $$ = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x) - \frac{\sigma_t^2}{2} \Delta p_t(x) + \frac{\sigma_t^2}{2} \Delta p_t(x)$$  
+  $$ = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x) - \mathrm{div}(\frac{\sigma_t^2}{2} \nabla p_t)(x) + \frac{\sigma_t^2}{2} \Delta p_t(x)$$  
+  $$ = - \mathrm{div} \left ( p_t u_t^{\mathrm{target}} \right ) (x) - \mathrm{div}( \frac{\sigma_t^2}{2} p_t \nabla \mathrm{log} p_t)(x) + \frac{\sigma_t^2}{2} \Delta p_t(x)$$  
+  $$ = - \mathrm{div} \left ( p_t \left [ u_t^{\mathrm{target}} + \frac{\sigma_t^2}{2} \nabla \mathrm{log} p_t \right ] \right ) (x) + \frac{\sigma_t^2}{2} \Delta p_t(x)$$  
+
+
+- Score Function  
+  $$\nabla_x \mathrm{log} p_t(x) = \frac{\nabla_x p_t(x)}{p_t(x)}$$  
+  $$ = \frac{\nabla_x \int p_t(x|z) \ p_{\mathrm{data}}(z) \ dz}{p_t(x)}$$  
+  $$ = \frac{\int \nabla_x p_t(x|z) \ p_{\mathrm{data}}(z) \ dz}{p_t(x)}$$  
+  $$ = \frac{\int \nabla_x \mathrm{log} p_t(x|z) \ p_t(x|z) \ p_{\mathrm{data}}(z) \ dz}{p_t(x)}$$  
+  $$ = \int \nabla_x \mathrm{log} p_t(x|z) \frac{\ p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$  
+
 
 - Gaussian Conditional Vector Field  
   $$X_t = \psi_t^{\mathrm{target}}(X_0 | z) = \alpha_t z + \beta_t X_0 \sim \mathcal{N}(\alpha_t z, \beta^2_t I_d) = p_t(\cdot | z)$$  
