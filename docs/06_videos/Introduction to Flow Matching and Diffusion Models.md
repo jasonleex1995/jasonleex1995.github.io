@@ -11,6 +11,9 @@ layout: default
   - [2.1. Flow Models](#21-flow-models)  
   - [2.2. Diffusion Models](#22-diffusion-models)  
 - [3. Constructing a Training Target](#3-constructing-a-training-target)  
+  - [3.1. Conditional and Marginal Probability Path](#31-conditional-and-marginal-probability-path)
+  - [3.2. Conditional and Marginal Vector Fields](#32-conditional-and-marginal-vector-fields)
+  - [3.3. Conditional and Marginal Score Functions](#33-conditional-and-marginal-score-functions)
 
 
 
