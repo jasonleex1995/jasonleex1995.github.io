@@ -190,12 +190,23 @@ $$\nabla_x \mathrm{log} p_t(x | z)$$
 Marginal score function: 
 $$\nabla_x \mathrm{log} p_t(x) = \int \nabla_x \mathrm{log} p_t(x|z) \frac{\ p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$  
 
-Define the condtional and marginal vector fields $$u_t^{\mathrm{target}} (x|z)$$ and $$u_t^{\mathrm{target}} (x)$$ as before. Then, for diffusion coefficient $$\sigma_t \geq 0$$, we may construct an SDE which follows the same probability path.  
+Define the conditional and marginal vector fields $$u_t^{\mathrm{target}} (x|z)$$ and $$u_t^{\mathrm{target}} (x)$$ as before. Then, for diffusion coefficient $$\sigma_t \geq 0$$, we may construct an SDE which follows the same probability path.  
 Simply, $$X_0 \sim p_{\mathrm{init}}, \ dX_t = [u_t^{\mathrm{target}}(X_t) + \frac{\sigma_t^2}{2} \nabla \mathrm{log} p_t(X_t) ]dt + \sigma_t dW_t \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$.  
 In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this SDE.  
 
 We can prove this by using Fokker-Planck equation.  
 (see more details on proof)  
+
+
+When the probability path is static ($$p_t = p$$), 
+we set $$u_t^{\mathrm{target}}(X_t) = 0$$ 
+and obtain the SDE $$dX_t = \frac{\sigma_t^2}{2} \nabla \mathrm{log} p_t(X_t) dt + \sigma_t dW_t$$,
+which is commonly known as ***Langevin dynamics***.  
+
+
+---
+# 4. 
+
 
 
 
