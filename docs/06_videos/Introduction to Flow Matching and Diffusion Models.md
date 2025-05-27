@@ -217,7 +217,7 @@ $$L_{\mathrm{FM}}(\theta) = L_{\mathrm{CFM}}(\theta) + C$$
 , where $$C$$ is independent of $$\theta$$.  
 $$\nabla_{\theta} L_{\mathrm{FM}}(\theta) = \nabla_{\theta} L_{\mathrm{CFM}}(\theta)$$  
 
-Minimizing $$L_{\mathrm{CFM}}(\theta)$$ is equivalent to minimizing $$L_{\mathrm{FM}}(\theta)$$  
+Minimizing $$L_{\mathrm{CFM}}(\theta)$$ is equivalent to minimizing $$L_{\mathrm{FM}}(\theta)$$.  
 By explicitly regressing against the tractable conditional vector field, we are implicitly regressing against the intractable marginal vector field.  
 
 <details><summary>Flow Matching Training Algorithm (Gaussian Conditional Optimal Transport path)</summary>
@@ -240,7 +240,7 @@ it holds that the vector field can be converted into the score.
 $$u_t^{\mathrm{target}}(x|z) = (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x|z) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
 $$u_t^{\mathrm{target}}(x) = (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
 
-For Gaussian probability paths, there is no need to separately train both the marginal score and the marginal vector field, as knowledge of one is sufficient to compute the other.  
+Thus, for Gaussian probability path, there is no need to separately train both the marginal score and the marginal vector field, as knowledge of one is sufficient to compute the other.  
 
 <details><summary>Score Matching Training Algorithm (Gaussian path)</summary>
 <img width="100%" alt="score matching" src="https://github.com/user-attachments/assets/14350379-f4f6-4242-9a39-cfe187c81285">
