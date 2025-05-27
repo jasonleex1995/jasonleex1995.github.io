@@ -6,6 +6,8 @@ layout: default
 
 # Table of Contents
 
+> Links: [project page](https://diffusion.csail.mit.edu/), [YouTube playlist](https://www.youtube.com/playlist?list=PL57nT7tSGAAUDnli1LhTOoCxlEPGS19vH)  
+
 - [1. From Generation to Sampling](#1-from-generation-to-sampling)  
 - [2. Flow and Diffusion Models](#2-flow-and-diffusion-models)  
   - [2.1. Flow Models](#21-flow-models)  
@@ -14,10 +16,9 @@ layout: default
   - [3.1. Conditional and Marginal Probability Path](#31-conditional-and-marginal-probability-path)
   - [3.2. Conditional and Marginal Vector Fields](#32-conditional-and-marginal-vector-fields)
   - [3.3. Conditional and Marginal Score Functions](#33-conditional-and-marginal-score-functions)
-
-
-
-> Links: [project page](https://diffusion.csail.mit.edu/), [YouTube playlist](https://www.youtube.com/playlist?list=PL57nT7tSGAAUDnli1LhTOoCxlEPGS19vH)  
+- [4. Training Flow and Diffusion Models](#4-training-flow-and-diffusion-models)  
+  - [4.1. Flow Matching](#41-flow-matching)  
+  - [4.2. Score Matching](#42-score-matching)  
 
 
 ---
@@ -205,9 +206,45 @@ which is commonly known as ***Langevin dynamics***.
 
 
 ---
-# 4. 
+# 4. Training Flow and Diffusion Models
+## 4.1. Flow Matching
+
+ODE: $$X_0 \sim p_{\mathrm{init}}, \ dX_t = u_t^{\theta}(X_t) dt$$  
+Flow matching loss: $$L_{\mathrm{FM}}(\theta) = \mathbb{E}_{t \sim \mathrm{Unif}, x \sim p_t} [|| u_t^{\theta}(x) - u_t^{\mathrm{target}}(x) ||^2]$$  
+Conditional flow matching loss: $$L_{\mathrm{CFM}}(\theta) = \mathbb{E}_{t \sim \mathrm{Unif}, z \sim p_{\mathrm{data}}, x \sim p_t(\cdot | z)} [|| u_t^{\theta}(x) - u_t^{\mathrm{target}}(x|z) ||^2]$$  
+
+$$L_{\mathrm{FM}}(\theta) = L_{\mathrm{CFM}}(\theta) + C$$
+, where $$C$$ is independent of $$\theta$$.  
+$$\nabla_{\theta} L_{\mathrm{FM}}(\theta) = \nabla_{\theta} L_{\mathrm{CFM}}(\theta)$$  
+
+Minimizing $$L_{\mathrm{CFM}}(\theta)$$ is equivalent to minimizing $$L_{\mathrm{FM}}(\theta)$$  
+By explicitly regressing against the tractable conditional vector field, we are implicitly regressing against the intractable marginal vector field.  
+
+<details><summary>Flow Matching Training Algorithm (Gaussian Conditional Optimal Transport path)</summary>
+<img width="100%" alt="flow matching" src="https://github.com/user-attachments/assets/6bd6b4db-b089-4249-b169-30388fa8788b">
+</details>
 
 
+## 4.2. Score Matching
+
+SDE: $$X_0 \sim p_{\mathrm{init}}, \ dX_t = [u_t^{\theta}(X_t) + \frac{\sigma_t^2}{2} s_t^{\theta}(X_t)] dt + \sigma_t dW_t$$  
+Score matching loss: $$L_{\mathrm{SM}}(\theta) = \mathbb{E}_{t \sim \mathrm{Unif}, x \sim p_t} [|| s_t^{\theta}(x) - \nabla \mathrm{log} p_t(x) ||^2]$$  
+Conditional score matching loss (= denoising score matching loss): $$L_{\mathrm{CSM}}(\theta) = \mathbb{E}_{t \sim \mathrm{Unif}, z \sim p_{\mathrm{data}}, x \sim p_t(\cdot | z)} [|| s_t^{\theta}(x) - \nabla \mathrm{log} p_t(x|z) ||^2]$$  
+
+$$L_{\mathrm{SM}}(\theta) = L_{\mathrm{CSM}}(\theta) + C$$
+, where $$C$$ is independent of $$\theta$$.  
+$$\nabla_{\theta} L_{\mathrm{SM}}(\theta) = \nabla_{\theta} L_{\mathrm{CSM}}(\theta)$$  
+
+For Gaussian probability path $$p_t(x|z) = \mathcal{N}(\alpha_t z, \beta_t^2 I_d)$$, 
+it holds that the vector field can be converted into the score.  
+$$u_t^{\mathrm{target}}(x|z) = (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x|z) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
+$$u_t^{\mathrm{target}}(x) = (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
+
+For Gaussian probability paths, there is no need to separately train both the marginal score and the marginal vector field, as knowledge of one is sufficient to compute the other.  
+
+<details><summary>Score Matching Training Algorithm (Gaussian path)</summary>
+<img width="100%" alt="score matching" src="https://github.com/user-attachments/assets/14350379-f4f6-4242-9a39-cfe187c81285">
+</details>
 
 
 ---
@@ -267,3 +304,23 @@ which is commonly known as ***Langevin dynamics***.
   $$\Leftrightarrow \ \dot{\alpha}_t z + \dot{\beta}_t (\frac{x - \alpha_t z}{\beta_t}) = u_t^{\mathrm{target}}(x|z)$$  
   $$\Leftrightarrow \ (\dot{\alpha}_t - \frac{\dot{\beta}_t}{\beta_t} \alpha_t) z + \frac{\dot{\beta}_t}{\beta_t} x = u_t^{\mathrm{target}}(x|z)$$  
 
+
+## Training Flow and Diffusion Models
+
+- $$L_{\mathrm{FM}}(\theta) = L_{\mathrm{CFM}}(\theta) + C$$  
+  $$L_{\mathrm{FM}}(\theta) = \mathbb{E}_{t \sim \mathrm{Unif}, x \sim p_t} [|| u_t^{\theta}(x) - u_t^{\mathrm{target}}(x) ||^2]$$  
+  $$= \mathbb{E}_{t, x} [|| u_t^{\theta}(x) ||^2 - 2 u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x) + || u_t^{\mathrm{target}}(x) ||^2]$$  
+  $$= \mathbb{E}_{t, x} [|| u_t^{\theta}(x) ||^2]  - 2 \mathbb{E}_{t, z, x} [u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x)] + \mathbb{E}_{t, z, x} [|| u_t^{\mathrm{target}}(x) ||^2]$$  
+  $$= \mathbb{E}_{t, x} [|| u_t^{\theta}(x) ||^2]  - 2 \mathbb{E}_{t, z, x} [u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x)] + C_1$$  
+  $$\mathbb{E}_{t \sim \mathrm{Unif}, x \sim p_t} [u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x)] = \int_0^1 \int p_t(x) \ u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x) \ dx \ dt$$  
+  $$= \int_0^1 \int p_t(x) \ u_t^{\theta}(x)^T \ [\int u_t^{\mathrm{target}}(x|z) \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz] \ dx \ dt$$  
+  $$= \int_0^1 \int \int \ u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x|z) \ p_t(x|z) \ p_{\mathrm{data}}(z) \ dz \ dx \ dt$$  
+  $$= \mathbb{E}_{t \sim \mathrm{Unif}, z \sim p_{\mathrm{data}}, x \sim p_t(\cdot | z)} [u_t^{\theta}(x)^T u_t^{\mathrm{target}}(x | z)] $$  
+
+- Conversion Formula of Vector Field to Score for Gaussian Probability Path  
+  $$u_t^{\mathrm{target}}(x|z) = (\dot{\alpha_t} - \frac{\dot{\beta}_t}{\beta_t}\alpha_t)z + \frac{\dot{\beta}_t}{\beta_t}x$$  
+  $$= (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \frac{\alpha_t z - x}{\beta_t^2} + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
+  $$= (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x|z) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
+  $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}}(x|z) \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz$$  
+  $$= \int [(\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x|z) + \frac{\dot{\alpha}_t}{\alpha_t}x] \frac{p_t(x|z) p_{\mathrm{data}}(z)}{p_t(x)} dz$$  
+  $$= (\beta_t^2 \frac{\dot{\alpha}_t}{\alpha_t} - \dot{\beta}_t \beta_t) \nabla \mathrm{log} p_t(x) + \frac{\dot{\alpha}_t}{\alpha_t}x$$  
