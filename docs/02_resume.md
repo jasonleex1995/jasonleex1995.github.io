@@ -33,4 +33,6 @@ nav_order: 2
 
 ## Publications
 
-- Park, Y.W., An, C., **Lee, J.** et al. Diffusion tensor and postcontrast T1-weighted imaging radiomics to differentiate the epidermal growth factor receptor mutation status of brain metastases from non-small cell lung cancer. Neuroradiology 63, 343–352 (2021). https://doi.org/10.1007/s00234-020-02529-2
+- [CVPR 2025 Workshop] A Training-Free, Task-Agnostic Framework for Enhancing MLLM Performance on High-Resolution Images  
+- [IPIU 2025 Oral] PIP: Patch-Wise Iterative Prompting for High-Resolution GUI Grounding  
+- [Neuroradiology 2021] Diffusion tensor and postcontrast T1-weighted imaging radiomics to differentiate the epidermal growth factor receptor mutation status of brain metastases from non-small cell lung cancer [[paper link]](https://doi.org/10.1007/s00234-020-02529-2)
