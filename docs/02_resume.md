@@ -33,16 +33,14 @@ nav_order: 2
 
 ## Publications
 
-- Fair Generation without Unfair Distortions: Debiasing Text-to-Image Generation with Entanglement-Free Attention  
-  *ICCV 2025*  
-  [arxiv](https://arxiv.org/abs/2506.13298)
+- **Fair Generation without Unfair Distortions: Debiasing Text-to-Image Generation with Entanglement-Free Attention**  
+  *ICCV 2025*, [arxiv](https://arxiv.org/abs/2506.13298)  
 
-- A Training-Free, Task-Agnostic Framework for Enhancing MLLM Performance on High-Resolution Images  
+- **A Training-Free, Task-Agnostic Framework for Enhancing MLLM Performance on High-Resolution Images**  
   *CVPR 2025 Workshop*  
 
-- PIP: Patch-Wise Iterative Prompting for High-Resolution GUI Grounding  
+- **PIP: Patch-Wise Iterative Prompting for High-Resolution GUI Grounding**  
   *IPIU 2025 Oral*  
 
-- Diffusion tensor and postcontrast T1-weighted imaging radiomics to differentiate the epidermal growth factor receptor mutation status of brain metastases from non-small cell lung cancer  
-  *Neuroradiology 2021*  
-  [paper](https://doi.org/10.1007/s00234-020-02529-2)
+- **Diffusion tensor and postcontrast T1-weighted imaging radiomics to differentiate the epidermal growth factor receptor mutation status of brain metastases from non-small cell lung cancer**  
+  *Neuroradiology 2021*, [paper](https://doi.org/10.1007/s00234-020-02529-2)  
