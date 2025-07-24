@@ -37,7 +37,7 @@ nav_order: 2
   *ICCV 2025*, [arxiv](https://arxiv.org/abs/2506.13298)  
 
 - **A Training-Free, Task-Agnostic Framework for Enhancing MLLM Performance on High-Resolution Images**  
-  *CVPR 2025 Workshop*, [arxiv](https://arxiv.org/abs/2507.10202)  
+  [*CVPR 2025 Workshop*](https://sites.google.com/view/eval-fomo-2-cvpr/home), [arxiv](https://arxiv.org/abs/2507.10202)  
 
 - **PIP: Patch-Wise Iterative Prompting for High-Resolution GUI Grounding**  
   *IPIU 2025 Oral*  
