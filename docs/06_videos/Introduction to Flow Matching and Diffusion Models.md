@@ -171,14 +171,14 @@ Marginal = across distribution of data points
 <img width="100%" alt="ODE trajectory" src="https://github.com/user-attachments/assets/00bc7de6-63e9-46c8-ab75-ba5e676e4f8a">
 
 For every data point $$z \in \mathbb{R}^d$$,
-let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote an ***conditional vector field***,
+let $$u_t^{\mathrm{target}}(\cdot|z)$$ denote a ***conditional vector field***,
 defined so that the corresponding ODE yields the conditional probability path $$p_t(\cdot | z)$$.  
 Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt}X_t = u_t^{\mathrm{target}}(X_t|z) \ \Rightarrow \ X_t \sim p_t(\cdot | z) \ (0 \leq t \leq 1)$$  
 
 If we set the ***marginal vector field*** as $$u_t^{\mathrm{target}}(x) = \int u_t^{\mathrm{target}} (x|z) \ \frac{p_t(x|z) \ p_{\mathrm{data}}(z)}{p_t(x)} \ dz$$, 
 then the ODE follows the marginal probability path $$p_t$$.  
-Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(x) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$.  
-In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so we can say "$$u_t^{\mathrm{target}}(x)$$ converts $$p_{\mathrm{init}}$$ into $$p_{\mathrm{data}}$$".  
+Simply, $$X_0 \sim p_{\mathrm{init}}, \ \frac{d}{dt} X_t = u_t^{\mathrm{target}}(X_t) \ \Rightarrow \ X_t \sim p_t \ (0 \leq t \leq 1)$$.  
+In particular, $$X_1 \sim p_{\mathrm{data}}$$ for this ODE, so we can say "$$u_t^{\mathrm{target}}$$ converts $$p_{\mathrm{init}}$$ into $$p_{\mathrm{data}}$$".  
 
 We can prove this by using continuity equation.  
 (see more details on proof)  
