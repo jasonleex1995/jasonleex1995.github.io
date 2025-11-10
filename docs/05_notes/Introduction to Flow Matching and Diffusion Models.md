@@ -1,6 +1,6 @@
 ---
 title: "Introduction to Flow Matching and Diffusion Models"
-parent: Videos
+parent: Notes
 layout: default
 ---
 
