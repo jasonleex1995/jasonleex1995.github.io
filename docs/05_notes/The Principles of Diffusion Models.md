@@ -23,11 +23,11 @@ B. Core Perspectives on Diffusion Models
     2.2. Variational Perspective: DDPM
     2.3. Closing Remarks
 
-  3. 
 
-Part C & D. Controlling and Accelerating the Diffusion Sampling
-Part C. Sampling of Diffusion Models
-Part D. Learning Fast Generative Models
+
+Part C & D. Controlling and Accelerating the Diffusion Sampling  
+Part C. Sampling of Diffusion Models  
+Part D. Learning Fast Generative Models  
 
 
 ---
@@ -38,7 +38,7 @@ Part D. Learning Fast Generative Models
 
 # 1. Deep Generative Modeling
 
-> *What I cannot create, I do not understand* by Richard P. Feynman
+> "*What I cannot create, I do not understand*" by Richard P. Feynman
 
 
 ## 1.1. What is Deep Generative Modeling?
@@ -53,7 +53,7 @@ Fit the model parameter $$\phi$$ by minimizing a discrepancy that measures how f
 Run the model's sampling procedure to draw $$\mathbf{x} \sim p_{\phi}$$.  
 
 **How to measure the quality of DGMs?**  
-Quality of generated samples & summary statistics between generated samples and $$p_{data}$$.  
+Quality of generated samples & summary statistics between generated samples and dataset.  
 
 
 ### 1.1.1. Mathematical Setup
@@ -64,14 +64,29 @@ $$\phi \in \underset{\phi}{\mathrm{argmin}} \ D(p_{data}, p_{\phi})$$
 
 2 main families of $$D$$: *f-divergences*, *Optimal Transport (OT) distances*  
 
-|Discrepancy|Definition|Meaning|  
-|:-:|:-:|:-:|  
-|Forward Kullback-Leibler (KL) divergence|$$D_{KL}(p_{data} \parallel  p_{\phi}) := \int p_{data}(\mathbf{x}) \ \mathrm{log}\frac{p_{data}(\mathbf{x})}{p_{\phi}(\mathbf{x})} \mathrm{d}\mathbf{x}$$|Mode covering, minimizing forward KL = Maximum Likelihood Estimation (MLE)|  
-|Reverse Kullback-Leibler (KL) divergence|$$D_{KL}(p_{\phi} \parallel p_{data}) := \int p_{\phi}(\mathbf{x}) \ \mathrm{log}\frac{p_{\phi}(\mathbf{x})}{p_{data}(\mathbf{x})} \mathrm{d}\mathbf{x}$$|Mode seeking|  
-|Jensen–Shannon (JS) Divergence|$$D_{JS}(p_{data} \parallel  p_{\phi}) := \frac{1}{2} D_{KL}\left (p_{data} \parallel \frac{1}{2}(p_{data} + p_{\phi}) \right ) + \frac{1}{2} D_{KL} \left (p_{\phi} \parallel \frac{1}{2}(p_{data} + p_{\phi}) \right ) $$|Smooth and symmetric measure, avoids the unbounded penalties of KL|  
-|Fisher Divergence|$$D_{F}(p_{data} \parallel p_{\phi}) := \int p_{data}(\mathbf{x}) \ \left\| \nabla_{\mathbf{x}} \mathrm{log} p_{data}(\mathbf{x}) - \nabla_{\mathbf{x}} \mathrm{log} p_{\phi}(\mathbf{x}) \right\|_{2}^{2} \mathrm{d}\mathbf{x}$$|Measures the discrepancy between the data and model score functions|  
-|Total Variation (TV) Divergence|$$D_{TV}(p_{data} \parallel p_{\phi}) := \frac{1}{2} \int_{\mathbb{R}^D} \| p_{data} - p_{\phi} \| \mathrm{d}\mathbf{x} = \underset{A \subset \mathbb{R}^D}{\mathrm{sup}} \| p_{data}(A) - p_{\phi}(A) \| $$|Captures the largest possible probability difference between the data and model|  
-|Earth-Mover (EM) distance (= Wasserstein-1 distance)|$$W(p_{data}, p_{\phi}) := \underset{\gamma \in \prod(p_{data}, p_{\phi})}{\mathrm{inf}}  \mathbb{E}_{(x, y) \sim \gamma} \left [ \left\| x - y \right\| \right ] $$|Measures the minimal cost of moving probability mass from data to model, depend on the geometry of the sample space and remain meaningful even when the supports of data and model do not overlap|  
+**Forward Kullback-Leibler (KL) divergence**  
+Mode covering, minimizing forward KL = Maximum Likelihood Estimation (MLE)  
+$$D_{KL}(p_{data} \parallel  p_{\phi}) := \int p_{data}(\mathbf{x}) \ \mathrm{log}\frac{p_{data}(\mathbf{x})}{p_{\phi}(\mathbf{x})} \mathrm{d}\mathbf{x}$$
+
+**Reverse Kullback-Leibler (KL) divergence**  
+Mode seeking  
+$$D_{KL}(p_{\phi} \parallel p_{data}) := \int p_{\phi}(\mathbf{x}) \ \mathrm{log}\frac{p_{\phi}(\mathbf{x})}{p_{data}(\mathbf{x})} \mathrm{d}\mathbf{x}$$
+
+**Jensen–Shannon (JS) Divergence**  
+Smooth and symmetric measure, avoids the unbounded penalties of KL  
+$$D_{JS}(p_{data} \parallel  p_{\phi}) := \frac{1}{2} D_{KL}\left (p_{data} \parallel \frac{1}{2}(p_{data} + p_{\phi}) \right ) + \frac{1}{2} D_{KL} \left (p_{\phi} \parallel \frac{1}{2}(p_{data} + p_{\phi}) \right )$$
+
+**Fisher Divergence**  
+Measures the discrepancy between the data and model score functions  
+$$D_{F}(p_{data} \parallel p_{\phi}) := \int p_{data}(\mathbf{x}) \ \left\| \nabla_{\mathbf{x}} \mathrm{log} p_{data}(\mathbf{x}) - \nabla_{\mathbf{x}} \mathrm{log} p_{\phi}(\mathbf{x}) \right\|_{2}^{2} \mathrm{d}\mathbf{x}$$
+
+**Total Variation (TV) Divergence**  
+Captures the largest possible probability difference between the data and model  
+$$D_{TV}(p_{data} \parallel p_{\phi}) := \frac{1}{2} \int_{\mathbb{R}^D} \| p_{data} - p_{\phi} \| \mathrm{d}\mathbf{x} = \underset{A \subset \mathbb{R}^D}{\mathrm{sup}} \| p_{data}(A) - p_{\phi}(A) \| $$
+
+**Earth-Mover (EM) distance (= Wasserstein-1 distance)**  
+Measures the minimal cost of moving probability mass from data to model, depend on the geometry of the sample space and remain meaningful even when the supports of data and model do not overlap  
+$$W(p_{data}, p_{\phi}) := \underset{\gamma \in \prod(p_{data}, p_{\phi})}{\mathrm{inf}}  \mathbb{E}_{(x, y) \sim \gamma} \left [ \left\| x - y \right\| \right ] $$
 
 
 ### 1.1.2. Challenges in Modeling Distributions
@@ -94,13 +109,11 @@ $$p_{\phi}(\mathbf{x}) = \frac{\tilde{p}_{\phi}(\mathbf{x})}{\int \tilde{p}_{\ph
 Major challenge: computing the normalizing constant $$Z(\phi)$$ is intractable.  
 → circumvent or reduce the computational cost of evaluating the normalizing constant.  
 
-
 **Energy-Based Models (EBMs)**  
 Define a probability distribution through an energy function $$E_{\phi}(\mathbf{x})$$ that assigns lower energy to more probable data points.  
 $$p_{\phi}(\mathbf{x}) := \frac{1}{Z(\phi)}\mathrm{exp}(-E_{\phi} (\mathbf{x})), \quad Z(\phi) = \int \mathrm{exp}(-E_{\phi} (\mathbf{x})) \mathrm{d}\mathbf{x}$$
 
 Cons: intractablity of the partition function  
-
 
 **Autoregressive Models (ARs)**  
 Factorize the model distribution into a product of conditional probabilities using the chain rule of probability.  
@@ -110,7 +123,6 @@ Pros: exact likelihood computation
 (each term $$p_{\phi} (x_i | \mathbf{x}_{< i})$$ is normalized by design)  
 Cons: low sampling speed due to sequential nature, restrict flexibility due to fixed ordering  
 
-
 **Variational Autoencoders (VAEs)**  
 Maximize a tractable surrogate to the true log-likelihood, the Evidence Lower Bound (ELBO).  
 $$L_{ELBO}(\theta, \phi; \mathbf{x}) = \mathbb{E}_{q_{\theta}(\mathbf{z} | \mathbf{x})}[\mathrm{log} \ p_{\phi} (\mathbf{x} | \mathbf{z})] - D_{KL}(q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p_{prior}(\mathbf{z}))$$
@@ -119,7 +131,6 @@ Pros: combine neural networks with latent variable models
 Cons: limited sample sharpness, training pathologies  
 (posterior collapse: the tendency of the encoder to ignore latent variables)  
 
-
 **Normalizing Flows (NFs)**  
 Learn a bijective mapping $$f_{\phi}$$ between a simple latent distribution $$\mathbf{z}$$ and a complex data distribution $$\mathbf{x}$$ via an invertible operator.  
 Leverage the change-of-variable formula for densities, enabling MLE training.  
@@ -127,7 +138,6 @@ $$\mathrm{log} \ p_{\phi} (\mathbf{x}) = \mathrm{log} \ p(\mathbf{z}) + \mathrm{
 
 Pros: exact and tractable likelihood computation  
 Cons: challenges when scaling to high-dimensional data  
-
 
 **Generative Adversarial Networks (GANs)**  
 Consists of 2 neural networks, a generator $$G_{\phi}$$ and a discriminator $$D_{\zeta}$$.  
@@ -148,8 +158,21 @@ Directly parameterize a probability distribution $$p_{\phi}(\mathbf{x})$$ via a 
 
 **Implicit Models**  
 Specify a distribution only through a sampling procedure.  
-Thus, $$p_{\phi}(\mathbf{x})$$ is not available in closed form and may not be defined at all.  
+Thus, $$p_{\phi}(\mathbf{x})$$ is not available in closed form and may not be defined at all.
 
 
 
 
+1. Variational View (VAE, DPM, DDPM)
+  frames diffusion as learning a denoising process through a variational objective
+
+2. Score-Based View (EBM, NCSN, Score SDE)
+  learns the score function, the gradient of the log density, which guides how to gradually remove noise from samples
+  connects diffusion modeling with classical differential equation theory
+
+3. Flow-Based View (NF, NODE, FM)
+  generation as a continuous transformation that transports samples from a simple prior toward the data distribution, where evolution is governed by a velocity field through an ODE, which explicitly defines how probability mass moves over time
+  extends beyond prior-to-data generation to more general distribution-to-distribution translation problems
+
+diffusion models can be viewed as approaches for transporting one distribution to another
+→ connections to classical optimal transport and the Schrödinger bridge, interpreted as optimal transport with entropy regularization
