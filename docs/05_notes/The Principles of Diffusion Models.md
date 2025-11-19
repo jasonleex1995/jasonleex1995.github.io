@@ -96,10 +96,12 @@ For $$p_{\phi}$$ to be a valid probability density function, it must satisfy 2 f
 Non-Negativity: $$p_{\phi}(\mathbf{x}) \geq 0$$ for all $$\mathbf{x}$$ in the domain.  
 Normalization: $$\int p_{\phi}(\mathbf{x}) \mathrm{d}\mathbf{x} = 1$$.  
 
-Ensuring Non-Negativity: apply a positive function (ex. exponential function) to the raw output of the neural network $$E_{\phi}(\mathbf{x})$$.  
+Ensuring Non-Negativity  
+Apply a positive function (ex. exponential function) to the raw output of the neural network $$E_{\phi}(\mathbf{x})$$.  
 $$\tilde{p}_{\phi}(\mathbf{x}) = \mathrm{exp}(E_{\phi} (\mathbf{x}))$$
 
-Enforcing Normalization: divide by normalizing constant or partition function $$Z(\phi) := \int \mathrm{exp}(E_{\phi} (\mathbf{x}')) \mathrm{d}\mathbf{x}'$$.  
+Enforcing Normalization  
+Divide by normalizing constant or partition function $$Z(\phi) := \int \mathrm{exp}(E_{\phi} (\mathbf{x}')) \mathrm{d}\mathbf{x}'$$.  
 $$p_{\phi}(\mathbf{x}) = \frac{\tilde{p}_{\phi}(\mathbf{x})}{\int \tilde{p}_{\phi}(\mathbf{x'}) \mathrm{d}\mathbf{x}'} = \frac{\mathrm{exp}(E_{\phi} (\mathbf{x}))}{\int \mathrm{exp}(E_{\phi} (\mathbf{x}')) \mathrm{d}\mathbf{x}'} = \frac{\mathrm{exp}(E_{\phi} (\mathbf{x}))}{Z(\phi)}$$
 
 
@@ -162,6 +164,108 @@ Thus, $$p_{\phi}(\mathbf{x})$$ is not available in closed form and may not be de
 
 
 
+# 2. Variational Perspective: From VAEs to DDPMs
+
+## 2.1. Variational Autoencoder
+<img width="90%" alt="VAE" src="https://github.com/user-attachments/assets/d0ec8681-4142-465b-9df4-6842c8baf461">
+
+Assumes that each observation $$\mathbf{x}$$ is generated from a latent variable sampled from a simple prior distribution, typically a standard Gaussian, $$\mathbf{z} \sim p_{prior} := \mathcal{N}(\mathbf{0}, \mathbf{I})$$.  
+The decoder is kept simple, so that encoder can learn to extract useful latent features.  
+
+### 2.1.1. Evidence Lower Bound (ELBO)
+
+**Training via the ELBO**  
+$$\mathrm{log} \ p_{\phi}(\mathbf{x}) = \mathrm{log} \int p_{\phi}(\mathbf{x}, \mathbf{z}) \mathrm{d}\mathbf{z} = \mathrm{log} \int q_{\theta}(\mathbf{z} | \mathbf{x}) \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \mathrm{d}\mathbf{z}$$
+$$= \mathrm{log} \ \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ] \geq \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ]$$
+$$= \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x} | \mathbf{z}) \frac{p_{\phi}(\mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ] = \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x} | \mathbf{z}) \right ] - D_{KL}( q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p(\mathbf{z}))$$
+
+Reconstruction term ($$\mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x} | \mathbf{z}) \right ]$$): encourages accurate recovery of $$\mathbf{x}$$ from its latent code $$\mathbf{z}$$.  
+Regularization term ($$D_{KL}( q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p_{\phi}(\mathbf{z}))$$): encourages the encoder distribution $$q_{\theta}(\mathbf{z} | \mathbf{x})$$ to stay close to a simple Gaussian prior $$p(\mathbf{z})$$.  
+
+
+**Information-Theoretic View: ELBO as a Divergence Bound**  
+$$\mathrm{log} \ p_{\phi}(\mathbf{x}) = \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x}) \right ] = \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{p_{\phi}(\mathbf{z} | \mathbf{x})} \frac{q_{\theta}(\mathbf{z} | \mathbf{x})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ] $$
+$$= \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \frac{q_{\theta}(\mathbf{z} | \mathbf{x})}{p_{\phi}(\mathbf{z} | \mathbf{x})} \right ] = \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ] + D_{KL}(q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p_{\phi}(\mathbf{z} | \mathbf{x}))$$
+$$\geq \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ \frac{p_{\phi}(\mathbf{x}, \mathbf{z})}{q_{\theta}(\mathbf{z} | \mathbf{x})} \right ] = \mathbb{E}_{\mathbf{z} \sim q_{\theta}(\mathbf{z} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x} | \mathbf{z}) \right ] - D_{KL}( q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p(\mathbf{z}))$$
+$$\mathrm{log} \ p_{\phi}(\mathbf{x}) = L_{ELBO}(\theta, \phi; \mathbf{x}) + D_{KL}(q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p_{\phi}(\mathbf{z} | \mathbf{x}))$$
+($$D_{KL}(q_{\theta}(\mathbf{z} | \mathbf{x}) \parallel p_{\phi}(\mathbf{z} | \mathbf{x}))$$: inference error)  
+
+If we fix $$\phi$$ and only update $$\theta$$, then maximizing the ELBO corresponds to maximizing the likelihood by reducing inference error.  
+Since we jointly update $$\phi, \theta$$, maximizing the ELBO does not correspond to maximizing the likelihood.  
+
+
+### 2.1.2. Gaussian VAE
+
+Encoder: $$q_{\theta}(\mathbf{z} | \mathbf{x}) := \mathcal{N}(\mathbf{z}; \mu_{\theta}(\mathbf{x}), \mathrm{diag}(\sigma_{\theta}^2(\mathbf{x})))$$  
+Decoder: $$p_{\phi}(\mathbf{x} | \mathbf{z}) := \mathcal{N}(\mathbf{x}; \mu_{\phi}(\mathbf{z}), \sigma^2 \mathbf{I})$$  
+
+
+### 2.1.3. Drawbacks of Standard VAE
+
+**Blurry Generations in VAEs**  
+To understand this phenomenon, consider a fixed Gaussian encoder $$q_{enc}(\mathbf{z} | \mathbf{x})$$ and a decoder $$p_{dec}(\mathbf{x} | \mathbf{z}) = \mathcal{N}(\mathbf{x}; \mu(\mathbf{z}), \sigma^2 \mathbf{I})$$.  
+Then optimizing the ELBO reduces to minimizing the expected reconstruction error: $$\underset{\mu}{\mathrm{argmin}} \ \mathbb{E}_{p_{data}(\mathbf{x}) q_{enc}(\mathbf{z} | \mathbf{x})} \left [  \left\| \mathbf{x} - \mu(\mathbf{z}) \right\|^2 \right ]$$.  
+
+$$\underset{\mu}{\mathrm{argmin}} \ \mathbb{E}_{p_{data}(\mathbf{x}) q_{enc}(\mathbf{z} | \mathbf{x})} \left [  \left\| \mathbf{x} - \mu(\mathbf{z}) \right\|^2 \right ] = \underset{\mu}{\mathrm{argmin}} \ \mathbb{E}_{q_{enc}(\mathbf{x}, \mathbf{z})} \left [  \left\| \mathbf{x} - \mu(\mathbf{z}) \right\|^2 \right ]$$
+$$= \underset{\mu}{\mathrm{argmin}} \ \mathbb{E}_{q_{enc}(\mathbf{z}) q_{enc}(\mathbf{x} | \mathbf{z}) } \left [  \left\| \mathbf{x} - \mu(\mathbf{z}) \right\|^2 \right ]$$
+
+$$\mu^{*}(\mathbf{z}) = \mathbb{E}_{q_{enc}(\mathbf{x} | \mathbf{z})}[\mathbf{x}] = \int q_{enc}(\mathbf{x} | \mathbf{z}) \ \mathbf{x} \ \mathrm{d}\mathbf{x} = \int \frac{q_{enc}(\mathbf{z} | \mathbf{x}) p_{data}(\mathrm{x})}{p_{prior}(\mathrm{z})} \ \mathbf{x} \ \mathrm{d}\mathbf{x}$$
+$$= \frac{1}{p_{prior}(\mathrm{z})} \int q_{enc}(\mathbf{z} | \mathbf{x}) \ p_{data}(\mathrm{x}) \ \mathbf{x} \ \mathrm{d}\mathbf{x} = \frac{ \mathbb{E}_{p_{data} (\mathrm{x})} \left [ q_{enc}(\mathbf{z} | \mathbf{x}) \ \mathbf{x} \right ] }{ \mathbb{E}_{p_{data} (\mathrm{x})} \left [ q_{enc}(\mathbf{z} | \mathbf{x}) \right ]}$$
+
+Suppose that two distinct inputs $$\mathbf{x}, \mathbf{x}'$$ are mapped to overlapping regions in latent space.  
+(the supports of $$q_{enc}(\cdot | \mathbf{x})$$ and $$q_{enc}(\cdot | \mathbf{x}')$$ intersect)  
+→ $$\mu^{*}(\mathbf{z})$$ averages over multiple inputs, which leads to blurry outputs.  
+
+
+### 2.1.4. From Standard VAE to Hierarchical VAEs
+<img width="90%" alt="HVAE" src="https://github.com/user-attachments/assets/31d2b5c4-b8d2-4635-8b22-01c4854bdbdf">
+
+Unlike VAEs that use a single latent code $$\mathbf{z}$$, hierarchical VAEs (HVAEs) introduce multiple layers of latent variables arranged in a top-down hierarchy.  
+
+$$p_{\mathrm{HVAE}}(\mathbf{x}) := \int p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L}) \mathrm{d}\mathbf{z}_{1:L}$$
+$$p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L}) = p_{\phi}(\mathbf{x} | \mathbf{z}_1) \prod_{i=2}^{L} p_{\phi}(\mathbf{z}_{i-1} | \mathbf{z}_{i}) \ p(\mathbf{z}_L)$$
+$$q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x}) = q_{\theta}(\mathbf{z}_{1} | \mathbf{x}) \prod_{i=2}^{L} q_{\theta}(\mathbf{z}_{i} | \mathbf{z}_{i-1}) $$
+
+
+**HVAE's ELBO**  
+$$\mathrm{log} \ p_{\mathrm{HVAE}}(\mathbf{x}) = \mathrm{log} \int p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L}) \mathrm{d}\mathbf{z}_{1:L}$$
+$$= \mathrm{log} \int \frac{p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L})}{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x}) \mathrm{d}\mathbf{z}_{1:L} = \mathrm{log} \ \mathbb{E}_{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \left [ \frac{p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L})}{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \right ]$$
+$$\geq \mathbb{E}_{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \left [ \mathrm{log} \frac{p_{\phi}(\mathbf{x}, \mathbf{z}_{1:L})}{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \right ] = \mathbb{E}_{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \left [ \mathrm{log} \frac{p_{\phi}(\mathbf{x} | \mathbf{z}_1) \prod_{i=2}^{L} p_{\phi}(\mathbf{z}_{i-1} | \mathbf{z}_{i}) \ p(\mathbf{z}_L)}{q_{\theta}(\mathbf{z}_{1} | \mathbf{x}) \prod_{i=2}^{L} q_{\theta}(\mathbf{z}_{i} | \mathbf{z}_{i-1})} \right ]$$
+
+$$= \mathbb{E}_{q_{\theta}(\mathbf{z}_{1:L} | \mathbf{x})} \left [ \mathrm{log} \ p_{\phi}(\mathbf{x} | \mathbf{z}_1) + \mathrm{log} \frac{ p_{\phi}(\mathbf{z}_{1} | \mathbf{z}_{2}) }{q_{\theta}(\mathbf{z}_{1} | \mathbf{x}) } + \sum_{i=2}^{L-1} \mathrm{log} \frac{ p_{\phi}(\mathbf{z}_{i} | \mathbf{z}_{i+1})}{q_{\theta}(\mathbf{z}_{i} | \mathbf{z}_{i-1})} + \mathrm{log} \frac{p(\mathbf{z}_L)}{q_{\theta}(\mathbf{z}_{L} | \mathbf{z}_{L-1})} \right ]$$
+
+
+**Why Deeper Networks in a Flat VAE are Not Enough**  
+2 fundamental limitations of a standard flat VAE that are not resolved by simply making the encoder and decoder deeper.  
+
+Limitation 1: variational family  
+Encoder posterior is a single Gaussian with diagonal covariance.  
+Since increasing the layer depth does not expand the family, they cannot match multi-peaked $$p_{\theta}(\mathbf{z} | \mathbf{x})$$.  
+
+Limitation 2: posterior collapse  
+Maximizing ELBO can make the decoder to model data well without using $$\mathbf{z}$$.  
+Increasing the layers of decoder increases the expressiveness, which makes "ignoring $$\mathbf{z}$$" solution more serious.  
+
+
+**What Hierarchy Changes?**  
+Each inference conditional $$q_{\theta}(\mathbf{z}_{i} | \mathbf{z}_{i-1})$$ is aligned with its top-down generative countepart $$p_{\phi}(\mathbf{z}_{i} | \mathbf{z}_{i+1})$$.  
+This distributes the information penalty across levels and localizes learning signals through these adjacent KL terms.  
+These properties stem from the hierarchical latent graph, not from simply deepening networks in flat VAE.  
+
+
+**2 Limitations of HVAEs**  
+
+Limitation 1: training difficulty  
+Since encoder and decoder must be optimized jointly, lower layers and the decoder can already reconstruct $$\mathbf{x}$$, leaving higher-level latetns with little effective signal.  
+
+Limitation 2: model design  
+Overly expressive conditionals can dominate the reconstruction task and suppress the utility of higher latents.  
+
+
+
+---
+
+The integral over $$\mathbf{z}$$ is intractable: no closed-form solution (analytic integration impossible), numerical integration computationally infeasible.  
 
 1. Variational View (VAE, DPM, DDPM)
   frames diffusion as learning a denoising process through a variational objective
