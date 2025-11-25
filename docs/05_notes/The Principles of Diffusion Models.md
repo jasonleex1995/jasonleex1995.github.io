@@ -263,6 +263,78 @@ Overly expressive conditionals can dominate the reconstruction task and suppress
 
 
 
+## 2.2. Variational Perspective: DDPM
+<img width="90%" alt="DDPM" src="https://github.com/user-attachments/assets/b50a9da0-00a1-4ddd-9f09-7a44e971765a">
+
+Compared to HVAE, fix the encoder and concentrate on learning gradual generative trajectory, which results to stable training and expressive power.  
+Compsed with 2 distinct stochastic processes: forward process, reverse process.  
+
+**Forward Process (Fixed Encoder)**  
+Data distribution → isotropic Gaussian distribution  
+Fixed, non-trainable operation.  
+Progressively corrupts the original data by adding noise over multiple steps via a transition kernel $$p(\mathbf{x}_i \mid \mathbf{x}_{i-1})$$, eventually transforming it into a simple prior distribution $$p_{prior} := \mathcal{N}(\mathbf{0}, \mathbf{I})$$.  
+
+**Reverse Denoising Process (Learnable Decoder)**  
+Isotropic Gaussian distribution → data distribution  
+
+Neural network learns to reverse the noise corruption through a parameterized distribution $$p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})$$.  
+starting from pure noise, this process iteratively denoises to generate realistic samples  
+
+
+### 2.2.1. Forward Process (Fixed Encoder)
+<img width="90%" alt="DDPM forward" src="https://github.com/user-attachments/assets/9bc6bcf3-1ecb-4183-aedd-16238ca27164">
+
+**Fixed Gaussian Transition Kernel**  
+$$p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) := \mathcal{N}(\mathbf{x}_{i}; \sqrt{1 - \beta_{i}^{2}} \mathbf{x}_{i-1}, \beta_{i}^{2} \mathbf{I} ) = \mathcal{N}(\mathbf{x}_{i}; \alpha_{i} \mathbf{x}_{i-1}, \beta_{i}^{2} \mathbf{I} )$$
+$$\mathbf{x}_{i} = \alpha_{i} \mathbf{x}_{i-1} + \beta_{i} \epsilon, \quad \epsilon \sim \mathcal{N} (\mathbf{0}, \mathbf{I}) $$
+($$ \left\{ \beta_{i} \right\}_{i=1}^{L} $$: pre-determined monotonically increasing noise schedule, where each $$\beta_i \in (0, 1)$$ controls the variance of the Gaussian noise injected at step $$i$$)  
+
+
+**Perturbation Kernel and Prior Distribution**  
+$$p_{i}(\mathbf{x}_{i} \mid \mathbf{x}_{0} ) = \mathcal{N} \left (\mathbf{x}_{i}; \bar{\alpha}_i \mathbf{x}_{0}, (1 - \bar{\alpha}_i^2) \mathbf{I} \right ), \quad  \bar{\alpha}_i := \prod_{k=1}^i \sqrt{1 - \beta_{k}^{2}} = \prod_{k=1}^i \alpha_k $$
+$$\mathbf{x}_{i} = \bar{\alpha}_i \mathbf{x}_{0} + \sqrt{1 - \bar{\alpha}_i^2} \epsilon, \quad \epsilon \sim \mathcal{N} (\mathbf{0}, \mathbf{I}) $$
+
+$$p_{L}(\mathbf{x}_{L} \mid \mathbf{x}_{0}) \to \mathcal{N}(\mathbf{0}, \mathbf{I})$$
+$$p_{prior} := \mathcal{N}(\mathbf{0}, \mathbf{I})$$
+
+
+### 2.2.2. Reverse Denoising Process (Learnable Decoder)
+<img width="90%" alt="DDPM backward" src="https://github.com/user-attachments/assets/99c19239-37f1-4de0-921e-938e7f65318b">
+
+reverse the controlled degradation imposed by the forward diffusion process  
+starting from pure unstructured noise, the objective is to progressively denoise this randomness, step by step, until a coherent and meaningful data sample emerges  
+reverse generation proceeds through a Markov chain  
+
+**Overview: Modeling and Training Objective**  
+Approximate the unknown true reverse transition kernel $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})$$ by introducing a learnable parametric model $$p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})$$.  
+Train to minimize the expected KL divergence: $$\mathbb{E}_{p(\mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ]$$  
+Since direct computation of the target distribution $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})$$ is challenging, use Bayes' theorem: $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) \frac{p(\mathbf{x}_{i-1})}{p(\mathbf{x}_{i})}$$  
+Marginals $$p(\mathbf{x}_{i}), p(\mathbf{x}_{i-1})$$ are expectations over the unknown data distribution $$p_{data}$$: $$p(\mathbf{x}_{i}) = \int p(\mathbf{x}_{i} \mid \mathbf{x}_{0}) \ p_{data}(\mathbf{x}_{0}) \ \mathrm{d}\mathbf{x}_{0}$$  
+Since $$p_{data}$$ is unknown, these integrals are intractable.  
+
+
+**Overcoming Intractability with Conditioning**  
+Minimizing the $$\mathbb{E}_{p( \mathbf{x}_{0}, \mathbf{x}_{i} )} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ]$$ is mathematically identical to minimizing the $$\mathbb{E}_{p(\mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ] $$.  
+$$\mathbb{E}_{p( \mathbf{x}_{0}, \mathbf{x}_{i} )} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ]$$
+$$= \int \int p( \mathbf{x}_{0}, \mathbf{x}_{i} ) \ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \mathrm{d}\mathbf{x}_{0} \mathrm{d}\mathbf{x}_{i}$$
+$$= \int \int \int p( \mathbf{x}_{0}, \mathbf{x}_{i} ) \ p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \ \mathrm{log}\frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})}{p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})} \mathrm{d}\mathbf{x}_{0} \mathrm{d}\mathbf{x}_{i-1} \mathrm{d}\mathbf{x}_{i}$$
+$$= \int p(\mathbf{x}_{i}) \int p( \mathbf{x}_{0} \mid \mathbf{x}_{i} ) \int p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \ \mathrm{log}\frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})}{p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})} \mathrm{d}\mathbf{x}_{i-1} \mathrm{d}\mathbf{x}_{0} \mathrm{d}\mathbf{x}_{i}$$
+$$= \mathbb{E}_{p(\mathbf{x}_{i})} \left [ \mathbb{E}_{p(\mathbf{x}_{0} \mid \mathbf{x}_{i} )} \left [ \mathbb{E}_{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})} \left [ \mathrm{log}\frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})}{p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})} \right ] \right ] \right ] $$
+$$= \mathbb{E}_{p(\mathbf{x}_{i})} \left [ \mathbb{E}_{p(\mathbf{x}_{0} \mid \mathbf{x}_{i} )} \left [ \mathbb{E}_{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})} \left [ \mathrm{log}\frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})}{p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})} + \mathrm{log}\frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})}{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i})} \right ] \right ] \right ] $$
+$$= \mathbb{E}_{p(\mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ] + \mathbb{E}_{p(\mathbf{x}_{0}, \mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ] $$
+$$= \mathbb{E}_{p(\mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ] + C $$
+($$\mathbb{E}_{p(\mathbf{x}_{0}, \mathbf{x}_{i})} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ]$$ term is independent of parameter $$\phi$$)
+
+Since $$p(\mathbf{x}_{0}, \mathbf{x}_{i-1}, \mathbf{x}_{i})$$ is tractable, we can compute $$\mathbb{E}_{p( \mathbf{x}_{0}, \mathbf{x}_{i} )} \left [ D_{KL} \left ( p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \parallel p_{\phi}(\mathbf{x}_{i-1} \mid \mathbf{x}_{i}) \right ) \right ]$$ in closed form.  
+$$p(\mathbf{x}_{0}, \mathbf{x}_{i-1}, \mathbf{x}_{i}) = p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \ p(\mathbf{x}_{0}, \mathbf{x}_{i}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{0}, \mathbf{x}_{i-1}) \ p(\mathbf{x}_{0}, \mathbf{x}_{i-1})$$
+$$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \ p(\mathbf{x}_{i} \mid \mathbf{x}_{0}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) \ p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0})$$
+$$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) \frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0})}{p(\mathbf{x}_{i} \mid \mathbf{x}_{0})} $$
+
+
+
+
+
+
 ---
 
 The integral over $$\mathbf{z}$$ is intractable: no closed-form solution (analytic integration impossible), numerical integration computationally infeasible.  
