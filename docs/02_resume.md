@@ -33,6 +33,9 @@ nav_order: 2
 
 ## Publications
 
+- **A User-Controllable Color Grading Pipeline for Long Videos**  
+  *IPIU 2026*  
+
 - **Fair Generation without Unfair Distortions: Debiasing Text-to-Image Generation with Entanglement-Free Attention**  
   *ICCV 2025*, [arxiv](https://arxiv.org/abs/2506.13298)  
 

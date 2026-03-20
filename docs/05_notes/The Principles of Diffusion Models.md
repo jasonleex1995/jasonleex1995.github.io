@@ -330,6 +330,10 @@ $$p(\mathbf{x}_{0}, \mathbf{x}_{i-1}, \mathbf{x}_{i}) = p(\mathbf{x}_{i-1} \mid 
 $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) \ p(\mathbf{x}_{i} \mid \mathbf{x}_{0}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) \ p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0})$$
 $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) = p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1}) \frac{p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0})}{p(\mathbf{x}_{i} \mid \mathbf{x}_{0})} $$
 
+By interpolating $$p(\mathbf{x}_{i} \mid \mathbf{x}_{i-1})$$ and $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0})$$, $$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i})$$ is Gaussian with the closed-form expression as below.  
+$$p(\mathbf{x}_{i-1} \mid \mathbf{x}_{0}, \mathbf{x}_{i}) = \mathcal{N}\left ( \mathbf{x}_{i-1}; \ \mu(\mathbf{x}_{0}, \mathbf{x}_{i}, i), \sigma^2(i) \mathbf{I} \right )$$
+$$\mu(\mathbf{x}_{0}, \mathbf{x}_{i}, i) := \frac{\bar{\alpha}_{i-1} \beta_i^2}{1 - \bar{\alpha}_{i}^2} \mathbf{x}_{0} + \frac{(1 - \bar{\alpha}_{i-1}^2) \alpha_i }{1 - \bar{\alpha}_{i}^2} \mathbf{x}_{i}$$
+$$\sigma^2(i) := \frac{1 - \bar{\alpha}_{i-1}^2}{1 - \bar{\alpha}_{i}^2} \beta_i^2$$
 
 
 
