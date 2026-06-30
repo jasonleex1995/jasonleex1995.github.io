@@ -1,0 +1,11 @@
+{
+  "items": [
+    { "type": "drawing", "file": "202606.webp", "date": "2026-06", "caption": "", "alt": "" },
+    { "type": "drawing", "file": "202605.webp", "date": "2026-05", "caption": "", "alt": "" },
+    { "type": "photo", "file": "202606.webp", "date": "2026-06", "caption": "", "alt": "" },
+    { "type": "photo", "file": "202605.webp", "date": "2026-05", "caption": "", "alt": "" },
+    { "type": "photo", "file": "202604.webp", "date": "2026-04", "caption": "", "alt": "" },
+    { "type": "photo", "file": "202603.webp", "date": "2026-03", "caption": "", "alt": "" },
+    { "type": "photo", "file": "202602.webp", "date": "2026-02", "caption": "", "alt": "" }
+  ]
+}

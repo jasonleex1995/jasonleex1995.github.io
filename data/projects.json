@@ -1,0 +1,5 @@
+{
+  "projects": [
+    { "title": "EXIF Frame", "venue": "Side Project", "year": 2026, "url": "projects/exif-frame/", "description": "Reads a JPEG's EXIF and frames the photo with its camera, lens, and shooting settings." }
+  ]
+}

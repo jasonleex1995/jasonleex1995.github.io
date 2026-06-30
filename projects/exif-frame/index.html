@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EXIF Frame &middot; Jason&rsquo;s Blog</title>
+  <meta name="description" content="Add a clean frame with camera and shooting settings to your photos. Runs entirely in your browser.">
+  <link rel="icon" href="../../assets/favicon.ico">
+  <link rel="stylesheet" href="../../styles.css">
+  <style>
+    /* ---- EXIF Frame tool styles ---- */
+    .ef-dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: var(--space-12) var(--space-6);
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease;
+      margin-block: var(--space-6);
+    }
+    .ef-dropzone:hover, .ef-dropzone.is-drag {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+    .ef-dropzone strong { color: var(--fg); font-weight: 600; }
+    .ef-dropzone .ef-hint { display: block; font-size: 0.875rem; margin-top: var(--space-2); }
+
+    .ef-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-6);
+      align-items: center;
+      padding: var(--space-4) 0;
+      border-block: 1px solid var(--border);
+      font-size: 0.9375rem;
+    }
+    .ef-options[hidden] { display: none; }
+    .ef-field { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: 0.875rem; }
+    .ef-text, .ef-num {
+      font: inherit; font-size: 0.875rem;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 8px; background: transparent; color: var(--fg);
+    }
+    .ef-text { width: 130px; }
+    .ef-num { width: 64px; }
+    .ef-text:focus, .ef-num:focus { outline: none; border-color: var(--accent); }
+    .ef-actions { margin-left: auto; display: flex; gap: var(--space-3); }
+
+    .ef-btn {
+      font: inherit; font-size: 0.875rem;
+      border: 1px solid var(--border); background: transparent; color: var(--fg);
+      border-radius: 999px; padding: var(--space-1) var(--space-4); cursor: pointer;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+    .ef-btn:hover { border-color: var(--accent); }
+    .ef-btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .ef-btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .ef-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .ef-results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+      gap: var(--space-8);
+      margin-block: var(--space-8);
+    }
+    .ef-result { display: flex; flex-direction: column; gap: var(--space-3); }
+    .ef-canvas {
+      width: 100%; height: auto; display: block;
+      border-radius: 4px;
+      box-shadow: 0 4px 20px -8px color-mix(in srgb, var(--fg) 30%, transparent);
+    }
+    .ef-result-meta { font-size: 0.8125rem; color: var(--subtle); font-family: var(--font-mono); line-height: 1.5; }
+    .ef-result-actions { display: flex; gap: var(--space-2); }
+
+    .ef-note { font-size: 0.875rem; color: var(--muted); margin-top: var(--space-4); }
+    .ef-empty { color: var(--subtle); margin-block: var(--space-8); }
+  </style>
+</head>
+<body>
+  <div class="site">
+    <header class="site-header">
+      <div class="container">
+        <a href="/" class="site-name">Jason&rsquo;s Blog</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../../resume.html">Resume</a>
+          <a href="../../projects.html" aria-current="page">Projects</a>
+          <a href="../../books.html">Books</a>
+          <a href="../../gallery.html">Gallery</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container" style="max-width: 980px;">
+        <h1>EXIF Frame</h1>
+        <p class="lead muted">
+          Drop in a photo and download it with a clean frame showing the camera and
+          shooting settings — focal length, aperture, shutter, ISO. Everything runs in
+          your browser; nothing is uploaded.
+        </p>
+
+        <div class="ef-dropzone" id="dropzone" role="button" tabindex="0"
+             aria-label="Choose or drop photos">
+          <strong>Click to choose photos</strong>, or drag &amp; drop them here
+          <span class="ef-hint">JPEG keeps the most EXIF data. Other formats still get framed (without settings).</span>
+          <input type="file" id="file-input" accept="image/*" multiple hidden>
+        </div>
+
+        <div class="ef-options" id="options" hidden>
+          <label class="ef-field">Padding
+            <input type="number" id="padding" class="ef-num" value="0" min="0" step="10"> px
+          </label>
+          <label class="ef-field">Location
+            <input type="text" id="location" class="ef-text" autocomplete="off">
+          </label>
+          <label class="ef-field">Artist
+            <input type="text" id="artist" class="ef-text" autocomplete="off">
+          </label>
+          <div class="ef-actions">
+            <button class="ef-btn" id="clear-btn" type="button">Clear</button>
+            <button class="ef-btn ef-btn--primary" id="download-all" type="button">Download all</button>
+          </div>
+        </div>
+
+        <div class="ef-results" id="results"></div>
+        <p class="ef-empty" id="empty">No photos yet — add some above.</p>
+
+        <p class="ef-note">
+          Tip: the frame scales with each photo, so the text stays proportional whether the
+          shot is landscape or portrait. Output is a lossless PNG at the photo&rsquo;s full
+          resolution &mdash; great quality, but the files can be large.
+        </p>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container" style="max-width: 980px;">
+        <span>&copy; Jason Lee</span>
+        <ul class="footer-links">
+          <li><a href="https://github.com/jasonleex1995">GitHub</a></li>
+          <li><a class="email-link" data-user="jasonleex1995" data-domain="gmail.com" href="#">Email</a><script>(function(){var a=document.currentScript.previousElementSibling;a.href='mailto:'+a.dataset.user+'@'+a.dataset.domain;})();</script></li>
+        </ul>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       1. EXIF parser — vanilla, reads what we need from a JPEG.
+       ============================================================ */
+    function parseExif(buffer) {
+      var dv = new DataView(buffer);
+      if (dv.byteLength < 4 || dv.getUint16(0) !== 0xFFD8) return null; // not a JPEG
+      var offset = 2, len = dv.byteLength;
+      while (offset + 4 <= len) {
+        if (dv.getUint8(offset) !== 0xFF) { offset++; continue; }
+        var marker = dv.getUint8(offset + 1);
+        if (marker === 0xD9 || marker === 0xDA) break;       // EOI / start of scan
+        var size = dv.getUint16(offset + 2);
+        if (marker === 0xE1 && str(dv, offset + 4, 4) === 'Exif') {
+          return parseTiff(dv, offset + 10);                  // skip "Exif\0\0"
+        }
+        offset += 2 + size;
+      }
+      return null;
+    }
+
+    function str(dv, pos, n) {
+      var s = '';
+      for (var i = 0; i < n; i++) s += String.fromCharCode(dv.getUint8(pos + i));
+      return s;
+    }
+
+    function parseTiff(dv, tiff) {
+      var little = dv.getUint16(tiff) === 0x4949;
+      var g16 = function (p) { return dv.getUint16(p, little); };
+      var g32 = function (p) { return dv.getUint32(p, little); };
+      var out = {};
+      var ifd0 = tiff + g32(tiff + 4);
+      readIFD(dv, ifd0, tiff, little, g16, g32, out);
+      if (out.exifIFD) readIFD(dv, tiff + out.exifIFD, tiff, little, g16, g32, out);
+      return out;
+    }
+
+    var TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+
+    function readIFD(dv, ifd, tiff, little, g16, g32, out) {
+      var count = g16(ifd);
+      for (var i = 0; i < count; i++) {
+        var e = ifd + 2 + i * 12;
+        var tag = g16(e), type = g16(e + 2), cnt = g32(e + 4);
+        var bytes = (TYPE_SIZE[type] || 1) * cnt;
+        var vp = bytes <= 4 ? e + 8 : tiff + g32(e + 8);
+        var read = function () {
+          switch (type) {
+            case 2: { var s = ''; for (var j = 0; j < cnt; j++) { var c = dv.getUint8(vp + j); if (c === 0) break; s += String.fromCharCode(c); } return s.trim(); }
+            case 3: return g16(vp);
+            case 4: return g32(vp);
+            case 5: { var n = g32(vp), d = g32(vp + 4); return d ? n / d : 0; }
+            case 10: { var ns = dv.getInt32(vp, little), ds = dv.getInt32(vp + 4, little); return ds ? ns / ds : 0; }
+            default: return null;
+          }
+        };
+        switch (tag) {
+          case 0x010F: out.make = read(); break;
+          case 0x0110: out.model = read(); break;
+          case 0x0112: out.orientation = read(); break;
+          case 0x8769: out.exifIFD = g32(e + 8); break;       // pointer to Exif sub-IFD
+          case 0x829A: out.exposureTime = read(); break;
+          case 0x829D: out.fNumber = read(); break;
+          case 0x8827: out.iso = read(); break;
+          case 0x9003: out.dateTimeOriginal = read(); break;
+          case 0x920A: out.focalLength = read(); break;
+          case 0xA432:                                         // LensSpecification: [minF, maxF, minAp, maxAp]
+            if (type === 5 && cnt >= 4) {
+              out.lensSpec = [];
+              for (var k = 0; k < 4; k++) { var ln = g32(vp + k * 8), ld = g32(vp + k * 8 + 4); out.lensSpec.push(ld ? ln / ld : 0); }
+            }
+            break;
+          case 0xA434: out.lens = read(); break;
+        }
+      }
+    }
+
+    /* ============================================================
+       2. Format EXIF into display strings.
+       ============================================================ */
+    // Format EXIF the way the yuru "Strap" theme does:
+    //   settings:  ISO2000 14mm F3.5 1/125s   (order: ISO, focal, F, shutter)
+    //   camera:    Maker Model (de-duplicated)
+    //   date:      YYYY/MM/DD HH:MM:SS
+    function format(exif) {
+      var info = { camera: '', lens: '', settings: '', dateStr: '' };
+      if (!exif) return info;
+
+      var make = (exif.make || '').trim();
+      var model = (exif.model || '').trim();
+      if (model && make && model.toLowerCase().indexOf(make.toLowerCase()) !== 0) {
+        info.camera = make + ' ' + model;
+      } else {
+        info.camera = model || make;
+      }
+      info.lens = (exif.lens || '').trim();
+
+      // lens: prefer the lens model; otherwise derive a focal range from LensSpecification
+      if (!info.lens && exif.lensSpec) {
+        var lo = exif.lensSpec[0], hi = exif.lensSpec[1];
+        var r = function (n) { return (Math.round(n * 10) / 10).toString(); };
+        if (lo) info.lens = (Math.abs(lo - hi) < 0.05 ? r(lo) : r(lo) + '-' + r(hi)) + 'mm';
+      }
+
+      var parts = [];
+      if (exif.iso) parts.push('ISO' + exif.iso);
+      if (exif.focalLength) {
+        var fl = Math.round(exif.focalLength * 10) / 10;   // one decimal, no integer rounding
+        parts.push((fl % 1 === 0 ? fl.toFixed(0) : fl) + 'mm');
+      }
+      if (exif.fNumber) parts.push('F' + (Math.round(exif.fNumber * 10) / 10));
+      if (exif.exposureTime) {
+        var e = exif.exposureTime;
+        parts.push(e >= 1 ? (Math.round(e * 10) / 10) + 's' : '1/' + Math.round(1 / e) + 's');
+      }
+      info.settings = parts.join('  ');
+
+      if (exif.dateTimeOriginal) {                              // date only — no time
+        var d = String(exif.dateTimeOriginal).match(/(\d{4})\D(\d{2})\D(\d{2})/);
+        if (d) info.dateStr = d[1] + '/' + d[2] + '/' + d[3];
+      }
+      return info;
+    }
+
+    /* ============================================================
+       3. Render the framed photo onto a canvas.
+       ============================================================ */
+    // Barlow first (matches the original "Strap" theme); falls back to system sans.
+    var FONT_STACK = '"Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif';
+
+    // ---- brand logos (dark logos, for the white strap) ----
+    var LOGO_NAMES = ['apple', 'canon', 'dji', 'fujifilm', 'hasselblad', 'leica', 'lumix', 'nikon', 'ricoh', 'samsung', 'sony'];
+    var LOGOS = {};
+    var logosPending = LOGO_NAMES.length;
+    LOGO_NAMES.forEach(function (n) {
+      var img = new Image();
+      img.onload = img.onerror = function () { if (--logosPending <= 0 && items.length) renderAll(); };
+      img.src = 'maker/' + n + '.png';
+      LOGOS[n] = img;
+    });
+
+    // Match a brand from the camera string (later rules override earlier ones).
+    function logoFor(cameraStr) {
+      var s = (cameraStr || '').toUpperCase();
+      var rules = [
+        ['APPLE', 'apple'], ['CANON', 'canon'], ['DJI', 'dji'], ['FUJI', 'fujifilm'],
+        ['HASSELBLAD', 'hasselblad'], ['LEICA', 'leica'], ['PANASONIC', 'lumix'], ['LUMIX', 'lumix'],
+        ['NIKON', 'nikon'], ['SAMSUNG', 'samsung'], ['SONY', 'sony'], ['RICOH', 'ricoh']
+      ];
+      var key = null;
+      for (var i = 0; i < rules.length; i++) if (s.indexOf(rules[i][0]) >= 0) key = rules[i][1];
+      var img = key ? LOGOS[key] : null;
+      return (img && img.complete && img.naturalWidth) ? img : null;
+    }
+
+    // "Strap" frame: photo flush, a white strap below it.
+    //   left:  settings (top) / date (bottom)
+    //   right: camera (top) / lens (bottom), with a vertical divider + brand logo to its left
+    function drawFrame(canvas, bitmap, info, opts) {
+      var pw = bitmap.width, ph = bitmap.height;          // full resolution, no downscale
+      var P = Math.max(0, (opts && opts.padding) || 0);   // uniform padding on top/left/right
+      var font = Math.max(13, Math.round(pw * 0.020));
+      var strap = Math.max(Math.round(pw * 0.085), Math.round(font * 3.4));
+      var inset = font;                                   // inset text by one font-size (matches the reference)
+
+      canvas.width = pw + P * 2;
+      canvas.height = P + ph + strap;                     // padding on top; strap at the bottom
+
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, P, P, pw, ph);
+
+      var primary = '#000000', secondary = '#333333';
+      var cy = P + ph + strap / 2;                        // strap centre
+      var y1 = cy - font / 2, y2 = cy + font / 2;
+      var leftX = P + inset, rightX = canvas.width - P - inset;
+      ctx.textBaseline = 'middle';
+
+      // left: settings (top) / date + artist (bottom)
+      ctx.textAlign = 'left';
+      if (info.settings) {
+        ctx.font = '500 ' + font + 'px ' + FONT_STACK; ctx.fillStyle = primary;
+        ctx.fillText(info.settings, leftX, y1);
+      }
+      var artist = (opts && opts.artist) ? opts.artist : '';
+      var location = (opts && opts.location) ? opts.location : '';
+      var leftBottom = [info.dateStr, location, artist ? '@' + artist : ''].filter(Boolean).join('  ');
+      if (leftBottom) {
+        ctx.font = '300 ' + font + 'px ' + FONT_STACK; ctx.fillStyle = secondary;
+        ctx.fillText(leftBottom, leftX, y2);
+      }
+
+      // right: camera (top) / lens (bottom)
+      ctx.textAlign = 'right';
+      var topW = 0, botW = 0;
+      if (info.camera) {
+        ctx.font = '500 ' + font + 'px ' + FONT_STACK; ctx.fillStyle = primary;
+        topW = ctx.measureText(info.camera).width;
+        ctx.fillText(info.camera, rightX, y1);
+      }
+      if (info.lens) {
+        ctx.font = '300 ' + font + 'px ' + FONT_STACK; ctx.fillStyle = secondary;
+        botW = ctx.measureText(info.lens).width;
+        ctx.fillText(info.lens, rightX, y2);
+      }
+
+      // vertical divider + brand logo, just left of the right-hand block
+      if (info.camera || info.lens) {
+        var maxW = Math.max(topW, botW);
+        var dividerX = rightX - maxW - font;
+        ctx.beginPath();
+        ctx.moveTo(dividerX, cy - font);
+        ctx.lineTo(dividerX, cy + font);
+        ctx.strokeStyle = secondary;
+        ctx.lineWidth = Math.max(1, Math.round(font * 0.04));
+        ctx.stroke();
+
+        var logo = logoFor(info.camera);
+        if (logo) {
+          var logoH = Math.round(font * 1.8);
+          var maxLogoW = Math.round(pw * 0.22);
+          var logoW = logo.naturalWidth / logo.naturalHeight * logoH;
+          if (logoW > maxLogoW) { logoW = maxLogoW; logoH = logo.naturalHeight / logo.naturalWidth * logoW; }
+          ctx.drawImage(logo, dividerX - font - logoW, cy - logoH / 2, logoW, logoH);
+        }
+      }
+    }
+
+    /* ============================================================
+       4. App wiring.
+       ============================================================ */
+    var items = [];                         // { name, bitmap, info }
+    var opts = { artist: '', location: '', padding: 0 };
+
+    var dropzone = document.getElementById('dropzone');
+    var fileInput = document.getElementById('file-input');
+    var optionsBar = document.getElementById('options');
+    var resultsEl = document.getElementById('results');
+    var emptyEl = document.getElementById('empty');
+
+    function outName(name) { return name.replace(/\.[^.]+$/, '') + '-framed.png'; }
+
+    async function loadBitmap(file) {
+      try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+      catch (e1) {
+        try { return await createImageBitmap(file); }
+        catch (e2) {
+          return await new Promise(function (res, rej) {
+            var img = new Image();
+            img.onload = function () { res(img); };
+            img.onerror = rej;
+            img.src = URL.createObjectURL(file);
+          });
+        }
+      }
+    }
+
+    async function addFiles(fileList) {
+      var files = Array.prototype.slice.call(fileList).filter(function (f) { return /^image\//.test(f.type); });
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var exif = null;
+        if (/jpe?g/i.test(file.type)) {
+          try { exif = parseExif(await file.arrayBuffer()); } catch (e) { exif = null; }
+        }
+        var bitmap;
+        try { bitmap = await loadBitmap(file); } catch (e) { continue; }
+        items.push({ name: file.name, bitmap: bitmap, info: format(exif) });
+      }
+      renderAll();
+    }
+
+    function renderAll() {
+      var has = items.length > 0;
+      optionsBar.hidden = !has;
+      emptyEl.hidden = has;
+      resultsEl.innerHTML = '';
+      items.forEach(function (it) {
+        var card = document.createElement('div');
+        card.className = 'ef-result';
+
+        var canvas = document.createElement('canvas');
+        canvas.className = 'ef-canvas';
+        drawFrame(canvas, it.bitmap, it.info, opts);
+        card.appendChild(canvas);
+
+        var meta = document.createElement('div');
+        meta.className = 'ef-result-meta';
+        meta.textContent = it.info.camera
+          ? (it.info.camera + (it.info.settings ? '  ·  ' + it.info.settings : ''))
+          : (it.name + ' — no EXIF');
+        card.appendChild(meta);
+
+        var actions = document.createElement('div');
+        actions.className = 'ef-result-actions';
+        var dl = document.createElement('button');
+        dl.className = 'ef-btn ef-btn--primary';
+        dl.textContent = 'Download';
+        dl.addEventListener('click', function () { downloadCanvas(canvas, outName(it.name)); });
+        actions.appendChild(dl);
+        card.appendChild(actions);
+
+        resultsEl.appendChild(card);
+      });
+    }
+
+    function downloadCanvas(canvas, name) {
+      canvas.toBlob(function (blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }, 'image/png');                       // lossless PNG, full resolution
+    }
+
+    /* ---- events ---- */
+    dropzone.addEventListener('click', function () { fileInput.click(); });
+    dropzone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+    fileInput.addEventListener('change', function () { if (fileInput.files.length) addFiles(fileInput.files); fileInput.value = ''; });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.add('is-drag'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.remove('is-drag'); });
+    });
+    dropzone.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+    });
+
+    document.getElementById('artist').addEventListener('input', function () {
+      opts.artist = this.value.trim().replace(/^@+/, '');   // strip any leading @ the user types
+      renderAll();
+    });
+    document.getElementById('location').addEventListener('input', function () {
+      opts.location = this.value.trim();
+      renderAll();
+    });
+    document.getElementById('padding').addEventListener('input', function () {
+      opts.padding = Math.max(0, parseInt(this.value, 10) || 0);
+      renderAll();
+    });
+    document.getElementById('clear-btn').addEventListener('click', function () {
+      items = []; renderAll();
+    });
+    document.getElementById('download-all').addEventListener('click', function () {
+      var canvases = resultsEl.querySelectorAll('.ef-canvas');
+      canvases.forEach(function (c, i) {
+        setTimeout(function () { downloadCanvas(c, outName(items[i].name)); }, i * 400);
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

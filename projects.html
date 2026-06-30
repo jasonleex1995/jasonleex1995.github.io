@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects &middot; Jason&rsquo;s Blog</title>
+  <meta name="description" content="Research projects by Jason Lee, with links to their project pages.">
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site">
+    <header class="site-header">
+      <div class="container">
+        <a href="/" class="site-name">Jason&rsquo;s Blog</a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="resume.html">Resume</a>
+          <a href="projects.html" aria-current="page">Projects</a>
+          <a href="books.html">Books</a>
+          <a href="gallery.html">Gallery</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container">
+        <h1>Projects</h1>
+        <p class="lead muted">Research projects and their pages.</p>
+
+        <div class="project-grid" id="project-list"></div>
+        <p class="muted" id="projects-empty">New project pages will show up here as I publish them.</p>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <span>&copy; Jason Lee</span>
+        <ul class="footer-links">
+          <li><a href="https://github.com/jasonleex1995">GitHub</a></li>
+          <li><a class="email-link" data-user="jasonleex1995" data-domain="gmail.com" href="#">Email</a><script>(function(){var a=document.currentScript.previousElementSibling;a.href='mailto:'+a.dataset.user+'@'+a.dataset.domain;})();</script></li>
+        </ul>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var listEl = document.getElementById('project-list');
+      var emptyEl = document.getElementById('projects-empty');
+
+      function card(p) {
+        var a = document.createElement('a');
+        a.className = 'project-card';
+        a.href = p.url || '#';
+
+        var h = document.createElement('h3');
+        h.className = 'project-title';
+        h.textContent = p.title || '';
+        a.appendChild(h);
+
+        var venue = [p.venue, p.year].filter(Boolean).join(' ');
+        if (venue) {
+          var v = document.createElement('p');
+          v.className = 'project-venue';
+          v.textContent = venue;
+          a.appendChild(v);
+        }
+
+        if (p.description) {
+          var d = document.createElement('p');
+          d.className = 'project-desc';
+          d.textContent = p.description;
+          a.appendChild(d);
+        }
+
+        return a;
+      }
+
+      fetch('data/projects.json', { cache: 'no-cache' })
+        .then(function (r) { if (!r.ok) throw new Error('no manifest'); return r.json(); })
+        .then(function (data) {
+          var projects = Array.isArray(data.projects) ? data.projects : [];
+          if (!projects.length) return;            // keep the empty-state message
+          emptyEl.remove();
+          var frag = document.createDocumentFragment();
+          projects.forEach(function (p) { frag.appendChild(card(p)); });
+          listEl.appendChild(frag);
+        })
+        .catch(function () { emptyEl.textContent = '프로젝트를 불러오지 못했습니다.'; });
+    })();
+  </script>
+</body>
+</html>
