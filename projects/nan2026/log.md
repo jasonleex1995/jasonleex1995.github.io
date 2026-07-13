@@ -1,6 +1,6 @@
 # Game Project — 작업 로그 (log.md)
 
-이 폴더는 웹에서 간단히 플레이할 수 있는 **바닐라 게임** 프로젝트입니다.
+이 폴더는 **NAN 2026 공모전**(nan2026.nhn.com) 사전과제 — *AI를 활용한 게임 제작* — 참가를 목표로 하는, 웹에서 간단히 플레이할 수 있는 **바닐라 게임** 프로젝트입니다.
 이 `log.md`는 게임 기획·구현과 관련된 **나(사용자)의 대답과 Claude의 응답**을 시간순으로 기록합니다.
 
 > **규칙**: 게임 관련 논의가 오갈 때마다, 그 내용(결정·질문·답변·이유)을 이 파일에 이어서 기록한다.
@@ -10,12 +10,13 @@
 
 ## 프로젝트 개요 (확정된 방향)
 
-- **구현 방식**: 별도 repo 없이, 이 블로그 `projects/game/` 안에 **바닐라 HTML/Canvas/JS**로 self-contained 정적 페이지 구현 (기존 `projects/exif-frame/` 패턴과 동일).
+- **목표**: NAN 2026 공모전(nan2026.nhn.com) 사전과제인 *AI 활용 게임 제작*에 참가.
+- **구현 방식**: 별도 repo 없이, 이 블로그 `projects/nan2026/` 안에 **바닐라 HTML/Canvas/JS**로 self-contained 정적 페이지 구현 (기존 `projects/exif-frame/` 패턴과 동일).
 - **이유**:
-  - 플레이 가능 — `https://jasonleex1995.github.io/projects/game/`에서 브라우저로 바로 실행.
+  - 플레이 가능 — `https://jasonleex1995.github.io/projects/nan2026/`에서 브라우저로 바로 실행.
   - 최소 용량 · no legacy — 프레임워크 런타임·`node_modules`·빌드 스텝 없음. 게임 하나가 수십 KB 수준(갤러리 사진 1장보다 작음).
   - 관리 단순 — repo 하나, `data/projects.json` 한 줄로 등록, 블로그 톤(styles.css·footer) 공유.
-- **슬러그**: 임시 `game`. 게임 종류가 정해지면 폴더명(=URL)을 바꿀 수 있음(아직 projects.json 미등록이라 비용 0).
+- **슬러그**: `nan2026` (공모전명 기반). 아직 projects.json 미등록이라 필요 시 폴더명(=URL) 변경 비용 0.
 - **게임 종류**: **미정.** Claude와 차근차근 기획 예정. 용량·단순성 고려 시 에셋 없는 도형 기반 게임(스네이크·2048·테트리스·브레이크아웃 등)이 유력 후보.
 
 ---
