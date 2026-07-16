@@ -53,7 +53,9 @@ function steer(world, slot, eff, dt, retargetOnKill) {
 
   for (let i = 0; i < items.length; i += 1) {
     const b = items[i];
-    if (!b.alive || b.family !== slot.family || b.slot !== slot.index) continue;
+    // §5.3·§9.5 family-키 규칙 — 슬롯 재정렬이 b.slot 을 stale 로 만드므로 family 로만 식별한다
+    // (id==family 1:1 유일 → 조건 하나로 충분·스왑 안전). b.slot 필터는 제거됐다.
+    if (!b.alive || b.family !== slot.family) continue;
 
     // 타겟을 놓쳤는가 = 없거나 / 죽었거나 / 그 풀 슬롯이 **다른 적으로 재사용**됐거나
     const lost = b.target < 0 || !en[b.target].alive || en[b.target].gen !== b.targetGen;

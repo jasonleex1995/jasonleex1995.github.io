@@ -11,7 +11,10 @@
  *   §9.1  core 순수성
  *
  * ★ 값은 전부 rules.player 에서 온다. 이 파일에 4도 6도 0도 없다.
+ * ★ 투자 가능 판정은 elements.js 의 isInvestable 이 **단일 소스**다 (막판 중복 제거).
  */
+
+import { isInvestable } from './elements.js';
 
 const NORMAL = 'normal';
 
@@ -90,7 +93,7 @@ export function tickStance(world, dt) {
  */
 export function investElement(world, element) {
   const rp = world.data.rules.player;
-  if (world.data.elements.investable.indexOf(element) < 0) {
+  if (!isInvestable(world.data.elements, element)) {
     throw new Error(`stance: 투자 가능 속성이 아니다 "${element}" (§4.2 — 노말 +1 카드는 존재하지 않는다)`);
   }
   if (world.player.invest[element] >= rp.elementCapPerElement) return false;

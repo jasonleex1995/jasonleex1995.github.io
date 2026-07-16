@@ -151,8 +151,8 @@ function drawFrom(world, pool, filterCategory) {
 /**
  * §11.1 — 보장 목록. ★ 총 개수는 optionCount − 1 을 넘을 수 없다 (check.mjs S21).
  *   보장되는 것은 「카드의 존재」이지 「플레이어의 선택」이 아니다.
- * ★ 순서: 정본은 두 보장이 동시에 걸릴 때의 추첨 순서를 인쇄하지 않는다 — 보고 대상.
- *   [elementLevel, newWeapon] 고정 순서로 결정론을 확보했다.
+ * ★ §11.1(v1.4) — 두 보장이 동시에 걸릴 때의 추첨 순서 = [elementLevel, newWeapon] 확정
+ *   (비복원이라 순서가 자유 1장 분포를 바꾼다 → 결정성 필수).
  */
 function guarantees(world, pityBefore) {
   const d = world.data.meta.draft;
@@ -211,8 +211,8 @@ function fill(world, draft) {
   const g = guarantees(world, draft.pityBefore);
   for (let i = 0; i < g.length && draft.cards.length < d.optionCount; i += 1) {
     const c = drawFrom(world, pool, g[i]);
-    // ★ 보장 카테고리에 유효 후보가 하나도 없으면(상한 도달 등) 보장은 이행 불가다.
-    //   정본이 이 경우를 말하지 않는다 — 건너뛴다 (보고 대상).
+    // ★ §11.1(v1.4) — 보장 카테고리에 유효 후보가 0이면 그 보장은 **소멸**한다
+    //   (존재할 카드가 없으면 지어내지 않는다, §9.3 폴백 금지) → 건너뛴다.
     if (c !== null) draft.cards.push(c);
   }
 
@@ -249,7 +249,13 @@ export function applyCard(world, card) {
     // §11.1 slotAssign "append" — 가장 앞의 빈 슬롯에 자동 배치
     giveWeapon(world, card.weaponId);
   } else if (card.category === CAT_WEAPON_LEVEL) {
-    levelUpWeapon(world, card.slot);
+    // §5.3 · §9.5 family-키 — 슬롯 재정렬이 card.slot 을 stale 로 만들 수 있다(빈 슬롯 레벨업
+    //   크래시). weaponId(==family, 1:1)로 world.slots 에서 현재 슬롯을 해소해 레벨업한다.
+    let si = -1;
+    for (let i = 0; i < world.slots.length; i += 1) {
+      if (world.slots[i].weaponId === card.weaponId) { si = i; break; }
+    }
+    if (si >= 0) levelUpWeapon(world, si);
   } else if (card.category === CAT_ELEMENT_LEVEL) {
     const first = world.player.invest[card.element] === 0;
     investElement(world, card.element);

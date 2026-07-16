@@ -91,9 +91,12 @@ const EX = (check, n) => { examined[check] = (examined[check] || 0) + n; };
 const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
-  'S30', 'S31', 'S32', 'S33', 'S34', 'S35', 'S36', 'S37', 'S39', 'S40',
+  'S30', 'S31', 'S32', 'S33', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S40',
   'REF',
 ];
+// ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
+//   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
+//   중간보스를 필수로 요구하므로(현재 mbHammer·mbLancer·mbNest 3기) 감시 대상에 편입한다.
 
 // ---------------------------------------------------------------------------
 // 유틸
@@ -408,16 +411,30 @@ function S1_corePurity() {
     }
 
     // (2) import 경계 — src/core/** 는 src/core/** 외 import 금지
-    for (const m of raw.matchAll(/\bfrom\s*['"]([^'"]+)['"]/g)) {
-      const spec = m[1];
+    //   ★ 원문(raw)을 통짜로 훑던 옛 스캐너는 (a) 문자열 리터럴 'from'(예: schema.mjs
+    //     EMIT_COMMON 의 이미터 발사원점 키)·(b) 주석에 인쇄된 import 예시를 core 밖
+    //     import 로 오인해 정상 코드에서 위반을 낼 수 있는 오탐이었다.
+    //   → import/export **문**에 앵커한다: 주석만 지운(문자열은 보존해 스펙시파이어를
+    //     살린) 원문에서, from 앞에 import/export 키워드가 따옴표·세미콜론을 건너뛰지
+    //     않고 실재할 때만 매칭한다. 실제 import(명명·기본·다중행·재export)는 전부 계속
+    //     검사되고, 문자열 키 'from' 은 앞에 키워드가 없어 걸리지 않는다.
+    //   ★ 이 수정으로 schema.mjs 의 `from` 백틱 우회(§8.5 소유 키)가 불필요해진다.
+    const codeForImports = raw
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+    for (const m of codeForImports.matchAll(/\b(?:import|export)\b[^;'"]*?\bfrom\s*(['"])([^'"]+)\1/g)) {
+      const spec = m[2];
       const target = spec.startsWith('.') ? resolve(dirname(f), spec) : spec;
       const inCore = spec.startsWith('.') && !relative(coreDir, target).startsWith('..');
       if (!inCore) V('S1', `${rel}: core 밖 import "${spec}" — src/core/** 는 src/core/** 외 import 금지 (§9.1)`);
     }
 
     // (3) src/core/weapons/** 숫자 리터럴 — 0, 1, -1, 0.5, 2 만
+    //   ★ 식별자 경계 추가: (?<![\w$.]) 로 식별자 속 숫자(스크래치 슬롯 a3 의 3,
+    //     evo* 키 등)를 리터럴로 오인하지 않는다. §9.1 은 튜닝 리터럴을 막는 것이지
+    //     식별자 문자가 아니다. 실제 리터럴(3, 180 등)은 계속 잡힌다.
     if (!relative(join(coreDir, 'weapons'), f).startsWith('..')) {
-      for (const m of code.matchAll(/-?\d+(?:\.\d+)?/g)) {
+      for (const m of code.matchAll(/(?<![\w$.])-?\d+(?:\.\d+)?\b/g)) {
         const lit = m[0];
         if (!WEAPON_NUMERIC_ALLOWED.has(lit)) {
           V('S1', `${rel}: weapons/** 숫자 리터럴 "${lit}" — 허용 = 0, 1, -1, 0.5, 2 뿐 (§9.1)`);
@@ -427,6 +444,13 @@ function S1_corePurity() {
   }
   if (!files.some((f) => /bot\.(m?js)$/.test(f))) {
     SKIP('S1', 'src/core/bot.js 가 아직 없다 (§10.2가 요구하는 8번째 스트림의 거처)');
+  }
+  // ★ 코어-디렉터리 SKIP 과 대칭: weapons/ 디렉터리가 있으나 .js 가 0개면 리터럴
+  //   게이트가 인증 대상 0으로 조용히 통과한다 → 명시적으로 SKIP 발화한다.
+  const weaponsDir = join(coreDir, 'weapons');
+  if (existsSync(weaponsDir)
+    && !files.some((f) => !relative(weaponsDir, f).startsWith('..'))) {
+    SKIP('S1', 'src/core/weapons/ 디렉터리는 있으나 .js 파일이 0개 — 리터럴 게이트가 인증할 무기 모듈이 없다');
   }
 }
 
@@ -467,11 +491,14 @@ function S2_schema() {
   }
 
   // ★ v1.3: player.hpSegment 삭제 (§23.3 — hud.hpBarSegCount 가 칸을 소유한다)
+  // ★ §2.1 healPickupPct(회복 드랍량의 유일한 거처) — data/rules.json + src/core(killEnemy) +
+  //   이 허용목록이 동시 착지하는 교차그룹 계약. data 에 0.35 로 착지됐으므로 required
+  //   (누락=에러, §9.3 폴백 금지)로 잠근다 — 향후 실수로 빠지면 게이트가 짖는다.
   closedKeys('S2', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId', 'startStance',
-    'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement', 'elementCapTotal',
-    'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'startWeaponId',
+    'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
+    'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
   if (has(r.player, 'hpSegment')) {
     V('S2', 'rules.player.hpSegment: 삭제된 키 (§23.3) — 칸당 = hpMax / hud.hpBarSegCount (§2.1)');
   }

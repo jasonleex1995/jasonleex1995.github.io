@@ -66,6 +66,7 @@
     "lowHpThreshold": 0.30,
     "lowHpCriticalThreshold": 0.15,
     "magnetRadius": 90,
+    "healPickupPct": 0.35,
     "startWeaponId": "forward",
     "startStance": "normal",
     "stanceSwitchCooldown": 0.0,

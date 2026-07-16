@@ -88,10 +88,10 @@ export function makeRng(seed) {
   const pick = (arr) => arr[Math.floor(arr.length * f())];
 
   /**
-   * 가중 추첨 → **인덱스**를 돌려준다.
-   * ★ 정본 §10.2는 `weighted(map)`이라 인쇄했으나 §10.3이 "게임플레이 로직에서 Map/Set 순회 금지"를
-   *   강제한다 → 두 문장이 동시에 참일 수 없다. 배열(인덱스 오름차순)이 결정성 규칙과 정합한다.
-   *   (보고 대상 — 정본 결함)
+   * 가중 추첨 → **인덱스**를 돌려준다 (총합 ≤ 0이면 -1).
+   * ★ §10.2(v1.4) 확정 — 시그니처는 `weighted(weights[])`(가중치 배열, 인덱스 오름차순)다.
+   *   v1.3의 `weighted(map)`은 §10.3의 「Map/Set 순회 금지」(순회 순서 비결정)와 자기모순이었고
+   *   정본이 배열로 고쳐 닫았다 — 순회는 인덱스 오름차순, 결정성 규칙과 정합.
    */
   const weighted = (weights) => {
     let total = 0;

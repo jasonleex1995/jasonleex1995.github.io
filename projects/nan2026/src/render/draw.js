@@ -229,7 +229,7 @@ function regular(ctx, x, y, r, n, rot) {
   ctx.closePath();
 }
 
-export function shapePath(ctx, shapeId, x, y, r) {
+function shapePath(ctx, shapeId, x, y, r) {
   switch (shapeId) {
     case 'wedge':  return poly(ctx, x, y, r, [0, 1, -0.9, -0.7, 0, -0.35, 0.9, -0.7]);
     case 'delta':  return poly(ctx, x, y, r, [0, 1, -0.85, -0.6, 0.85, -0.6]);
@@ -765,4 +765,6 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   ctx.restore();
 }
 
-export { rgba, lighten, desaturate, mix, hexToLab, labToHex };
+// rgba 만 외부(main.js)가 쓴다. lighten/desaturate/mix/hexToLab/labToHex/shapePath 는 importer 0 →
+// 모듈-프라이빗으로 강등(죽은 export 표면 제거, 기능 영향 없음)
+export { rgba };

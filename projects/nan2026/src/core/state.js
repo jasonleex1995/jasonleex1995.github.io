@@ -98,6 +98,10 @@ function makePlayerBullet(capEnemies) {
     hitEpoch: 0,
     hitStamp: new Int32Array(capEnemies),
     hitAt: new Float64Array(capEnemies),
+    // ★ hitGen — 적 슬롯이 풀 재사용(release → 새 적 alloc, gen++)되면 같은 idx 라도
+    //   다른 개체다. 관통탄의 재히트 가드가 (hitStamp==hitEpoch && hitGen==e.gen)여야
+    //   재사용된 슬롯의 새 적을 조용히 통과하지 않는다 (seeker.targetGen 방어와 대칭).
+    hitGen: new Int32Array(capEnemies),
     // 패밀리별 스크래치 (부메랑 왕복 · 시커 타겟 등)
     s0: 0, s1: 0, s2: 0, target: -1, targetGen: -1,
   };
@@ -165,7 +169,8 @@ export function recomputeStats(world) {
     if (def.stat === 'elementBonusMul') st.elementBonusMul = v;   // ★ k 는 대입이지 합산이 아니다
     else st[def.stat] += v;
   }
-  // §2.1 — maxHpAdd 는 hpMax 를 직접 바꾼다
+  // §2.1(v1.4) — maxHpAdd(패시브 bulkhead)와 상점 maxhp 는 hpMax 를 직접 바꾸고,
+  //   **모든 hpMax 증가는 그 증가분만큼 hp 를 채운다**(단일 규칙 — 델타만 회복).
   const base = world.data.rules.player.hpMax;
   const prevMax = world.player.hpMax;
   world.player.hpMax = base + world.shopHpAdd + st.maxHpAdd;
@@ -206,16 +211,18 @@ function resolveLevels(def, level, out) {
 /**
  * ★ §9.6.1 — 슬롯의 유효 파라미터를 계산해 slot.eff 에 **제자리로** 쓴다.
  *
- *   src = base ∪ (w.evolved ? evolution.params : {})
+ *   src = resolveLevels(base, level) ∪ (w.evolved ? evolution.params : {})
  *   fireRateMul  : eff[rateKey]  = src[rateKey] / (1 + v)
  *   areaMul      : eff[areaKey]  = src[areaKey] × (1 + v)     // areaKeys 중 src 에 있는 것 전부
- *   pierceAdd    : eff.pierce    = base.pierce + v            // pierceApplies == false 면 무효
- *   projCountAdd : eff[countKey] = base[countKey] + v         // countKey == null 이면 무효 (H4)
+ *   pierceAdd    : eff.pierce    = src.pierce + v             // pierceApplies == false 면 무효
+ *   projCountAdd : eff[countKey] = src[countKey] + v          // countKey == null 이면 무효 (H4)
  *   H3           : projRadius 는 render.playerBulletMaxRadiusPx 로 클램프 (판정·렌더 동시)
  *
- * ★ 여기서 "base" 는 **레벨 오버라이드가 적용된 파라미터 집합**으로 읽었다.
- *   인쇄된 `base` 블록 그대로 읽으면 `levels[].pierce`·`levels[].count` 가 증발한다
- *   (forward Lv5 의 count 2 → 1). 정본에 이 구분이 없다 — 보고 대상.
+ * ★ §9.6.1(v1.4) 확정 — 여기서 `src` 는 **`resolveLevels(base, level)` 로 레벨 오버라이드가
+ *   적용된 유효 파라미터 집합**에 evolution.params 를 합집합한 것이다. 적용 순서 =
+ *   resolveLevels → ∪evolution.params → H1~H4. 「인쇄된 base 블록 그대로 읽으면
+ *   levels[].pierce·count 가 증발한다」던 문면 결함(예: seeker Lv5 count·pierce)을
+ *   정본이 base.* → src.* 로 고쳐 닫았다. 코드(eff = 그 src)는 이미 정합.
  */
 export function recomputeEff(world, slot) {
   if (!slot.effDirty) return slot.eff;
@@ -317,8 +324,8 @@ export function createWorld(opts) {
     time: 0,          // §0.2 — 게임초. 배속은 core 밖(main.js 의 tickDur)에만 있다
 
     player: {
-      x: (bounds.minX + bounds.maxX) / 2,
-      y: bounds.maxY,                       // ★ 시작 좌표는 정본에 없다 — 보고 대상
+      x: (bounds.minX + bounds.maxX) / 2,   // §2.6(v1.4) — 이동 가능 영역 하단 중앙 = (minX+maxX)/2, maxY
+      y: bounds.maxY,                       //   bounds 파생(리터럴 아님) → 새 키 없음. 마커 해소됨
       vx: 0, vy: 0,
       hp: rp.hpMax, hpMax: rp.hpMax,
       defense: rp.defenseBase,
@@ -552,8 +559,8 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy) {
 
 /**
  * §9.9 meta.xp — curve "poly": 레벨 L → L+1 에 필요한 XP = base × L^exp.
- * ★ §13.5 가 누적을 Σ_{L=1}^{53} 6·L^1.32 = 26,450 으로 검산한다 → **레벨별 반올림이 없다.**
- *   (반올림 규칙이 정본에 인쇄되어 있지 않다 — 보고 대상. 누적 검산과 정합하는 유일한 독법을 택했다.)
+ * ★ §9.9(v1.4) 확정 — xpToNext 는 float 다. **레벨별 반올림이 없다**: §13.5 의 누적 검산
+ *   Σ_{L=1}^{53} 6·L^1.32 = 26,450(연속 합)이 이 독법을 강제한다. float 누산, 표시만 정수.
  */
 export function xpToNext(world, level) {
   const xp = world.data.meta.xp;

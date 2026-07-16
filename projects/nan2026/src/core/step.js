@@ -92,8 +92,9 @@ function readInput(world, input, dt) {
   p.dirY = dy;
 
   // §2.7 — 스탠스 전환은 **스턴 중에도 유효하다** ("스턴은 위치를 잠그는 것이지 판단을 잠그는 것이 아니다")
-  // §5.7 — 스탠스 키 동시 입력 → 마지막에 눌린 키.
-  //   ★ 한 틱에 둘 이상이 동시에 상승 엣지면 정본에 순서가 없다 → Q W E R 순으로 훑어 마지막 것을 택한다 (보고 대상)
+  // §5.7(v1.4) — 스탠스 키 동시 입력 → 마지막에 눌린 키.
+  //   ★ 한 틱에 둘 이상이 동시에 상승 엣지면 Q<W<E<R 순 스캔으로 마지막(R 우선)을 채택한다
+  //     (§4.1 키 순서의 결정적 사상 — 정본이 이 순서를 확정했다).
   let want = null;
   if (input.stanceNormal && !prev.stanceNormal) want = NORMAL;
   if (input.stanceFire && !prev.stanceFire) want = 'fire';
@@ -170,6 +171,27 @@ function fireWeapons(world, dt) {
   }
 }
 
+/**
+ * §9.5(v1.4) 무기 런타임 계약 D2 — 플레이어 탄 release 의 유일한 관문.
+ *   (1) b.family 로 현재 슬롯을 해소한다 (world.slots 선형 탐색 · id==family 1:1 · 없으면 스킵)
+ *   (2) 그 family 모듈에 onExpire 가 있으면 release **직전에 정확히 1회** 부른다
+ *       onExpire(world, slot, recomputeEff(world, slot), bullet) — fan 진화 폭발 등.
+ *   (3) playerBullets.release(b)
+ * ★ 탄이 풀로 반환되기 **전에** onExpire 가 불리므로 LIFO 재사용 경합이 구조적으로 불가능하다
+ *   (v1.3 fan.sweepExpired 의 스캔-마커 해킹을 대체). 모든 플레이어 탄 release 는 이 함수 경유.
+ */
+function releasePlayerBullet(world, b) {
+  const fn = world.weaponFns[b.family];
+  if (fn !== undefined && fn.onExpire !== undefined) {
+    let slot = null;
+    for (let i = 0; i < world.slots.length; i += 1) {
+      if (world.slots[i].family === b.family) { slot = world.slots[i]; break; }
+    }
+    if (slot !== null) fn.onExpire(world, slot, recomputeEff(world, slot), b);
+  }
+  world.playerBullets.release(b);
+}
+
 // ---------------------------------------------------------------------------
 // 4. 탄 이동
 // ---------------------------------------------------------------------------
@@ -187,7 +209,7 @@ function moveBullets(world, dt) {
     if (b.age >= b.lifetimeSec
         || b.x < a.x - pad || b.x > a.x + a.w + pad
         || b.y < a.y - pad || b.y > a.y + a.h + pad) {
-      world.playerBullets.release(b);
+      releasePlayerBullet(world, b);          // D2 — 수명 만료·화면 밖도 onExpire 경유
     }
   }
 
@@ -258,11 +280,15 @@ function collide(world, dt) {
 
       // §9.5 — hitCooldownSec: 같은 대상을 다시 때리기까지의 최소 간격.
       //        0.0 = 한 대상에 정확히 1회 (재히트 없음)
-      if (b.hitStamp[e.idx] === b.hitEpoch) {
+      // ★ hitGen — 히트 기록은 (hitEpoch, e.gen) 쌍으로 유효하다. 적 슬롯이 풀 재사용되면
+      //   같은 idx 라도 e.gen 이 올라 다른 개체다 → 스탬프가 살아 있어도 "새 적"으로 취급해
+      //   재히트 가드를 통과시킨다 (재사용 슬롯의 새 적을 관통탄이 조용히 무시하던 손실 차단).
+      if (b.hitStamp[e.idx] === b.hitEpoch && b.hitGen[e.idx] === e.gen) {
         if (b.hitCooldownSec === 0) continue;
         if (world.time - b.hitAt[e.idx] < b.hitCooldownSec) continue;
       }
       b.hitStamp[e.idx] = b.hitEpoch;
+      b.hitGen[e.idx] = e.gen;
       b.hitAt[e.idx] = world.time;
 
       // §4.4 — spawn 은 각인된 값, live(orbit·aura) 는 현재 스탠스를 재평가
@@ -274,7 +300,7 @@ function collide(world, dt) {
       // pierce: -1 = 무제한 (§9.6.1). 0 = 첫 히트에 소멸
       if (b.pierceLeft === -1) continue;
       if (b.pierceLeft > 0) { b.pierceLeft -= 1; continue; }
-      world.playerBullets.release(b);
+      releasePlayerBullet(world, b);          // D2 — 관통 소진도 onExpire 경유
       break;
     }
   }
@@ -290,8 +316,8 @@ function collide(world, dt) {
     const dy = p.y - b.y;
     const rr = rp.hitboxRadius + b.hitRadius;
     if (dx * dx + dy * dy > rr * rr) continue;
-    // ★ i-frame 중이면 탄은 그냥 지나간다 — §2.4 "피격 시 탄 소거: 없음" (보고 대상: 정본이
-    //   "피해를 준 탄이 소멸하는가"를 말하지 않는다. 피해를 준 탄만 소멸시킨다)
+    // §2.4(v1.4) — i-frame 중 통과하는 탄은 소멸하지 않는다. **피해를 실제로 준 그 탄 하나만**
+    //   소멸(아래 release, 실드 흡수 포함). 광역 소거는 폭탄·hitBulletClearRadius 만.
     if (p.iframeSec > 0) continue;
     if (applyHit(world, b.dmg)) {
       if (b.status !== null) applyStatus(world, b.status, b.statusDurationSec);
@@ -359,14 +385,24 @@ function applyStatus(world, status, durSec) {
   throw new Error(`step: 미지의 상태이상 "${status}" (§9.7)`);
 }
 
-/** §8.6 — 처치 보상. chaff·line 은 코인 0 (이것이 LOCKED "일부 잡몹만"의 정의다) */
-function killEnemy(world, e) {
+/**
+ * §8.6 — 처치 보상. chaff·line 은 코인 0 (이것이 LOCKED "일부 잡몹만"의 정의다).
+ * §9.5(v1.4) 무기 런타임 계약 D3 — **step.js 가 export.** 탄 충돌 밖에서 피해를 주는
+ *   무기 모듈(fan 진화 폭발 등)이 import 해서 `if (e.hp <= 0) killEnemy(world, e)` 로 부른다.
+ * ★ 진입 시 `if (!e.alive) return` 으로 **멱등** — 같은 틱에 두 피해원이 부르면 두 번째는 무해.
+ * ★ S11 안전: world.rng.drop 텍스트가 이 파일(step.js)에 잔류하므로 weapons 파일 스캔에 안 걸림.
+ */
+export function killEnemy(world, e) {
+  if (!e.alive) return;                                             // D3 멱등 가드
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
   const band = world.data.enemies.bands[e.band];
   const el = world.data.rules.elite;
+  // §2.1(v1.4) — 회복 픽업의 회복량 = healPickupPct × 드랍 순간 hpMax. 절대량을 value 로 싣는다
+  //   (상점 potion.healPct 결속 해제 · 죽은 인자 제거).
+  const healValue = world.data.rules.player.healPickupPct * world.player.hpMax;
   if (e.elite) {
     spawnPickup(world, 'coin', el.coin, e.x, e.y);                   // 확정 드랍
-    if (world.rng.drop.f() < el.healDropChance) spawnPickup(world, 'heal', 1, e.x, e.y);
+    if (world.rng.drop.f() < el.healDropChance) spawnPickup(world, 'heal', healValue, e.x, e.y);
   } else if (band.coinDropChance > 0 && world.rng.drop.f() < band.coinDropChance) {
     spawnPickup(world, 'coin', band.coin, e.x, e.y);
   }
@@ -380,7 +416,9 @@ function pickups(world, dt) {
   const p = world.player;
   const rp = world.data.rules.player;
   const mag = rp.magnetRadius * (1 + world.shopMagnetPct);
-  const grab = rp.spriteRadius;    // ★ 획득 반경이 정본에 없다 — 스프라이트 반경을 썼다 (보고 대상)
+  // §2.6(v1.4) — 픽업 회수 2단계: magnetRadius 자석 → 획득 반경 = spriteRadius 접촉.
+  //   둘 다 bounds/스프라이트에서 파생되는 구조 규칙(리터럴 아님) → 새 키 없음.
+  const grab = rp.spriteRadius;
   const items = world.pickups.items;
 
   for (let i = 0; i < items.length; i += 1) {
@@ -410,7 +448,9 @@ function collect(world, q) {
   if (q.kind === 'xp') { p.xp += q.value * (1 + world.stats.xpGainMul); return; }      // §9.6 study
   if (q.kind === 'coin') { p.coins += q.value * (1 + world.stats.coinGainMul); return; } // §9.6 salvage
   if (q.kind === 'heal') {
-    p.hp += world.data.meta.shop.potion.healPct * p.hpMax;
+    // §2.1(v1.4) — value 는 이미 절대 회복량(killEnemy 가 healPickupPct×hpMax 로 실었다).
+    //   다른 픽업 value 와 같은 의미(절대량) → hp += value. 상점 결속·죽은 인자 없음.
+    p.hp += q.value;
     if (p.hp > p.hpMax) p.hp = p.hpMax;
     return;
   }

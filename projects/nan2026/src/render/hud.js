@@ -436,5 +436,4 @@ function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH) {
   }
   if (line !== '') text(ctx, world, pal, line, x, cy, px, color, 'left');
 }
-
-export { text as hudText };
+// hudText 별칭은 importer 0 이었다 → 제거(text 는 이 파일 안에서 직접 쓰인다, 모듈-프라이빗)

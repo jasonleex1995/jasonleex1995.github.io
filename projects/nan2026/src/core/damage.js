@@ -10,7 +10,10 @@
  * ★ 이 파일에 숫자 리터럴로 된 밸런스 값이 없다. 전부 주입된 데이터에서 온다.
  * ★ 데미지 경로에서 RNG를 호출하지 않는다 (크리티컬 없음 · 데미지 난수 없음 — §3.1).
  * ★ 적의 방어력은 존재하지 않는다 (§3.1) — 평가할 항 자체가 없다.
+ * ★ §3.1-3항 상성항은 elements.js 의 elementTerm 이 **단일 소스**다 (공식 중복 = drift hazard 차단).
  */
+
+import { elementTerm } from './elements.js';
 
 /**
  * §3.1 — 플레이어 → 적. float 를 돌려준다 (적용은 float 누산, 표시만 반올림 — 6항).
@@ -34,12 +37,9 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
   // 2항 — 가산 풀 → 1회 적용 (곱연산 폭주 방지)
   const dmgMul = 1 + ctx.dmgMulSum;
 
-  // 3항 — 상성. elem > 1 일 때만 resonance 가 증폭한다 (×1 · ×0.5 불변)
-  const row = ctx.matrix[stamp];
-  if (row === undefined) throw new Error(`damage: 미지의 각인 속성 "${stamp}" (§4.1)`);
-  const raw = row[target.element];
-  if (raw === undefined) throw new Error(`damage: 미지의 대상 속성 "${target.element}" (§4.1)`);
-  const elem = raw > 1 ? 1 + (raw - 1) * ctx.elementBonusMul : raw;
+  // 3항 — 상성. elem > 1 일 때만 resonance 가 증폭한다 (×1 · ×0.5 불변).
+  //   공식은 elements.elementTerm 이 소유한다 (미지 속성은 그 안에서 에러 — §4.1 폴백 금지).
+  const elem = elementTerm(ctx.matrix, stamp, target.element, ctx.elementBonusMul);
 
   // 4항 — 코어 소프트 게이트. 살아있는 **armor 타입 부위 수**만 지수에 들어간다 (§3.1 · §8.13)
   const gate = target.isCore ? Math.pow(ctx.coreGateMul, target.aliveArmorPartCount) : 1;

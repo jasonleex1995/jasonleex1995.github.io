@@ -1,12 +1,11 @@
 /**
  * src/core/angle.js
  *
- * ★★ 보고 대상 — 정본에 없는 파일이다. 즉석 결정이 아니라 **강제된 최소 선택**이며 근거를 남긴다.
+ * ★★ §9.1 · §D1(v1.4) 확정 — 이 파일은 이제 정본 §9.1 의 core 목록에 인쇄돼 있고,
+ *   D1 절이 「도→라디안 변환(DEG2RAD = Math.PI/180)과 각도 유틸의 거처 = src/core/angle.js」로
+ *   못박았다. 아래는 그 결정의 원 근거 기록이다 (정본이 인용한 논거와 동일).
  *
- * §9.1 의 core 목록: rng · world · step · damage · collide · weapons/ · emitters ·
- *   enemies · boss · draft · shop · score · stage · status · schema — angle 은 없다.
- *
- * ■ 왜 필요한가 (정본의 두 조항이 충돌한다)
+ * ■ 왜 필요한가 (정본의 두 조항이 충돌했다 → §D1 이 해소)
  *   §9.1 : `src/core/weapons/**` 의 숫자 리터럴 = {0, 1, -1, 0.5, 2} 뿐
  *   §9.5 : 같은 12 패밀리의 파라미터를 **도(degree)** 로 인쇄한다 —
  *          forward.spreadDeg · forward.jitterDeg · fan.arcDeg · seeker.turnRateDegSec ·
@@ -35,9 +34,8 @@
  *   3. 각도 대신 라디안을 weapons.json 에 저작
  *      → §9.5 의 `*Deg` 키 이름과 12행 표가 동결이다. 데이터 변경 = 권한 밖. 기각.
  *
- * ■ 정본 개정 시 이 파일은 사라질 수 있다. 두 처방 중 하나면 된다:
- *   (a) §9.1 이 weapons/** 리터럴 예외로 `Math.PI` 기반 변환을 명문화, 또는
- *   (b) §9.1 의 core 목록에 이 파일(또는 math/util)을 추가.
+ * ■ 정본은 (b)를 택했다: §9.1 의 core 목록에 angle.js 를 추가하고 §D1 이 규칙을 명문화했다.
+ *   weapons/** 의 리터럴 제약 {0,1,-1,0.5,2} 은 그대로이며, 도→라디안 변환만 이 파일 소관이다.
  */
 
 /** 도 -> 라디안. 반 바퀴 = pi 라디안 = 180도 */

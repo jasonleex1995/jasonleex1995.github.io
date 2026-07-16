@@ -90,15 +90,8 @@ const FAMILY_TARGET_MODES = {
 /** §4.4 — elementStampMode. 구조 결정 = 잠금 키 */
 const STAMP_LIVE = ['orbit', 'aura'];
 
-/**
- * §8.5 — 이미터 공통 9 + 타입별 고유.
- * ★ 아래 목록에서 이미터의 발사 원점 키(§8.5, 값 = self | part)만 백틱으로 적은 이유:
- *   tools/check.mjs 의 S1 import 경계 검사는 **원문 전체**를 정규식으로 훑기 때문에,
- *   그 키를 작은따옴표로 적으면 그 자리를 import 문으로 **오인**해 위반을 낸다(오탐).
- *   백틱은 그 정규식의 따옴표 문자 집합에 걸리지 않는다.
- *   (정본 §8.5가 소유한 키 이름이므로 개명할 수 없다 — 보고 대상)
- */
-const EMIT_COMMON = ['id', 'type', 'bulletId', `from`, 'telegraphSec', 'everySec', 'offsetSec',
+/** §8.5 — 이미터 공통 9 + 타입별 고유 (발사 원점 키 from, 값 = self | part) */
+const EMIT_COMMON = ['id', 'type', 'bulletId', 'from', 'telegraphSec', 'everySec', 'offsetSec',
   'repeat', 'restSec'];
 const EMIT_OWN = {
   straight: ['count', 'spreadDeg', 'speed'],
@@ -200,11 +193,12 @@ function checkRules(c, r) {
     c.closed('rules.caps.overflow', r.caps.overflow, ['playerBullet', 'enemyBullet', 'enemy',
       'pickup', 'zone', 'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker']);
   }
+  // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId', 'startStance',
-    'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement', 'elementCapTotal',
-    'weaponSlots', 'passiveSlots', 'lives']);
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'startWeaponId',
+    'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
+    'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
   c.closed('rules.bomb', r.bomb, ['stockStart', 'stockMax', 'iframeSec', 'mobDmg',
     'clearsEnemyBullets', 'clearsDuringBoss', 'bossDmgRatio', 'bossDmgCap']);

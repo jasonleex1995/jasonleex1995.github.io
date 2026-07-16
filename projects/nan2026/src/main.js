@@ -103,6 +103,16 @@ function dropUnimplementedWeapons(world, draft) {
     draft.cards.push({ category: 'resupply', key: `resupply:${draft.cards.length}`,
       id: d.fallback.id, name: d.fallback.name, coins: d.fallback.coins, weight: 0 });
   }
+
+  // ★ 피티 재계산 (§11.1 elementCardPity) — fill()/rerollDraft 는 시임 **전** 카드로 elementPity 를
+  //   정했는데, 위 대체 추첨이 미구현 newWeapon 자리에 elementLevel 카드를 넣을 수 있다. 그러면 최종
+  //   카드셋엔 속성 카드가 있는데 피티가 리셋되지 않아 과다 계상된다(속성 카드 강제 빈발). draft.js 와
+  //   같은 규칙으로 **최종 카드셋** 기준 다시 판정한다. 이 시임(12패밀리 완성 시 삭제)의 결정성 이탈 봉합.
+  let sawElement = false;
+  for (let i = 0; i < draft.cards.length; i += 1) {
+    if (draft.cards[i].category === 'elementLevel') { sawElement = true; break; }
+  }
+  world.elementPity = sawElement ? 0 : draft.pityBefore + 1;
 }
 
 // ---------------------------------------------------------------------------
