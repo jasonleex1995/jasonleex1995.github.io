@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "weapons": [
+    {
+      "id": "forward", "family": "forward", "name": "벌컨", "desc": "정면으로 연사한다. 물고 늘어질수록 빨라진다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":4, "cooldownSec":0.50, "count":1, "projSpeed":420, "projRadius":4,
+                "lifetimeSec":1.6, "pierce":0, "hitCooldownSec":0.0, "targetMode":"forward",
+                "spreadDeg":0, "jitterDeg":1.5, "burstCount":1, "burstIntervalSec":0.07 },
+      "levels": [ {}, {"dmg":5}, {"burstCount":2}, {"dmg":7},
+                  {"count":2,"spreadDeg":6}, {"dmg":9,"cooldownSec":0.44},
+                  {"dmg":10,"pierce":1}, {"burstCount":3,"cooldownSec":0.40} ],
+      "evolution": { "name":"오버드라이브", "desc":"연사를 유지할수록 발사 속도가 오른다. 피격 시 리셋",
+                     "params": { "evoRampSec":3.0, "evoRampFireRateMul":1.55 } }
+    },
+    {
+      "id": "fan", "family": "fan", "name": "팬아웃", "desc": "전방 부채꼴로 흩뿌린다. 붙을수록 많이 박힌다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":3, "cooldownSec":0.70, "count":3, "projSpeed":300, "projRadius":4,
+                "lifetimeSec":1.0, "pierce":0, "hitCooldownSec":0.0, "targetMode":"forward",
+                "arcDeg":40 },
+      "levels": [ {}, {"dmg":4}, {"count":5,"arcDeg":50}, {"dmg":6},
+                  {"count":7,"arcDeg":62,"cooldownSec":0.62}, {"dmg":9},
+                  {"dmg":11,"pierce":1}, {"count":11,"arcDeg":90,"dmg":13} ],
+      "evolution": { "name":"플레어 팬", "desc":"탄이 소멸할 때 작게 터진다",
+                     "params": { "evoBlastRadius":40, "evoSecondaryDmgMul":0.5 } }
+    },
+    {
+      "id": "seeker", "family": "seeker", "name": "시커", "desc": "최근접 적을 자동 추적",
+      "elementStampMode": "spawn",
+      "base": { "dmg":6, "cooldownSec":0.9, "count":1, "projSpeed":190, "projRadius":5,
+                "lifetimeSec":2.4, "pierce":0, "hitCooldownSec":0.2,
+                "turnRateDegSec":220, "acquireRadius":320, "retargetSec":0.3,
+                "targetMode":"nearest" },
+      "levels": [ {}, {"dmg":8}, {"count":2,"dmg":9}, {"dmg":12,"turnRateDegSec":260},
+                  {"count":3}, {"dmg":16,"cooldownSec":0.75}, {"pierce":1},
+                  {"count":4,"dmg":22} ],
+      "evolution": { "name":"스웜", "desc":"각 탄이 서로 다른 타겟을 노린다",
+                     "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true } }
+    },
+    {
+      "id": "lance", "family": "lance", "name": "랜스", "desc": "차지 후 관통선을 쏜다. 줄 세운 만큼 꿴다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":11, "cooldownSec":1.60, "count":1, "pierce":3, "targetMode":"forward",
+                "beamWidthPx":10, "chargeSec":0.35, "rangePx":420 },
+      "levels": [ {}, {"dmg":15}, {"pierce":5,"rangePx":520}, {"dmg":22,"cooldownSec":1.45},
+                  {"dmg":32}, {"count":2,"beamWidthPx":12}, {"dmg":46,"pierce":8},
+                  {"count":3,"dmg":60,"cooldownSec":1.30} ],
+      "evolution": { "name":"레일건", "desc":"아레나 세로 전체를 무제한 관통한다",
+                     "params": { "evoFullHeight":true } }
+    },
+    {
+      "id": "orbit", "family": "orbit", "name": "오빗", "desc": "공전체가 몸 주위를 돈다. 닿는 것을 갈아버린다",
+      "elementStampMode": "live",
+      "base": { "dmg":5, "hitCooldownSec":1.20, "projRadius":7,
+                "orbitRadius":60, "angularSpeedDegSec":90, "bodyCount":2 },
+      "levels": [ {}, {"dmg":7}, {"bodyCount":3}, {"dmg":10,"angularSpeedDegSec":120},
+                  {"bodyCount":4,"orbitRadius":72}, {"dmg":14,"hitCooldownSec":1.00},
+                  {"dmg":18}, {"bodyCount":5,"dmg":20,"hitCooldownSec":0.90} ],
+      "evolution": { "name":"이지스", "desc":"공전체가 닿은 적 탄을 소거한다",
+                     "params": { "evoBulletClearCooldownSec":1.0 } }
+    },
+    {
+      "id": "aura", "family": "aura", "name": "펄스필드", "desc": "몸 주위에 지속 피해장을 편다",
+      "elementStampMode": "live",
+      "base": { "dmg":3, "radius":70, "tickIntervalSec":0.70, "falloff":0.35 },
+      "levels": [ {}, {"dmg":4}, {"radius":88,"tickIntervalSec":0.60}, {"dmg":6},
+                  {"radius":104,"falloff":0.50}, {"dmg":9,"tickIntervalSec":0.50},
+                  {"dmg":12}, {"dmg":20,"radius":120,"tickIntervalSec":0.42,"falloff":0.60} ],
+      "evolution": { "name":"싱귤래리티", "desc":"반경 안의 잡몹을 중심으로 끌어당긴다",
+                     "params": { "evoPullForce":90 } }
+    },
+    {
+      "id": "mine", "family": "mine", "name": "마인필드", "desc": "기뢰를 깔아둔다. 지나가면 터진다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":12, "placeIntervalSec":1.40, "armSec":0.50,
+                "triggerRadius":26, "blastRadius":50, "maxAlive":3 },
+      "levels": [ {}, {"dmg":16}, {"maxAlive":5,"placeIntervalSec":1.20},
+                  {"dmg":24,"blastRadius":60}, {"maxAlive":7,"dmg":30},
+                  {"dmg":42,"placeIntervalSec":1.00,"triggerRadius":32},
+                  {"dmg":58,"blastRadius":72}, {"dmg":80,"maxAlive":10,"placeIntervalSec":0.90} ],
+      "evolution": { "name":"클러스터 마인", "desc":"폭발이 자탄으로 흩어져 2차 폭발한다",
+                     "params": { "evoClusterCount":6, "evoClusterRadius":32, "evoSecondaryDmgMul":0.5 } }
+    },
+    {
+      "id": "boomerang", "family": "boomerang", "name": "리턴", "desc": "던져서 되받는다. 오갈 때 두 번 벤다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":4, "cooldownSec":1.10, "count":1, "projSpeed":260, "projRadius":6,
+                "lifetimeSec":3.0, "pierce":-1, "hitCooldownSec":0.50, "targetMode":"forward",
+                "outRangePx":240, "returnSpeed":320, "canRehit":true },
+      "levels": [ {}, {"dmg":6}, {"count":2,"outRangePx":300}, {"dmg":9,"returnSpeed":380},
+                  {"dmg":12,"cooldownSec":1.00}, {"count":3,"dmg":13},
+                  {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95} ],
+      "evolution": { "name":"체인 리턴", "desc":"귀환 경로가 최근접 적들을 경유한다",
+                     "params": { "evoChainCount":3 } }
+    },
+    {
+      "id": "barrage", "family": "barrage", "name": "바라지", "desc": "아레나 어딘가에 포격이 떨어진다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":40, "cooldownSec":2.20, "targetMode":"randomInArena",
+                "strikeIntervalSec":0.25, "strikesPerVolley":1, "blastRadius":45,
+                "telegraphSec":0.50 },
+      "levels": [ {}, {"dmg":52}, {"strikesPerVolley":2,"cooldownSec":2.05},
+                  {"dmg":68,"blastRadius":52}, {"strikesPerVolley":3,"dmg":74},
+                  {"dmg":92,"cooldownSec":1.90}, {"dmg":110,"blastRadius":58,"telegraphSec":0.45},
+                  {"dmg":118,"cooldownSec":2.40,"targetMode":"densest"} ],
+      "evolution": { "name":"오비탈 스트라이크", "desc":"가장 밀집한 곳을 노리고, 착탄 반경이 두 배가 된다",
+                     "params": { "evoRadiusMul":2.0 } }
+    },
+    {
+      "id": "omni", "family": "omni", "name": "리어가드", "desc": "여러 방향으로 동시에 쏜다. 사각이 없다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":5, "cooldownSec":0.85, "projSpeed":300, "projRadius":4,
+                "lifetimeSec":1.40, "pierce":0, "dirCount":3, "dirOffsetDeg":0, "rearBias":1.0 },
+      "levels": [ {}, {"dmg":7}, {"dirCount":4,"dmg":8},
+                  {"dmg":11,"cooldownSec":0.78,"rearBias":1.30}, {"dirCount":5,"dmg":14},
+                  {"dmg":20}, {"dmg":28,"pierce":1}, {"dirCount":8,"dmg":44,"cooldownSec":0.70} ],
+      "evolution": { "name":"링 버스트", "desc":"발사마다 링이 회전해 사각이 완전히 사라진다",
+                     "params": { "evoRingRotDeg":22.5 } }
+    },
+    {
+      "id": "drone", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 대신 쏜다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":4, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
+                "targetMode":"nearest", "droneCount":1, "anchorOffsets":[[0,-38]],
+                "droneFireSec":0.55, "droneRangePx":260 },
+      "levels": [ {}, {"dmg":5},
+                  {"droneCount":2,"anchorOffsets":[[-34,-22],[34,-22]]},
+                  {"dmg":7,"droneFireSec":0.50}, {"dmg":10},
+                  {"droneCount":3,"anchorOffsets":[[-40,-18],[40,-18],[0,-52]]},
+                  {"dmg":14,"pierce":1},
+                  {"droneCount":4,"dmg":16,"droneFireSec":0.46,
+                   "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]} ],
+      "evolution": { "name":"잔상 편대", "desc":"드론이 내가 지나온 자리를 따라간다",
+                     "params": { "evoTrailDelaySec":2.5 } }
+    },
+    {
+      "id": "nova", "family": "nova", "name": "노바", "desc": "주기적으로 자기 중심에서 대폭발한다",
+      "elementStampMode": "spawn",
+      "base": { "dmg":30, "intervalSec":5.00, "radius":120, "expandSec":0.35, "telegraphSec":0.60 },
+      "levels": [ {}, {"dmg":40}, {"radius":150,"intervalSec":4.50}, {"dmg":60},
+                  {"radius":180,"dmg":75}, {"dmg":110,"intervalSec":4.00},
+                  {"dmg":150,"radius":210}, {"dmg":230,"intervalSec":3.20,"radius":240} ],
+      "evolution": { "name":"슈퍼노바", "desc":"2단 폭발 + 확산 링이 적 탄을 지운다",
+                     "params": { "evoRing2Radius":320, "evoClearBullets":true, "evoSecondaryDmgMul":0.5 } }
+    }
+  ]
+}
