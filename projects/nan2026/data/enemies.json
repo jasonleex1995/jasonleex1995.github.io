@@ -261,7 +261,7 @@
       "hp": 3,
       "xp": 1,
       "score": 10,
-      "themeOnly": "__AMBIGUOUS__"
+      "themeOnly": null
     },
     {
       "id": "swarmLancer",
@@ -277,7 +277,7 @@
       "hp": 4,
       "xp": 1,
       "score": 15,
-      "themeOnly": "__AMBIGUOUS__"
+      "themeOnly": null
     }
   ],
   "emitters": [
@@ -420,7 +420,6 @@
       "offsetSec": 0,
       "repeat": 1,
       "restSec": 0,
-      "chargeSec": 1.2,
       "widthPx": 16,
       "activeSec": 0.5,
       "angleDeg": 90,
@@ -488,7 +487,7 @@
       "id": "hammerFan",
       "type": "fan",
       "bulletId": "heavyRound",
-      "from": "__AMBIGUOUS__",
+      "from": "self",
       "telegraphSec": 1.20,
       "everySec": 6.0,
       "offsetSec": 0.0,
@@ -502,7 +501,7 @@
       "id": "hammerZone",
       "type": "zone",
       "bulletId": null,
-      "from": "__AMBIGUOUS__",
+      "from": "self",
       "telegraphSec": 1.20,
       "everySec": 6.0,
       "offsetSec": 3.0,
@@ -516,13 +515,12 @@
       "id": "lancerLaser",
       "type": "laser",
       "bulletId": "beamCore",
-      "from": "__AMBIGUOUS__",
+      "from": "self",
       "telegraphSec": 1.20,
       "everySec": 5.0,
       "offsetSec": 0.0,
       "repeat": "__AMBIGUOUS__",
       "restSec": "__AMBIGUOUS__",
-      "chargeSec": 1.2,
       "widthPx": 22,
       "activeSec": 0.6,
       "angleDeg": 90,
@@ -532,7 +530,7 @@
       "id": "nestAimed",
       "type": "aimed",
       "bulletId": "homingM",
-      "from": "__AMBIGUOUS__",
+      "from": "self",
       "telegraphSec": 1.20,
       "everySec": 3.2,
       "offsetSec": 0.0,

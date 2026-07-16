@@ -29,7 +29,28 @@
     "pauseGame": true
   },
 
-  "shop": "__AMBIGUOUS__",
+  "shop": {
+    "reroll":    { "basePrice": 30, "growth": 1.60, "maxPurchases": 6, "iconId": "rerollArrows",
+                   "stockMax": 3, "addStock": 1 },
+    "potion":    { "basePrice": 40, "growth": 1.50, "maxPurchases": 8, "iconId": "potionFlask",
+                   "healPct": 0.35 },
+    "bomb":      { "basePrice": 50, "growth": 1.35, "maxPurchases": 5, "iconId": "bombRound",
+                   "addStock": 1 },
+    "shield":    { "basePrice": 60, "growth": 1.50, "maxPurchases": 4, "iconId": "shieldHex",
+                   "stockMax": 2, "addStock": 1 },
+    "timeToken": { "basePrice": 80, "growth": 1.80, "maxPurchases": 2, "iconId": "tokenClock",
+                   "stockMax": 2, "addStock": 1, "addSec": 30 },
+    "defense":   { "basePrice": 45, "growth": 1.45, "maxPurchases": 4, "iconId": "defenseChevron",
+                   "addDefense": 2 },
+    "maxhp":     { "basePrice": 55, "growth": 1.50, "maxPurchases": 4, "iconId": "hpCross",
+                   "addHpMax": 10, "healsSameAmount": true },
+    "movespeed": { "basePrice": 55, "growth": 1.50, "maxPurchases": 3, "iconId": "bootWing",
+                   "addMoveSpeedPct": 0.06 },
+    "magnet":    { "basePrice": 40, "growth": 1.40, "maxPurchases": 3, "iconId": "magnetHorseshoe",
+                   "addMagnetPct": 0.30 },
+    "resist":    { "basePrice": 40, "growth": 1.40, "maxPurchases": 3, "iconId": "resistShield",
+                   "statusDurationPct": -0.20 }
+  },
 
   "score": {
     "superEffectiveDamageShare": 0.5,
@@ -104,6 +125,7 @@
     "runs": 8000,
     "dpsRef": [60, 108, 249, 371, 708, 708],
     "runFarmDpsRatio": 0.83,
+    "m": [1.35, 1.35, 1.43, 1.53, 1.62, 1.62],
     "runMode": {
       "runClearRate":     { "policy": "baseline", "difficulty": "normal", "min": 0.35, "max": 0.65 },
       "bossTimeoutRate":  { "min": 0.02, "max": 0.25 },

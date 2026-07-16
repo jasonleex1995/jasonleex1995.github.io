@@ -55,7 +55,6 @@
 
   "player": {
     "hpMax": 100,
-    "hpSegment": 20,
     "spriteRadius": 14,
     "hitboxRadius": 4,
     "moveSpeed": 280,
@@ -135,8 +134,7 @@
       "partCount": 5,
       "armorPartCount": 3,
       "exemptRules": ["R4", "R6"],
-      "allowNormalPeripheral": true,
-      "armorCoreRatio": "__AMBIGUOUS__"
+      "allowNormalPeripheral": true
     }
   },
 
@@ -146,6 +144,7 @@
     "maxStunSec": 1.0,
     "maxBulletSpeed": 260,
     "maxAimedBulletSpeed": 200,
+    "statusBulletSpeedMul": 0.6,
     "minBulletRadiusPx": 4,
     "minGapWidthPx": 46,
     "minSpawnRadiusPx": 140,
@@ -180,22 +179,23 @@
     "tokenKeycapGatedDisplay": true,
     "stanceHintTargetsMajorityElement": true,
     "icons": ["coinDisc", "xpDiamond", "bombRound", "shieldHex", "tokenClock",
-              "rerollArrows", "statusSlow", "statusStun", "resistShield"]
+              "rerollArrows", "statusSlow", "statusStun", "resistShield",
+              "potionFlask", "defenseChevron", "hpCross", "bootWing", "magnetHorseshoe"]
   },
 
   "passiveHooks": {
-    "forward":   { "rateKey": "cooldownSec",      "countKey": "count",            "pierce": true,  "areaKeys": ["projRadius"] },
-    "fan":       { "rateKey": "cooldownSec",      "countKey": "count",            "pierce": true,  "areaKeys": ["projRadius", "evoBlastRadius"] },
-    "seeker":    { "rateKey": "cooldownSec",      "countKey": "count",            "pierce": true,  "areaKeys": ["projRadius", "acquireRadius"] },
-    "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierce": true,  "areaKeys": ["beamWidthPx", "rangePx"] },
-    "orbit":     { "rateKey": "hitCooldownSec",   "countKey": "bodyCount",        "pierce": false, "areaKeys": ["orbitRadius", "projRadius"] },
-    "aura":      { "rateKey": "tickIntervalSec",  "countKey": null,               "pierce": false, "areaKeys": ["radius"] },
-    "mine":      { "rateKey": "placeIntervalSec", "countKey": "maxAlive",         "pierce": false, "areaKeys": ["blastRadius", "triggerRadius", "evoClusterRadius"] },
-    "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierce": false, "areaKeys": ["outRangePx", "projRadius"] },
-    "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierce": false, "areaKeys": ["blastRadius"] },
-    "omni":      { "rateKey": "cooldownSec",      "countKey": "dirCount",         "pierce": true,  "areaKeys": ["projRadius"] },
-    "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierce": true,  "areaKeys": ["droneRangePx", "projRadius"] },
-    "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierce": false, "areaKeys": ["radius", "evoRing2Radius"] }
+    "forward":   { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius"] },
+    "fan":       { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius", "evoBlastRadius"] },
+    "seeker":    { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius", "acquireRadius"] },
+    "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["beamWidthPx", "rangePx"] },
+    "orbit":     { "rateKey": "hitCooldownSec",   "countKey": "bodyCount",        "pierceApplies": false, "areaKeys": ["orbitRadius", "projRadius"] },
+    "aura":      { "rateKey": "tickIntervalSec",  "countKey": null,               "pierceApplies": false, "areaKeys": ["radius"] },
+    "mine":      { "rateKey": "placeIntervalSec", "countKey": "maxAlive",         "pierceApplies": false, "areaKeys": ["blastRadius", "triggerRadius", "evoClusterRadius"] },
+    "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": ["outRangePx", "projRadius"] },
+    "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierceApplies": false, "areaKeys": ["blastRadius"] },
+    "omni":      { "rateKey": "cooldownSec",      "countKey": "dirCount",         "pierceApplies": true,  "areaKeys": ["projRadius"] },
+    "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": ["droneRangePx", "projRadius"] },
+    "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierceApplies": false, "areaKeys": ["radius", "evoRing2Radius"] }
   },
 
   "input": {
@@ -248,7 +248,6 @@
 
   "visual": {
     "iframeBlinkHz": 8.0,
-    "statusBulletSpeedMul": 0.6,
     "stance": {
       "ringExpandSec": 0.18,
       "ringMaxRadiusPx": 28,
@@ -329,8 +328,7 @@
     "text": {
       "family": "system-ui, -apple-system, 'Malgun Gothic', sans-serif",
       "minPx": 14,
-      "outlinePx": 2,
-      "outlineColor": "#0A0C10"
+      "outlinePx": 2
     }
   },
 
@@ -348,8 +346,7 @@
   },
 
   "audio": {
-    "busGain": { "bgm": 0.5, "sfx": 0.8 },
-    "cueRateLimitPerSec": 12,
-    "bgm": "__AMBIGUOUS__"
+    "busGain": { "sfx": 0.8 },
+    "cueRateLimitPerSec": 12
   }
 }

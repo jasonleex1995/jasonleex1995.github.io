@@ -14,13 +14,13 @@
       "parts": [
         { "id": "thruster", "name": "스러스터", "partType": "mobility", "element": "water",
           "hp": 478, "radius": 22, "anchor": [0, 44], "contactDmg": 14, "shapeId": "fin", "score": 1200,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["mantaThrusterP1"] }, { "emitterIds": ["mantaThrusterP2"] }, { "emitterIds": ["mantaThrusterP3"] } ] },
         { "id": "finL", "name": "좌 지느러미", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 26, "anchor": [-52, 10], "contactDmg": 15, "shapeId": "fin", "score": 1500,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["mantaFinLP1"] }, { "emitterIds": ["mantaFinLP2"] }, { "emitterIds": ["mantaFinLP3"] } ] },
         { "id": "finR", "name": "우 지느러미", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 26, "anchor": [52, 10], "contactDmg": 15, "shapeId": "fin", "score": 1500,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["mantaFinRP1"] }, { "emitterIds": ["mantaFinRP2"] }, { "emitterIds": ["mantaFinRP3"] } ] }
       ]
     },
     {
@@ -36,13 +36,13 @@
       "parts": [
         { "id": "pylon", "name": "서리탑", "partType": "armament", "element": "fire",
           "hp": 478, "radius": 22, "anchor": [0, -38], "contactDmg": 14, "shapeId": "cross", "score": 1300,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["frostCrownPylonP1"] }, { "emitterIds": ["frostCrownPylonP2"] }, { "emitterIds": ["frostCrownPylonP3"] } ] },
         { "id": "crownL", "name": "좌관", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 26, "anchor": [-56, 16], "contactDmg": 15, "shapeId": "spike", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["frostCrownCrownLP1"] }, { "emitterIds": ["frostCrownCrownLP2"] }, { "emitterIds": ["frostCrownCrownLP3"] } ] },
         { "id": "crownR", "name": "우관", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 26, "anchor": [56, 16], "contactDmg": 15, "shapeId": "spike", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["frostCrownCrownRP1"] }, { "emitterIds": ["frostCrownCrownRP2"] }, { "emitterIds": ["frostCrownCrownRP3"] } ] }
       ]
     },
     {
@@ -58,13 +58,13 @@
       "parts": [
         { "id": "turret", "name": "포탑", "partType": "armament", "element": "fire",
           "hp": 478, "radius": 24, "anchor": [0, -40], "contactDmg": 14, "shapeId": "slab", "score": 1300,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["kilnTurretP1"] }, { "emitterIds": ["kilnTurretP2"] }, { "emitterIds": ["kilnTurretP3"] } ] },
         { "id": "plate", "name": "흉갑", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 30, "anchor": [-52, 20], "contactDmg": 15, "shapeId": "ring", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["kilnPlateP1"] }, { "emitterIds": ["kilnPlateP2"] }, { "emitterIds": ["kilnPlateP3"] } ] },
         { "id": "vent", "name": "배기구", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 30, "anchor": [52, 20], "contactDmg": 15, "shapeId": "ring", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["kilnVentP1"] }, { "emitterIds": ["kilnVentP2"] }, { "emitterIds": ["kilnVentP3"] } ] }
       ]
     },
     {
@@ -80,13 +80,13 @@
       "parts": [
         { "id": "carapace", "name": "갑각", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 30, "anchor": [-50, 26], "contactDmg": 15, "shapeId": "slab", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["scarabCarapaceP1"] }, { "emitterIds": ["scarabCarapaceP2"] }, { "emitterIds": ["scarabCarapaceP3"] } ] },
         { "id": "stinger", "name": "침포", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 30, "anchor": [50, 26], "contactDmg": 15, "shapeId": "spike", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["scarabStingerP1"] }, { "emitterIds": ["scarabStingerP2"] }, { "emitterIds": ["scarabStingerP3"] } ] },
         { "id": "legs", "name": "다리마디", "partType": "mobility", "element": "fire",
           "hp": 478, "radius": 20, "anchor": [0, 44], "contactDmg": 14, "shapeId": "claw", "score": 1200,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["scarabLegsP1"] }, { "emitterIds": ["scarabLegsP2"] }, { "emitterIds": ["scarabLegsP3"] } ] }
       ]
     },
     {
@@ -102,13 +102,13 @@
       "parts": [
         { "id": "podL", "name": "좌 꼬투리", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 25, "anchor": [-54, 12], "contactDmg": 15, "shapeId": "orb", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["thornKingPodLP1"] }, { "emitterIds": ["thornKingPodLP2"] }, { "emitterIds": ["thornKingPodLP3"] } ] },
         { "id": "podR", "name": "우 꼬투리", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 25, "anchor": [54, 12], "contactDmg": 15, "shapeId": "orb", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["thornKingPodRP1"] }, { "emitterIds": ["thornKingPodRP2"] }, { "emitterIds": ["thornKingPodRP3"] } ] },
         { "id": "bloom", "name": "화포", "partType": "armament", "element": "grass",
           "hp": 478, "radius": 26, "anchor": [0, -34], "contactDmg": 14, "shapeId": "ring", "score": 1300,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["thornKingBloomP1"] }, { "emitterIds": ["thornKingBloomP2"] }, { "emitterIds": ["thornKingBloomP3"] } ] }
       ]
     },
     {
@@ -124,20 +124,20 @@
       "parts": [
         { "id": "shell", "name": "이끼갑", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 30, "anchor": [-50, 28], "contactDmg": 15, "shapeId": "hexPod", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["mireShellP1"] }, { "emitterIds": ["mireShellP2"] }, { "emitterIds": ["mireShellP3"] } ] },
         { "id": "tendril", "name": "촉수각", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 30, "anchor": [50, 28], "contactDmg": 15, "shapeId": "claw", "score": 2400,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["mireTendrilP1"] }, { "emitterIds": ["mireTendrilP2"] }, { "emitterIds": ["mireTendrilP3"] } ] },
         { "id": "sac", "name": "포자낭", "partType": "armament", "element": "grass",
           "hp": 478, "radius": 22, "anchor": [0, -40], "contactDmg": 14, "shapeId": "orb", "score": 1300,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["mireSacP1"] }, { "emitterIds": ["mireSacP2"] }, { "emitterIds": ["mireSacP3"] } ] }
       ]
     },
     {
       "id": "tetrarch",
       "name": "테트라크",
       "tier": "final",
-      "themeId": "__AMBIGUOUS__",
+      "themeId": null,
       "movePattern": "holdCenter",
       "movePatternParams": { "speedPxSec": 0, "ampPx": 60, "yHoldPx": 160 },
       "armorCoreRatio": 13.58,
@@ -146,30 +146,30 @@
       "parts": [
         { "id": "coffinWater", "name": "물의 관", "partType": "armor", "element": "water",
           "hp": 25800, "radius": 24, "anchor": [-64, 20], "contactDmg": 15, "shapeId": "slab", "score": 2000,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["tetrarchCoffinWaterP1"] }, { "emitterIds": ["tetrarchCoffinWaterP2"] }, { "emitterIds": ["tetrarchCoffinWaterP3"] } ] },
         { "id": "coffinFire", "name": "불의 관", "partType": "armor", "element": "fire",
           "hp": 25800, "radius": 24, "anchor": [64, 20], "contactDmg": 15, "shapeId": "slab", "score": 2000,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["tetrarchCoffinFireP1"] }, { "emitterIds": ["tetrarchCoffinFireP2"] }, { "emitterIds": ["tetrarchCoffinFireP3"] } ] },
         { "id": "coffinGrass", "name": "풀의 관", "partType": "armor", "element": "grass",
           "hp": 25800, "radius": 24, "anchor": [0, 52], "contactDmg": 15, "shapeId": "slab", "score": 2000,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] },
+          "patternSet": [ { "emitterIds": ["tetrarchCoffinGrassP1"] }, { "emitterIds": ["tetrarchCoffinGrassP2"] }, { "emitterIds": ["tetrarchCoffinGrassP3"] } ] },
         { "id": "throne", "name": "왕좌", "partType": "armament", "element": "normal",
           "hp": 5200, "radius": 26, "anchor": [0, -44], "contactDmg": 15, "shapeId": "ring", "score": 1800,
-          "patternSet": [ { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] }, { "emitterIds": ["__AMBIGUOUS__"] } ] }
+          "patternSet": [ { "emitterIds": ["tetrarchThroneP1"] }, { "emitterIds": ["tetrarchThroneP2"] }, { "emitterIds": ["tetrarchThroneP3"] } ] }
       ]
     },
     {
       "id": "mbHammer",
       "name": "파쇄추",
       "tier": "mid",
-      "themeId": "__AMBIGUOUS__",
+      "themeId": null,
       "element": null,
-      "hp": "__AMBIGUOUS__",
+      "hp": 720,
       "radius": 34,
       "shapeId": "slab",
       "contactDmg": 16,
       "moveId": "anchor",
-      "moveParams": { "enterSpeed": 110, "yHoldPx": 150, "swayAmpPx": 190, "leaveAfterSec": "__AMBIGUOUS__" },
+      "moveParams": { "enterSpeed": 110, "yHoldPx": 150, "swayAmpPx": 190 },
       "patternSet": [ { "emitterIds": ["hammerFan", "hammerZone"] } ],
       "summon": null,
       "parts": [],
@@ -182,9 +182,9 @@
       "id": "mbLancer",
       "name": "창병",
       "tier": "mid",
-      "themeId": "__AMBIGUOUS__",
+      "themeId": null,
       "element": null,
-      "hp": "__AMBIGUOUS__",
+      "hp": 600,
       "radius": 28,
       "shapeId": "spike",
       "contactDmg": 15,
@@ -202,14 +202,14 @@
       "id": "mbNest",
       "name": "산란모함",
       "tier": "mid",
-      "themeId": "__AMBIGUOUS__",
+      "themeId": null,
       "element": null,
-      "hp": "__AMBIGUOUS__",
+      "hp": 880,
       "radius": 38,
       "shapeId": "bulb",
       "contactDmg": 14,
       "moveId": "anchor",
-      "moveParams": { "enterSpeed": 40, "yHoldPx": 210, "swayAmpPx": 60, "leaveAfterSec": "__AMBIGUOUS__" },
+      "moveParams": { "enterSpeed": 40, "yHoldPx": 210, "swayAmpPx": 60 },
       "patternSet": [ { "emitterIds": ["nestAimed"] } ],
       "summon": { "archetypeId": "drifter", "count": 3, "everySec": 6.0, "formationId": "scatter" },
       "parts": [],
