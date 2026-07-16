@@ -335,6 +335,17 @@
 - **검증(실행)**: `node tools/check.mjs` → **exit 0** · 16모듈 문법 OK · **결정성 실증**(1800틱 롤링해시 `d3da0302` 두 번 동일, 다른 시드 상이, 8스트림 독립) · **브라우저 회귀 없음**(물 스탠스 = 파란 기체 확인).
 - **남은 것**: 실질 미결 minor 2건(닫힌 결함의 사문 주석 1 · 정본 대장 텍스트 위생). '보고 대상' 10→**10**(9건은 정당한 개방 리포트 = §9.10이 인쇄 안 한 렌더 계층 정본 공백 — 플레이어 기체 도형/색 등, 2주차 렌더 작업 시 닫힘). wontfix 6건은 전부 1주차 소비처 0 또는 코드 이미 정합.
 
+### 2026-07-16 — 모듈 단위 테스트 (순수 core 완전 커버, 뮤테이션 증명)
+
+- **나**: 모듈 하나하나 꼼꼼히 검수하고 넘어가야 규모 있는 서비스를 안정 배포할 수 있다. 버그를 최대한 찾자.
+- **Claude**: core가 **순수**(window/Date/Math.random 없음)라 node에서 함수 단위 검증 가능 — 그 이점을 최대로. `tools/test.mjs`(의존성 0 러너, 단언 0개 = 자동 FAIL로 vacuous 방지) + `tests/*.test.mjs`.
+- **224개 테스트** (11파일): rng·elements·angle·damage·stance·state·step·weapons·draft·schema·invariants(퍼즈). 순수 core 전 export 커버 + step.js 효과 로직 8종(shield·heal·slow·stun·reactive·afterimage·enemyExitForfeit·statusResist) 회귀 가드 + applyHit 격리.
+- **★ "테스트가 통과한다"가 아니라 "테스트가 버그를 잡는다"를 증명** — 뮤테이션 새너티: 코드에 일부러 버그를 심으면 관련 테스트가 실제 FAIL(직접 확인: elementMul 반전 → 14 FAIL / `p.shields>0` 반전 → shield 테스트 FAIL / 되돌리면 green). 원칙: **버그를 잡으면 코드를 고친다, 테스트를 약화하지 않는다.**
+- **회귀 6종 고정**: 관통 hitGen · i-frame 초당1회 · killEnemy 멱등 · fan.onExpire 탄당1회 · 무기 레벨업 증발금지 · 스탠스 슬롯순 → **2주차에 적·보스 얹다 core를 깨면 즉시 빨간불.**
+- **불변식 퍼즈**: 4시드×3600틱 랜덤입력 → HP∈[0,hpMax]·엔티티≤캡·NaN 0·풀 무결·힙증가 0·재현성.
+- **새 프로덕션 버그 0** — 직전 코드 감사(24건)로 이미 청소된 결과(뮤턴트가 테스트 강도 증명). `node tools/test.mjs` exit 0(224/224) · `node tools/check.mjs` exit 0.
+- **남은 리스크(정직)**: 라인커버리지 도구(c8) 미계측 · 동적 밸런스 인증(dominance·dpsProbe 등 STUB 20)은 2주차 `tools/sim.mjs` 필요.
+
 ---
 
 ## 다음 할 일
@@ -358,6 +369,7 @@
 - [x] 문서 정리 — `DESIGN.md`를 입구로 전환(좀비 스펙 제거) + [`design/README.md`](design/README.md) 지도 신설
 - [x] **1주차 프로토타입** — `src/` 착수, 브라우저 플레이 확인, check.mjs exit 0 (S1 발화·통과)
 - [x] 1주차 코드 청소 — 감사 24건 + SILENT 버그(관통 hitGen 등) 수정, 정본 14편집, D1/D2/D3 닫힘, check.mjs exit 0, 브라우저 회귀 0
+- [x] **모듈 단위 테스트 224개** — 순수 core 완전 커버, 뮤테이션 증명, 회귀 6종·효과 8종 고정, test.mjs+check.mjs exit 0
 - [ ] 2주차 — 적/보스/스테이지/상점/점수 = 게임 완성 (`src/core/{collide,bot,enemies,emitters}.js`)
 - [ ] `tools/sim.mjs` — 헤드리스 시뮬 → check.mjs의 **STUB 20건**(동적 게이트) 충족 + AI 밸런싱
 - [ ] AI 콘텐츠 생성 파이프라인 (공모전 'AI 활용 문서'의 핵심)

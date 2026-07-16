@@ -342,8 +342,16 @@ function collide(world, dt) {
 /**
  * §2.4 · §3.2 — 모든 피해원이 공유하는 단 하나의 게이트.
  * @returns 실제로 피해가 적용됐는가 (실드 흡수도 true — 피격 자체는 일어났다)
+ *
+ * ★ export 이유(뮤테이션 가드) — 아래 i-frame 조기반환은 이 함수가 "게이트"라는 계약의 본체다.
+ *   현재 호출자(collide 의 탄·몸통 2경로)는 각기 다른 목적으로 호출 **전에** iframeSec 를 이미
+ *   게이트하므로(§2.4 v1.4 탄 통과 비소멸 · 탄+몸통 이중피격 차단) 이 조기반환은 그 경로들에서는
+ *   도달-무효과다. 그러나 정본이 applyHit 를 "모든 피해원이 공유하는 단 하나의 게이트"로 못박았고,
+ *   풀에 이미 예약된 zone/DoT(makeZone) 같은 미래 피해원은 이 게이트를 경유하게 된다.
+ *   → 가드를 제거해 계약을 약화하는 대신, applyHit 를 직접 호출하는 격리 단위 테스트
+ *     (tests/step.test.mjs "applyHit 격리 게이트")로 이 조기반환을 고정한다.
  */
-function applyHit(world, raw) {
+export function applyHit(world, raw) {
   const p = world.player;
   const rp = world.data.rules.player;
   if (p.iframeSec > 0) return false;              // 게임초당 최대 1회
