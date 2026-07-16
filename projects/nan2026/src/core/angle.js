@@ -1,0 +1,58 @@
+/**
+ * src/core/angle.js
+ *
+ * ★★ 보고 대상 — 정본에 없는 파일이다. 즉석 결정이 아니라 **강제된 최소 선택**이며 근거를 남긴다.
+ *
+ * §9.1 의 core 목록: rng · world · step · damage · collide · weapons/ · emitters ·
+ *   enemies · boss · draft · shop · score · stage · status · schema — angle 은 없다.
+ *
+ * ■ 왜 필요한가 (정본의 두 조항이 충돌한다)
+ *   §9.1 : `src/core/weapons/**` 의 숫자 리터럴 = {0, 1, -1, 0.5, 2} 뿐
+ *   §9.5 : 같은 12 패밀리의 파라미터를 **도(degree)** 로 인쇄한다 —
+ *          forward.spreadDeg · forward.jitterDeg · fan.arcDeg · seeker.turnRateDegSec ·
+ *          orbit.angularSpeedDegSec · omni.dirOffsetDeg · omni.evoRingRotDeg
+ *   삼각함수는 라디안을 먹는다. 변환 상수는 pi/180 이고 **180 은 허용 리터럴이 아니다.**
+ *   → **도를 라디안으로 바꾸는 일이 weapons/** 안에서 표현 불가능하다.**
+ *
+ * ■ 정본이 답하지 않는다: 문서 5,238행에 "라디안"이 **0회**다. 각도의 단위 규약도,
+ *   변환의 거처도, weapons/** 의 리터럴 예외도 인쇄되어 있지 않다.
+ *
+ * ■ 택한 최소 선택: 변환을 weapons/** **밖**에 둔다.
+ *   - §9.1 의 리터럴 금지는 `weapons/**` 로 **스코프가 한정**돼 있다 (core 의 나머지는
+ *     숫자가 합법이다 — step.js 의 `1/60`, rng.js 의 sfc32 상수가 이미 그렇다).
+ *     숫자가 합법인 곳에 상수를 두는 것은 우회가 아니라 **정본 자신의 스코프를 따르는 것**이다.
+ *   - core -> core import 는 허용된다 (§9.1) → 모듈 경계 위반 0.
+ *   - pi/180 은 **밸런스 값이 아니라 수학 상수**다. C-4("밸런서가 .js 를 연다")의 대상이 아니다 —
+ *     이 값을 튜닝할 사람은 존재하지 않는다. weapons/** 의 리터럴 금지가 막으려는 것은
+ *     **튜닝 가능한 수치**이지 단위 변환이 아니다.
+ *
+ * ■ 검토하고 **기각**한 대안
+ *   1. 180 을 허용 리터럴로 조립 (`2*2*2*2*2*2*2 + 2*2*2*2*2 + 2*2*2*2 + 2*2`)
+ *      → 검증기만 통과시키고 매직 넘버를 숨긴다 = 정적 검사의 무력화. 기각.
+ *   2. 변환 상수를 data/*.json 에 새 키로 추가
+ *      → §9.3 "미지 키 = 에러" + S2 폐쇄 스키마 위반. 그리고 밸런스 값이 아닌 것을
+ *        밸런스 파일에 넣는 것이다. 기각.
+ *   3. 각도 대신 라디안을 weapons.json 에 저작
+ *      → §9.5 의 `*Deg` 키 이름과 12행 표가 동결이다. 데이터 변경 = 권한 밖. 기각.
+ *
+ * ■ 정본 개정 시 이 파일은 사라질 수 있다. 두 처방 중 하나면 된다:
+ *   (a) §9.1 이 weapons/** 리터럴 예외로 `Math.PI` 기반 변환을 명문화, 또는
+ *   (b) §9.1 의 core 목록에 이 파일(또는 math/util)을 추가.
+ */
+
+/** 도 -> 라디안. 반 바퀴 = pi 라디안 = 180도 */
+export const DEG2RAD = Math.PI / 180;
+
+/** 한 바퀴(라디안) */
+export const TAU = Math.PI * 2;
+
+/**
+ * 각도차를 [-pi, pi] 로 감는다. 유도(seeker)의 최단 회전 방향 판정에 쓴다.
+ * ★ 순수 함수 — 상태도 시계도 난수도 없다 (§9.1).
+ */
+export function wrapAngle(a) {
+  let r = a;
+  while (r > Math.PI) r -= TAU;
+  while (r < -Math.PI) r += TAU;
+  return r;
+}
