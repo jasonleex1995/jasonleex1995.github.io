@@ -4,17 +4,17 @@
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul","coinGainMul"],
   "passives": [
-    { "id":"overclock",  "name":"오버클럭",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28] },
-    { "id":"warhead",    "name":"탄두 증량",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30] },
-    { "id":"coil",       "name":"확장 코일",    "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36] },
-    { "id":"coating",    "name":"관통 코팅",    "stat":"pierceAdd",           "values":[1,1,2,2,3] },
-    { "id":"autoload",   "name":"다중 장전",    "stat":"projCountAdd",        "values":[0,1,1,1,2] },
-    { "id":"resonance",  "name":"상성 증폭",    "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50] },
-    { "id":"afterimage", "name":"잔광",         "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6] },
-    { "id":"reactive",   "name":"반응 장갑",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180] },
-    { "id":"bulkhead",   "name":"강화 격벽",    "stat":"maxHpAdd",            "values":[6,12,18,24,30] },
-    { "id":"frame",      "name":"경량 프레임",  "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20] },
-    { "id":"study",      "name":"학습 회로",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36] },
-    { "id":"salvage",    "name":"노획 프로토콜","stat":"coinGainMul",         "values":[0.12,0.22,0.30,0.37,0.43] }
+    { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28] },
+    { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30] },
+    { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",    "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36] },
+    { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·마인필드·바라지·노바·리턴에는 무효",    "stat":"pierceAdd",           "values":[1,1,2,2,3] },
+    { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",    "stat":"projCountAdd",        "values":[0,1,1,1,2] },
+    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×2.5까지 증폭 (×1·×0.5는 불변)",    "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50] },
+    { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",         "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6] },
+    { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180] },
+    { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",    "stat":"maxHpAdd",            "values":[6,12,18,24,30] },
+    { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",  "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20] },
+    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36] },
+    { "id":"salvage",    "name":"노획 프로토콜","desc":"획득 코인 증가","stat":"coinGainMul",         "values":[0.12,0.22,0.30,0.37,0.43] }
   ]
 }

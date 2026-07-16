@@ -255,7 +255,7 @@
 | `hexAimed` | `aimed` | `hexBolt` | `self` | **0.80** | 5.5 | `count:1, spreadDeg:0, speed:95, leadSec:0.35` | 0.80 (상태이상) ✔ |
 | `sirenRing` | `ring` | `driftHoming` | `self` | **0.60** | 5.0 | `count:8, speed:95, rotOffsetDeg:22.5` | 0.60 ✔ |
 | `bogSpiral` | `spiral` | `hexBolt` | `self` | **0.80** | 7.0 | `count:10, speed:95, rotStepDeg:26, durationSec:2.0, rateSec:0.2` | 0.80 (상태이상) ✔ |
-| `podLaser` | `laser` | `beamCore` | `self` | **1.20** | 6.0 | `chargeSec:1.2, widthPx:16, activeSec:0.5, angleDeg:90, trackDuringCharge:false` | 1.20 ✔ |
+| `podLaser` | `laser` | `beamCore` | `self` | **1.20** | 6.0 | `widthPx:16, activeSec:0.5, angleDeg:90, trackDuringCharge:false` | 1.20 ✔ |
 | `hulkZone` | `zone` | `null` | `self` | **0.90** | 5.0 | `radius:70, activeSec:3.0, dmg:10` | 0.90 ✔ |
 | `magmaZone` | `zone` | `null` | `self` | **0.90** | 4.0 | `radius:58, activeSec:3.5, dmg:10` | 0.90 ✔ |
 | `frostWall` | `wall` | `frostBrick` | `self` | **0.80** | 7.0 | `count:9, gapCount:1, gapWidthPx:84, speed:105` | 0.80 (wall·상태이상 동률) ✔ |
@@ -630,7 +630,7 @@ mbNest(880 base)를 enemyHpScale로 재면:  880 × 4.5 = 3,960  →  3,960 / 42
 |---|---|---|---|---|---|---|
 | `hammerFan` | `fan` | `heavyRound` | **1.20** | 6.0 | **0.0** | `count:9, arcDeg:120, speed:115` |
 | `hammerZone` | `zone` | `null` | **1.20** | 6.0 | **3.0** | `radius:82, activeSec:3.0, dmg:10` |
-| `lancerLaser` | `laser` | `beamCore` | **1.20** | 5.0 | 0.0 | `chargeSec:1.2, widthPx:22, activeSec:0.6, angleDeg:90, trackDuringCharge:true` |
+| `lancerLaser` | `laser` | `beamCore` | **1.20** | 5.0 | 0.0 | `widthPx:22, activeSec:0.6, angleDeg:90, trackDuringCharge:true` |
 | `nestAimed` | `aimed` | `homingM` | **1.20** | 3.2 | 0.0 | `count:3, spreadDeg:26, speed:90, leadSec:0.4` |
 
 - **`telegraphSec = 1.20` = 정본 §7.4의 "중간보스 패턴 = 전신 자홍 림 라이트, 하한 1.20"** ✔ 전 이미터 준수. `zone`(0.90)·`fan`(0.60)·`aimed`(0.60) 각자의 하한보다 **중간보스 하한이 크므로 1.20이 이긴다** — §3.3의 "두 하한이 겹치면 큰 쪽" 규칙 재적용.
@@ -937,18 +937,45 @@ capstone 없는 최악 빌드 = 순수 ST 4종의 군중 DPS ≈ 1,266
 ```
 부위마다 시드 이미터 1개(type · bulletId · 고유 파라미터)를 저작한다.
 patternSet[p] 의 이미터 (p = 0,1,2):
-  type, bulletId          = 시드 그대로 (★ 타입은 절대 안 바뀐다)
+  id                      = {bossId}{PartIdPascal}P{p+1}          (정본 §9.8.1 — S36)
+  from                    = "part"                                (정본 §8.5 — S28)
+  type                    = 시드 그대로 (★ 타입은 절대 안 바뀐다)
+  bulletId                = 시드 그대로.  ★ 예외 1개: 스턴 부위의 p == 2 → "stunMark" (§10.5 — S13)
   telegraphSec            = 1.50 (고정)
   everySec                = [6.0, 4.5, 3.6][p]
   offsetSec               = everySec × partIndex / P
+  repeat                  = 2                                     ★ v1.3 신설 (아래)
+  restSec                 = everySec                              ★ v1.3 신설 (아래)
   count                   = round(seed.count × [1.0, 1.4, 1.8][p])
   arcDeg / rotStepDeg     = round(seed.value × [1.0, 1.15, 1.30][p])
+  durationSec (spiral만)   = count × rateSec                       ★ v1.3 신설 (아래)
   그 외 파라미터           = 시드 그대로
 ```
 
 - 7 보스 × 주변부 3(최종 4) = **시드 22개** → `patternSet` 전개 시 **이미터 66개**. 손으로 쓰는 것은 22개뿐이고 나머지는 규칙의 인스턴스다.
 - **`speed`는 페이즈 스케일 대상이 아니다** — `fairness.maxBulletSpeed`(260)를 페이즈 스케일이 몰래 넘기는 사고를 원천 차단한다. 페이즈가 올리는 것은 **밀도(`count`)와 빈도(`everySec`)**뿐.
 - 생성 규칙이므로 `data/bosses.json`에는 **전개된 결과**가 들어간다(로더는 규칙을 모른다 = 런타임 코드 0).
+
+**★ `repeat` = 2 · `restSec` = `everySec` — 악절의 값 (v1.3 저작, 정본 §23-D4의 위임분)**
+
+정본 v1.3 §8.5가 **「보스만 `repeat`/`restSec`를 쓴다」를 S30의 동치로 승격**시켰다(`repeat ≥ 2` ∧ `restSec > 0`). v1.2의 이 규칙 블록은 **세 필수 공통 키를 하나도 인쇄하지 않았다** → 「누락 키 = 에러」로 66개가 전부 로드 실패였다.
+
+| | `everySec` | `repeat` | `restSec` | **유효 주기 `EP`** | 보스 전체의 사격 창 | **화력 창(정적)** |
+|---|---|---|---|---|---|---|
+| 페이즈 1 | 6.0 | 2 | 6.0 | **18.0** | 0 ~ 10.0 | **6.5초** |
+| 페이즈 2 | 4.5 | 2 | 4.5 | **13.5** | 0 ~ 7.5 | **4.5초** |
+| 페이즈 3 | 3.6 | 2 | 3.6 | **10.8** | 0 ~ 6.0 | **3.3초** |
+
+- ★ **`EP = 3 × everySec`이 되어 §9.3의 S7 정적 증명이 한 자도 안 바뀌고 성립한다.** `restSec = everySec`이므로 발사 시각이 **`everySec` 격자의 부분집합**(격자 상 `0,1,3,4,6,7…`번 박자)이고, **부분집합은 동시 텔레그래프를 늘릴 수 없다.** 그리고 한 보스의 전 부위가 `repeat`·`restSec`를 공유하므로 **`EP`가 동일** → 정본 §8.5의 「유효 주기가 같으면 위상차가 영구히 유지된다」는 정합 조건을 만족한다. **전수 검산: 7보스 × 3페이즈 = 21셀 전부 최대 1~2 ≤ 2** ✔ (§9.3의 표를 재현)
+- ★ **왜 `repeat`를 페이즈마다 올리지 않는가 (2로 고정)**: 페이즈는 **코어 HP**로만 갈린다(정본 §8.11 `phaseThresholds [0.6, 0.3]`)는데 **코어는 armor의 1/4.9**다 → **페이즈 2·3의 실제 길이는 각 ~10 게임초뿐**이다(정본 §13.6.2: 코어 976 × `bossRamp` ÷ 36 = 33.1초 → 그 30%씩). `repeat`를 2/3/4로 키우면 `EP`가 18.0으로 **고정**되어 ★ **페이즈 2·3에서 `restSec`가 영원히 도달 불가능**해진다 = **플레이어가 코어를 마무리할 창이 정확히 필요한 국면에서 사라진다.** `repeat` 2 고정은 `EP`를 **18.0 → 13.5 → 10.8로 함께 조여** 세 페이즈 **전부에서 악절이 완주**하게 만든다.
+- **압박은 그래도 오른다 (탄 발생률 기준)**: 악절당 보스 사격 수는 6발로 같지만 `EP`가 줄고 `count`가 ×1.4/×1.8이므로 **탄 발생률 = ×1.87 / ×3.00**. 화력 창은 **6.5 → 4.5 → 3.3초**로 조여든다 → 정본 §8.5의 「몰아치고 → 쉰다」가 **읽는 부담은 그대로(항상 1~2개) 여유만 줄어든다**(§9.3)와 **같은 축**이다.
+- **캡 검산**: 보스 페이즈 최대 동시 적 탄 = **78**(`thornKing` P3) ≪ A층 `maxSimultaneousEnemyBullets` **320** ≪ B층 `caps.enemyBullets` **384** → 보스전 `capHits = 0`이 여전히 자명하다.
+
+**★ `durationSec` = `count × rateSec` — `spiral`의 삼중 필드 정합 (v1.3 저작)**
+
+★ **v1.2의 이 규칙 블록은 `spiral`에서 자기모순이었다**: `count`를 ×1.4/×1.8로 키우면서 `durationSec`·`rateSec`를 **「그 외 = 시드 그대로」**로 묶었는데, ★ **저작된 `spiral` 시드 2개가 `count × rateSec == durationSec`를 정확히 만족한다** (`bogSpiral` 10 × 0.2 = 2.0 · `crownR` 8 × 0.25 = 2.0). 규칙대로 전개하면 `crownR` P2가 **11 × 0.25 = 2.75 ≠ 2.0**이 되어 **세 필드가 갈라진다** → 엔진이 「탄을 자르는가 시간을 늘리는가」를 **런타임에 결정**해야 한다 = **C-6(구현자의 즉석 결정) 위반.**
+- **처분**: `rateSec`(= 나선의 결, 고유 파라미터)를 **시드에 고정**하고 `durationSec`를 **`count`에서 파생**시킨다. → **P1은 시드값을 정확히 재현**(2.0 = 8 × 0.25 = 10 × 0.2)하므로 **새 값 0**이고, 페이즈가 올리는 것은 여전히 **밀도뿐**이다.
+- **귀결**: `crownR` **2.0 / 2.75 / 3.5** · `sac` **2.0 / 2.8 / 3.6**. ★ `sac` P3의 `durationSec`(3.6) == `everySec`(3.6) = **악절의 2박 동안 나선이 끊기지 않는다** — 늪주 페이즈 3이 이 게임에서 가장 압박이 센 국면이 되는 것은 **의도다**: `sac`는 `armament`이고 **8.1초면 끌 수 있으며**(§10.5), 그것이 정본 §8.12의 「`armament`의 페이오프」가 **런에서 가장 큰 값**이 되는 지점이다.
 
 ### 9.5 ★ 보스 HP 모델 — **정본 §13.6이 소유한다 (인용)**
 
@@ -1179,7 +1206,7 @@ R5: armor 부위 속성 ≠ 테마 속성 · 투자 가능 속성은 3종
 `movePattern: "holdCenter"`, `movePatternParams: {"speedPxSec":0,"ampPx":40,"yHoldPx":150}`, `armorCoreRatio: 4.90`
 ★ **S18 준수**: `holdCenter`이므로 **`mobility` 부위를 가질 수 없다** — 이 보스는 갖지 않는다 ✔ (정본 §8.12.1: `ampPx`가 애초에 작아 파괴 효과가 무의미한 부위 = **트레이드오프가 거짓인 부위**)
 
-**시드 이미터**: `turret` = `laser`/`beamCore`/`chargeSec:1.5, widthPx:20, angleDeg:90, activeSec:0.6, trackDuringCharge:true` · `plate` = `ring`/`heavyRound`/`count:10, speed:115, rotOffsetDeg:18` · `vent` = `zone`/`null`/`radius:76, activeSec:3.0, dmg:10`
+**시드 이미터**: `turret` = `laser`/`beamCore`/`widthPx:20, angleDeg:90, activeSec:0.6, trackDuringCharge:true` · `plate` = `ring`/`heavyRound`/`count:10, speed:115, rotOffsetDeg:18` · `vent` = `zone`/`null`/`radius:76, activeSec:3.0, dmg:10`
 
 **산술 검증** (전 6종이 같은 HP이므로 §10.2의 표와 **완전히 동일**하다 — 다른 것은 속성 배치뿐)
 
