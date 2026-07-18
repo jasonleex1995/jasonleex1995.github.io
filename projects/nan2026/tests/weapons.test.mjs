@@ -12,7 +12,10 @@
  *             / onExpire 정확히 1회(회귀 ④: release 경로 LIFO 재사용에도 탄당 1회)
  *   seeker  — 유도(각 오차 감소) / turnRate 클램프(정확히 turnRateDegSec·dt) / retarget
  *             (evolved=온-킬 즉시 / 비evolved=주기 전 직진) / distinct 타겟(evolved)
- *   ★ 리터럴 계약 — 세 파일 소스 파싱: 주석·문자열 제거 후 숫자 리터럴 ⊆ {0,1,-1,0.5,2}
+ *   omni    — 링 주기 = cooldownSec / dirCount 360° 균등 / rearBias(뒤 탄만) / 링 버스트 회전 격리
+ *   boomerang — 투척 주기 / pierce -1·hitCooldownSec(두 번 벤다) / OUT→RETURN 전환 / 회수(age→lifetime)
+ *             / 체인 리턴 경유 격리(evolved)
+ *   ★ 리터럴 계약 — 다섯 파일 소스 파싱: 주석·문자열 제거 후 숫자 리터럴 ⊆ {0,1,-1,0.5,2}
  */
 
 import { readFileSync } from 'node:fs';
@@ -28,6 +31,8 @@ import { weapons } from '../src/core/weapons/index.js';
 import forward from '../src/core/weapons/forward.js';
 import fan from '../src/core/weapons/fan.js';
 import seeker from '../src/core/weapons/seeker.js';
+import omni from '../src/core/weapons/omni.js';
+import boomerang from '../src/core/weapons/boomerang.js';
 import { DEG2RAD, wrapAngle } from '../src/core/angle.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -376,6 +381,177 @@ suite('weapons/seeker', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// omni (리어가드) — 360° 방사 · rearBias · 링 버스트(회전)
+// ══════════════════════════════════════════════════════════════════════════
+suite('weapons/omni', () => {
+  test('링 주기 = cooldownSec (첫 링 즉시)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'omni', 1, false);
+    const ev = volleyTicks(omni, w, s, eff, 120);
+    assert.eq(ev[0], 0, '첫 링은 첫 틱에 즉시');
+    assert.gte(ev.length, 2, '2초 안에 최소 2링');
+    assert.near((ev[1] - ev[0]) * dt, eff.cooldownSec, dt * 2, '링 간격 = cooldownSec');
+  });
+
+  test('링 = dirCount 발이 360°에 균등 (원형 간격 = 360/dirCount)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'omni', 1, false);       // dirCount 3
+    assert.gte(eff.dirCount, 3, 'omni 는 방사');
+    omni.update(w, s, eff, dt);
+    const b = liveBullets(w);
+    assert.eq(b.length, eff.dirCount, 'dirCount 만큼 스폰');
+    const hs = b.map((x) => ((headingDeg(x) % 360) + 360) % 360).sort((p, q) => p - q);
+    const gap = 360 / eff.dirCount;
+    for (let i = 1; i < hs.length; i += 1) assert.near(hs[i] - hs[i - 1], gap, 1e-6, `간격 균일 @${i}`);
+    assert.near(360 - hs[hs.length - 1] + hs[0], gap, 1e-6, '랩어라운드 간격도 = 360/dirCount');
+  });
+
+  test('rearBias: 뒤(vy>0)로 나가는 탄만 localMul=rearBias, 앞은 1 (Lv5 = 수평 경계 없음)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'omni', 5, false);       // dirCount 5 · rearBias 1.3 (정확 수평 탄 없음)
+    assert.gt(eff.rearBias, 1, 'Lv5 rearBias > 1 (양성 경로)');
+    omni.update(w, s, eff, dt);
+    let rear = 0; let front = 0;
+    for (const x of liveBullets(w)) {
+      if (x.vy > 0) { assert.near(x.localMul, eff.rearBias, 1e-9, '뒤 탄 = rearBias'); rear += 1; }
+      else { assert.near(x.localMul, 1, 1e-9, '앞·옆 탄 = 1'); front += 1; }
+    }
+    assert.gt(rear, 0, '뒤로 나가는 탄이 실제로 있다');
+    assert.gt(front, 0, '앞으로 나가는 탄도 있다');
+  });
+
+  test('rearBias 좌우 대칭(Lv4 짝수 dirCount·수평 경계): 수평 탄은 둘 다 front, 정확히 아래 탄만 rear', () => {
+    // 회귀 — vy>0 부동소수 판정은 수평 탄(a=±90°)을 좌우 비대칭으로 갈랐다. 각도 판정으로 대칭 고정.
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'omni', 4, false);       // dirCount 4 → 정확 수평 탄 2발 · rearBias 1.3
+    assert.eq(eff.dirCount, 4, 'Lv4 dirCount 4 (짝수)');
+    assert.gt(eff.rearBias, 1, 'Lv4 rearBias > 1 (양성 경로)');
+    omni.update(w, s, eff, dt);
+    const b = liveBullets(w);
+    const horiz = b.filter((x) => Math.abs(x.vy) < eff.projSpeed * 0.5);  // 수평 ≈ 2발
+    const rear = b.filter((x) => x.vy > eff.projSpeed * 0.5);             // 분명히 아래 = 1발
+    assert.eq(horiz.length, 2, '수평 탄 2발(좌·우)');
+    for (const x of horiz) assert.near(x.localMul, 1, 1e-9, '수평 탄은 front(=1) — 좌우 대칭');
+    assert.eq(rear.length, 1, '분명히 아래로 가는 탄 1발');
+    assert.near(rear[0].localMul, eff.rearBias, 1e-9, '아래 탄만 rearBias');
+  });
+
+  test('진화 격리(링 버스트): evolved 는 볼리마다 a0 회전 누적, 비evolved 는 a0 불변(=0)', () => {
+    const wn = mkWorld();
+    const n = setup(wn, 'omni', 1, false);
+    for (let t = 0; t < 200; t += 1) omni.update(wn, n.s, n.eff, dt);
+    assert.eq(n.s.a0, 0, '비evolved 는 a0(링 회전)을 건드리지 않는다');
+
+    const we = mkWorld();
+    const e = setup(we, 'omni', 1, true);
+    omni.update(we, e.s, e.eff, dt);                      // 첫 링 + a0 += evoRingRotDeg
+    assert.near(e.s.a0, e.eff.evoRingRotDeg * DEG2RAD, 1e-9, 'evolved: 한 볼리 = a0 += evoRingRotDeg(rad)');
+    assert.gt(e.s.a0, 0, 'evolved 는 링이 회전한다');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// boomerang (리턴) — 나갔다 돌아온다 · 두 번 벤다(pierce -1·hitCooldownSec) · 체인 리턴
+// ══════════════════════════════════════════════════════════════════════════
+suite('weapons/boomerang', () => {
+  /** moveBullets 를 흉내내 궤적을 전진시키는 미니 적분 (steer 격리용) */
+  function integrate(world, ticks, s, eff) {
+    for (let t = 0; t < ticks; t += 1) {
+      boomerang.update(world, s, eff, dt);
+      const it = world.playerBullets.items;
+      for (let i = 0; i < it.length; i += 1) { const b = it[i]; if (b.alive) { b.x += b.vx * dt; b.y += b.vy * dt; } }
+    }
+  }
+
+  test('투척 주기 = cooldownSec, 던진 탄은 pierce -1·hitCooldownSec 을 실어 두 번 벤다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'boomerang', 1, false);
+    assert.eq(eff.count, 1, 'Lv1 count 1');
+    const ev = volleyTicks(boomerang, w, s, eff, 150);
+    assert.eq(ev[0], 0, '첫 투척 즉시');
+    const b = liveBullets(w)[0];
+    assert.eq(b.pierceLeft, -1, '무제한 관통(pierce -1) = 왕복 재타격의 전제');
+    assert.near(b.hitCooldownSec, eff.hitCooldownSec, 1e-9, 'hitCooldownSec 실림 = collide 재타격 게이트');
+  });
+
+  test('나갔다 돌아온다: 원점서 outRangePx 벗어나면 귀환 국면 전환', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'boomerang', 1, false);
+    s.cooldownT = 1e9;                                    // 재투척 봉쇄 (탄 1발만 관찰)
+    const p = w.player;
+    const b = spawnPlayerBullet(w, s, eff, p.x, p.y, 0, -eff.projSpeed, 1);
+    b.s0 = 0; b.s1 = p.x; b.s2 = p.y;
+    boomerang.update(w, s, eff, dt);
+    assert.eq(b.s0, 0, '원점 근처 = 아직 나가는 중(OUT)');
+    assert.lt(b.vy, 0, 'OUT = 위로 직진 (vy<0)');
+    integrate(w, 200, s, eff);                            // 원점서 충분히 멀어지도록 전진
+    assert.eq(b.s0, 1, 'outRangePx 초과 → 귀환(RETURN) 전환');
+  });
+
+  test('귀환 도달 = 회수: 플레이어 근처의 귀환 탄은 age→lifetime (moveBullets 가 반납)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'boomerang', 1, false);
+    s.cooldownT = 1e9;
+    const p = w.player;
+    const b = spawnPlayerBullet(w, s, eff, p.x, p.y - eff.projRadius * 0.5, 0, -eff.projSpeed, 1); // 플레이어 반경 내
+    b.s0 = 1; b.s1 = 0;                                   // 이미 귀환·경유 없음
+    assert.lt(b.age, b.lifetimeSec, '아직 만료 전 (양성 경로)');
+    boomerang.update(w, s, eff, dt);
+    assert.eq(b.age, b.lifetimeSec, '플레이어 도달 → age=lifetime');
+  });
+
+  test('진화 격리(체인 리턴): evolved 귀환은 최근접 적을 경유(target 확보), 비evolved 는 곧장 플레이어로', () => {
+    const we = mkWorld();
+    const e = setup(we, 'boomerang', 5, true);            // Lv5 evolved
+    e.s.cooldownT = 1e9;
+    const p = we.player;
+    const en = addEnemy(we, p.x + 120, p.y - 40);
+    const b = spawnPlayerBullet(we, e.s, e.eff, p.x, p.y - 200, 0, -e.eff.projSpeed, 1);
+    b.s0 = 1; b.s1 = e.eff.evoChainCount; b.s2 = -1; b.target = -1; b.targetGen = -1; // s2=-1 = 실제 RETURN 진입 상태
+    boomerang.update(we, e.s, e.eff, dt);
+    assert.gte(b.target, 0, 'evolved 귀환은 경유 적을 확보한다');
+    assert.eq(b.target, en.idx, '최근접 적을 경유 타겟으로');
+
+    const wn = mkWorld();
+    const n = setup(wn, 'boomerang', 5, false);
+    n.s.cooldownT = 1e9;
+    const pn = wn.player;
+    addEnemy(wn, pn.x + 120, pn.y - 40);
+    const bn = spawnPlayerBullet(wn, n.s, n.eff, pn.x, pn.y - 200, 0, -n.eff.projSpeed, 1);
+    bn.s0 = 1; bn.s1 = 0; bn.target = -1; bn.targetGen = -1;
+    boomerang.update(wn, n.s, n.eff, dt);
+    assert.eq(bn.target, -1, '비evolved 는 경유 타겟을 잡지 않는다 (직귀환)');
+  });
+
+  test('체인 진행(회귀): 방금 경유한 적을 제외하고 다음 적으로 — 한 적 붕괴 방지', () => {
+    // 회귀 — 재획득이 직전 적을 제외하지 않으면 아직 rr 안인 같은 적에 evoChainCount 를 몰아
+    //   ~3틱만에 소진해 체인이 한 적으로 붕괴했다. s2(직전 경유 적) 제외로 다음 적으로 진행.
+    const w = mkWorld();
+    const e = setup(w, 'boomerang', 8, true);            // Lv8 evolved (evoChainCount 3)
+    e.s.cooldownT = 1e9;
+    const p = w.player;
+    const A = addEnemy(w, p.x, p.y - 100);               // 가까운 적
+    const B = addEnemy(w, p.x + 220, p.y - 100);         // 멀리 떨어진 다른 적
+    const b = spawnPlayerBullet(w, e.s, e.eff, A.x, A.y, 0, e.eff.returnSpeed, 1); // A 의 rr 안
+    b.s0 = 1; b.s1 = e.eff.evoChainCount; b.s2 = -1; b.target = -1; b.targetGen = -1;
+
+    boomerang.update(w, e.s, e.eff, dt);                 // 1틱: A 경유(도달)
+    assert.eq(b.s2, A.idx, 'A 를 경유했음을 기억(s2=A)');
+    assert.eq(b.s1, e.eff.evoChainCount - 1, '경유 카운트 정확히 1 감소 (이중감소 없음)');
+
+    boomerang.update(w, e.s, e.eff, dt);                 // 2틱: 재획득 — A 제외 → B
+    assert.eq(b.target, B.idx, '직전 적(A) 제외 → 다음 적(B)로 진행 (한 적 재붕괴 없음)');
+  });
+
+  test('음성: 계약 밖 targetMode 는 소리내어 실패 (§9.3 폴백 금지)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'boomerang', 1, false);
+    eff.targetMode = 'nearest';
+    assert.throws(() => boomerang.update(w, s, eff, dt), '계약 밖 targetMode → throw');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // 리터럴 계약 (§9.1) — check.mjs S1 스캐너를 재현해 소스에서 직접 검증
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/리터럴 계약 §9.1', () => {
@@ -396,7 +572,7 @@ suite('weapons/리터럴 계약 §9.1', () => {
     return out;
   }
 
-  for (const file of ['forward.js', 'fan.js', 'seeker.js']) {
+  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js']) {
     test(`${file}: 숫자 리터럴 ⊆ {0,1,-1,0.5,2}`, () => {
       const lits = literals(file);
       assert.gt(lits.length, 0, '스캐너가 실제로 리터럴을 봤다 (vacuous 아님)');
