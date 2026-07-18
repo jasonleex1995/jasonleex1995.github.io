@@ -248,8 +248,10 @@ function makeAudio(rules) {
     o.frequency.setValueAtTime(1900, t0);
     env(o, ctx.createGain(), t0, 0.22, 0.04);
   }
-  function tin(t0) {                                             // ×0.5 — 비조화 2부분음 = 금속감
-    const parts = [[2100, 0.30, 0.18], [3170, 0.16, 0.14]];
+  function tin(t0) {                                             // ×0.5 — 비조화 3부분음 = 금속 튕김("틴")
+    // ★ 시각 강화(두꺼운 회색 방패 + 본체 차폐 플래시)에 맞춰 살짝 더 또렷하게: 밝은 어택 트랜지언트
+    //   1개 추가 + 기본 부분음 게인 소폭 상향. 여전히 비조화·고역·저역 없음 = "안 통함"(super 저역 크런치와 대비).
+    const parts = [[2100, 0.38, 0.20], [3170, 0.20, 0.15], [4600, 0.12, 0.05]];
     for (let i = 0; i < parts.length; i += 1) {
       const o = ctx.createOscillator();
       o.type = 'sine';

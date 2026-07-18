@@ -338,6 +338,8 @@ export function makeFx(world) {
     // 개체(idx)별 상태 — gen 으로 풀 재사용 슬롯을 구분한다(다른 개체엔 안 샌다)
     freezeT: new Float64Array(capE),              // §7.7 ×2 임팩트 프리즈 잔여(게임초)
     freezeGen: new Int32Array(capE).fill(-1),
+    resistT: new Float64Array(capE),              // §7.7 ×0.5 본체 회색 차폐 플래시 잔여(게임초)
+    resistGen: new Int32Array(capE).fill(-1),
     markerT: new Float64Array(capE),              // §7.7 markerCooldownSecPerEntity 잔여
     markerGen: new Int32Array(capE).fill(-1),
     markerRank: new Int8Array(capE),              // 이 창에서 이미 보인 최고 tier(maxOnly)
@@ -380,6 +382,7 @@ function updateHitFx(fx, world, dtGame) {
   // 개체별 타이머 감쇠(프리즈·마커 쿨다운) — 시간만 줄인다. gen 은 스폰 때만 쓴다
   for (let i = 0; i < fx.freezeT.length; i += 1) {
     if (fx.freezeT[i] > 0) { fx.freezeT[i] -= dtGame; if (fx.freezeT[i] < 0) fx.freezeT[i] = 0; }
+    if (fx.resistT[i] > 0) { fx.resistT[i] -= dtGame; if (fx.resistT[i] < 0) fx.resistT[i] = 0; }
     if (fx.markerT[i] > 0) { fx.markerT[i] -= dtGame; if (fx.markerT[i] < 0) fx.markerT[i] = 0; }
   }
   // 파티클 수명
@@ -405,6 +408,11 @@ function updateHitFx(fx, world, dtGame) {
     // ×2 임팩트 프리즈 — 살아있는 개체(idx,gen)에 묶는다. 죽은 적은 묶을 대상이 없다(처치 FX 로 간다)
     if (ev.tier === 'super' && !ev.killed && idx >= 0 && idx < fx.freezeT.length) {
       fx.freezeT[idx] = vh.superFreezeSec; fx.freezeGen[idx] = ev.enemyGen;
+    }
+    // ×0.5 차폐 플래시 — super 의 색 팝과 대비되는 무채색 본체 반응("맞았지만 안 통했다").
+    //   프리즈와 같이 살아있는 개체(idx,gen)에 묶는다(죽은 적은 그릴 본체가 없다).
+    if (ev.tier === 'resist' && !ev.killed && idx >= 0 && idx < fx.resistT.length) {
+      fx.resistT[idx] = vh.resistArcLifeSec; fx.resistGen[idx] = ev.enemyGen;
     }
     spawnHit(fx, vh, ev);
   }
@@ -549,6 +557,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
   const vg = world.data.rules.visual.glyph;
   const el = world.data.rules.elite;
   const freezeScale = world.data.rules.visual.hitFx.superFreezeScale;   // §7.7 ×2 임팩트 프리즈
+  const resistLife = world.data.rules.visual.hitFx.resistArcLifeSec;    // §7.7 ×0.5 차폐 플래시 수명
   const archetypes = world.data.enemies.archetypes;
   const items = world.enemies.items;
 
@@ -591,6 +600,20 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     ctx.strokeStyle = color;
     shapePath(ctx, def.shapeId, x, y, r);
     ctx.stroke();
+
+    // §7.7 — ×0.5 저항 피격: 본체를 짧게 **회색으로 차폐 플래시**("클렁크"). super 의 색 팝(프리즈+화이트-핫)과
+    //   대비되는 무채색 반응 → "맞았지만 안 통했다". 색은 안 바꾼다(속성 외곽선은 이미 그렸다 = I-2 준수).
+    //   회색은 neutralGray = §7.7 「튕겼다」의 단일 회색(팔레트 소유, §7.2). 발광 없음(방어는 둔하다).
+    if (fx.resistT[e.idx] > 0 && fx.resistGen[e.idx] === e.gen) {
+      const rt = Math.min(1, fx.resistT[e.idx] / resistLife);            // 1→0 페이드
+      ctx.save();
+      ctx.globalAlpha = rt;
+      ctx.lineWidth = pal.enemyOutlinePx + 2;                            // 정상 외곽선보다 두껍게 = 튕겨냄
+      ctx.strokeStyle = pal.neutralGray;
+      shapePath(ctx, def.shapeId, x, y, r);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // §7.6 엘리트 — 회전하는 이중 외곽선 + 개체 위 속성색 HP 바 + 상시 글리프
     if (e.elite) {
@@ -739,24 +762,54 @@ function mix(a, b, t) {
 // 레이어 7 — 히트 피드백 3중 감각 (§7.7). ★ 적 탄(9)보다 **아래**에 그린다 → I-4 (탄 불가림) 보존.
 //   ×2 (super)  : 공격 속성색 화이트-핫 코어 + 확장 버스트 링 + 스파크 3개 (발광). 처치면 흰 링 확장.
 //   ×1 (neutral): 짧은 백색 플래시 + 스파크 1개. 처치면 소형 파열.
-//   ×0.5(resist): **회색 방패 호**(sweep 120° · stroke 2px · 발광 아님) + 스파크 0 → "튕겼다".
+//   ×0.5(resist): **회색 방패**(두꺼운 호 + 바깥 겹판 + 양끝 프레임 틱 · sweep 160° · stroke 4px · 발광 아님)
+//                 + 본체 회색 차폐 플래시(drawEnemies) + 스파크 0 → "튕겼다". ★ super 와 색·질감으로 대비.
 //   ★ 색은 palette 가 소유(§7.2). 규격값(sweep·stroke·수명·스파크 수·프리즈)은 visual.hitFx 가 소유(§9.4.3).
 // ---------------------------------------------------------------------------
 const GOLDEN_ANGLE = 2.399963229728653;           // 스파크 각도 분산(무-RNG · 결정적)
 
 function drawResistArc(ctx, pal, vh, h, t) {
-  // 둔한 회색 방패 호. 아래(+y = 플레이어/입사탄 쪽)를 향해 살짝 바깥으로 밀린다 = 튕겨냄
+  // 둔한 **회색 방패**. 아래(+y = 플레이어/입사탄 쪽)를 향해 살짝 바깥으로 밀린다 = 튕겨냄.
+  //   두꺼운 주 호 + 바깥 겹판 + 양끝 프레임 틱 → 한 줄 곡선이 아니라 「판(plate)」으로 읽힌다.
+  //   무채색·발광 없음(source-over) = super 의 밝은 속성색 발광과 색·질감 양쪽에서 대비(§7.7).
   const sweep = (vh.resistArcSweepDeg * Math.PI) / 180;
   const base = Math.PI / 2;
-  const r = 12 + t * 6;
+  const r = 15 + t * 8;                            // 살짝 바깥으로 확장 = 튕겨내는 밀어냄
+  const a0 = base - sweep / 2;
+  const a1 = base + sweep / 2;
+  const sw = vh.resistArcStrokePx;
   ctx.save();
-  ctx.globalCompositeOperation = 'source-over';    // 발광 금지 — 방어는 둔하다(§7.7 "약한 스파크")
-  ctx.globalAlpha = (1 - t) * 0.9;
-  ctx.lineWidth = vh.resistArcStrokePx;
+  ctx.globalCompositeOperation = 'source-over';    // 발광 금지 — 방어는 둔하다(§7.7)
   ctx.strokeStyle = pal.neutralGray;
+  ctx.lineCap = 'round';
+
+  // 주 방패 호 — 두꺼운 무채색 (stroke = resistArcStrokePx)
+  ctx.globalAlpha = (1 - t) * 0.95;
+  ctx.lineWidth = sw;
   ctx.beginPath();
-  ctx.arc(h.x, h.y, r, base - sweep / 2, base + sweep / 2);
+  ctx.arc(h.x, h.y, r, a0, a1);
   ctx.stroke();
+
+  // 바깥 겹판 — 얇게·낮은 알파. 「두 겹 방패판」의 깊이
+  ctx.globalAlpha = (1 - t) * 0.5;
+  ctx.lineWidth = sw > 2 ? sw - 2 : 1;
+  ctx.beginPath();
+  ctx.arc(h.x, h.y, r + sw + 1, a0, a1);
+  ctx.stroke();
+
+  // 양끝 프레임 틱 — 호가 「판」임을 못박는다(방패의 가장자리 프레임)
+  ctx.globalAlpha = (1 - t) * 0.9;
+  ctx.lineWidth = sw;
+  const tick = sw + 3;
+  for (let i = 0; i < 2; i += 1) {
+    const a = i === 0 ? a0 : a1;
+    const cx = h.x + Math.cos(a) * r;
+    const cy = h.y + Math.sin(a) * r;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(a) * tick * 0.5, cy - Math.sin(a) * tick * 0.5);
+    ctx.lineTo(cx + Math.cos(a) * tick * 0.5, cy + Math.sin(a) * tick * 0.5);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

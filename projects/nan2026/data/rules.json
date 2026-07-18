@@ -313,9 +313,9 @@
       "markerCooldownSecPerEntity": 0.25,
       "superFreezeSec": 0.04,
       "superFreezeScale": 1.12,
-      "resistArcSweepDeg": 120,
+      "resistArcSweepDeg": 160,
       "resistArcLifeSec": 0.25,
-      "resistArcStrokePx": 2,
+      "resistArcStrokePx": 4,
       "particles": { "super": 3, "neutral": 1, "resist": 0 }
     },
     "a11y": {
