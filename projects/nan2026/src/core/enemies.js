@@ -17,10 +17,14 @@
  *     if (world.hooks.enemies !== null) world.hooks.enemies(world, dt);
  *   화면 이탈 보상 몰수(§8.7)와 slow/stun 감속·등속 적분은 step.moveBullets 소관이다 — 여기서 안 한다.
  *
- * ★ 슬라이스 범위의 이유(sea stage-1 해금 웨이브만): 그 필터의 웨이브들은 아키타입이 drifter(dive)와
- *   spitter(weave) 둘뿐 = 구현한 2종 이동만 쓰고, element 가 water/grass/fire/normal 로 **섞여** 있으며
- *   (스탠스를 바꿀 이유 = 상성 손맛), eliteIndex 가 전부 null 이라 엘리트 재롤(§8.6)이 슬라이스 밖으로
- *   깔끔히 빠진다. 정본 데이터를 그대로 읽으므로 지어낸 값이 0이다.
+ * ★ 슬라이스 범위: sea stage-1 해금 웨이브를 **케이던스·편대·element 의 골격**으로 쓰되, 아키타입은
+ *   더 다양한 **로스터**에서 뽑는다(아래). 이유 — sea 의 stage-1 해금 웨이브는 아키타입이 drifter/spitter
+ *   둘뿐이라 "느린 탱커 ↔ 빠른 약골"의 대비가 화면에 안 뜬다(사용자 피드백 #3). 정본 웨이브는 아키타입을
+ *   확정하지만(콘텐츠), 슬라이스가 **더 다양한 stage-1 적을 뽑는 것**은 임무가 명시 허용한 범위다
+ *   ("enemies.js가 더 다양한 stage-1 적을 뽑게, 단 이동/공격이 구현된 것 위주로"). 로스터는 **데이터에서
+ *   유도**한다(하드코딩 id 0): 구현된 이동(dive·weave) × 플레이 가능한 밴드(chaff·line) × 테마 부합
+ *   (themeOnly ∈ {null, sea}). element 는 여전히 웨이브 레코드가 주입하므로 §8.6 혼재가 유지된다.
+ *   eliteIndex 는 웨이브 레코드에서 오고(전부 null → 엘리트 재롤(§8.6)은 슬라이스 밖).
  */
 
 import { spawnEnemy } from './state.js';
@@ -29,6 +33,10 @@ import { TAU, DEG2RAD } from './angle.js';
 /** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 정본 stages.json 에서 유도한다 */
 const SLICE_STAGE_ID = 'sea';
 const SLICE_STAGE_NUMBER = 1;
+
+/** ★ 슬라이스가 구현한 이동(§8.4)·플레이 가능한 밴드(§8.6). 로스터 필터의 근거이며 하드코딩 id 가 아니다. */
+const IMPLEMENTED_MOVES = ['dive', 'weave'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
+const PLAYABLE_BANDS = ['chaff', 'line'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
@@ -57,10 +65,23 @@ function ensureSpawner(world) {
   const archetypes = world.data.enemies.archetypes;
   for (let i = 0; i < archetypes.length; i += 1) archIndex[archetypes[i].id] = archetypes[i];
 
+  // ★ 슬라이스 로스터 — 데이터에서 유도한다(하드코딩 id 0). 인덱스 오름차순 순회(§10.3)라 결정적이며,
+  //   웨이브가 골격을 대고(케이던스·편대·element·count) 이 로스터가 아키타입 다양성을 댄다.
+  const roster = [];
+  for (let i = 0; i < archetypes.length; i += 1) {
+    const a = archetypes[i];
+    if (IMPLEMENTED_MOVES.indexOf(a.moveId) < 0) continue;         // 이동 미구현 → dive 폴백 대신 애초에 제외
+    if (PLAYABLE_BANDS.indexOf(a.band) < 0) continue;              // turret/bruiser 스폰지 제외
+    if (a.themeOnly !== null && a.themeOnly !== SLICE_STAGE_ID) continue;   // 테마 부합만
+    roster.push(a.id);
+  }
+  if (roster.length === 0) throw new Error(`enemies: 슬라이스 로스터가 0종 (§8.6 — 필터가 전부 걸렀다)`);
+
   const s = {
     stageId: stage.id,
     waves,
     archIndex,
+    roster,
     waveIndex: 0,
     nextWaveT: 0,   // 0 = 첫 틱에 즉시 첫 웨이브
   };
@@ -136,18 +157,26 @@ const _pos = { x: 0, y: 0 };   // 재사용(핫패스 0 alloc)
 /** §8.7 — 한 웨이브를 편성대로 스폰한다. element 는 편성이 주입(§8.6). */
 function spawnWave(world, s) {
   const wave = s.waves[s.waveIndex];
-  const def = s.archIndex[wave.archetypeId];
-  if (def === undefined) throw new Error(`enemies: 미지의 아키타입 "${wave.archetypeId}" (§9.7)`);
+  // ★ 아키타입은 로스터 라운드로빈으로 다양화한다(웨이브 골격 = 편대·element·count·eliteIndex 는 그대로).
+  //   wave 0 → roster[0](= drifter, 첫 필터 통과 아키타입)이라 element 테스트의 전제와 정합한다.
+  const archetypeId = s.roster[s.waveIndex % s.roster.length];
+  const def = s.archIndex[archetypeId];
+  if (def === undefined) throw new Error(`enemies: 미지의 아키타입 "${archetypeId}" (§9.7)`);
   const hp = enemyHp(world, def);
   const concurrentMax = world.data.rules.fairness.enemyConcurrentMax;
 
-  for (let i = 0; i < wave.count; i += 1) {
+  // ★ count 는 밴드로 나눠 구조적으로 클램프한다(밸런스 매직넘버 아님 — effHP ∝ hpMult 이므로 탱커 웨이브가
+  //   벽이 되지 않게 총 HP 예산을 대략 보존한다). chaff(hpMult 1.0)는 원본 count 유지, line(2.5)은 줄어든다.
+  const band = world.data.enemies.bands[def.band];
+  const count = Math.max(2, Math.round(wave.count / band.hpMult));
+
+  for (let i = 0; i < count; i += 1) {
     // §8.7 초과 정책 = defer. 동시 오써링 상한을 넘으면 나머지는 이번 웨이브에서 놓는다(풀 캡이 B층 안전망).
     if (world.enemies.live >= concurrentMax) break;
-    placement(world, wave, i, wave.count, _pos);
+    placement(world, wave, i, count, _pos);
     // §8.6 — eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그. stage-1 해금 웨이브는 전부 null.
     const elite = wave.eliteIndex !== null && i === wave.eliteIndex;
-    spawnEnemy(world, wave.archetypeId, wave.element, _pos.x, _pos.y, hp, elite);
+    spawnEnemy(world, archetypeId, wave.element, _pos.x, _pos.y, hp, elite);
   }
 
   s.waveIndex = (s.waveIndex + 1) % s.waves.length;   // §8.7 waveListExhausted = "cycle"

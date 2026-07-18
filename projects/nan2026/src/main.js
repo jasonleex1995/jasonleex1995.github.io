@@ -27,6 +27,7 @@ import { step, makeInput, TICK_HZ } from './core/step.js';
 import { buildDraft, rerollDraft, applyCard, candidates } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
+import { emitters } from './core/emitters.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
 import { drawPanels, drawDraft } from './render/hud.js';
@@ -215,9 +216,10 @@ async function boot() {
   const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
 
   // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
-  //   ★ 1주차 슬라이스: enemies 스포너/이동 훅을 주입해 sea stage-1 웨이브(섞인 element)를 내려보낸다.
-  //     이미터(적 탄)는 여전히 범위 밖 → null. step() 은 적의 등속 적분 + 이 훅의 vx/vy 를 쓴다.
-  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters: null } });
+  //   ★ 1주차 슬라이스: enemies 스포너/이동 훅 + emitters 적-공격 훅을 주입한다. sea stage-1 로스터가
+  //     섞인 element 로 내려오고, attack 을 가진 적은 emitter 케이던스대로 탄을 쏜다(step 이 탄 이동·
+  //     플레이어 충돌·i-frame·상태이상을 처리한다). 공정성(속도·텔레그래프 리드)은 이미터 데이터가 보장.
+  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters } });
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });

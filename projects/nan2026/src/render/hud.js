@@ -23,6 +23,9 @@
 import { rgba, glyphPath } from './draw.js';
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
+// ★ §11.1 — 드래프트 카드는 키 문자(W/E/R)가 아니라 **속성 이름**을 말한다. 키 배정은 §5.1
+//   패널에서만 노출하고, "무엇을 하는가"를 묻는 카드에는 노출하지 않는다 (사용자 피드백).
+const ELEMENT_NAME = { normal: '노말', fire: '불', water: '물', grass: '풀' };
 
 function font(world, px, weight) {
   return `${weight} ${px}px ${world.data.rules.visual.text.family}`;
@@ -351,17 +354,22 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
       h.fontSmallPx, accent, 'right', 700);
 
     const body = cardBody(world, c);
+    const cx = x + cw / 2;
     // §7.3 — cvd/mono 에서 HUD·카드는 **텍스트 라벨 강제**. off 에서도 라벨은 손해가 없다
     if (body.glyph !== null) {
-      glyphPath(ctx, body.glyph, x + cw / 2, y0 + 108, 26 * pal.glyphScale);
+      glyphPath(ctx, body.glyph, cx, y0 + 100, 26 * pal.glyphScale);
       ctx.fillStyle = accent;
       ctx.fill();
     }
-    text(ctx, world, pal, body.title, x + cw / 2, y0 + 172, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
+    // 헤드라인(이름/레벨) — 가장 크게
+    text(ctx, world, pal, body.title, cx, y0 + 156, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
+    // ★ 효과 한 줄을 **크게**(accent, 16px, 굵게, 중앙) — "무엇을 하는가"가 여기서 읽힌다.
+    //   긴 효과는 자동 줄바꿈 (accent 로 헤드라인과 명도 대비를 준다)
     if (body.sub !== '') {
-      text(ctx, world, pal, body.sub, x + cw / 2, y0 + 204, h.fontBodyPx, accent, 'center', 600);
+      wrap(ctx, world, pal, body.sub, cx, y0 + 200, cw - 36, h.fontBodyPx, accent, 22, 'center', 600);
     }
-    wrap(ctx, world, pal, body.desc, x + 18, y0 + 244, cw - 36, h.fontSmallPx, pal.hud.textDim, 20);
+    // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
+    wrap(ctx, world, pal, body.desc, cx, y0 + 300, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
   }
 
   // §11.1 리롤 — 스톡은 상점에서 산다. 1주차엔 상점이 없으므로 스톡 0이 정상이다
@@ -386,32 +394,45 @@ function cardAccent(world, pal, c) {
   return pal.element.normal;
 }
 
+/**
+ * 카드 표기. ★ 사용자 피드백(§11.1) — 카드는 **이름**이 아니라 **결과를 플레이어 언어로** 말한다.
+ *   title = 헤드라인(이름/레벨) · sub = **효과 한 줄(크게, accent)** · desc = 부가 설명(작게).
+ *   속성 카드는 키 문자(W/E/R) 대신 속성명(불/물/풀)+색(accent)+글리프로만 말한다.
+ */
 function cardBody(world, c) {
   if (c.category === 'newWeapon') {
     const def = world.weaponDefs[c.weaponId];
-    return { glyph: null, title: def.name, sub: `슬롯 ${c.slot + 1} 에 장착`, desc: def.desc };
+    return { glyph: null, title: def.name, sub: def.desc, desc: `새 무기 · 슬롯 ${c.slot + 1} 에 장착` };
   }
   if (c.category === 'weaponLevel') {
     const def = world.weaponDefs[c.weaponId];
     if (c.isEvolution) {
-      return { glyph: null, title: def.evolution.name, sub: `${def.name} 진화 (Lv.7 → 8)`, desc: def.evolution.desc };
+      return { glyph: null, title: def.evolution.name, sub: def.evolution.desc,
+        desc: `${def.name} 진화 · Lv.7 → 8` };
     }
-    return { glyph: null, title: def.name, sub: `Lv.${c.from} → ${c.to}`, desc: def.desc };
+    // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
+    return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc, desc: `Lv.${c.from} → ${c.to} 강화` };
   }
   if (c.category === 'elementLevel') {
-    // ★ §11.1 — 부여 프리뷰. 이 한 줄이 "슬롯 순서" 규칙을 가르치는 유일한 지점이다
+    // ★ §11.1 — 키 문자 대신 속성명+결과. prey(먹이)는 draft.js 가 matrix 에서 유도해 실어 보낸다.
+    //   부여 프리뷰(앞의 N개 무기)는 §4.3 슬롯 순서를 가르치는 유일한 지점이라 desc 에 유지한다.
+    const name = ELEMENT_NAME[c.element];
+    const prey = ELEMENT_NAME[c.prey] || '상성 상대';
+    const n = c.imbuedAfter;
     return {
       glyph: c.element,
-      title: `${KEYCAP[c.element]} 투자 ${c.from} → ${c.to}`,
-      sub: `부여 슬롯 ${c.imbuedBefore} → ${c.imbuedAfter}`,
-      desc: `${KEYCAP[c.element]} 스탠스에서 앞의 ${c.imbuedAfter}개 무기가 이 속성이 된다.`,
+      title: `${name} 강화`,
+      sub: `무기 ${n}개가 ${name}속성 — ${prey} 적에게 ×2`,
+      desc: `${name} 스탠스에서 앞의 ${n}개 무기가 ${name}속성이 된다.`,
     };
   }
   if (c.category === 'passive') {
     const list = world.data.passives.passives;
     for (let i = 0; i < list.length; i += 1) {
       if (list[i].id !== c.passiveId) continue;
-      return { glyph: null, title: list[i].name, sub: c.isNew ? '신규' : `Lv.${c.from} → ${c.to}`, desc: list[i].desc };
+      // ★ 테마 이름(예: "학습 회로")만으론 안 와닿는다 → 효과(desc)를 크게 sub 에, 레벨을 작게 desc 에.
+      return { glyph: null, title: list[i].name, sub: list[i].desc,
+        desc: c.isNew ? '신규 획득' : `Lv.${c.from} → ${c.to} 강화` };
     }
     throw new Error(`hud: 미지의 패시브 "${c.passiveId}" (§9.6)`);
   }
@@ -421,19 +442,26 @@ function cardBody(world, c) {
   throw new Error(`hud: 미지의 드래프트 카테고리 "${c.category}" (§11.1)`);
 }
 
-function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH) {
-  ctx.font = font(world, px, 400);
+/**
+ * 폭 maxW 로 자동 줄바꿈. align/weight 는 선택 (기본 left / 400).
+ * @returns 마지막으로 그린 줄의 y (다음 블록을 이 아래로 이어 붙일 수 있게)
+ */
+function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH, align, weight) {
+  const w = weight === undefined ? 400 : weight;
+  const al = align === undefined ? 'left' : align;
+  ctx.font = font(world, px, w);
   const words = s.split(' ');
   let line = '';
   let cy = y;
   for (let i = 0; i < words.length; i += 1) {
     const t = line === '' ? words[i] : `${line} ${words[i]}`;
     if (ctx.measureText(t).width > maxW && line !== '') {
-      text(ctx, world, pal, line, x, cy, px, color, 'left');
+      text(ctx, world, pal, line, x, cy, px, color, al, w);
       line = words[i];
       cy += lineH;
     } else line = t;
   }
-  if (line !== '') text(ctx, world, pal, line, x, cy, px, color, 'left');
+  if (line !== '') { text(ctx, world, pal, line, x, cy, px, color, al, w); return cy; }
+  return cy - lineH;
 }
 // hudText 별칭은 importer 0 이었다 → 제거(text 는 이 파일 안에서 직접 쓰인다, 모듈-프라이빗)

@@ -53,6 +53,19 @@ function passiveSlotsFull(world) {
 }
 
 /**
+ * §4.1 — 이 속성으로 부여된 무기가 ×2 를 넣는 상대(먹이).
+ *   상성표를 이 파일에 리터럴로 복제하지 않고 elements.matrix 에서 유도한다.
+ *   ★ 카드가 "키 문자(W/E/R)"가 아니라 **결과**(무엇에게 강해지는가)를 스스로 들고 다니게
+ *     하는 필드 — 렌더는 이 element id 를 플레이어 언어로 옮기기만 하면 된다 (§11.1).
+ */
+function preyElement(world, el) {
+  const row = world.data.elements.matrix[el];
+  const keys = Object.keys(row);
+  for (let i = 0; i < keys.length; i += 1) if (row[keys[i]] === 2) return keys[i];
+  return null;
+}
+
+/**
  * §11.1 — 유효 후보 아이템 **전체**를 가중치와 함께 만든다.
  * 카테고리를 먼저 뽑지 않는다 — 이 목록 하나에서 비복원 추첨한다.
  */
@@ -104,6 +117,8 @@ export function candidates(world) {
       if (d.elementLevelOfferRequiresWeaponCount && lv >= nWeapons) continue;
       out.push({ category: CAT_ELEMENT_LEVEL, key: `${CAT_ELEMENT_LEVEL}:${el}`,
         element: el, from: lv, to: lv + 1,
+        // ★ prey = 이 속성이 ×2 를 넣는 상대 (결과 프리뷰 — matrix 유도, §4.1)
+        prey: preyElement(world, el),
         // ★ 부여 프리뷰 = 이 한 줄이 슬롯 순서 규칙을 가르치는 유일한 지점 (§11.1 카드 표기)
         imbuedBefore: Math.min(lv, nWeapons), imbuedAfter: Math.min(lv + 1, nWeapons),
         weight: cw.elementLevel * (lv === 0 ? d.elementFirstLevelBonus : 1) });
