@@ -305,6 +305,33 @@ function drawRightPanel(ctx, world, pal) {
     }
     y += rowH;
   }
+
+  // ---- 패시브 슬롯 6칸 (§4.2 상한 6 · 좌→우 = 획득 순) ---------------------
+  //   ★ 무기 슬롯과 같은 어휘 — "먹을 수 있는 패시브도 6개"가 화면에서 읽힌다
+  y += 10;
+  text(ctx, world, pal, '패시브 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
+  y += 24;
+  const pdefs = world.data.passives.passives;
+  for (let i = 0; i < world.passives.length; i += 1) {
+    const p = world.passives[i];
+    const rowH = 26;
+    const filled = p.id !== null;
+    ctx.fillStyle = filled ? rgba(pal.hud.panelRule, 0.5) : rgba(pal.hud.panelRule, 0.2);
+    ctx.fillRect(x, y, w, rowH - 4);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = filled ? pal.hud.panelRule : rgba(pal.hud.panelRule, 0.5);
+    ctx.strokeRect(x, y, w, rowH - 4);
+    text(ctx, world, pal, `${i + 1}`, x + 10, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.textDim, 'left', 700);
+    if (!filled) {
+      text(ctx, world, pal, '빈 슬롯', x + 26, y + (rowH - 4) / 2, h.fontSmallPx, rgba(pal.hud.textDim, 0.5), 'left');
+    } else {
+      let pname = p.id;
+      for (let k = 0; k < pdefs.length; k += 1) if (pdefs[k].id === p.id) { pname = pdefs[k].name; break; }
+      text(ctx, world, pal, pname, x + 26, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
+      text(ctx, world, pal, `Lv.${p.level}`, x + w - 12, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.textDim, 'right', 600);
+    }
+    y += rowH;
+  }
 }
 
 // ---------------------------------------------------------------------------
