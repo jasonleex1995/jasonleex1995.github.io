@@ -205,6 +205,90 @@ function viewportTooSmall(view) {
 }
 
 // ---------------------------------------------------------------------------
+// 오디오 (§7.10 — WebAudio 절차적 합성, 에셋 0KB · SFX 버스 하나 · 배속 무관)
+//   ★ main.js 는 비순수이므로 WebAudio 사용 가능(core 는 소리를 모른다).
+//   ★ 모든 큐는 시각 짝을 갖는다(§7.10) → 오디오 실패/무음이어도 게임은 100% 성립한다.
+//     그러므로 여기의 모든 접근은 try/catch 로 감싸 소리가 게임을 절대 막지 않게 한다.
+//   §7.7 히트 SFX: ×2 저역 크런치 / ×1 얇은 틱 / ×0.5 금속 "틴".
+// ---------------------------------------------------------------------------
+function makeAudio(rules) {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;                       // 오디오 인프라 없음 → 시각만 (호출부 null 가드)
+  let ctx = null;
+  let master = null;
+  const sfxGain = rules.audio.busGain.sfx;                       // §7.10 busGain.sfx = 0.8
+  const minInterval = 1 / rules.audio.cueRateLimitPerSec;        // §7.10 동일 큐 초당 상한
+  const lastAt = { super: -1, neutral: -1, resist: -1 };
+  function ensure() {
+    if (ctx === null) {
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = sfxGain;
+      master.connect(ctx.destination);
+    }
+    return ctx;
+  }
+  function env(o, g, t0, peak, dur) {                            // 공통 감쇠 엔벨로프
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function crunch(t0) {                                          // ×2 — 짧고 두꺼운 저음
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(150, t0);
+    o.frequency.exponentialRampToValueAtTime(58, t0 + 0.09);
+    env(o, ctx.createGain(), t0, 0.9, 0.12);
+  }
+  function tick(t0) {                                            // ×1 — 얇은 틱
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1900, t0);
+    env(o, ctx.createGain(), t0, 0.22, 0.04);
+  }
+  function tin(t0) {                                             // ×0.5 — 비조화 2부분음 = 금속감
+    const parts = [[2100, 0.30, 0.18], [3170, 0.16, 0.14]];
+    for (let i = 0; i < parts.length; i += 1) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(parts[i][0], t0);
+      env(o, ctx.createGain(), t0, parts[i][1], parts[i][2]);
+    }
+  }
+  return {
+    resume() { try { ensure(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) { /* 무음 폴백 */ } },
+    cue(tier) {
+      try {
+        ensure();
+        if (ctx.state !== 'running') return;                    // 사용자 제스처 전 → 무음
+        const now = ctx.currentTime;
+        if (now - lastAt[tier] < minInterval) return;           // §7.10 rate limit
+        lastAt[tier] = now;
+        if (tier === 'super') crunch(now);
+        else if (tier === 'resist') tin(now);
+        else tick(now);
+      } catch (e) { /* 오디오 실패는 게임을 막지 않는다 */ }
+    },
+  };
+}
+
+/** §7.7 — 이번 스텝의 히트 이벤트에서 존재하는 tier 별로 큐를 1회 발화한다(각기 rate-limited). */
+function playHitCues(audio, world) {
+  if (audio === null) return;
+  const h = world.hitFx;
+  let sup = false; let neu = false; let res = false;
+  for (let i = 0; i < h.count; i += 1) {
+    const t = h.buf[i].tier;
+    if (t === 'super') sup = true; else if (t === 'resist') res = true; else neu = true;
+  }
+  if (sup) audio.cue('super');
+  if (res) audio.cue('resist');
+  if (neu) audio.cue('neutral');
+}
+
+// ---------------------------------------------------------------------------
 // 부트
 // ---------------------------------------------------------------------------
 async function boot() {
@@ -229,6 +313,9 @@ async function boot() {
   const kb = makeKeyboard(rules);
   const edge = makeEdge(kb);
   const input = makeInput();
+  // §7.10 — SFX. AudioContext 는 사용자 제스처 후에만 소리를 낸다 → 첫 키 입력에서 resume.
+  const audio = makeAudio(rules);
+  if (audio !== null) window.addEventListener('keydown', () => audio.resume());
 
   document.title = `${document.title} — ${seedHex(seed)}`;
 
@@ -310,6 +397,7 @@ async function boot() {
         captureInterp(interp, world);         // §10.1 — 보간용 직전 위치. 렌더가 자기 것으로 들고 있는다
         step(world, pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다
         updateFx(fx, world, 1 / TICK_HZ);
+        playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
         acc -= tickDur;
         steps += 1;
         if (world.over) { enter('OVER'); break; }

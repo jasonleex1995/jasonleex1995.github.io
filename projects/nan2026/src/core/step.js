@@ -20,7 +20,8 @@
  */
 
 import { playerToEnemy, enemyToPlayer } from './damage.js';
-import { recomputeEff, spawnPickup, xpToNext } from './state.js';
+import { hitTier } from './elements.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 
 /** §10.1 — 잠금. 배속과 무관한 상수 */
@@ -52,6 +53,7 @@ export function step(world, input, dt) {
   world.tick += 1;
   world.time += dt;
   world.player.hit = false;
+  world.hitFx.count = 0;            // §7.7 — 히트 피드백 링 = 「이번 틱」 신호. collide 가 다시 채운다
 
   readInput(world, input, dt);      // 1. 입력 스냅샷
   movePlayer(world, dt);            // 2. 이동
@@ -295,7 +297,12 @@ function collide(world, dt) {
       const stamp = stampFor(world, b.slot, b.stampMode, b.element);
       e.hp -= playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
 
-      if (e.hp <= 0) { killEnemy(world, e); }
+      // §7.7 — 상성 tier 를 render 로 실어 보낸다(3중 감각의 근거). ★ 데미지에 쓴 그 stamp·그 matrix 로
+      //   tier 를 뽑으므로 I-2(색=배율)와 어긋날 수 없다. killed 를 먼저 확정해 처치 FX 확대 근거를 싣는다.
+      const killed = e.hp <= 0;
+      pushHitFx(world, e.x, e.y, stamp, hitTier(ctx.matrix, stamp, e.element), killed, e.idx, e.gen);
+
+      if (killed) { killEnemy(world, e); }
 
       // pierce: -1 = 무제한 (§9.6.1). 0 = 첫 히트에 소멸
       if (b.pierceLeft === -1) continue;

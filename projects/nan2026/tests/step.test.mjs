@@ -15,6 +15,7 @@ import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, spawnPlayerBullet, spawnEnemyBullet, spawnPickup, givePassive, xpToNext } from '../src/core/state.js';
 import { step, makeInput, applyHit, killEnemy, TICK_DT } from '../src/core/step.js';
 import { investElement, requestStance } from '../src/core/stance.js';
+import { elementMul } from '../src/core/elements.js';
 import { weapons } from '../src/core/weapons/index.js';
 
 function mk(seed = 1) {
@@ -247,6 +248,92 @@ suite('step · 결정성 (§10.2/§10.3)', () => {
     }
     assert.eq(run(12345), run(12345), '같은 시드 = 비트 동일');
     assert.ne(run(12345), run(9999), '다른 시드 = 상이');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// §7.7 히트 피드백 — collide 가 상성 tier 를 render 로 실어 보낸다 (world.hitFx)
+//   ★ 이것이 "3중 감각을 그릴 근거"의 전달 계약이다. 값은 elements.matrix 에서 유도(매직넘버 금지).
+//   ★ 순수 장식이므로 판정(hp)·rng 에 영향 없음 + 같은 시드 → 버퍼 비트 동일 유지.
+// ═════════════════════════════════════════════════════════════════════════
+
+/** 자동발사 침묵 후, 지정 stamp 로 탄 1발을 (600,300)의 fire 적에 겹쳐 1스텝 때린다 */
+function hitFireWith(stamp, { dmg = 1, hp = 100 } = {}, seed = 1) {
+  const w = mk(seed);
+  silence(w);
+  const slot = w.slots[0];
+  slot.stampElement = stamp;                              // spawnPlayerBullet 이 b.element 로 읽는다 (spawn 모드)
+  const eff = { dmg, projRadius: 6, pierce: 0, hitCooldownSec: 0, lifetimeSec: 999 };
+  spawnPlayerBullet(w, slot, eff, 600, 300, 0, 0, 1);
+  const e = spawnEnemy(w, 'drifter', 'fire', 600, 300, hp, false);
+  step(w, makeInput(), TICK_DT);
+  return { w, e };
+}
+
+suite('step · §7.7 히트 tier 전달 (world.hitFx)', () => {
+  test('불 적을 super/neutral/resist 스탬프로 때리면 각각 다른 tier 를 싣는다', () => {
+    const M = loadData().elements.matrix;
+    // 데이터 기반 기대값 (정본 LOCKED 매트릭스: water→fire=2, grass→fire=0.5, normal→fire=1)
+    const cases = [
+      ['water', 'super'],
+      ['grass', 'resist'],
+      ['normal', 'neutral'],
+    ];
+    for (const [stamp, tier] of cases) {
+      const mul = elementMul(M, stamp, 'fire');
+      const wantTier = mul > 1 ? 'super' : mul < 1 ? 'resist' : 'neutral';
+      assert.eq(wantTier, tier, `사전조건: ${stamp}→fire mul=${mul}`);
+      const { w } = hitFireWith(stamp);
+      assert.eq(w.hitFx.count, 1, `${stamp}: 히트 이벤트 1건`);
+      const ev = w.hitFx.buf[0];
+      assert.eq(ev.tier, tier, `${stamp}: tier = ${tier}`);
+      assert.eq(ev.element, stamp, `${stamp}: 공격 속성 실림 (버스트 색의 근거)`);
+      assert.eq(ev.killed, false, `${stamp}: 안 죽는 hp → killed false`);
+    }
+  });
+
+  test('세 tier 가 실제로 서로 다르다 (셋이 같으면 화면이 못 구분한다)', () => {
+    const a = hitFireWith('water').w.hitFx.buf[0].tier;
+    const b = hitFireWith('grass').w.hitFx.buf[0].tier;
+    const c = hitFireWith('normal').w.hitFx.buf[0].tier;
+    assert.ne(a, b, 'super ≠ resist');
+    assert.ne(b, c, 'resist ≠ neutral');
+    assert.ne(a, c, 'super ≠ neutral');
+  });
+
+  test('처치 시 killed=true + 위치·개체 id 가 실린다 (처치 FX·프리즈 바인딩 근거)', () => {
+    const { w, e } = hitFireWith('water', { dmg: 999, hp: 3 });
+    const ev = w.hitFx.buf[0];
+    assert.eq(ev.tier, 'super', 'super 처치');
+    assert.eq(ev.killed, true, '이 히트로 처치 → killed true');
+    assert.eq(ev.x, 600, '히트 위치 x = 적 위치');
+    assert.eq(ev.y, 300, '히트 위치 y = 적 위치');
+    assert.eq(ev.enemyGen, e.gen, '개체 gen 실림 (재사용 슬롯 구분)');
+  });
+
+  test('count 는 매 스텝 리셋된다 — 「이번 틱」 신호 (히트 없는 스텝 = 0)', () => {
+    const { w } = hitFireWith('water', { dmg: 1, hp: 100 });
+    assert.eq(w.hitFx.count, 1, '히트 스텝 = 1');
+    step(w, makeInput(), TICK_DT);   // hitCooldownSec 0 → 같은 적 재히트 없음 → 이 스텝은 히트 0
+    assert.eq(w.hitFx.count, 0, '다음 스텝 = 리셋 (재히트 없음)');
+  });
+
+  test('히트 fx 는 결정적 — 같은 시드+입력 → hitFx 버퍼 비트 동일', () => {
+    function sig(seed) {
+      const { w } = hitFireWith('grass', { dmg: 1, hp: 100 }, seed);
+      return JSON.stringify(w.hitFx.buf.slice(0, w.hitFx.count));
+    }
+    assert.eq(sig(7), sig(7), '같은 시드 = 비트 동일');
+  });
+
+  test('상성 tier 는 데미지에 쓴 stamp 와 같은 matrix 로 뽑는다 = I-2 (색은 거짓말 안 함)', () => {
+    // live 스탬프(오빗류)가 아니어도, 데미지 감산이 실제로 ×2 였는지와 tier=super 가 함께 성립
+    const M = loadData().elements.matrix;
+    const { w, e } = hitFireWith('water', { dmg: 10, hp: 1000 });
+    const dealt = e.hpMax - e.hp;
+    // water→fire ×2, dmg 10, dmgMul/게이트 1 → 20 근처(부동소수 그대로)
+    assert.near(dealt, 10 * elementMul(M, 'water', 'fire'), 1e-9, '실제 데미지 = ×2 반영');
+    assert.eq(w.hitFx.buf[0].tier, 'super', '같은 히트가 super tier 로 표시됨');
   });
 });
 

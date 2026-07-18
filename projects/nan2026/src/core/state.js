@@ -137,6 +137,39 @@ function makeTelegraph() {
 }
 
 // ---------------------------------------------------------------------------
+// §7.7 — 히트 피드백 이벤트 버퍼 (core → render 핸드오프)
+//   ★ 순수 장식이다. 판정(hp)·rng·위치 어디에도 되먹임이 없으므로 결정성에 무영향이다.
+//     collide 가 히트마다 상성 tier(super/neutral/resist)·위치·공격 속성·처치여부·개체 id 를
+//     결정적으로 싣고, main.js 의 updateFx(render)가 **매 스텝 뒤** 소진해 3중 감각 파티클로 옮긴다.
+//   ★ 사전할당 링 + count. count 는 step 진입 시 0 으로 리셋한다(world.player.hit 과 같은 「이번 틱」 신호).
+//     가득 차면 조용히 버린다 — 장식 손실은 게임을 깨뜨리지 않는다(초과 정책 = 이번 틱 앞쪽 우선).
+//   ★ 크기 = caps.particles(총 파티클 예산). 새 키를 만들지 않고 기존 예산을 재사용한다.
+// ---------------------------------------------------------------------------
+function makeHitFxBuffer(cap) {
+  const buf = new Array(cap);
+  for (let i = 0; i < cap; i += 1) {
+    buf[i] = { x: 0, y: 0, element: NORMAL, tier: 'neutral', killed: false, enemyIdx: -1, enemyGen: -1 };
+  }
+  return { buf, count: 0, cap };
+}
+
+/**
+ * §7.7 — 히트 이벤트 1건을 링에 싣는다. collide 의 유일한 호출처. **순수 장식**(결정성 무영향).
+ * @param element  공격에 각인된 속성(= stampFor 의 결과). ×2 버스트의 색이 이것이다.
+ * @param tier     'super' | 'neutral' | 'resist' (elements.hitTier).
+ * @param killed   이 히트로 적이 죽었는가(처치 FX 를 render 가 확대할 근거 — §7.7 처치 FX 열).
+ * @param enemyIdx · enemyGen  개체 식별(render 의 임팩트 프리즈를 그 개체에 묶기 위함 — §7.7 스케일 1.12).
+ */
+export function pushHitFx(world, x, y, element, tier, killed, enemyIdx, enemyGen) {
+  const h = world.hitFx;
+  if (h.count >= h.cap) return;
+  const ev = h.buf[h.count];
+  ev.x = x; ev.y = y; ev.element = element; ev.tier = tier;
+  ev.killed = killed; ev.enemyIdx = enemyIdx; ev.enemyGen = enemyGen;
+  h.count += 1;
+}
+
+// ---------------------------------------------------------------------------
 // §9.6 — 패시브 12훅. 각 스탯의 소유자는 정확히 1개 패시브다 (1:1)
 // ---------------------------------------------------------------------------
 /**
@@ -374,6 +407,9 @@ export function createWorld(opts) {
 
     // §13.1.1 capHits — A층/B층 defer·reject 발화 카운터 (시뮬 게이트가 읽는다)
     capHits: { playerBullet: 0, enemyBullet: 0, enemy: 0, pickup: 0, zone: 0, drone: 0, telegraph: 0 },
+
+    // §7.7 — 히트 피드백 이벤트 링(core→render). 순수 장식·결정성 무영향(위 makeHitFxBuffer 주석)
+    hitFx: makeHitFxBuffer(caps.particles),
 
     over: false,
   };

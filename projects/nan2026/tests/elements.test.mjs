@@ -10,7 +10,7 @@
  *   - isInvestable / isElement.
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { elementMul, elementTerm, isInvestable, isElement } from '../src/core/elements.js';
+import { elementMul, elementTerm, hitTier, isInvestable, isElement } from '../src/core/elements.js';
 
 const d = loadData();
 const M = d.elements.matrix;
@@ -124,6 +124,41 @@ suite('elements.elementTerm', () => {
 
   test('elementTerm도 미지 속성 → throw (elementMul 위임)', () => {
     assert.throws(() => elementTerm(M, 'void', 'fire', 1.0), '미지 속성 전파');
+  });
+});
+
+// ── hitTier: §7.7 히트 피드백 3중 감각의 tier 분류 ─────────────────────────
+suite('elements.hitTier (§7.7)', () => {
+  test('16셀 전부 matrix 값과 정합: ×2→super · ×1→neutral · ×0.5→resist', () => {
+    let cells = 0;
+    for (const att of ORDER) {
+      for (const def of ORDER) {
+        const m = M[att][def];
+        const expected = m > 1 ? 'super' : m < 1 ? 'resist' : 'neutral';
+        assert.eq(hitTier(M, att, def), expected, `hitTier(${att},${def}) [mul=${m}]`);
+        cells += 1;
+      }
+    }
+    assert.eq(cells, 16, '4×4 전수');
+  });
+
+  test('상성 순환의 세 tier — 물>불(super) · 그 역(resist) · 동속성(neutral)', () => {
+    assert.eq(hitTier(M, 'water', 'fire'), 'super', '물→불 ×2');
+    assert.eq(hitTier(M, 'fire', 'water'), 'resist', '불→물 ×0.5 (역방향)');
+    assert.eq(hitTier(M, 'fire', 'fire'), 'neutral', '동속성 ×1');
+  });
+
+  test('노말 스탬프는 어느 방어에도 neutral (투자 0 = 색이 거짓말 안 함, I-2)', () => {
+    for (const def of ORDER) assert.eq(hitTier(M, 'normal', def), 'neutral', `normal→${def}`);
+  });
+
+  test('resonance(k)와 무관 — tier 는 원시 상성이지 증폭값이 아니다 (elementMul 단일 소스)', () => {
+    // hitTier 는 k 인자를 받지 않는다: super 판정은 원시 셀(×2)에서 온다.
+    assert.eq(hitTier(M, 'water', 'fire'), 'super', 'k 없이도 super');
+  });
+
+  test('미지 속성 → throw (elementMul 위임 · 폴백 금지)', () => {
+    assert.throws(() => hitTier(M, 'plasma', 'fire'), '미지 공격 속성 전파');
   });
 });
 

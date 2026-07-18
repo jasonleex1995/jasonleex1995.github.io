@@ -40,6 +40,21 @@ export function elementTerm(matrix, attacker, defender, elementBonusMul) {
   return elem;
 }
 
+/**
+ * §7.7 — 히트 피드백 tier. 상성의 **원시 matrix 셀**(∈ {0.5, 1, 2})을 3중 감각의 이름으로 사상한다:
+ *   ×2 → 'super' (효과적) · ×1 → 'neutral' (보통) · ×0.5 → 'resist' (반감).
+ * ★ resonance(k)는 여기 **안 들어온다** — tier 는 「상성의 종류」지 증폭된 실효 배율이 아니다
+ *   (§7.7 표는 ×2/×1/×0.5 세 열이 전부다. resonance 로 ×2.5가 나와도 tier 는 여전히 super).
+ * ★ elementMul 이 배율의 **단일 소스**다(§3.1-3항과 같은 셀). 미지 속성은 그 안에서 에러(폴백 금지).
+ * ★ 비교는 `> 1` / `< 1` — matrix 는 {0.5,1,2}만 담으므로 부동소수 동치 위험이 없다.
+ */
+export function hitTier(matrix, attacker, defender) {
+  const m = elementMul(matrix, attacker, defender);
+  if (m > 1) return 'super';
+  if (m < 1) return 'resist';
+  return 'neutral';
+}
+
 /** §4.2 — 투자 가능 속성인가. 노말은 투자축이 아니다 */
 export function isInvestable(elements, element) {
   return elements.investable.indexOf(element) >= 0;

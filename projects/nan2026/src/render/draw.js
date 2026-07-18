@@ -312,13 +312,35 @@ function lerpY(interp, track, e, alpha) {
 // ---------------------------------------------------------------------------
 // 렌더 상태 (순수 장식 — 결정성 무관, core 바깥, §10.1)
 // ---------------------------------------------------------------------------
+/** §7.7 — 히트 피드백 파티클 풀 (render 전용, 결정성 무관). 초과 = evictOldest(초과 정책 = particle) */
+function makeHitPool(cap) {
+  const buf = new Array(cap);
+  for (let i = 0; i < cap; i += 1) {
+    buf[i] = { active: false, tier: 'neutral', x: 0, y: 0, element: 'normal', age: 0, life: 0, killed: false, seed: 0 };
+  }
+  return { buf, cap, head: 0 };   // head = 다음 쓸 슬롯 → 링 덮어쓰기가 곧 evictOldest
+}
+
+/** §7.7 — tier 랭크(maxOnly 판정용). super > neutral > resist */
+function tierRank(t) { return t === 'super' ? 2 : t === 'neutral' ? 1 : 0; }
+
 export function makeFx(world) {
+  const capE = world.data.rules.caps.enemies;
   return {
     stancePrev: world.player.stance,
     ringT: -1,          // §7.5 전환 링. 음수 = 비활성
     ringElement: 'normal',
     ringInvested: false,
     bgScroll: 0,
+    // §7.7 — 히트 피드백 3중 감각. core 의 hitFx 링을 소진해 여기로 옮긴다(updateFx).
+    hits: makeHitPool(world.data.rules.caps.particles),
+    hitSeq: 0,                                    // 스파크 각도 분산용 결정적 카운터(무-RNG)
+    // 개체(idx)별 상태 — gen 으로 풀 재사용 슬롯을 구분한다(다른 개체엔 안 샌다)
+    freezeT: new Float64Array(capE),              // §7.7 ×2 임팩트 프리즈 잔여(게임초)
+    freezeGen: new Int32Array(capE).fill(-1),
+    markerT: new Float64Array(capE),              // §7.7 markerCooldownSecPerEntity 잔여
+    markerGen: new Int32Array(capE).fill(-1),
+    markerRank: new Int8Array(capE),              // 이 창에서 이미 보인 최고 tier(maxOnly)
   };
 }
 
@@ -341,6 +363,66 @@ export function updateFx(fx, world, dtGame) {
   }
   const bg = world.data.rules.palette.bg;
   fx.bgScroll = (fx.bgScroll + bg.maxScrollSpeed * dtGame) % 4096;
+
+  updateHitFx(fx, world, dtGame);
+}
+
+/**
+ * §7.7 — core 의 히트 이벤트(이번 스텝분)를 소진해 3중 감각 파티클로 옮긴다.
+ *   ★ main.js 가 **매 스텝 뒤** 부르므로 world.hitFx 는 언제나 「그 스텝의 히트」다(다음 step 진입 시 리셋).
+ *   ★ 결정성 무관 — 여기 있는 어떤 값도 core 로 되돌아가지 않는다(순수 장식).
+ *   dedup: markerPolicy "maxOnly" + markerCooldownSecPerEntity — 한 개체에 창(0.25s) 안에서는
+ *     **더 높은 tier 만** 새로 그린다(4무기 동시타격의 버스트 스팸을 막고 「최고 배율 1개」를 남긴다).
+ *     ★ 처치(killed)는 1회성이라 dedup 을 우회해 항상 처치 FX 를 보인다.
+ */
+function updateHitFx(fx, world, dtGame) {
+  const vh = world.data.rules.visual.hitFx;
+  // 개체별 타이머 감쇠(프리즈·마커 쿨다운) — 시간만 줄인다. gen 은 스폰 때만 쓴다
+  for (let i = 0; i < fx.freezeT.length; i += 1) {
+    if (fx.freezeT[i] > 0) { fx.freezeT[i] -= dtGame; if (fx.freezeT[i] < 0) fx.freezeT[i] = 0; }
+    if (fx.markerT[i] > 0) { fx.markerT[i] -= dtGame; if (fx.markerT[i] < 0) fx.markerT[i] = 0; }
+  }
+  // 파티클 수명
+  const hb = fx.hits.buf;
+  for (let i = 0; i < hb.length; i += 1) {
+    const h = hb[i];
+    if (h.active) { h.age += dtGame; if (h.age >= h.life) h.active = false; }
+  }
+  // 이번 스텝의 히트 이벤트 소진
+  const src = world.hitFx;
+  const cd = vh.markerCooldownSecPerEntity;
+  for (let i = 0; i < src.count; i += 1) {
+    const ev = src.buf[i];
+    const idx = ev.enemyIdx;
+    const rank = tierRank(ev.tier);
+    const tracked = idx >= 0 && idx < fx.markerT.length;
+    // maxOnly + 쿨다운: 창 안에서 같거나 낮은 tier 는 억제, 높은 tier 는 교체(처치는 우회)
+    if (!ev.killed && tracked
+        && fx.markerGen[idx] === ev.enemyGen && fx.markerT[idx] > 0 && rank <= fx.markerRank[idx]) {
+      continue;
+    }
+    if (tracked) { fx.markerGen[idx] = ev.enemyGen; fx.markerT[idx] = cd; fx.markerRank[idx] = rank; }
+    // ×2 임팩트 프리즈 — 살아있는 개체(idx,gen)에 묶는다. 죽은 적은 묶을 대상이 없다(처치 FX 로 간다)
+    if (ev.tier === 'super' && !ev.killed && idx >= 0 && idx < fx.freezeT.length) {
+      fx.freezeT[idx] = vh.superFreezeSec; fx.freezeGen[idx] = ev.enemyGen;
+    }
+    spawnHit(fx, vh, ev);
+  }
+}
+
+function spawnHit(fx, vh, ev) {
+  const pool = fx.hits;
+  const h = pool.buf[pool.head];
+  pool.head = (pool.head + 1) % pool.cap;         // evictOldest = 링 덮어쓰기
+  h.active = true;
+  h.tier = ev.tier;
+  h.x = ev.x; h.y = ev.y;
+  h.element = ev.element;
+  h.killed = ev.killed;
+  h.age = 0;
+  // 수명 = resistArcLifeSec(0.25) 를 세 tier 공통 페이드로 재사용한다 — 「얼마나」는 render 결정(새 키 0).
+  h.life = vh.resistArcLifeSec;
+  h.seed = fx.hitSeq; fx.hitSeq += 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,9 +545,10 @@ function drawPlayerBullets(ctx, world, pal, interp, alpha) {
 // ---------------------------------------------------------------------------
 // 레이어 5 — 적 기체 (§7.6: 중립 차콜 본체 + 속성색 외곽선 + 코어 글리프 + 림 라이트)
 // ---------------------------------------------------------------------------
-function drawEnemies(ctx, world, pal, interp, alpha) {
+function drawEnemies(ctx, world, pal, fx, interp, alpha) {
   const vg = world.data.rules.visual.glyph;
   const el = world.data.rules.elite;
+  const freezeScale = world.data.rules.visual.hitFx.superFreezeScale;   // §7.7 ×2 임팩트 프리즈
   const archetypes = world.data.enemies.archetypes;
   const items = world.enemies.items;
 
@@ -481,8 +564,13 @@ function drawEnemies(ctx, world, pal, interp, alpha) {
     if (def === null) throw new Error(`draw: 미지의 아키타입 "${e.archetypeId}" (§9.7)`);
     const color = pal.element[e.element];
 
+    // §7.7 — ×2 히트의 0.04초 임팩트 프리즈: 개체(idx,gen)가 프리즈 중이면 본체를 ×superFreezeScale.
+    //   ★ 게임 클럭·판정과 무관한 개체 단위 렌더 연출이다(§7.7 note). e.radius 는 원본 유지, r 만 스케일.
+    const frozen = fx.freezeT[e.idx] > 0 && fx.freezeGen[e.idx] === e.gen;
+    const r = frozen ? e.radius * freezeScale : e.radius;
+
     // 본체 — 속성별로 칠하지 않는다 (§7.6: 3층 분리의 근거)
-    shapePath(ctx, def.shapeId, x, y, e.radius);
+    shapePath(ctx, def.shapeId, x, y, r);
     ctx.fillStyle = pal.enemyBody;
     ctx.fill();
 
@@ -493,7 +581,7 @@ function drawEnemies(ctx, world, pal, interp, alpha) {
       ctx.clip();
       ctx.fillStyle = rgba(color, 0.35);
       ctx.beginPath();
-      ctx.arc(x - (e.vx / sp) * e.radius * 0.75, y - (e.vy / sp) * e.radius * 0.75, e.radius * 0.9, 0, Math.PI * 2);
+      ctx.arc(x - (e.vx / sp) * r * 0.75, y - (e.vy / sp) * r * 0.75, r * 0.9, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -501,7 +589,7 @@ function drawEnemies(ctx, world, pal, interp, alpha) {
     // 외곽선 — 속성색 2px (cvd 3px). 본체 크기 무관 항상
     ctx.lineWidth = pal.enemyOutlinePx;
     ctx.strokeStyle = color;
-    shapePath(ctx, def.shapeId, x, y, e.radius);
+    shapePath(ctx, def.shapeId, x, y, r);
     ctx.stroke();
 
     // §7.6 엘리트 — 회전하는 이중 외곽선 + 개체 위 속성색 HP 바 + 상시 글리프
@@ -511,9 +599,10 @@ function drawEnemies(ctx, world, pal, interp, alpha) {
       ctx.rotate(world.time * Math.PI * 0.5);
       ctx.lineWidth = pal.enemyOutlinePx;
       ctx.strokeStyle = rgba(color, 0.7);
-      shapePath(ctx, def.shapeId, 0, 0, e.radius * el.sizeMult * 0.82);
+      shapePath(ctx, def.shapeId, 0, 0, r * el.sizeMult * 0.82);
       ctx.stroke();
       ctx.restore();
+      // HP 바는 UI 요소 — 프리즈 팝에 흔들리지 않게 원본 e.radius 에 앵커
       const bw = e.radius * 2;
       ctx.fillStyle = rgba(pal.threat.outline, 0.8);
       ctx.fillRect(x - bw / 2, y - e.radius - 8, bw, 3);
@@ -522,7 +611,7 @@ function drawEnemies(ctx, world, pal, interp, alpha) {
     }
 
     // 코어 글리프 — max(6, bodyPx × bodyRatio), 상한 maxPx. cvd 는 ×1.5 + 항상 렌더
-    const bodyPx = e.radius * 2;
+    const bodyPx = r * 2;
     if (e.elite || pal.cvd || bodyPx >= vg.lodMinBodyPx) {
       const g = Math.min(vg.maxPx, Math.max(6, bodyPx * vg.bodyRatio)) * 0.5 * pal.glyphScale;
       glyphPath(ctx, e.element, x, y, g);
@@ -647,6 +736,100 @@ function mix(a, b, t) {
 }
 
 // ---------------------------------------------------------------------------
+// 레이어 7 — 히트 피드백 3중 감각 (§7.7). ★ 적 탄(9)보다 **아래**에 그린다 → I-4 (탄 불가림) 보존.
+//   ×2 (super)  : 공격 속성색 화이트-핫 코어 + 확장 버스트 링 + 스파크 3개 (발광). 처치면 흰 링 확장.
+//   ×1 (neutral): 짧은 백색 플래시 + 스파크 1개. 처치면 소형 파열.
+//   ×0.5(resist): **회색 방패 호**(sweep 120° · stroke 2px · 발광 아님) + 스파크 0 → "튕겼다".
+//   ★ 색은 palette 가 소유(§7.2). 규격값(sweep·stroke·수명·스파크 수·프리즈)은 visual.hitFx 가 소유(§9.4.3).
+// ---------------------------------------------------------------------------
+const GOLDEN_ANGLE = 2.399963229728653;           // 스파크 각도 분산(무-RNG · 결정적)
+
+function drawResistArc(ctx, pal, vh, h, t) {
+  // 둔한 회색 방패 호. 아래(+y = 플레이어/입사탄 쪽)를 향해 살짝 바깥으로 밀린다 = 튕겨냄
+  const sweep = (vh.resistArcSweepDeg * Math.PI) / 180;
+  const base = Math.PI / 2;
+  const r = 12 + t * 6;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';    // 발광 금지 — 방어는 둔하다(§7.7 "약한 스파크")
+  ctx.globalAlpha = (1 - t) * 0.9;
+  ctx.lineWidth = vh.resistArcStrokePx;
+  ctx.strokeStyle = pal.neutralGray;
+  ctx.beginPath();
+  ctx.arc(h.x, h.y, r, base - sweep / 2, base + sweep / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBurst(ctx, pal, vh, h, t) {
+  const isSuper = h.tier === 'super';
+  const color = isSuper ? pal.element[h.element] : pal.threat.bulletCore;  // neutral = 백색 플래시
+  const nSpark = isSuper ? vh.particles.super : vh.particles.neutral;
+  const fade = 1 - t;
+  const baseR = isSuper ? 10 : 5;
+  const grow = isSuper ? 22 : 9;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';        // 발광 = 플레이어 FX(I-1: 외곽선 없음)
+
+  // 화이트-핫 코어 — §7.7 ×2 "속성색 화이트-핫 1프레임" (첫 ~1/6 구간만 강한 백색)
+  const hot = 1 - t * 6;
+  if (hot > 0) {
+    ctx.globalAlpha = hot * (isSuper ? 0.95 : 0.6);
+    ctx.fillStyle = pal.threat.bulletCore;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, isSuper ? 7 : 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 확장 버스트 링 — 속성색(super) / 백색(neutral). 처치면 더 크게(대형 파열)
+  const rr = baseR + t * grow * (h.killed ? 1.8 : 1);
+  ctx.globalAlpha = fade * (isSuper ? 0.85 : 0.5);
+  ctx.lineWidth = isSuper ? 3 : 1.5;
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.arc(h.x, h.y, rr, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 스파크 — 중심에서 방사. 각도는 seed 로 분산(결정적, 무-RNG)
+  const sparkLen = (isSuper ? 14 : 8) * (0.4 + t);
+  ctx.lineWidth = isSuper ? 2 : 1.5;
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = fade * (isSuper ? 0.9 : 0.55);
+  for (let k = 0; k < nSpark; k += 1) {
+    const ang = h.seed * GOLDEN_ANGLE + (k * Math.PI * 2) / Math.max(1, nSpark);
+    const cx = h.x + Math.cos(ang) * baseR;
+    const cy = h.y + Math.sin(ang) * baseR;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(ang) * sparkLen, cy + Math.sin(ang) * sparkLen);
+    ctx.stroke();
+  }
+
+  // 처치 FX — 흰 링 확장 (§7.7 처치: 속성색 대형 파열 + 흰 링)
+  if (h.killed) {
+    ctx.globalAlpha = fade * 0.8;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = pal.threat.bulletCore;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, baseR + t * grow * 2.4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawHitFx(ctx, world, pal, fx) {
+  const vh = world.data.rules.visual.hitFx;
+  const hb = fx.hits.buf;
+  for (let i = 0; i < hb.length; i += 1) {
+    const h = hb[i];
+    if (!h.active) continue;
+    const t = h.life > 0 ? h.age / h.life : 1;     // 0→1 진행
+    if (t >= 1) continue;
+    if (h.tier === 'resist') drawResistArc(ctx, pal, vh, h, t);
+    else drawBurst(ctx, pal, vh, h, t);            // super · neutral
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 레이어 8 — 공중 텔레그래프 (§7.4: 자홍 점선 + 알파 0.50, 채움 금지)
 // ---------------------------------------------------------------------------
 function drawTelegraphs(ctx, world, pal) {
@@ -756,8 +939,9 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   drawGroundZones(ctx, world, pal);                           // 1
   drawPickups(ctx, world, pal, interp, alpha);                // 2
   drawPlayerBullets(ctx, world, pal, interp, alpha);          // 4
-  drawEnemies(ctx, world, pal, interp, alpha);                // 5
+  drawEnemies(ctx, world, pal, fx, interp, alpha);            // 5 (§7.7 임팩트 프리즈 = 본체 팝)
   const pp = drawPlayer(ctx, world, pal, fx, interp, alpha);  // 6
+  drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9
   drawHitboxDot(ctx, world, pal, pp.x, pp.y);                 // 10
