@@ -391,6 +391,13 @@ async function boot() {
     const elapsed = now - last;
     last = now;
 
+    // §5.7 — Escape = 일시정지 토글 (PLAY ↔ PAUSE). blur 자동정지와 별개로 키로도 멈춘다.
+    //   edge 는 매 프레임 소비(prev 갱신)해 상태가 어긋나지 않게 하고, DRAFT/OVER 에서는 무시한다
+    //   (§5.2 — 드래프트는 스킵 불가). 상승 엣지라 키를 눌러도 1회만 토글된다.
+    const pauseEdge = edge.pressed(rules.input.bindings.pause);
+    if (pauseEdge && state === 'PLAY') { enter('PAUSE'); acc = 0; }
+    else if (pauseEdge && state === 'PAUSE') { enter('PLAY'); acc = 0; }
+
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
       acc += Math.min(elapsed, rules.loop.maxFrameGapMs);
@@ -410,8 +417,8 @@ async function boot() {
     } else {
       acc = 0;
       if (state === 'DRAFT') tickDraft();
-      else if (state === 'PAUSE' && edge.pressed(rules.input.bindings.pause)) { enter('PLAY'); }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
+      // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
 
     // ---- 렌더 ------------------------------------------------------------
