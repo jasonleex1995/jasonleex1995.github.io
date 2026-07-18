@@ -26,6 +26,7 @@ import { createWorld } from './core/state.js';
 import { step, makeInput, TICK_HZ } from './core/step.js';
 import { buildDraft, rerollDraft, applyCard, candidates } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
+import { enemies } from './core/enemies.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
 import { drawPanels, drawDraft } from './render/hud.js';
@@ -214,8 +215,9 @@ async function boot() {
   const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
 
   // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
-  //   1주차에는 스포너·이미터가 없다 (스테이지는 범위 밖) → null. step() 은 적의 등속 적분만 한다.
-  const world = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters: null } });
+  //   ★ 1주차 슬라이스: enemies 스포너/이동 훅을 주입해 sea stage-1 웨이브(섞인 element)를 내려보낸다.
+  //     이미터(적 탄)는 여전히 범위 밖 → null. step() 은 적의 등속 적분 + 이 훅의 vx/vy 를 쓴다.
+  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters: null } });
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });
