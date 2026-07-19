@@ -75,6 +75,10 @@ export function initRun(world) {
     crisis: false,                  // 잡몹 페이즈 마지막 25초 서브구간(§8.10)
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
     bossSpawned: false,             // BOSS 페이즈 보스 스폰 1회 가드(보스 훅이 본다)
+    bossPhase: 0,                   // §8.11 보스 페이즈(코어 HP 임계 [0.6,0.3] → 0/1/2, patternSet 선택)
+    bossTransitionT: 0,             // 페이즈 전환 잔여(>0 = 보스 무적 + 타이머 정지, §6.3)
+    bossMoveSpeedMul: 1,            // §8.12 mobility 파괴 시 speedPxSec ×0.5
+    bossMoveAmpMul: 1,              //   그리고 ampPx →0 (스웨이 정지)
     cleared: false,                 // 보스 코어 격파 신호(killEnemy 가 세팅 → tickRun 이 소화)
     won: false,                     // finale 격파 = 런 클리어(승리)
     deathCause: null,               // null | 'hp' | 'timeout'
@@ -140,12 +144,14 @@ export function tickRun(world, dt) {
       run.phaseT = 0;
       return;
     }
-    // §6.3 — 타이머 만료 = 즉사(timerExpire "kill"). 전환 중 정지는 B2(phaseTransition).
-    run.bossTimer -= dt;
-    if (run.bossTimer <= 0) {
-      run.bossTimer = 0;
-      run.deathCause = 'timeout';
-      world.over = true;
+    // §6.3 — 타이머 만료 = 즉사(timerExpire "kill"). 페이즈 전환 중엔 정지(timerPausesOnPhaseTransition).
+    if (run.bossTransitionT <= 0) {
+      run.bossTimer -= dt;
+      if (run.bossTimer <= 0) {
+        run.bossTimer = 0;
+        run.deathCause = 'timeout';
+        world.over = true;
+      }
     }
     return;
   }

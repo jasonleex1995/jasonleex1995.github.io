@@ -468,6 +468,17 @@
 
 ---
 
+### 2026-07-18 — B2b: 보스 페이즈 전환 + 파트파괴 이동페널티
+
+- **페이즈 전환(§8.11)**: 코어 HP 임계 [0.6,0.3] 통과 → phase 0/1/2. 전환 = `phaseTransitionSec`(1.5s) 동안 보스 무적(collide) + 타이머 정지(tickRun). 끝나면 전 파트 `e.phase` 각인 → patternSet·이미터 악절이 새 페이즈로 (탄막 층 상승). `boss.js advancePhase` + run 상태(bossPhase/bossTransitionT).
+- **파트파괴 이동페널티(§8.12)**: mobility 파트 처치 → `bossMoveSpeedMul=0.5`·`bossMoveAmpMul=0`(스웨이 정지). `killBossEntity` + `moveBoss`. (armament 정지·armor 게이트는 기존.)
+- **알려진 경계 오차**: run 훅이 boss 훅보다 파이프라인 앞이라 전환 시작 틱에 타이머가 1틱(0.0167s) 먼저 감소 — 결정적·180s 중 ≤2틱, 무시 가능(비결정성 아님).
+- **헤드리스 실증**: 지속 피해로 phase 0→1→2 관측·2회 전환·전환 무적 실증·코어 사망→cleared. 풀런 8/8 승리·예외 0.
+- **검증**: 신규 테스트 3개(mobility·전환·재전환없음) → **299 통과**(296→299) · `check.mjs` exit 0.
+- 다음: B2a-2(laser/zone 빔·장판 인프라) → 중간보스·위기 → B3(플로우 화면·HUD).
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)

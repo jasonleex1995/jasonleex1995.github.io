@@ -126,20 +126,87 @@ suite('boss/처치 규칙 (killBossEntity)', () => {
     killEnemy(w, core);
     assert.eq(livePickups(w, 'xp'), xpBefore, '보스 개체는 xp 드랍 없음 (§8.11 xp 0)');
   });
+
+  test('mobility 파트 파괴 → 이동 배율 감소 (§8.12 speedPxSec×0.5 · ampPx→0)', () => {
+    const w = mkRunWorld(1, 0);
+    w.run.order[0] = 'sea';                            // manta = thruster(mobility) 보유 (결정적)
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100;
+    const mob = scanBoss(w).parts.filter((p) => p.partType === 'mobility');
+    assert.gt(mob.length, 0, 'manta 는 mobility 파트(thruster) 보유');
+    assert.eq(w.run.bossMoveSpeedMul, 1, '초기 속도 배율 1');
+    assert.eq(w.run.bossMoveAmpMul, 1, '초기 진폭 배율 1');
+    killEnemy(w, mob[0]);
+    assert.eq(w.run.bossMoveSpeedMul, w.data.rules.boss.mobilityPenalty, 'speedPxSec ×mobilityPenalty');
+    assert.eq(w.run.bossMoveAmpMul, 0, 'ampPx →0 (스웨이 정지)');
+  });
+});
+
+suite('boss/페이즈 전환 (§8.11)', () => {
+  test('코어 HP 임계 통과 → 전환(무적·타이머 정지) 후 파트 phase 각인', () => {
+    const w = mkRunWorld(1, 0);
+    w.run.order[0] = 'sea';
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100;
+    const { core } = scanBoss(w);
+    const thr = w.data.rules.boss.phaseThresholds;    // [0.6, 0.3]
+
+    // 코어 HP 를 0.6 미만·0.3 초과(phase-1 밴드)로 → 다음 step 의 bossHook 이 전환 시작
+    core.hp = core.hpMax * ((thr[0] + thr[1]) / 2);    // ≈0.45
+    step(w, makeInput(), TICK_DT);
+    assert.eq(w.run.bossPhase, 1, '목표 페이즈 1로 전환');
+    assert.gt(w.run.bossTransitionT, 0, '전환 창(무적) 시작');
+
+    // 전환 중 타이머 정지 — run 훅이 boss 훅보다 앞서 시작 틱에 1틱 오차가 있으므로, 시작 다음
+    //   틱부터의 안정성을 본다(결정적·무시 가능한 경계 오차, §6.3 의 의미는 "전환 동안 멈춘다").
+    const timerDuring = w.run.bossTimer;
+    // 전환 중 무적: 코어에 정지 탄을 겹쳐도 무피해
+    const slot = w.slots[0]; const eff = recomputeEff(w, slot);
+    spawnPlayerBullet(w, slot, eff, core.x, core.y, 0, 0, 1);
+    const hp0 = core.hp;
+    for (let t = 0; t < 10; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(w.run.bossTimer, timerDuring, '전환 중 보스 타이머 정지(시작 다음 틱부터)');
+    assert.eq(core.hp, hp0, '전환 중 코어 무적');
+
+    // 전환 종료 → 파트 phase 1 각인
+    const need = Math.ceil(w.data.rules.boss.phaseTransitionSec * 60) + 2;
+    for (let t = 0; t < need; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(w.run.bossTransitionT, 0, '전환 종료');
+    for (const pt of scanBoss(w).parts) assert.eq(pt.phase, 1, '파트 patternSet phase 1 각인');
+  });
+
+  test('전환은 임계당 1회 (같은 밴드 재진입 없음)', () => {
+    const w = mkRunWorld(2, 0);
+    w.run.order[0] = 'sea';
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100;
+    const { core } = scanBoss(w);
+    core.hp = core.hpMax * 0.5;
+    step(w, makeInput(), TICK_DT);                     // phase 0→1 전환 시작
+    assert.eq(w.run.bossPhase, 1, 'phase 1');
+    // 전환 끝까지
+    for (let t = 0; t < Math.ceil(w.data.rules.boss.phaseTransitionSec * 60) + 2; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(w.run.bossTransitionT, 0, '전환 종료');
+    // 같은 phase-1 밴드에서 더 이상 전환 없음
+    w.player.iframeSec = 99999;
+    step(w, makeInput(), TICK_DT);
+    assert.eq(w.run.bossPhase, 1, '같은 밴드 재전환 없음');
+    assert.eq(w.run.bossTransitionT, 0, '전환 재시작 없음');
+  });
 });
 
 suite('boss/bossHook · clearField', () => {
   test('bossHook: BOSS 페이즈서 1회만 스폰(가드), 비-BOSS 페이즈선 아무것도 안 함', () => {
     const w = mkRunWorld(1, 0);
     w.run.phase = PHASE.MOB;
-    bossHook(w);
+    bossHook(w, TICK_DT);
     assert.eq(scanBoss(w).core, null, 'MOB 페이즈선 보스 스폰 없음');
 
     w.run.phase = PHASE.BOSS; w.run.bossSpawned = false;
-    bossHook(w);
+    bossHook(w, TICK_DT);
     assert.ok(w.run.bossSpawned, '스폰 후 가드 세팅');
     assert.ok(scanBoss(w).core, '코어 스폰됨');
-    bossHook(w);                                       // 재호출
+    bossHook(w, TICK_DT);                                       // 재호출
     let cores = 0; for (const e of w.enemies.items) if (e.alive && e.isBoss && e.isCore) cores += 1;
     assert.eq(cores, 1, '재스폰 없음 (bossSpawned 가드)');
   });

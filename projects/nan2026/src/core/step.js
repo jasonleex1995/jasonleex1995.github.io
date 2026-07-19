@@ -299,6 +299,9 @@ function collide(world, dt) {
         if (shielded) continue;
       }
 
+      // §6.3 — 페이즈 전환 중 보스(코어·파트) 무적 = 공짜 숨돌릴 틈. 탄은 통과(소멸 아님, i-frame 과 대칭).
+      if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) continue;
+
       // §9.5 — hitCooldownSec: 같은 대상을 다시 때리기까지의 최소 간격.
       //        0.0 = 한 대상에 정확히 1회 (재히트 없음)
       // ★ hitGen — 히트 기록은 (hitEpoch, e.gen) 쌍으로 유효하다. 적 슬롯이 풀 재사용되면
@@ -465,6 +468,9 @@ function killBossEntity(world, e) {
       const c = en[i];
       if (c.alive && c.isBoss && c.isCore && c.aliveArmorPartCount > 0) { c.aliveArmorPartCount -= 1; break; }
     }
+  } else if (e.partType === 'mobility' && world.run !== undefined) {
+    world.run.bossMoveSpeedMul = bcfg.mobilityPenalty;    // §8.12 speedPxSec ×0.5
+    world.run.bossMoveAmpMul = 0;                          //   ampPx →0 (스웨이 정지)
   }
   world.enemies.release(e);
 }

@@ -49,6 +49,8 @@ function findCore(world) {
 export function spawnBoss(world) {
   const entry = stageEntry(world);
   const def = findBoss(world, entry.bossId);
+  const run = world.run;
+  run.bossPhase = 0; run.bossTransitionT = 0; run.bossMoveSpeedMul = 1; run.bossMoveAmpMul = 1;  // 새 보스 = 1페이즈
   const scale = def.tier === 'final' ? 1 : world.data.stages.curve.bossHpScale[world.run.stageIndex];
   const arena = world.data.rules.view.arena;
   const cx = arena.x + arena.w / 2;
@@ -75,17 +77,21 @@ export function spawnBoss(world) {
 function moveBoss(world) {
   const core = findCore(world);
   if (core === null) return;
+  const run = world.run;
   const def = findBoss(world, core.bossId);
   const mp = def.movePatternParams;
   const arena = world.data.rules.view.arena;
   const cx = arena.x + arena.w / 2;
 
-  if (def.movePattern === 'holdCenter') {
+  // §8.12 — mobility 파괴 시 speedPxSec ×0.5 · ampPx →0(스웨이 정지). 배율은 run 이 소유.
+  const effAmp = mp.ampPx * run.bossMoveAmpMul;
+  const effSpeed = mp.speedPxSec * run.bossMoveSpeedMul;
+  if (def.movePattern === 'holdCenter' || effAmp <= 0) {
     core.x = cx;
     core.y = mp.yHoldPx;
   } else {
-    const w = mp.ampPx > 0 ? mp.speedPxSec / mp.ampPx : 0;
-    core.x = cx + mp.ampPx * Math.sin(w * core.moveT);
+    const w = effSpeed / effAmp;                       // 최대 측속 = effSpeed
+    core.x = cx + effAmp * Math.sin(w * core.moveT);
     core.y = mp.yHoldPx;
   }
 
@@ -99,13 +105,47 @@ function moveBoss(world) {
 }
 
 /**
+ * §8.11 — 코어 HP 임계(phaseThresholds [0.6,0.3])를 지나면 페이즈 전환.
+ *   전환 = phaseTransitionSec 동안 보스 무적(collide) + 타이머 정지(tickRun). 끝나면 전 파트의 phase 를
+ *   각인해 patternSet 이 새 페이즈로 바뀌고(이미터 악절도 처음부터), "몰아치고 쉰다"의 층이 오른다.
+ */
+function advancePhase(world, dt) {
+  const run = world.run;
+  const core = findCore(world);
+  if (core === null) return;
+
+  if (run.bossTransitionT > 0) {
+    run.bossTransitionT -= dt;
+    if (run.bossTransitionT <= 0) {
+      run.bossTransitionT = 0;
+      const en = world.enemies.items;
+      for (let i = 0; i < en.length; i += 1) {
+        const e = en[i];
+        if (e.alive && e.isBoss) { e.phase = run.bossPhase; e.emitT = 0; e.emitPhase = 0; }
+      }
+    }
+    return;                                            // 전환 중엔 재판정 안 함
+  }
+
+  const thr = world.data.rules.boss.phaseThresholds;   // [0.6, 0.3]
+  const ratio = core.hpMax > 0 ? core.hp / core.hpMax : 0;
+  let target = 0;
+  for (let i = 0; i < thr.length; i += 1) if (ratio < thr[i]) target = i + 1;
+  if (target > run.bossPhase) {
+    run.bossPhase = target;
+    run.bossTransitionT = world.data.rules.boss.phaseTransitionSec;
+  }
+}
+
+/**
  * ★ 훅 진입점 — step.js 가 매 틱 부른다(hooks.boss). BOSS 페이즈에만 활성.
  *   run.bossSpawned(스테이지.tickRun 이 BOSS 진입 시 false 로 세팅)를 보고 1회 스폰 후 매 틱 이동.
  */
-export function bossHook(world) {
+export function bossHook(world, dt) {
   const run = world.run;
   if (run.phase !== PHASE.BOSS) return;
   if (!run.bossSpawned) { spawnBoss(world); run.bossSpawned = true; }
+  advancePhase(world, dt);
   moveBoss(world);
 }
 
