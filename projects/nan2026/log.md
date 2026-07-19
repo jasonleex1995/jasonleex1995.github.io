@@ -453,6 +453,7 @@
 - **디버깅 1건**: 프로브가 MOB 빨리감기로 스포너 미생성 → 비-MOB 분기 applyMovement 가 `spawner.archIndex` 참조 크래시. → 스포너 없으면 이동 생략 가드.
 - **헤드리스 실증**: (1) 풀런 프로브 = **6 스테이지 진행 → 승리, 예외 0**. (2) 실제 MOB 프로브(빨리감기 없음) = 최대 동시 잡몹 20·14웨이브(상한)·t120 BOSS_INTRO·t123 보스 스폰+필드 정리. (3) 각 보스 파트수 정확(스테이지 2armor+1, finale 3armor+1).
 - **검증**: 신규 boss 단위 테스트 10개 → **290 통과**(280→290) · `check.mjs` exit 0 · 브라우저 부팅 콘솔 0.
+- **적대적 검증(3렌즈) → 실 결함 5건 수정**(별도 커밋): ① `stageContext` MOB 매 틱 객체 alloc(§10.3 위반, ~43k/런) → ensureSpawner 스칼라 인라인. ② tickRun 타이머 체크가 cleared보다 먼저 → 막판 격파가 타임아웃 패배로 뒤집힘 → cleared를 타이머 위로. ③ partHitPriority 'outermostFirst' 미구현(풀 idx 역전) → collide에서 코어가 파트에 가려지면 파트 흡수. ④ `while(!over)step()` 주석 과장 정정(STAGE_CLEAR=드라이버 소화). ⑤ spawn 헬퍼 mp0/mp1/mp2 미리셋. 회귀 테스트 3개 추가 → **293 통과**, 8/8 시드 승리·예외 0.
 - 다음: B2(보스 발사 patternSet·laser/zone/stun·페이즈전환·중간보스·위기) → B3(플로우 화면·HUD 보스타이머).
 
 ---

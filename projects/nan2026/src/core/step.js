@@ -283,6 +283,22 @@ function collide(world, dt) {
       const rr = e.radius + b.radius;
       if (dx * dx + dy * dy > rr * rr) continue;
 
+      // §8.11 partHitPriority "outermostFirst" — 코어를 가리는 파트가 이 탄과 겹치면 파트가 흡수한다.
+      //   (풀 idx 순서에 의존하지 않는다 — 잡몹 페이즈가 free-스택을 뒤섞어 코어가 파트보다 낮은 idx 를
+      //    가질 수 있다.) 파트는 ≤5 라 이 스캔은 0-alloc·저비용이며 코어 겹침에만 발화한다.
+      if (e.isBoss && e.isCore) {
+        let shielded = false;
+        for (let k = 0; k < en.length; k += 1) {
+          const pt = en[k];
+          if (!pt.alive || !pt.isBoss || pt.isCore) continue;
+          const pdx = pt.x - b.x;
+          const pdy = pt.y - b.y;
+          const prr = pt.radius + b.radius;
+          if (pdx * pdx + pdy * pdy <= prr * prr) { shielded = true; break; }
+        }
+        if (shielded) continue;
+      }
+
       // §9.5 — hitCooldownSec: 같은 대상을 다시 때리기까지의 최소 간격.
       //        0.0 = 한 대상에 정확히 1회 (재히트 없음)
       // ★ hitGen — 히트 기록은 (hitEpoch, e.gen) 쌍으로 유효하다. 적 슬롯이 풀 재사용되면

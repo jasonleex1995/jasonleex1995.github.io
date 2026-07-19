@@ -9,8 +9,8 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
-import { killEnemy } from '../src/core/step.js';
+import { createWorld, spawnEnemy, spawnEnemyBullet, spawnPlayerBullet, recomputeEff } from '../src/core/state.js';
+import { killEnemy, step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -142,6 +142,34 @@ suite('boss/bossHook · clearField', () => {
     bossHook(w);                                       // 재호출
     let cores = 0; for (const e of w.enemies.items) if (e.alive && e.isBoss && e.isCore) cores += 1;
     assert.eq(cores, 1, '재스폰 없음 (bossSpawned 가드)');
+  });
+
+  test('회귀(partHitPriority outermostFirst): 코어+파트에 겹친 탄은 파트가 흡수, 코어 무피해', () => {
+    const w = mkRunWorld(1, 0);
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100;
+    const { core, parts } = scanBoss(w);
+    // 코어와 겹치는(anchor 길이 < core.r + part.r) 파트 하나
+    let part = null;
+    for (const p of parts) if (Math.hypot(p.anchorX, p.anchorY) < core.radius + p.radius) { part = p; break; }
+    assert.ok(part, '코어와 겹치는 파트 존재 (양성 경로)');
+
+    // 코어↔파트 중점에 정지 플레이어 탄 (둘 다에 겹치게)
+    const slot = w.slots[0]; const eff = recomputeEff(w, slot);
+    const bx = core.x + part.anchorX * 0.5;
+    const by = core.y + part.anchorY * 0.5;
+    const b = spawnPlayerBullet(w, slot, eff, bx, by, 0, 0, 1);
+    assert.ok(b, '탄 스폰');
+    const overCore = (core.x - bx) ** 2 + (core.y - by) ** 2 <= (core.radius + b.radius) ** 2;
+    const overPart = (part.x - bx) ** 2 + (part.y - by) ** 2 <= (part.radius + b.radius) ** 2;
+    assert.ok(overCore && overPart, '탄이 코어·파트 둘 다에 겹친다 (테스트 전제)');
+
+    const coreHp0 = core.hp;
+    let partsHp0 = 0; for (const p of parts) partsHp0 += p.hp;
+    step(w, makeInput(), TICK_DT);
+    let partsHp1 = 0; for (const p of parts) partsHp1 += p.hp;
+    assert.lt(partsHp1, partsHp0, '파트가 피해를 받는다 (흡수)');
+    assert.eq(core.hp, coreHp0, '코어는 무피해 — 파트가 가린다 (§8.11)');
   });
 
   test('clearField: 보스 등장 시 잔존 잡몹·적탄 정리', () => {

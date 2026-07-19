@@ -549,6 +549,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.isBoss = false; e.bossId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.slowSec = 0; e.stunSec = 0;
   e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 재사용 stale 방지
   return e;
 }
 
@@ -569,6 +570,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.isCore = true; e.aliveArmorPartCount = armorCount;
   e.isBoss = true; e.bossId = bossId; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
 }
 
@@ -587,6 +589,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partType = part.partType; e.phase = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
 }
 

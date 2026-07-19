@@ -122,6 +122,26 @@ suite('stage/페이즈 §6.5', () => {
     assert.ok(w.over, 'over');
   });
 
+  test('회귀: 막판 격파는 타임아웃보다 우선한다 (cleared 를 timer 보다 먼저 소화)', () => {
+    const w = mkWorld(); const run = initRun(w);
+    run.stageIndex = 0;
+    run.phase = PHASE.BOSS; run.bossTimer = dt * 0.5; run.cleared = true;  // 타이머 0 임박 + 격파 신호 동시
+    tickRun(w, dt);
+    assert.eq(run.phase, PHASE.STAGE_CLEAR, '격파가 타임아웃을 이긴다 → STAGE_CLEAR');
+    assert.eq(run.deathCause, null, '시간초과 사망으로 뒤집히지 않는다');
+    assert.eq(w.over, false, '런 계속');
+  });
+
+  test('회귀: finale 막판 격파 → 승리 (타임아웃 패배 아님)', () => {
+    const w = mkWorld(); const run = initRun(w);
+    run.stageIndex = 5;
+    run.phase = PHASE.BOSS; run.bossTimer = dt * 0.5; run.cleared = true;
+    tickRun(w, dt);
+    assert.ok(run.won, '승리');
+    assert.eq(run.deathCause, null, '시간초과 아님');
+    assert.ok(w.over, 'over(승리 종료)');
+  });
+
   test('음성: STAGE_CLEAR 에서 tickRun 은 게임클럭을 진행시키지 않는다(대기)', () => {
     const w = mkWorld(); const run = initRun(w);
     run.phase = PHASE.STAGE_CLEAR;

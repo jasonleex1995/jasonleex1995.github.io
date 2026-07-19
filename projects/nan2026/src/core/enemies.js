@@ -43,14 +43,6 @@ const PLAYABLE_BANDS = ['chaff', 'line'];          // turret/bruiser 는 effHP �
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
  * ★ 편성·아키타입 인덱스·간격을 전부 주입된 데이터에서 유도한다(하드코딩 매직넘버 0).
  */
-/** 현재 스폰 대상 스테이지. 런 구동이면 run.order[stageIndex], 아니면 슬라이스(sea/1). */
-function stageContext(world) {
-  if (world.run !== undefined && world.run.order !== undefined) {
-    return { stageId: world.run.order[world.run.stageIndex], curveIdx: world.run.stageIndex };
-  }
-  return { stageId: SLICE_STAGE_ID, curveIdx: SLICE_STAGE_NUMBER - 1 };
-}
-
 /** stageId·curveIdx 로 스폰 상태를 만든다(스테이지 진입/전환 시 1회). curveIdx = 런 포지션(0..5). */
 function buildSpawner(world, stageId, curveIdx) {
   const list = world.data.stages.stages;
@@ -86,11 +78,21 @@ function buildSpawner(world, stageId, curveIdx) {
   return { stageId, curveIdx, waves, archIndex, roster, waveIndex: 0, wavesSpawned: 0, nextWaveT: 0 };
 }
 
-/** 스폰 상태 확보. 스테이지가 바뀌면(런 진행) 재빌드한다. themeDraw 는 비복원이라 stageId 로 유일 식별. */
+/**
+ * 스폰 상태 확보. 스테이지가 바뀌면(런 진행) 재빌드한다. themeDraw 는 비복원이라 stageId 로 유일 식별.
+ * ★ 핫패스 0-alloc(§10.3) — 스칼라를 인라인한다(래퍼 객체를 만들면 MOB 매 틱 리터럴이 새로 alloc 된다).
+ */
 function ensureSpawner(world) {
-  const ctx = stageContext(world);
-  if (world.spawner !== undefined && world.spawner.stageId === ctx.stageId) return world.spawner;
-  world.spawner = buildSpawner(world, ctx.stageId, ctx.curveIdx);
+  let stageId; let curveIdx;
+  if (world.run !== undefined && world.run.order !== undefined) {
+    stageId = world.run.order[world.run.stageIndex];
+    curveIdx = world.run.stageIndex;
+  } else {
+    stageId = SLICE_STAGE_ID;
+    curveIdx = SLICE_STAGE_NUMBER - 1;
+  }
+  if (world.spawner !== undefined && world.spawner.stageId === stageId) return world.spawner;
+  world.spawner = buildSpawner(world, stageId, curveIdx);
   return world.spawner;
 }
 

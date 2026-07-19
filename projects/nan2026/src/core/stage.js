@@ -7,9 +7,12 @@
  *   §6.3   페이즈 길이(전부 stages.phase / rules.boss 의 게임초). mobPhaseSec 120 · crisisStartSec 95
  *          · introSec 3 · bossTimerSec 180.
  *   §6.5   전역 상태 기계의 **전투/진행 절반** — MOB→BOSS_INTRO→BOSS→STAGE_CLEAR→(다음/승리).
- *          ★ 메뉴·전환 화면(TITLE/DIFFICULTY/THEME_BANNER/HEAL/SHOP/RESULTS)과 DRAFT/SHOP 결정은
- *            **드라이버(main.js 사람 UI / sim 봇)의 몫**이다. 이 파일은 게임클럭이 흐르는 페이즈만 소유한다
- *            → 헤드리스 시뮬이 `while(!world.over) step()` 로 같은 런을 재현한다("certified = shipped", §10.4).
+ *          ★ 메뉴·전환 화면(TITLE/DIFFICULTY/THEME_BANNER/HEAL/SHOP/RESULTS)과 DRAFT/SHOP 결정,
+ *            그리고 **STAGE_CLEAR→advanceStage** 는 **드라이버(main.js 사람 UI / sim 봇)의 몫**이다.
+ *            이 파일은 게임클럭이 흐르는 전투 페이즈만 tickRun 으로 진행한다. 즉 헤드리스 루프는
+ *            `while(!over){ if(결정 대기) 드라이버가 해소; else step(); }` 이며 — main.js 와 sim 이
+ *            **같은 전이 함수(advanceStage·applyStageClearHeal…)를 호출**하므로 전투는 "certified=shipped"
+ *            (§10.4)로 동일 재현된다. STAGE_CLEAR 에서 tickRun 은 스스로 전이하지 않는다(드라이버 대기).
  *   §9.1   순수성 — window/Date/Math.random/… 0. import 는 core 내부만(현재 0). rng 는 world.rng.theme.
  *   §10.3  런 상태는 initRun 1회만 alloc(핫패스 tickRun 은 0 alloc). themeDraw 셔플의 slice 는 런 1회.
  *
@@ -126,20 +129,23 @@ export function tickRun(world, dt) {
   }
 
   if (run.phase === PHASE.BOSS) {
+    // ★ 격파 신호를 타이머보다 **먼저** 소화한다 — 이미 코어가 죽은 보스는 타이머 잔여와 무관하게
+    //   클리어/승리해야 한다(§6.3). killEnemy 가 collide(run 훅 뒤)에서 run.cleared 를 세팅하므로
+    //   신호는 항상 다음 틱에 소비되는데, 그 틱의 bossTimer 감소가 먼저 0 을 넘으면 격파가 시간초과
+    //   패배로 뒤집힌다 — 순서를 역전해 막는다.
+    if (run.cleared) {
+      run.cleared = false;
+      if (isFinale(world)) { run.won = true; world.over = true; return; }
+      run.phase = PHASE.STAGE_CLEAR;
+      run.phaseT = 0;
+      return;
+    }
     // §6.3 — 타이머 만료 = 즉사(timerExpire "kill"). 전환 중 정지는 B2(phaseTransition).
     run.bossTimer -= dt;
     if (run.bossTimer <= 0) {
       run.bossTimer = 0;
       run.deathCause = 'timeout';
       world.over = true;
-      return;
-    }
-    // 보스 코어 격파 신호(killEnemy 가 세팅). finale 면 승리, 아니면 STAGE_CLEAR.
-    if (run.cleared) {
-      run.cleared = false;
-      if (isFinale(world)) { run.won = true; world.over = true; return; }
-      run.phase = PHASE.STAGE_CLEAR;
-      run.phaseT = 0;
     }
     return;
   }
