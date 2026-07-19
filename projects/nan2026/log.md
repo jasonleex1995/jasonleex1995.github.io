@@ -428,6 +428,19 @@
 
 ---
 
+### 2026-07-18 — 최종 완성 지시 → Phase B 착수: 런 오케스트레이션 키스톤(`stage.js`)
+
+- **나**: "난 너가 만든 최종 게임에 대해서 플레이할거야. 네 계획에 맞게 게임을 완성하면 돼." → **로드맵대로 게임을 끝까지 자율 완성**(중간 슬라이스는 검증·커밋된 채로, 최종본만 플레이). 기억에 남김.
+- **아키텍처 결정 (코어/셸 분리)**: §6.5 상태기계에서 **게임클럭이 흐르는 전투 페이즈(MOB/BOSS)는 순수 코어**가 소유(시뮬이 `while(!world.over) step()`으로 같은 런 재현 = "certified=shipped", §10.4). **결정 지점(DRAFT/SHOP)은 드라이버**(main 사람 UI / sim 봇)가 해소, **전환·메뉴 화면은 셸**.
+- **`src/core/stage.js` (순수 키스톤, 가산적 — 기존 게임 무변경)**:
+  - `initRun`/`drawStageOrder` — §8.1 themeDraw: 6테마 중 5 비복원 추첨(rng.theme, Fisher-Yates) + finale = 6포지션. stage-1 introOk 강제. **구조 증명 200시드 전수**: 물·불·풀 각 ≥1 · stage1 introOk · 중복 0.
+  - `tickRun` — 페이즈 기계 MOB→(crisis 서브구간)→BOSS_INTRO→BOSS→STAGE_CLEAR. bossTimer 180 만료=즉사(deathCause). finale 격파=승리(엔드리스 없음).
+  - `advanceStage`·`applyStageClearHeal`·`stageEntry`·`isFinale`.
+- **검증**: 신규 12 테스트 → **280 통과**(268→280) · `check.mjs` exit 0 · rng.theme 독립 스트림 증명(spawn 불변).
+- 다음: 라이브 배선(step 훅 + enemies.js 런구동 리팩터 + main 런루프) + `boss.js`(복합보스 스폰·격파).
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)
