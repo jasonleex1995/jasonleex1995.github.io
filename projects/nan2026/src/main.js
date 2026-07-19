@@ -28,6 +28,8 @@ import { buildDraft, rerollDraft, applyCard, candidates } from './core/draft.js'
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
+import { bossHook } from './core/boss.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, PHASE } from './core/stage.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
 import { drawPanels, drawDraft } from './render/hud.js';
@@ -305,7 +307,9 @@ async function boot() {
   //   ★ 1주차 슬라이스: enemies 스포너/이동 훅 + emitters 적-공격 훅을 주입한다. sea stage-1 로스터가
   //     섞인 element 로 내려오고, attack 을 가진 적은 emitter 케이던스대로 탄을 쏜다(step 이 탄 이동·
   //     플레이어 충돌·i-frame·상태이상을 처리한다). 공정성(속도·텔레그래프 리드)은 이미터 데이터가 보장.
-  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters } });
+  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook } });
+  // §6.5 — 런 조립(스테이지 순서 추첨 + MOB 페이즈 시작). 배속·시드처럼 core 밖에서 1회 트리거한다.
+  initRun(world);
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });
@@ -410,6 +414,8 @@ async function boot() {
         acc -= tickDur;
         steps += 1;
         if (world.over) { enter('OVER'); break; }
+        // §6.5 STAGE_CLEAR — B1b: 회복 후 자동 전진(테마 배너·드래프트 소화·상점 화면은 B3).
+        if (world.run.phase === PHASE.STAGE_CLEAR) { applyStageClearHeal(world); advanceStage(world); }
         if (world.draftQueue > 0 && openDraftIfQueued()) break;
       }
       // §10.1 — 나선형 죽음 방지: 남은 시간 폐기 (빨리감기 금지)
@@ -427,7 +433,12 @@ async function boot() {
     drawPanels(ctx, world, pal);
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
     if (state === 'PAUSE') banner(ctx, world, pal, '일시정지', '[Escape] 재개');
-    if (state === 'OVER') banner(ctx, world, pal, 'GAME OVER', `시드 ${seedHex(seed)}`);
+    if (state === 'OVER') {
+      // §6.5 — finale 격파 = 승리, 그 외 = 게임오버(HP 소진 / 시간 초과). RESULTS 화면은 B3.
+      if (world.run.won) banner(ctx, world, pal, '클리어!', `시드 ${seedHex(seed)}`);
+      else banner(ctx, world, pal, 'GAME OVER',
+        world.run.deathCause === 'timeout' ? '시간 초과' : `시드 ${seedHex(seed)}`);
+    }
     if (state === 'TOO_SMALL') {
       banner(ctx, world, pal, '창이 너무 작습니다',
         `최소 ${view.minViewportW} × ${view.minViewportH} — 데스크톱 키보드 전용`);

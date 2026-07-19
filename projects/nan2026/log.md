@@ -441,6 +441,22 @@
 
 ---
 
+### 2026-07-18 — B1b: 보스 + 라이브 배선 → 헤드리스 한 판 완주(mob→boss→다음→…→승리)
+
+- **나**: A~D 계획대로 쭉, 각 스텝 디버깅하며 에러 없이.
+- **파일별 구현 + 스텝마다 게이트 검증**(각 단계 test+check 초록 확인):
+  - `state.js` — makeEnemy 보스 필드(isBoss/partType/anchor…) + hooks{run,boss} + `spawnBossCore`/`spawnBossPart`(필드 전량 리셋).
+  - `step.js` — run/boss 훅 배선(스폰 게이트·이동 적분 순서) + `killBossEntity`(코어 격파=coin+cleared+전 개체 반납 / armor 파괴=게이트 1단 해제) + moveBullets 보스 이탈 면제.
+  - `boss.js` (신설) — `spawnBoss`(파트 먼저=outermostFirst 근사·코어 나중, HP×bossHpScale, finale 절대) + `moveBoss`(sway/holdCenter, 파트가 코어+anchor 추종) + `bossHook`(BOSS 페이즈 1회 스폰 가드) + `clearField`.
+  - `enemies.js` — 런구동 리팩터: `stageContext`/`buildSpawner`(스테이지 전환 재빌드) + MOB 페이즈 게이트 + mobPhaseMaxWaves 상한 + applyMovement 보스 가드. 슬라이스 폴백 유지(테스트 무변경).
+  - `main.js` — createWorld 훅 배선 + initRun + STAGE_CLEAR 자동전진(회복) + 승리/사망 배너.
+- **디버깅 1건**: 프로브가 MOB 빨리감기로 스포너 미생성 → 비-MOB 분기 applyMovement 가 `spawner.archIndex` 참조 크래시. → 스포너 없으면 이동 생략 가드.
+- **헤드리스 실증**: (1) 풀런 프로브 = **6 스테이지 진행 → 승리, 예외 0**. (2) 실제 MOB 프로브(빨리감기 없음) = 최대 동시 잡몹 20·14웨이브(상한)·t120 BOSS_INTRO·t123 보스 스폰+필드 정리. (3) 각 보스 파트수 정확(스테이지 2armor+1, finale 3armor+1).
+- **검증**: 신규 boss 단위 테스트 10개 → **290 통과**(280→290) · `check.mjs` exit 0 · 브라우저 부팅 콘솔 0.
+- 다음: B2(보스 발사 patternSet·laser/zone/stun·페이즈전환·중간보스·위기) → B3(플로우 화면·HUD 보스타이머).
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)

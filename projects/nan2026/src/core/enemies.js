@@ -29,8 +29,9 @@
 
 import { spawnEnemy } from './state.js';
 import { TAU, DEG2RAD } from './angle.js';
+import { PHASE } from './stage.js';
 
-/** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 정본 stages.json 에서 유도한다 */
+/** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 런 미구동(테스트) 시 폴백. */
 const SLICE_STAGE_ID = 'sea';
 const SLICE_STAGE_NUMBER = 1;
 
@@ -42,57 +43,61 @@ const PLAYABLE_BANDS = ['chaff', 'line'];          // turret/bruiser 는 effHP �
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
  * ★ 편성·아키타입 인덱스·간격을 전부 주입된 데이터에서 유도한다(하드코딩 매직넘버 0).
  */
-function ensureSpawner(world) {
-  if (world.spawner !== undefined) return world.spawner;
-
-  const stagesFile = world.data.stages;
-  let stage = null;
-  const list = stagesFile.stages;
-  for (let i = 0; i < list.length; i += 1) {
-    if (list[i].id === SLICE_STAGE_ID) { stage = list[i]; break; }
+/** 현재 스폰 대상 스테이지. 런 구동이면 run.order[stageIndex], 아니면 슬라이스(sea/1). */
+function stageContext(world) {
+  if (world.run !== undefined && world.run.order !== undefined) {
+    return { stageId: world.run.order[world.run.stageIndex], curveIdx: world.run.stageIndex };
   }
-  if (stage === null) throw new Error(`enemies: 슬라이스 스테이지 "${SLICE_STAGE_ID}" 없음 (§9.9)`);
+  return { stageId: SLICE_STAGE_ID, curveIdx: SLICE_STAGE_NUMBER - 1 };
+}
 
-  // §8.7 — 스테이지 번호 ≥ unlockStageMin 인 웨이브만. stage-1 이면 unlockStageMin == 1 인 것만 산다.
+/** stageId·curveIdx 로 스폰 상태를 만든다(스테이지 진입/전환 시 1회). curveIdx = 런 포지션(0..5). */
+function buildSpawner(world, stageId, curveIdx) {
+  const list = world.data.stages.stages;
+  let stage = null;
+  for (let i = 0; i < list.length; i += 1) if (list[i].id === stageId) { stage = list[i]; break; }
+  if (stage === null) throw new Error(`enemies: 스테이지 "${stageId}" 없음 (§9.9)`);
+
+  // §8.7 — unlockStageMin ≤ 스테이지번호(= 런포지션+1) 인 웨이브만. 진행할수록 웨이브가 해금된다.
+  const stageNumber = curveIdx + 1;
   const waves = [];
   for (let i = 0; i < stage.waves.length; i += 1) {
-    if (stage.waves[i].unlockStageMin <= SLICE_STAGE_NUMBER) waves.push(stage.waves[i]);
+    if (stage.waves[i].unlockStageMin <= stageNumber) waves.push(stage.waves[i]);
   }
-  if (waves.length === 0) throw new Error(`enemies: "${SLICE_STAGE_ID}" 에 stage-1 해금 웨이브가 0개 (§8.7)`);
+  if (waves.length === 0) throw new Error(`enemies: "${stageId}" 해금 웨이브 0개 (§8.7)`);
 
   // 아키타입 id → 정의. Map 순회 금지(§10.3)라 평범한 객체에 담아 **조회만** 한다.
   const archIndex = Object.create(null);
   const archetypes = world.data.enemies.archetypes;
   for (let i = 0; i < archetypes.length; i += 1) archIndex[archetypes[i].id] = archetypes[i];
 
-  // ★ 슬라이스 로스터 — 데이터에서 유도한다(하드코딩 id 0). 인덱스 오름차순 순회(§10.3)라 결정적이며,
-  //   웨이브가 골격을 대고(케이던스·편대·element·count) 이 로스터가 아키타입 다양성을 댄다.
+  // ★ 로스터 — 구현된 이동(dive·weave) × 플레이 가능한 밴드(chaff·line) × 이 스테이지 테마 부합.
+  //   웨이브가 골격을 대고(케이던스·편대·element·count) 이 로스터가 아키타입 다양성을 댄다(§8.6).
   const roster = [];
   for (let i = 0; i < archetypes.length; i += 1) {
     const a = archetypes[i];
-    if (IMPLEMENTED_MOVES.indexOf(a.moveId) < 0) continue;         // 이동 미구현 → dive 폴백 대신 애초에 제외
+    if (IMPLEMENTED_MOVES.indexOf(a.moveId) < 0) continue;         // 이동 미구현 → 애초에 제외
     if (PLAYABLE_BANDS.indexOf(a.band) < 0) continue;              // turret/bruiser 스폰지 제외
-    if (a.themeOnly !== null && a.themeOnly !== SLICE_STAGE_ID) continue;   // 테마 부합만
+    if (a.themeOnly !== null && a.themeOnly !== stageId) continue;  // 테마 부합만
     roster.push(a.id);
   }
-  if (roster.length === 0) throw new Error(`enemies: 슬라이스 로스터가 0종 (§8.6 — 필터가 전부 걸렀다)`);
+  if (roster.length === 0) throw new Error(`enemies: "${stageId}" 로스터 0종 (§8.6 — 필터가 전부 걸렀다)`);
 
-  const s = {
-    stageId: stage.id,
-    waves,
-    archIndex,
-    roster,
-    waveIndex: 0,
-    nextWaveT: 0,   // 0 = 첫 틱에 즉시 첫 웨이브
-  };
-  world.spawner = s;
-  return s;
+  return { stageId, curveIdx, waves, archIndex, roster, waveIndex: 0, wavesSpawned: 0, nextWaveT: 0 };
 }
 
-/** §8.6 — hp = archetype.hp × band.hpMult × enemyHpScale[stageIdx] (stage-1 → 인덱스 0). */
+/** 스폰 상태 확보. 스테이지가 바뀌면(런 진행) 재빌드한다. themeDraw 는 비복원이라 stageId 로 유일 식별. */
+function ensureSpawner(world) {
+  const ctx = stageContext(world);
+  if (world.spawner !== undefined && world.spawner.stageId === ctx.stageId) return world.spawner;
+  world.spawner = buildSpawner(world, ctx.stageId, ctx.curveIdx);
+  return world.spawner;
+}
+
+/** §8.6 — hp = archetype.hp × band.hpMult × enemyHpScale[런포지션]. */
 function enemyHp(world, def) {
   const band = world.data.enemies.bands[def.band];
-  const scale = world.data.stages.curve.enemyHpScale[SLICE_STAGE_NUMBER - 1];
+  const scale = world.data.stages.curve.enemyHpScale[world.spawner.curveIdx];
   return def.hp * band.hpMult * scale;
 }
 
@@ -180,6 +185,7 @@ function spawnWave(world, s) {
   }
 
   s.waveIndex = (s.waveIndex + 1) % s.waves.length;   // §8.7 waveListExhausted = "cycle"
+  s.wavesSpawned += 1;                                 // 런 구동 시 mobPhaseMaxWaves 상한의 근거
 }
 
 /**
@@ -195,6 +201,7 @@ function applyMovement(world) {
   for (let i = 0; i < items.length; i += 1) {
     const e = items[i];
     if (!e.alive) continue;
+    if (e.isBoss) continue;              // 보스 개체는 archIndex 에 없다 — 이동은 boss.js 소관(§8.12.1)
     const def = arch[e.archetypeId];
     const mp = def.moveParams;
     const speed = descentSpeed(mp);
@@ -216,12 +223,21 @@ function applyMovement(world) {
  *   화면 이탈 몰수(§8.7)·slow/stun 감속·좌표 적분은 step.moveBullets 소관이다.
  */
 export function enemies(world, dt) {
-  const s = ensureSpawner(world);
+  const runMode = world.run !== undefined && world.run.order !== undefined;
+  // §6.5 — 런 구동이면 스폰은 MOB 페이즈에만. BOSS_INTRO/BOSS/STAGE_CLEAR 엔 잔존 개체 이동만.
+  //   ★ 스포너가 아직 없으면(그 스테이지에 잡몹을 한 번도 안 스폰) 움직일 잡몹도 없다 → 이동 생략.
+  if (runMode && world.run.phase !== PHASE.MOB) {
+    if (world.spawner !== undefined) applyMovement(world);
+    return;
+  }
 
+  const s = ensureSpawner(world);
   const concurrentMax = world.data.rules.fairness.enemyConcurrentMax;
   const interval = world.data.stages.phase.waveIntervalSec;
+  // §6.3 — 런 구동은 mobPhaseMaxWaves 상한. 슬라이스(테스트)는 무한 순환(상한 없음).
+  const wavesLeft = !runMode || s.wavesSpawned < world.data.stages.phase.mobPhaseMaxWaves;
 
-  if (world.enemies.live < concurrentMax) {
+  if (world.enemies.live < concurrentMax && wavesLeft) {
     // §8.7 waveClearAdvance — 전멸(live 0)이면 즉시 다음, 아니면 waveIntervalSec 간격.
     if (world.enemies.live === 0 || world.time >= s.nextWaveT) {
       spawnWave(world, s);

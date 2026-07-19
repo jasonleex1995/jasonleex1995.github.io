@@ -58,8 +58,10 @@ export function step(world, input, dt) {
   readInput(world, input, dt);      // 1. 입력 스냅샷
   movePlayer(world, dt);            // 2. 이동
   fireWeapons(world, dt);           // 3. 무기 발사
+  if (world.hooks.run !== null) world.hooks.run(world, dt);        // §6.5 런 디렉터 — 페이즈 진행(스폰 게이트 전에)
   if (world.hooks.enemies !== null) world.hooks.enemies(world, dt);
   if (world.hooks.emitters !== null) world.hooks.emitters(world, dt);
+  if (world.hooks.boss !== null) world.hooks.boss(world, dt);      // §8.11 보스 스폰·이동(이동 적분 전에)
   moveBullets(world, dt);           // 4. 탄 이동
   collide(world, dt);               // 5. 충돌
   pickups(world, dt);               // 6. 픽업
@@ -246,8 +248,9 @@ function moveBullets(world, dt) {
     e.x += e.vx * m * dt;
     e.y += e.vy * m * dt;
     e.moveT += dt;
-    // §8.7 — 아레나를 벗어난 적은 보상을 몰수당한다 (enemyExitForfeitsReward)
-    if (e.y > a.y + a.h + pad || e.x < a.x - pad * 2 || e.x > a.x + a.w + pad * 2) {
+    // §8.7 — 아레나를 벗어난 적은 보상을 몰수당한다 (enemyExitForfeitsReward).
+    //   ★ 보스 개체는 예외 — 느린 스웨이가 자기 자신을 이탈 처리해 사라지면 안 된다(§8.11).
+    if (!e.isBoss && (e.y > a.y + a.h + pad || e.x < a.x - pad * 2 || e.x > a.x + a.w + pad * 2)) {
       world.enemies.release(e);
     }
   }
@@ -409,6 +412,7 @@ function applyStatus(world, status, durSec) {
  */
 export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
+  if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
   const band = world.data.enemies.bands[e.band];
   const el = world.data.rules.elite;
@@ -420,6 +424,31 @@ export function killEnemy(world, e) {
     if (world.rng.drop.f() < el.healDropChance) spawnPickup(world, 'heal', healValue, e.x, e.y);
   } else if (band.coinDropChance > 0 && world.rng.drop.f() < band.coinDropChance) {
     spawnPickup(world, 'coin', band.coin, e.x, e.y);
+  }
+  world.enemies.release(e);
+}
+
+/**
+ * §8.11/§8.12 — 보스 개체(코어·파트) 처치. killEnemy 가 e.isBoss 면 여기로 위임한다(멱등 가드는 상위).
+ *   코어 격파 = 보스 사망 → boss.coin + run.cleared + 모든 보스 개체 반납(잡몹 드랍 없음, xp 0).
+ *   주변 파트 파괴 = partCoin, armor 면 코어 aliveArmorPartCount −1(§3.1-4 소프트게이트 1단 해제).
+ *   ★ 이동 페널티(mobility)·발사 정지(armament)는 B2. 여기선 코인·게이트·반납만.
+ */
+function killBossEntity(world, e) {
+  const bcfg = world.data.rules.boss;
+  const en = world.enemies.items;
+  if (e.isCore) {
+    spawnPickup(world, 'coin', bcfg.coin, e.x, e.y);
+    if (world.run !== undefined) world.run.cleared = true;         // stage.tickRun 이 다음 틱에 소화
+    for (let i = 0; i < en.length; i += 1) if (en[i].alive && en[i].isBoss) world.enemies.release(en[i]);
+    return;
+  }
+  spawnPickup(world, 'coin', bcfg.partCoin, e.x, e.y);
+  if (e.partType === 'armor') {
+    for (let i = 0; i < en.length; i += 1) {
+      const c = en[i];
+      if (c.alive && c.isBoss && c.isCore && c.aliveArmorPartCount > 0) { c.aliveArmorPartCount -= 1; break; }
+    }
   }
   world.enemies.release(e);
 }

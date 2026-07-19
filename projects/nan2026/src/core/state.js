@@ -76,6 +76,8 @@ function makeEnemy() {
     elite: false,
     // §3.1-4항 — 잡몹은 코어가 아니다. 보스 코어가 이 풀을 쓰게 되면 여기서 켠다
     isCore: false, aliveArmorPartCount: 0,
+    // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
+    isBoss: false, bossId: '', partType: '', anchorX: 0, anchorY: 0, phase: 0,
     // §2.7 — 상태이상은 플레이어 전용이지만 구조는 대칭으로 둔다 (오라 진화의 끌어당김 등)
     slowSec: 0, stunSec: 0,
     // 이미터 스케줄 (emitters.js 소관 — 자리만 예약)
@@ -349,6 +351,9 @@ export function createWorld(opts) {
     hooks: {
       enemies: opts.hooks === undefined || opts.hooks.enemies === undefined ? null : opts.hooks.enemies,
       emitters: opts.hooks === undefined || opts.hooks.emitters === undefined ? null : opts.hooks.emitters,
+      // §6.5 — 런 디렉터(stage.js)와 보스(boss.js) 훅. 미주입(테스트) 시 null → 전투만 진행.
+      run: opts.hooks === undefined || opts.hooks.run === undefined ? null : opts.hooks.run,
+      boss: opts.hooks === undefined || opts.hooks.boss === undefined ? null : opts.hooks.boss,
     },
     weaponDefs,
     bounds,
@@ -541,8 +546,47 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.coin = elite ? el.coin : band.coin;
   e.elite = elite;
   e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isBoss = false; e.bossId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.slowSec = 0; e.stunSec = 0;
   e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  return e;
+}
+
+/**
+ * §8.11 — 보스 코어를 적 풀에 스폰한다(isCore + aliveArmorPartCount 로 §3.1-4 소프트게이트가 켜진다).
+ *   hp 스케일링·armorCount 산출은 boss.js 소관. 이 헬퍼는 필드 전량 리셋만 책임진다(makeEnemy 대칭).
+ */
+export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
+  const e = world.enemies.alloc();
+  if (e === null) { world.capHits.enemy += 1; return null; }
+  e.archetypeId = ''; e.band = '';
+  e.element = core.element;                       // §8.14 R1 — 코어는 노말
+  e.x = x; e.y = y; e.vx = 0; e.vy = 0;           // 위치는 boss.js 가 직접 세팅(vx/vy=0)
+  e.hp = hp; e.hpMax = hp;
+  e.radius = core.radius; e.contactDmg = core.contactDmg;
+  e.xp = 0; e.score = core.score; e.coin = 0;
+  e.elite = false;
+  e.isCore = true; e.aliveArmorPartCount = armorCount;
+  e.isBoss = true; e.bossId = bossId; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  return e;
+}
+
+/** §8.11 — 보스 파트를 스폰한다(코어+anchor 위치는 boss.js 가 매 틱 따라붙인다). */
+export function spawnBossPart(world, bossId, part, hp, cx, cy) {
+  const e = world.enemies.alloc();
+  if (e === null) { world.capHits.enemy += 1; return null; }
+  e.archetypeId = ''; e.band = '';
+  e.element = part.element;
+  e.anchorX = part.anchor[0]; e.anchorY = part.anchor[1];
+  e.x = cx + e.anchorX; e.y = cy + e.anchorY; e.vx = 0; e.vy = 0;
+  e.hp = hp; e.hpMax = hp;
+  e.radius = part.radius; e.contactDmg = part.contactDmg;
+  e.xp = 0; e.score = part.score; e.coin = 0;
+  e.elite = false;
+  e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isBoss = true; e.bossId = bossId; e.partType = part.partType; e.phase = 0;
+  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   return e;
 }
 
