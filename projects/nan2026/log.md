@@ -458,6 +458,16 @@
 
 ---
 
+### 2026-07-18 — B2a: 보스가 실제로 쏜다 (patternSet 총알 이미터 라우팅)
+
+- **핵심 통찰**: 보스 파트는 anchor 위치의 개별 엔티티라 `e.x/e.y`=파트 위치 → `from='part'`가 자동 충족. 악절 타이밍(`scheduledVolleys`, repeat/restSec)은 이미 구현됨 → **파트를 patternSet 이미터로 라우팅만** 하면 발사된다.
+- **구현**: `state.js` 파트에 `partId` 추가(patternSet 조회) · `emitters.js` `bossById` 조회 + `bossPartEmitterId`(파트→patternSet[phase].emitterIds[0]) + emitters() 훅에 보스 파트 분기(코어 미발사, laser/zone은 B2a-2로 skip).
+- **헤드리스 실증**: 6보스 전부 발사(8~15 동시탄), 첫 탄 t≈1.5s(텔레그래프 리드 후), 탄이 y≈183(파트 위치)에서 발생, **결정적**(동일 시드=동일). kiln은 plate=ring 발사(turret/vent=laser/zone 침묵→B2a-2). 풀런 8/8 승리·예외 0.
+- **검증**: 신규 boss 발사 테스트 3개 → **296 통과**(293→296) · `check.mjs` exit 0.
+- 다음: B2a-2(laser/zone 빔·장판 인프라 = 무기 A2와 공유) → B2b(페이즈 전환·파트파괴 이동페널티) → 중간보스·위기.
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)

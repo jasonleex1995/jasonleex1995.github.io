@@ -172,6 +172,44 @@ suite('boss/bossHook · clearField', () => {
     assert.eq(core.hp, coreHp0, '코어는 무피해 — 파트가 가린다 (§8.11)');
   });
 
+  test('보스 파트가 patternSet 이미터로 발사한다 (텔레그래프 리드 후, 파트 위치=상반부에서)', () => {
+    const w = mkRunWorld(1, 0);
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 200;
+    w.player.iframeSec = 99999;                       // 관찰 무적(피격 사망 방지)
+    const arena = w.data.rules.view.arena;
+    let sawTop = false;
+    for (let t = 0; t < 180; t += 1) {                 // 3초
+      step(w, makeInput(), TICK_DT);
+      for (const b of w.enemyBullets.items) if (b.alive && b.y < arena.y + arena.h * 0.4) sawTop = true;
+    }
+    assert.gt(w.enemyBullets.live, 0, '보스가 적 탄을 쏜다');
+    assert.ok(sawTop, '적 탄이 아레나 상반부(보스 파트 위치)에서 발생 — 플레이어가 아니라 파트가 쏜다');
+  });
+
+  test('보스 발사는 결정적 (같은 시드 → 같은 적탄 수)', () => {
+    function fire(seed) {
+      const w = mkRunWorld(seed, 0);
+      spawnBoss(w);
+      w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 200; w.player.iframeSec = 99999;
+      for (let t = 0; t < 150; t += 1) step(w, makeInput(), TICK_DT);
+      return w.enemyBullets.live;
+    }
+    assert.eq(fire(2), fire(2), '동일 시드 = 동일 적탄 수(결정성)');
+  });
+
+  test('코어는 발사하지 않는다 (파트만 쏜다)', () => {
+    // 파트를 전부 제거하고 코어만 남기면 적 탄이 더는 생기지 않는다
+    const w = mkRunWorld(3, 0);
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 200; w.player.iframeSec = 99999;
+    for (const e of w.enemies.items) if (e.alive && e.isBoss && !e.isCore) killEnemy(w, e);   // 파트 전멸
+    // 남은 적 탄 소거 후 관찰
+    for (const b of w.enemyBullets.items) if (b.alive) w.enemyBullets.release(b);
+    for (let t = 0; t < 180; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(w.enemyBullets.live, 0, '코어만 남으면 적 탄 없음 (코어 미발사)');
+  });
+
   test('clearField: 보스 등장 시 잔존 잡몹·적탄 정리', () => {
     const w = mkRunWorld(1, 0);
     const def = loadData().enemies.archetypes.find((a) => a.id === 'drifter');

@@ -42,8 +42,27 @@ function ensureLookup(world) {
   const archById = Object.create(null);
   const arr = world.data.enemies.archetypes;
   for (let i = 0; i < arr.length; i += 1) archById[arr[i].id] = arr[i];
-  world.emitLookup = { emitById, archById };
+  const bossById = Object.create(null);                 // §9.8 — 보스 파트 patternSet 조회
+  const bs = world.data.bosses.bosses;
+  for (let i = 0; i < bs.length; i += 1) bossById[bs[i].id] = bs[i];
+  world.emitLookup = { emitById, archById, bossById };
   return world.emitLookup;
+}
+
+/**
+ * §9.8.1 — 보스 파트가 이 페이즈에 쏘는 이미터 id. 없으면(코어·미정의·빈 페이즈) null.
+ *   보스 파트는 페이즈당 emitterIds 1개다(중간보스 2개는 B2c). from='part' 는 파트가 anchor 위치의
+ *   개별 엔티티라 자동 충족(e.x/e.y = 파트 위치).
+ */
+function bossPartEmitterId(look, e) {
+  const boss = look.bossById[e.bossId];
+  if (boss === undefined) return null;
+  let part = null;
+  for (let i = 0; i < boss.parts.length; i += 1) if (boss.parts[i].id === e.partId) { part = boss.parts[i]; break; }
+  if (part === null || part.patternSet === undefined) return null;
+  const ps = part.patternSet[e.phase];
+  if (ps === undefined || ps.emitterIds.length === 0) return null;
+  return ps.emitterIds[0];
 }
 
 /**
@@ -161,14 +180,28 @@ export function emitters(world, dt) {
     const e = items[i];
     if (!e.alive) continue;
     if (e.stunSec > 0) continue;                    // 스턴 = 개체 정지(step.moveBullets 와 대칭). 나이도 얼린다
-    const def = look.archById[e.archetypeId];
-    if (def === undefined || def.attack === null) continue;   // 사격 안 함 = attack: null (§8.5)
-    const em = look.emitById[def.attack.emitterId];
-    if (em === undefined) {
-      throw new Error(`emitters: 미지의 이미터 "${def.attack.emitterId}" (${e.archetypeId}, §9.7 — 폴백 금지)`);
+
+    let em;
+    let firstDelay;
+    if (e.isBoss) {
+      // §9.8.1 — 보스 파트가 patternSet 이미터로 발사한다(코어는 발사 안 함).
+      if (e.isCore) continue;
+      const emId = bossPartEmitterId(look, e);
+      if (emId === null) continue;                  // 이 페이즈 이미터 없음
+      em = look.emitById[emId];
+      if (em === undefined) throw new Error(`emitters: 미지의 보스 이미터 "${emId}" (${e.bossId}/${e.partId}, §9.8)`);
+      if (em.type === 'laser' || em.type === 'zone') continue;   // 빔·장판 인프라 = B2a-2(총알만 라우팅)
+      firstDelay = 0;                               // 보스는 등장 연출 뒤 스폰 → 즉시 악절 시작
+    } else {
+      const def = look.archById[e.archetypeId];
+      if (def === undefined || def.attack === null) continue;   // 사격 안 함 = attack: null (§8.5)
+      em = look.emitById[def.attack.emitterId];
+      if (em === undefined) throw new Error(`emitters: 미지의 이미터 "${def.attack.emitterId}" (${e.archetypeId}, §9.7 — 폴백 금지)`);
+      firstDelay = def.attack.firstDelaySec;
     }
+
     e.emitT += dt;
-    const want = scheduledVolleys(e.emitT, em, def.attack.firstDelaySec);
+    const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)
       fireVolley(world, e, em, e.emitPhase, p);
       e.emitPhase += 1;
