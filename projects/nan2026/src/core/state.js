@@ -19,6 +19,7 @@
 
 import { makeStreams } from './rng.js';
 import { recomputeStamps, NORMAL } from './stance.js';
+import { makeScore } from './score.js';
 
 // ---------------------------------------------------------------------------
 // 사전할당 풀 (§10.3)
@@ -82,6 +83,8 @@ function makeEnemy() {
     // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
     //   partId = 부위 식별(patternSet 이미터 조회). phase = 보스 페이즈 인덱스(patternSet 선택, B2b).
     isBoss: false, bossId: '', partId: '', partType: '', anchorX: 0, anchorY: 0, phase: 0,
+    // §11.3 attribution "damageShare" — 초효과 처치 보너스는 막타가 아니라 **누적 피해 지분**이다
+    dmgTotal: 0, dmgSuper: 0,
     // §2.7 — 상태이상은 플레이어 전용이지만 구조는 대칭으로 둔다 (오라 진화의 끌어당김 등)
     slowSec: 0, stunSec: 0,
     // 이미터 스케줄 (emitters.js 소관 — 자리만 예약)
@@ -387,6 +390,9 @@ export function createWorld(opts) {
       lastHorizontal: 0, lastVertical: 0,   // §2.2 SOCD = lastInput
       hit: false,                           // 이번 틱에 피격했는가 (렌더/점수용)
     },
+    // §11.3 — 런 점수 누적기. §6.1 난이도는 배속(main)과 점수 배율(여기) 두 곳에서 쓰인다
+    score: makeScore(data),
+    difficultyId: opts.difficulty === undefined ? 'normal' : opts.difficulty,
     // §11.2 — 항목별 **런 누적** 구매 수. 가격 ceil(basePrice × growth^n) 의 n 이며 스테이지 리셋 없음.
     purchaseCounts: (() => {
       const c = {};
@@ -561,6 +567,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.elite = elite;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0;
   e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 재사용 stale 방지
@@ -583,6 +590,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.elite = false;
   e.isCore = true; e.aliveArmorPartCount = armorCount;
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
@@ -602,6 +610,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
+  e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;

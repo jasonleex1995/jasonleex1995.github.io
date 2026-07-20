@@ -21,6 +21,7 @@
 
 import { playerToEnemy, enemyToPlayer } from './damage.js';
 import { hitTier } from './elements.js';
+import { addKill, noteHit, addMidBossClear } from './score.js';
 import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 
@@ -318,12 +319,17 @@ function collide(world, dt) {
 
       // §4.4 — spawn 은 각인된 값, live(orbit·aura) 는 현재 스탠스를 재평가
       const stamp = stampFor(world, b.slot, b.stampMode, b.element);
-      e.hp -= playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
+      const tier = hitTier(ctx.matrix, stamp, e.element);
+      const dealt = playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
+      e.hp -= dealt;
+      // §11.3 attribution "damageShare" — 초효과 처치 보너스의 근거는 막타가 아니라 누적 지분이다
+      e.dmgTotal += dealt;
+      if (tier === 'super') e.dmgSuper += dealt;
 
       // §7.7 — 상성 tier 를 render 로 실어 보낸다(3중 감각의 근거). ★ 데미지에 쓴 그 stamp·그 matrix 로
       //   tier 를 뽑으므로 I-2(색=배율)와 어긋날 수 없다. killed 를 먼저 확정해 처치 FX 확대 근거를 싣는다.
       const killed = e.hp <= 0;
-      pushHitFx(world, e.x, e.y, stamp, hitTier(ctx.matrix, stamp, e.element), killed, e.idx, e.gen);
+      pushHitFx(world, e.x, e.y, stamp, tier, killed, e.idx, e.gen);
 
       if (killed) { killEnemy(world, e); }
 
@@ -432,7 +438,9 @@ export function applyHit(world, raw) {
   // §3.2 — 실드: taken 0 + 실드 −1 + i-frame 발동. 무피격 판정 유지 (§11.3)
   if (p.shields > 0) {
     p.shields -= 1;
+    noteHit(world, true);                         // §11.3 shieldPreservesNoHit — 무피격 유지
   } else {
+    noteHit(world, false);
     p.hp -= enemyToPlayer(rp, p, raw);
     if (p.hp <= 0) { p.hp = 0; world.over = true; }
   }
@@ -473,6 +481,7 @@ function applyStatus(world, status, durSec) {
 export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
+  addKill(world, e);                                                // §11.3 처치 점수(초효과 지분 보너스 포함)
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
   const band = world.data.enemies.bands[e.band];
   const el = world.data.rules.elite;
@@ -497,6 +506,7 @@ export function killEnemy(world, e) {
 function killBossEntity(world, e) {
   const bcfg = world.data.rules.boss;
   const en = world.enemies.items;
+  addKill(world, e);                                     // §11.3 — 코어·파트 모두 개체 점수를 준다
   if (e.isCore) {
     spawnPickup(world, 'coin', bcfg.coin, e.x, e.y);
     if (world.run !== undefined) world.run.cleared = true;         // stage.tickRun 이 다음 틱에 소화

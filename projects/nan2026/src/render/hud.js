@@ -637,3 +637,52 @@ export function drawShop(ctx, world, pal, ids, cursor, confirmExit) {
   text(ctx, world, pal, hint, a.x + a.w / 2, a.y + a.h - 40, h.fontBodyPx,
     confirmExit ? pal.threat.enemyBullet : pal.hud.textDim, 'center', 600);
 }
+
+// ---------------------------------------------------------------------------
+// 결과 화면 (§11.3) — 죽어도 집계된다. 내역을 한 줄씩 보여주고 총점을 크게.
+// ---------------------------------------------------------------------------
+/** t = score.tally(world) 결과. seedText = 재현용 시드 표기 */
+export function drawResults(ctx, world, pal, t, seedText) {
+  const a = world.data.rules.view.arena;
+  const h = world.data.rules.hud;
+
+  ctx.fillStyle = rgba(pal.hud.panelBg, 0.95);
+  ctx.fillRect(a.x, a.y, a.w, a.h);
+
+  const won = world.run !== undefined && world.run.won;
+  const timeout = world.run !== undefined && world.run.deathCause === 'timeout';
+  const title = won ? '클리어!' : 'GAME OVER';
+  text(ctx, world, pal, title, a.x + a.w / 2, a.y + 60, h.fontHeroPx,
+    won ? pal.element.normal : pal.threat.enemyBullet, 'center', 700);
+  if (!won && timeout) {
+    text(ctx, world, pal, '시간 초과', a.x + a.w / 2, a.y + 92, h.fontBodyPx, pal.hud.textDim, 'center', 500);
+  }
+
+  const rows = [
+    ['처치', t.kills],
+    ['보스 격파', t.bossClear],
+    ['중간보스', t.midBossClear],
+    ['시간 보너스', t.time],
+    ['런 클리어', t.runClear],
+    [`무피격 ${t.noHitCount}/${world.score.noHit.length}`, t.noHitBonus],
+    ['퍼펙트', t.perfectBonus],
+    ['코인 환산', t.coinBonus],
+  ];
+  let y = a.y + 140;
+  for (let i = 0; i < rows.length; i += 1) {
+    const dim = rows[i][1] === 0;
+    text(ctx, world, pal, rows[i][0], a.x + 40, y, h.fontBodyPx,
+      dim ? pal.hud.textDim : pal.hud.textPrimary, 'left', 500);
+    text(ctx, world, pal, `${Math.floor(rows[i][1])}`, a.x + a.w - 40, y, h.fontBodyPx,
+      dim ? pal.hud.textDim : pal.hud.textPrimary, 'right', 600);
+    y += 30;
+  }
+
+  y += 10;
+  text(ctx, world, pal, `난이도 ×${t.scoreMul}`, a.x + a.w - 40, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
+  y += 40;
+  text(ctx, world, pal, '총점', a.x + 40, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
+  text(ctx, world, pal, `${t.total}`, a.x + a.w - 40, y, h.fontHeroPx, pal.pickup.coin, 'right', 700);
+
+  text(ctx, world, pal, seedText, a.x + a.w / 2, a.y + a.h - 40, h.fontSmallPx, pal.hud.textDim, 'center', 400);
+}

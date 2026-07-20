@@ -31,9 +31,10 @@ import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
 import { initRun, tickRun, advanceStage, applyStageClearHeal, PHASE } from './core/stage.js';
 import { buy } from './core/shop.js';
+import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
-import { drawPanels, drawDraft, drawShop } from './render/hud.js';
+import { drawPanels, drawDraft, drawShop, drawResults } from './render/hud.js';
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -419,6 +420,16 @@ async function boot() {
       else shopConfirmExit = true;
     }
 
+    // §11.2 timeToken — 보스전에서만, 보유분을 써서 타이머를 addSec 만큼 늘린다.
+    //   §11.3 timeTokenForfeitsTimeBonus — 쓴 보스전의 시간 보너스는 0 이 된다(run.bossTokenUsed).
+    //   ★ edge 는 조건과 무관하게 매 프레임 소비한다(상태가 어긋나지 않게).
+    const tokenEdge = edge.pressed(rules.input.bindings.timeToken);
+    if (tokenEdge && state === 'PLAY' && world.run.phase === PHASE.BOSS && world.player.tokens > 0) {
+      world.player.tokens -= 1;
+      world.run.bossTimer += data.meta.shop.timeToken.addSec;
+      world.run.bossTokenUsed = true;
+    }
+
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
       acc += Math.min(elapsed, rules.loop.maxFrameGapMs);
@@ -457,12 +468,8 @@ async function boot() {
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
     if (state === 'SHOP') drawShop(ctx, world, pal, shopIds, shopCursor, shopConfirmExit);
     if (state === 'PAUSE') banner(ctx, world, pal, '일시정지', '[Escape] 재개');
-    if (state === 'OVER') {
-      // §6.5 — finale 격파 = 승리, 그 외 = 게임오버(HP 소진 / 시간 초과). RESULTS 화면은 B3.
-      if (world.run.won) banner(ctx, world, pal, '클리어!', `시드 ${seedHex(seed)}`);
-      else banner(ctx, world, pal, 'GAME OVER',
-        world.run.deathCause === 'timeout' ? '시간 초과' : `시드 ${seedHex(seed)}`);
-    }
+    // §11.3 — 결과 화면(죽어도 집계된다). 내역 + 총점.
+    if (state === 'OVER') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
     if (state === 'TOO_SMALL') {
       banner(ctx, world, pal, '창이 너무 작습니다',
         `최소 ${view.minViewportW} × ${view.minViewportH} — 데스크톱 키보드 전용`);

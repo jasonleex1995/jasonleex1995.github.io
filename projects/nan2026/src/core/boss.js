@@ -51,6 +51,7 @@ export function spawnBoss(world) {
   const def = findBoss(world, entry.bossId);
   const run = world.run;
   run.bossPhase = 0; run.bossTransitionT = 0; run.bossMoveSpeedMul = 1; run.bossMoveAmpMul = 1;  // 새 보스 = 1페이즈
+  run.bossTokenUsed = false;
   const scale = def.tier === 'final' ? 1 : world.data.stages.curve.bossHpScale[world.run.stageIndex];
   const arena = world.data.rules.view.arena;
   const cx = arena.x + arena.w / 2;

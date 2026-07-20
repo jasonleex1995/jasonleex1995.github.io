@@ -22,6 +22,8 @@
  *     - 보스 코어 격파 시 killEnemy(step.js)가 run.cleared=true 를 세팅 → 여기서 STAGE_CLEAR/승리로 소화.
  */
 
+import { addBossClear, addRunClear } from './score.js';
+
 export const PHASE = {
   MOB: 'MOB',                 // 잡몹 페이즈 (내부 마지막 25초 = 위기 서브구간)
   BOSS_INTRO: 'BOSS_INTRO',   // 보스 등장 연출 (무적·무발사·타이머 정지)
@@ -79,6 +81,7 @@ export function initRun(world) {
     bossTransitionT: 0,             // 페이즈 전환 잔여(>0 = 보스 무적 + 타이머 정지, §6.3)
     bossMoveSpeedMul: 1,            // §8.12 mobility 파괴 시 speedPxSec ×0.5
     bossMoveAmpMul: 1,              //   그리고 ampPx →0 (스웨이 정지)
+    bossTokenUsed: false,           // §11.3 timeTokenForfeitsTimeBonus — 이 보스전에 토큰을 썼는가
     cleared: false,                 // 보스 코어 격파 신호(killEnemy 가 세팅 → tickRun 이 소화)
     won: false,                     // finale 격파 = 런 클리어(승리)
     deathCause: null,               // null | 'hp' | 'timeout'
@@ -139,7 +142,9 @@ export function tickRun(world, dt) {
     //   패배로 뒤집힌다 — 순서를 역전해 막는다.
     if (run.cleared) {
       run.cleared = false;
-      if (isFinale(world)) { run.won = true; world.over = true; return; }
+      // §11.3 — 보스 격파 보너스 + 잔여 타이머의 시간 보너스(토큰을 쓴 보스전은 0)
+      addBossClear(world, run.bossTimer, run.bossTokenUsed);
+      if (isFinale(world)) { addRunClear(world); run.won = true; world.over = true; return; }
       run.phase = PHASE.STAGE_CLEAR;
       run.phaseT = 0;
       return;
