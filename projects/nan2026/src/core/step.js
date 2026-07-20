@@ -389,8 +389,9 @@ function hazards(world, dt) {
     const z = zs[i];
     if (!z.alive) continue;
     z.age += dt;
-    if (z.age >= z.activeSec) { world.zones.release(z); continue; }
+    // ★ 소유권 — 플레이어 장판(무기 mine 등)은 **그 무기가** 수명·반납을 소유한다. 여기선 나이만 먹인다.
     if (z.fromPlayer) continue;
+    if (z.age >= z.activeSec) { world.zones.release(z); continue; }
     const dx = p.x - z.x;
     const dy = p.y - z.y;
     const rr = z.radius + rp.hitboxRadius;
@@ -402,8 +403,9 @@ function hazards(world, dt) {
     const t = ts[i];
     if (!t.alive) continue;
     t.age += dt;
-    if (t.age >= t.durSec) { world.telegraphs.release(t); continue; }
+    // ★ 소유권 — 'laser'(적 빔)만 step 이 소유한다. 그 외 kind 는 만든 무기가 소유(barrage 예고 등).
     if (t.kind !== 'laser') continue;
+    if (t.age >= t.durSec) { world.telegraphs.release(t); continue; }
     // 반직선(원점 x,y · 방향 a)까지의 수직거리. 빔 뒤쪽(투영<0)은 맞지 않는다.
     const ux = Math.cos(t.a);
     const uy = Math.sin(t.a);

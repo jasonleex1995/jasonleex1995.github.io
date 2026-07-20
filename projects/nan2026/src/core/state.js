@@ -653,6 +653,19 @@ export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer) {
   return z;
 }
 
+/**
+ * telegraphs 풀의 범용 스폰 — kind 가 소유자를 가른다.
+ *   'laser'  = 적 활성 빔(step.hazards 가 수명·피해를 소유)
+ *   그 외    = 만든 쪽(무기)이 수명·효과를 소유한다(예: barrage 의 'strike' 예고).
+ */
+export function spawnTelegraph(world, kind, x, y, r, durSec, owner) {
+  const t = world.telegraphs.alloc();
+  if (t === null) { world.capHits.telegraph += 1; return null; }
+  t.kind = kind; t.x = x; t.y = y; t.a = 0; t.r = r;
+  t.age = 0; t.durSec = durSec; t.dmg = 0; t.owner = owner;
+  return t;
+}
+
 /** §8.5 laser — 활성 빔(telegraphs 풀 재사용). 원점에서 angleRad 방향 반직선, 폭 widthPx. */
 export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner) {
   const t = world.telegraphs.alloc();

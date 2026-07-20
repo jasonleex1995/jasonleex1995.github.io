@@ -695,7 +695,8 @@ suite('weapons/리터럴 계약 §9.1', () => {
     return out;
   }
 
-  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js', 'aura.js', 'nova.js', 'lance.js']) {
+  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js', 'aura.js', 'nova.js',
+    'lance.js', 'orbit.js', 'mine.js', 'barrage.js', 'drone.js']) {
     test(`${file}: 숫자 리터럴 ⊆ {0,1,-1,0.5,2}`, () => {
       const lits = literals(file);
       assert.gt(lits.length, 0, '스캐너가 실제로 리터럴을 봤다 (vacuous 아님)');
