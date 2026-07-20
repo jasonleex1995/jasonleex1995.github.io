@@ -387,6 +387,13 @@ export function createWorld(opts) {
       lastHorizontal: 0, lastVertical: 0,   // §2.2 SOCD = lastInput
       hit: false,                           // 이번 틱에 피격했는가 (렌더/점수용)
     },
+    // §11.2 — 항목별 **런 누적** 구매 수. 가격 ceil(basePrice × growth^n) 의 n 이며 스테이지 리셋 없음.
+    purchaseCounts: (() => {
+      const c = {};
+      const ids = Object.keys(data.meta.shop);
+      for (let i = 0; i < ids.length; i += 1) c[ids[i]] = 0;
+      return c;
+    })(),
     shopHpAdd: 0,        // §11.2 maxhp 구매분. core 는 상점을 모르지만 hpMax 의 합에는 참여한다
     shopMoveSpeedPct: 0,
     shopMagnetPct: 0,

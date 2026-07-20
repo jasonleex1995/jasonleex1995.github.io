@@ -511,6 +511,16 @@
 
 ---
 
+### 2026-07-18 — C1: 상점 (코인이 드디어 쓰인다)
+
+- **`src/core/shop.js`(순수)**: `price` = ceil(basePrice × growth^n), n = **런 누적 구매 수**(`world.purchaseCounts` 신설). `buyBlockedBy` 세 관문(maxPurchases · 재고 상한 · 코인) → UI 가 「왜 못 사는지」를 구분해 표시. `buy` 가 10항목 효과를 **기존 누적 필드**에 적용(core 는 상점을 몰라도 그 합엔 참여해 왔다).
+- **상한의 두 거처를 지켰다**(§9.4·§11.2.1): reroll/shield/timeToken = `shop.<id>.stockMax`, **bomb = `rules.bomb.stockMax`**(상점이 아니라 폭탄 자신의 성질). defense/maxhp/movespeed/magnet/resist 는 maxPurchases 가 곧 상한.
+- **디버깅 1건**: maxhp 에서 §2.1 「hpMax 증가분만큼 즉시 회복」을 직접 구현했더니 **이중 회복**(hp +20). `recomputeStats` 가 이미 **모든** hpMax 증가에 대해 델타 회복을 하는 공용 경로였다 → 위임으로 수정(패시브 bulkhead 와 한 규칙).
+- **상점 화면(§5.4)**: main.js 에 `SHOP` 상태 — STAGE_CLEAR → 회복 → 상점 → (Escape 1회 확인) 나가면 `advanceStage`. ↑↓ 선택 / Enter 구매 / Escape 나가기. 렌더는 이름·한 줄 설명·보유/상한·가격 + **구매 가능 여부 색**(금색/자홍/흐림).
+- **검증**: 신규 `shop.test.mjs` 13개(가격 성장·세 관문·10효과 전수) → **327 통과**(314→327) · `check.mjs` exit 0. 임시 프로브로 상점 화면 렌더 실측(`err=none`, 가격·색 판정 일치) 후 삭제.
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)

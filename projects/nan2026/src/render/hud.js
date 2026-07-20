@@ -22,6 +22,7 @@
 
 import { rgba, glyphPath } from './draw.js';
 import { PHASE } from '../core/stage.js';   // 읽기 전용 상수 (render 는 core 를 읽기만 한다, §9.1)
+import { price, buyBlockedBy } from '../core/shop.js';   // 읽기 전용 질의(가격·구매 가능 여부)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
 // ★ §11.1 — 드래프트 카드는 키 문자(W/E/R)가 아니라 **속성 이름**을 말한다. 키 배정은 §5.1
@@ -574,3 +575,65 @@ function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH, align, weight) {
   return cy - lineH;
 }
 // hudText 별칭은 importer 0 이었다 → 제거(text 는 이 파일 안에서 직접 쓰인다, 모듈-프라이빗)
+
+// ---------------------------------------------------------------------------
+// 상점 화면 (§5.4 · §11.2) — 세로 목록, ↑↓ 선택 / Enter 구매 / Escape 나가기(1회 확인)
+//   ★ 표시 텍스트(이름·한 줄 설명)는 렌더의 소관이다 — meta.shop 은 값만 소유한다.
+// ---------------------------------------------------------------------------
+const SHOP_TEXT = {
+  reroll: ['리롤', '드래프트를 다시 뽑는다'],
+  potion: ['물약', '즉시 회복'],
+  bomb: ['폭탄', '화면을 쓸어버린다'],
+  shield: ['실드', '피해 1회를 무효로'],
+  timeToken: ['시간 토큰', '보스 타이머 연장'],
+  defense: ['방어력', '받는 피해 감소'],
+  maxhp: ['최대 체력', '최대 HP 증가'],
+  movespeed: ['이동 속도', '더 빠르게'],
+  magnet: ['자석', '획득 반경 확대'],
+  resist: ['저항', '상태이상 지속 감소'],
+};
+
+/** §5.4 — 상점. ids = 표시 순서(meta.shop 키 순). cursor = 선택 행. confirmExit = Escape 1회 확인 중 */
+export function drawShop(ctx, world, pal, ids, cursor, confirmExit) {
+  const v = world.data.rules.view;
+  const h = world.data.rules.hud;
+  const a = v.arena;
+
+  ctx.fillStyle = rgba(pal.hud.panelBg, 0.94);
+  ctx.fillRect(a.x, a.y, a.w, a.h);
+
+  text(ctx, world, pal, '상점', a.x + a.w / 2, a.y + 44, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
+  text(ctx, world, pal, `코인 ${Math.floor(world.player.coins)}`,
+    a.x + a.w / 2, a.y + 74, h.fontBodyPx, pal.pickup.coin, 'center', 600);
+
+  const top = a.y + 112;
+  const rowH = 36;
+  for (let i = 0; i < ids.length; i += 1) {
+    const id = ids[i];
+    const it = world.data.meta.shop[id];
+    const y = top + i * rowH;
+    const sel = i === cursor;
+    if (sel) {
+      ctx.fillStyle = rgba(pal.hud.panelRule, 0.5);
+      ctx.fillRect(a.x + 12, y - rowH / 2 + 3, a.w - 24, rowH - 6);
+    }
+    const blocked = buyBlockedBy(world, id);
+    const t = SHOP_TEXT[id];
+    const nameCol = blocked === null ? pal.hud.textPrimary : pal.hud.textDim;
+    text(ctx, world, pal, t === undefined ? id : t[0], a.x + 24, y, h.fontBodyPx, nameCol, 'left', sel ? 700 : 500);
+    if (t !== undefined) {
+      text(ctx, world, pal, t[1], a.x + 130, y, h.fontSmallPx, pal.hud.textDim, 'left', 400);
+    }
+    text(ctx, world, pal, `${world.purchaseCounts[id]}/${it.maxPurchases}`,
+      a.x + a.w - 104, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
+
+    const label = blocked === 'maxed' ? '완료' : blocked === 'stock' ? '가득' : `${price(world, id)}`;
+    const col = blocked === 'coins' ? pal.threat.enemyBullet
+      : blocked === null ? pal.pickup.coin : pal.hud.textDim;
+    text(ctx, world, pal, label, a.x + a.w - 24, y, h.fontBodyPx, col, 'right', 600);
+  }
+
+  const hint = confirmExit ? '한 번 더 [Escape] = 나가기' : '[↑↓] 선택   [Enter] 구매   [Escape] 나가기';
+  text(ctx, world, pal, hint, a.x + a.w / 2, a.y + a.h - 40, h.fontBodyPx,
+    confirmExit ? pal.threat.enemyBullet : pal.hud.textDim, 'center', 600);
+}

@@ -30,9 +30,10 @@ import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
 import { initRun, tickRun, advanceStage, applyStageClearHeal, PHASE } from './core/stage.js';
+import { buy } from './core/shop.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
-import { drawPanels, drawDraft } from './render/hud.js';
+import { drawPanels, drawDraft, drawShop } from './render/hud.js';
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -332,7 +333,10 @@ async function boot() {
   const speed = data.meta.difficulty[difficultyId].speed;
   const tickDur = 1000 / (TICK_HZ * speed);   // 실제 ms
 
-  let state = 'PLAY';                         // PLAY | DRAFT | PAUSE | OVER | TOO_SMALL
+  let state = 'PLAY';                         // PLAY | DRAFT | SHOP | PAUSE | OVER | TOO_SMALL
+  const shopIds = Object.keys(data.meta.shop);   // §11.2 표시 순서 = 데이터 키 순(런 1회)
+  let shopCursor = 0;
+  let shopConfirmExit = false;
   let draft = null;
   let cursor = 0;
   let acc = 0;
@@ -361,6 +365,14 @@ async function boot() {
     acc = 0;
     enter('DRAFT');
     return true;
+  }
+
+  /** §5.4 — 상점 입력. ↑↓ 선택 · Enter 구매 (Escape 나가기는 위의 엣지 토글이 처리) */
+  function tickShop() {
+    const b = rules.input.bindings;
+    if (edge.pressed(b.cursor[2])) { shopCursor = (shopCursor + shopIds.length - 1) % shopIds.length; shopConfirmExit = false; }
+    if (edge.pressed(b.cursor[3])) { shopCursor = (shopCursor + 1) % shopIds.length; shopConfirmExit = false; }
+    if (edge.pressed(b.confirm)) { buy(world, shopIds[shopCursor]); shopConfirmExit = false; }
   }
 
   function tickDraft() {
@@ -401,6 +413,11 @@ async function boot() {
     const pauseEdge = edge.pressed(rules.input.bindings.pause);
     if (pauseEdge && state === 'PLAY') { enter('PAUSE'); acc = 0; }
     else if (pauseEdge && state === 'PAUSE') { enter('PLAY'); acc = 0; }
+    else if (pauseEdge && state === 'SHOP') {
+      // §5.4 — Escape 는 확인 1회를 거쳐 나간다. 나가면 다음 스테이지가 시작된다
+      if (shopConfirmExit) { advanceStage(world); shopConfirmExit = false; enter('PLAY'); acc = 0; }
+      else shopConfirmExit = true;
+    }
 
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
@@ -414,8 +431,13 @@ async function boot() {
         acc -= tickDur;
         steps += 1;
         if (world.over) { enter('OVER'); break; }
-        // §6.5 STAGE_CLEAR — B1b: 회복 후 자동 전진(테마 배너·드래프트 소화·상점 화면은 B3).
-        if (world.run.phase === PHASE.STAGE_CLEAR) { applyStageClearHeal(world); advanceStage(world); }
+        // §6.5 STAGE_CLEAR → 회복 → 상점(1~5차). 상점을 나가면 advanceStage 로 다음 스테이지.
+        if (world.run.phase === PHASE.STAGE_CLEAR) {
+          applyStageClearHeal(world);
+          shopCursor = 0; shopConfirmExit = false;
+          enter('SHOP');
+          break;
+        }
         if (world.draftQueue > 0 && openDraftIfQueued()) break;
       }
       // §10.1 — 나선형 죽음 방지: 남은 시간 폐기 (빨리감기 금지)
@@ -423,6 +445,7 @@ async function boot() {
     } else {
       acc = 0;
       if (state === 'DRAFT') tickDraft();
+      else if (state === 'SHOP') tickShop();
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
@@ -432,6 +455,7 @@ async function boot() {
     drawWorld(ctx, world, pal, fx, interp, alpha);
     drawPanels(ctx, world, pal);
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
+    if (state === 'SHOP') drawShop(ctx, world, pal, shopIds, shopCursor, shopConfirmExit);
     if (state === 'PAUSE') banner(ctx, world, pal, '일시정지', '[Escape] 재개');
     if (state === 'OVER') {
       // §6.5 — finale 격파 = 승리, 그 외 = 게임오버(HP 소진 / 시간 초과). RESULTS 화면은 B3.
