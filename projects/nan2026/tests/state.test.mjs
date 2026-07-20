@@ -161,7 +161,9 @@ suite('state · spawn* 필드 + 캡 정책 (§12.1)', () => {
     assert.eq(elite.hpMax, elite.hp, 'hpMax = hp');
     assert.eq(elite.radius, def.radius * el.sizeMult, '엘리트 radius ×sizeMult');
     assert.eq(elite.contactDmg, def.contactDmg * el.contactDmgMul, '엘리트 contactDmg ×mul');
-    assert.eq(elite.xp, def.xp * el.xpMult, '엘리트 xp ×mul');
+    // §8.6 — xp 는 스테이지 XP 배율(curve.xpScale)도 탄다. 런이 없는 월드 = 포지션 0.
+    const xpS = w.data.stages.curve.xpScale[0];
+    assert.near(elite.xp, def.xp * el.xpMult * xpS, 1e-9, '엘리트 xp ×mul ×xpScale');
     assert.eq(elite.coin, el.coin, '엘리트 coin = elite.coin (확정)');
   });
 

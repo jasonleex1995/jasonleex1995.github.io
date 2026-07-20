@@ -67,6 +67,11 @@ function nearestEnemy(world) {
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (!e.alive) continue;
+    // ★ §8.9 「선택적」 — 베이스라인 봇은 **무시하는 쪽을 선택한다.** 중간보스를 조준 대상에서
+    //   빼면 그 아래에 주차하지 않는다(회피는 그대로 그 장판·빔을 위협으로 본다).
+    //   실측: 이것을 안 하면 «출처 불명»(중간보스 zone/laser)이 전 사인의 최대 항목이 된다 —
+    //   즉 봇이 「선택」을 모르면 게임이 실제보다 훨씬 잔인해 보인다.
+    if (e.midBossId !== '') continue;
     const dx = e.x - p.x;
     const dy = e.y - p.y;
     const d = dx * dx + dy * dy;
@@ -226,6 +231,7 @@ export function botInput(world, dt) {
   const b = ensureBot(world);
   const p = world.player;
   const bt = world.data.meta.bot;
+  const rp0 = world.data.rules.player;
   const bounds = world.bounds;
   const inp = b.input;
 
@@ -242,12 +248,12 @@ export function botInput(world, dt) {
     //   스테이지1 120초에서 명중이 잠재 화력의 20%에 그쳐 처치율 21%가 나왔다. 사람은 피하면서도
     //   총구를 맞춘다. 그래서 회피는 **변위**이지 목적지가 아니다.
     const farm = b.policy.farm;
+    const foe = nearestEnemy(world);
     const pick = farm === 'passive' ? null : nearestPickup(world);
     if (pick !== null && (farm === 'maxFarm' || world.player.hp > world.player.hpMax * 0.5)) {
       b.tgtX = pick.x; b.tgtY = pick.y;                // 안전하면(또는 maxFarm) 주우러 간다
     } else {
-      const e = nearestEnemy(world);
-      b.tgtX = e === null ? (bounds.minX + bounds.maxX) / 2 : e.x;   // 사격선을 맞춘다
+      b.tgtX = foe === null ? (bounds.minX + bounds.maxX) / 2 : foe.x;   // 사격선을 맞춘다
       b.tgtY = bounds.maxY;                            // 기본은 하단(§2.6 과 같은 안전 위치)
     }
     const dodge = dodgeVector(world);
@@ -258,6 +264,16 @@ export function botInput(world, dt) {
       const disp = bt.dodgeLookaheadSec * rp.moveSpeed * (1 + world.stats.moveSpeedMul);
       b.tgtX += dodge.x * disp;                        // 위협 반대로 «비켜서되» 목적지는 유지한다
       b.tgtY += dodge.y * disp;
+    }
+    // ★★ 사격선 유지 — **표적보다 위로 올라가지 않는다.**
+    //   회귀(실측): 파밍과 회피가 겹치면 봇이 아레나 최상단(y=56)까지 올라가 보스(y=170)보다
+    //   **위에서 위로** 쐈다 → 보스전 실효 DPS 1.3 (목표 49). 이 게임의 주 무기는 전부 위로 나간다
+    //   (§1.1) — 표적 아래에 있는 것은 «전술»이 아니라 **사격의 전제**다.
+    //   ★ 단, **자리를 지키는 표적**(보스·중간보스)에만 건다. 내려오는 잡몹에까지 걸면 봇이
+    //     계속 물러나며 요격을 포기한다 — 실측으로 처치율이 39% → 24% 로 떨어졌다.
+    if (foe !== null && (foe.isBoss || foe.midBossId !== '')) {
+      const stand = rp0.hitboxRadius + foe.radius + rp0.moveSpeed * (bt.reactionMs / 1000);
+      if (b.tgtY < foe.y + stand) b.tgtY = foe.y + stand;
     }
     // §10.4.1 aimErrorPx — 사람의 손 오차
     b.tgtX += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;

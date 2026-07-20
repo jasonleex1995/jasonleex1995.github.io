@@ -552,6 +552,15 @@ export function spawnPlayerBullet(world, slot, eff, x, y, vx, vy, localMul) {
 }
 
 /** §12.1 — enemy 초과 = "defer". 스포너가 다음 틱에 재시도한다 (웨이브가 공짜로 사라지지 않는다) */
+/**
+ * §8.6 — 런 포지션(스테이지 인덱스). 런이 없으면(테스트·슬라이스 월드) 0 = 배율 1.
+ *   ★ enemyHpScale 은 enemies.js 가 hp 를 넘겨주며 이미 적용한다. xpScale 은 xp 가 개체 정의에서
+ *     직접 오므로 **여기가 유일한 적용 자리**다.
+ */
+function curveIdxOf(world) {
+  return (world.run !== undefined && world.run.order !== undefined) ? world.run.stageIndex : 0;
+}
+
 export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
@@ -571,7 +580,9 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.hpMax = e.hp;
   e.radius = elite ? def.radius * el.sizeMult : def.radius;
   e.contactDmg = elite ? def.contactDmg * el.contactDmgMul : def.contactDmg;
-  e.xp = elite ? def.xp * el.xpMult : def.xp;
+  // §8.6 · §13.5 — 스테이지별 XP 배율(curve.xpScale). ★ 이 줄이 없으면 §13.5 의 XP 예산
+  //   (누적 26,450 · 사다리 [12,19,26,34,43,54])이 성립하지 않는다 — 실측으로 발견된 누락이다.
+  e.xp = (elite ? def.xp * el.xpMult : def.xp) * world.data.stages.curve.xpScale[curveIdxOf(world)];
   e.score = def.score;
   e.coin = elite ? el.coin : band.coin;
   e.elite = elite;

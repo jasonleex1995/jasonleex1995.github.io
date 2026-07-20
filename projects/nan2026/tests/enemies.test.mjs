@@ -81,7 +81,9 @@ suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
     const expectId = roster[0];
     const expectDef = arch(w, expectId);
     const hpMult = w.data.enemies.bands[expectDef.band].hpMult;
-    const expectCount = Math.max(2, Math.round(wave0.count / hpMult));
+    // §8.6 — 밴드 클램프 × 스테이지 스폰 밀도(curve.spawnDensityScale). 슬라이스 = 스테이지 1.
+    const density = w.data.stages.curve.spawnDensityScale[0];
+    const expectCount = Math.max(2, Math.round((wave0.count / hpMult) * density));
     step(w, makeInput(), dt);   // 첫 틱에 wave0 스폰
     const items = w.enemies.items;
     let n = 0;
@@ -92,7 +94,7 @@ suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
       assert.eq(e.archetypeId, expectId, '아키타입 = 로스터[0] (골격은 웨이브, 종류는 로스터)');
       assert.eq(e.element, wave0.element, 'element = 웨이브 레코드 (아키타입 필드 아님)');
     }
-    assert.eq(n, expectCount, `첫 웨이브 = 밴드 클램프된 count(${expectCount})만큼 스폰`);
+    assert.eq(n, expectCount, `첫 웨이브 = 밴드 클램프 × 밀도(${expectCount})만큼 스폰`);
   });
 
   test('서로 다른 element 가 섞여 내려온다 (스탠스를 바꿀 이유)', () => {

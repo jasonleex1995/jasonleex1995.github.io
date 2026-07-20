@@ -169,7 +169,10 @@ function spawnWave(world, s) {
   // ★ count 는 밴드로 나눠 구조적으로 클램프한다(밸런스 매직넘버 아님 — effHP ∝ hpMult 이므로 탱커 웨이브가
   //   벽이 되지 않게 총 HP 예산을 대략 보존한다). chaff(hpMult 1.0)는 원본 count 유지, line(2.5)은 줄어든다.
   const band = world.data.enemies.bands[def.band];
-  const count = Math.max(2, Math.round(wave.count / band.hpMult));
+  // §8.6 — 스테이지별 스폰 밀도(curve.spawnDensityScale). ★ 실측으로 발견된 누락: 이것이 없으면
+  //   스테이지 1 이 저작 의도(0.7배)보다 30% 더 몰려오고 후반은 반대로 헐거워진다.
+  const density = world.data.stages.curve.spawnDensityScale[s.curveIdx];
+  const count = Math.max(2, Math.round((wave.count / band.hpMult) * density));
 
   for (let i = 0; i < count; i += 1) {
     // §8.7 초과 정책 = defer. 동시 오써링 상한을 넘으면 나머지는 이번 웨이브에서 놓는다(풀 캡이 B층 안전망).
