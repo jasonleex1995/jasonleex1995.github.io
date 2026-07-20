@@ -442,7 +442,12 @@ export function applyHit(world, raw) {
   } else {
     noteHit(world, false);
     p.hp -= enemyToPlayer(rp, p, raw);
-    if (p.hp <= 0) { p.hp = 0; world.over = true; }
+    if (p.hp <= 0) {
+      p.hp = 0;
+      world.over = true;
+      // §11.4 — 사인을 명시한다(두 사인: 'hp' / 'timeout'). 시뮬의 bossTimeoutRate 가 이걸 센다.
+      if (world.run !== undefined) world.run.deathCause = 'hp';
+    }
   }
 
   // §9.6 — afterimage: 피격 시 N초간 적의 조준·유도 대상에서 제외

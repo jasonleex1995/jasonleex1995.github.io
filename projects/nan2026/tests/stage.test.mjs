@@ -8,11 +8,12 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
 import { TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import {
-  initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, isFinale, PHASE,
+  initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, isFinale,
+  canContinue, reviveContinue, PHASE,
 } from '../src/core/stage.js';
 
 const dt = TICK_DT;
@@ -184,5 +185,83 @@ suite('stage/전환', () => {
     const e = stageEntry(w);
     assert.eq(e.id, run.order[0], '현재 스테이지 id 일치');
     assert.ok(e.bossId, 'bossId 존재');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// 컨티뉴 (§11.4)
+// ══════════════════════════════════════════════════════════════════════════
+suite('stage/컨티뉴 §11.4', () => {
+  function dead(seed) {
+    const w = mkWorld(seed); const run = initRun(w);
+    w.player.hp = 0; w.over = true; run.deathCause = 'hp';
+    return w;
+  }
+
+  test('제공 조건 — 코인 ≥ continueCost · 런당 continueMaxPerRun · 승리엔 없음', () => {
+    const f = loadData().meta.flow;
+    const w = dead(1);
+    w.player.coins = f.continueCost - 1;
+    assert.eq(canContinue(w), false, '코인 부족이면 불가');
+    w.player.coins = f.continueCost;
+    assert.ok(canContinue(w), '코인이 정확히 있으면 가능');
+    w.run.won = true;
+    assert.eq(canContinue(w), false, '승리한 런엔 제공되지 않는다');
+  });
+
+  test('부활 — 코인 차감 · HP 만재 · 적 탄만 소거(적은 남는다) · 하단 중앙 · 무적', () => {
+    const f = loadData().meta.flow;
+    const w = dead(2);
+    w.player.coins = f.continueCost + 7;
+    const def = loadData().enemies.archetypes.find((a) => a.id === 'drifter');
+    spawnEnemy(w, 'drifter', 'normal', 600, 200, def.hp, false);
+    spawnEnemyBullet(w, 'pelletS', 600, 300, 0, 100);
+    assert.gte(w.enemyBullets.live, 1, '적 탄 존재(전제)');
+
+    assert.ok(reviveContinue(w), '부활 성공');
+    assert.eq(w.player.coins, 7, '코인 = continueCost 만큼만 차감');
+    assert.eq(w.player.hp, w.player.hpMax, 'HP 만재(continueHealToFull)');
+    assert.eq(w.enemyBullets.live, 0, '적 탄 소거');
+    assert.eq(w.enemies.live, 1, '적은 남는다');
+    assert.eq(w.player.y, w.bounds.maxY, '하단');
+    assert.near(w.player.x, (w.bounds.minX + w.bounds.maxX) / 2, 1e-9, '중앙');
+    assert.eq(w.player.iframeSec, f.continueIframeSec, '무적 3초');
+    assert.eq(w.over, false, '런 재개');
+    assert.eq(w.run.deathCause, null, '사인 해제');
+  });
+
+  test('대가 — 퍼펙트 + 모든 스테이지 무피격 소급 무효 (§11.4)', () => {
+    const w = dead(3);
+    w.player.coins = 1000;
+    for (let i = 0; i < w.score.noHit.length; i += 1) assert.ok(w.score.noHit[i], '전 스테이지 무피격(전제)');
+    reviveContinue(w);
+    for (let i = 0; i < w.score.noHit.length; i += 1) assert.eq(w.score.noHit[i], false, `스테이지 ${i} 무피격 무효`);
+    assert.eq(w.score.continues, 1, '컨티뉴 1회 기록');
+  });
+
+  test('런당 1회 — 두 번째는 거부된다', () => {
+    const w = dead(4);
+    w.player.coins = 10000;
+    assert.ok(reviveContinue(w), '1회차 성공');
+    w.over = true; w.run.deathCause = 'hp';
+    assert.eq(canContinue(w), false, '2회차는 불가(continueMaxPerRun)');
+    assert.eq(reviveContinue(w), false, '거부');
+  });
+
+  test('보스전 부활 — 보스 HP 보존, 타이머는 max(잔여, continueTimerRestoreSec)', () => {
+    const f = loadData().meta.flow;
+    const w = dead(5);
+    w.player.coins = 1000;
+    w.run.phase = PHASE.BOSS;
+    w.run.bossTimer = 5;                                  // 거의 소진
+    reviveContinue(w);
+    assert.eq(w.run.bossTimer, f.continueTimerRestoreSec, '타이머 복구');
+
+    const w2 = dead(6);
+    w2.player.coins = 1000;
+    w2.run.phase = PHASE.BOSS;
+    w2.run.bossTimer = f.continueTimerRestoreSec + 50;    // 이미 더 많으면
+    reviveContinue(w2);
+    assert.eq(w2.run.bossTimer, f.continueTimerRestoreSec + 50, '더 많으면 그대로(max)');
   });
 });

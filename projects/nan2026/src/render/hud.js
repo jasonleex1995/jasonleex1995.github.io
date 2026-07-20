@@ -686,3 +686,30 @@ export function drawResults(ctx, world, pal, t, seedText) {
 
   text(ctx, world, pal, seedText, a.x + a.w / 2, a.y + a.h - 40, h.fontSmallPx, pal.hud.textDim, 'center', 400);
 }
+
+// ---------------------------------------------------------------------------
+// 사망 화면 (§11.4) — 컨티뉴 제안. 카운트다운 없음(무한 대기), 두 사인 모두에 제공.
+// ---------------------------------------------------------------------------
+export function drawDeath(ctx, world, pal, cost) {
+  const a = world.data.rules.view.arena;
+  const h = world.data.rules.hud;
+
+  ctx.fillStyle = rgba(pal.hud.panelBg, 0.94);
+  ctx.fillRect(a.x, a.y, a.w, a.h);
+
+  const timeout = world.run !== undefined && world.run.deathCause === 'timeout';
+  text(ctx, world, pal, timeout ? '시간 초과' : '격추', a.x + a.w / 2, a.y + a.h / 2 - 90,
+    h.fontHeroPx, pal.threat.enemyBullet, 'center', 700);
+
+  text(ctx, world, pal, `컨티뉴 — 코인 ${cost}`, a.x + a.w / 2, a.y + a.h / 2 - 20,
+    h.fontMediumPx, pal.pickup.coin, 'center', 700);
+  text(ctx, world, pal, `보유 ${Math.floor(world.player.coins)}`, a.x + a.w / 2, a.y + a.h / 2 + 8,
+    h.fontSmallPx, pal.hud.textDim, 'center', 400);
+
+  // ★ 대가를 **여기서** 말한다 — 결과 화면에서 처음 알게 되는 함정을 만들지 않는다(§11.4)
+  text(ctx, world, pal, '퍼펙트와 모든 스테이지 무피격 보너스를 잃습니다',
+    a.x + a.w / 2, a.y + a.h / 2 + 44, h.fontSmallPx, pal.hud.textDim, 'center', 400);
+
+  text(ctx, world, pal, '[Enter] 계속한다     [Escape] 포기', a.x + a.w / 2, a.y + a.h / 2 + 96,
+    h.fontBodyPx, pal.hud.textPrimary, 'center', 600);
+}

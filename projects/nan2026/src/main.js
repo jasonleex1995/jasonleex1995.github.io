@@ -29,12 +29,12 @@ import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
-import { initRun, tickRun, advanceStage, applyStageClearHeal, PHASE } from './core/stage.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, canContinue, reviveContinue, PHASE } from './core/stage.js';
 import { buy } from './core/shop.js';
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
-import { drawPanels, drawDraft, drawShop, drawResults } from './render/hud.js';
+import { drawPanels, drawDraft, drawShop, drawResults, drawDeath } from './render/hud.js';
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -334,7 +334,7 @@ async function boot() {
   const speed = data.meta.difficulty[difficultyId].speed;
   const tickDur = 1000 / (TICK_HZ * speed);   // 실제 ms
 
-  let state = 'PLAY';                         // PLAY | DRAFT | SHOP | PAUSE | OVER | TOO_SMALL
+  let state = 'PLAY';                         // PLAY | DRAFT | SHOP | PAUSE | DEATH | RESULTS | TOO_SMALL
   const shopIds = Object.keys(data.meta.shop);   // §11.2 표시 순서 = 데이터 키 순(런 1회)
   let shopCursor = 0;
   let shopConfirmExit = false;
@@ -414,6 +414,7 @@ async function boot() {
     const pauseEdge = edge.pressed(rules.input.bindings.pause);
     if (pauseEdge && state === 'PLAY') { enter('PAUSE'); acc = 0; }
     else if (pauseEdge && state === 'PAUSE') { enter('PLAY'); acc = 0; }
+    else if (pauseEdge && state === 'DEATH') { enter('RESULTS'); }
     else if (pauseEdge && state === 'SHOP') {
       // §5.4 — Escape 는 확인 1회를 거쳐 나간다. 나가면 다음 스테이지가 시작된다
       if (shopConfirmExit) { advanceStage(world); shopConfirmExit = false; enter('PLAY'); acc = 0; }
@@ -441,7 +442,8 @@ async function boot() {
         playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
         acc -= tickDur;
         steps += 1;
-        if (world.over) { enter('OVER'); break; }
+        // §11.4 — 사망이면 컨티뉴를 제안(가능할 때만). 승리·제안 불가면 바로 결과로.
+        if (world.over) { enter(!world.run.won && canContinue(world) ? 'DEATH' : 'RESULTS'); break; }
         // §6.5 STAGE_CLEAR → 회복 → 상점(1~5차). 상점을 나가면 advanceStage 로 다음 스테이지.
         if (world.run.phase === PHASE.STAGE_CLEAR) {
           applyStageClearHeal(world);
@@ -457,6 +459,10 @@ async function boot() {
       acc = 0;
       if (state === 'DRAFT') tickDraft();
       else if (state === 'SHOP') tickShop();
+      else if (state === 'DEATH') {
+        // §11.4 — 카운트다운 없음. Enter = 부활 / Escape 는 아래 엣지 토글이 결과로 보낸다
+        if (edge.pressed(rules.input.bindings.confirm) && reviveContinue(world)) { enter('PLAY'); acc = 0; }
+      }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
@@ -469,7 +475,8 @@ async function boot() {
     if (state === 'SHOP') drawShop(ctx, world, pal, shopIds, shopCursor, shopConfirmExit);
     if (state === 'PAUSE') banner(ctx, world, pal, '일시정지', '[Escape] 재개');
     // §11.3 — 결과 화면(죽어도 집계된다). 내역 + 총점.
-    if (state === 'OVER') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
+    if (state === 'DEATH') drawDeath(ctx, world, pal, data.meta.flow.continueCost);
+    if (state === 'RESULTS') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
     if (state === 'TOO_SMALL') {
       banner(ctx, world, pal, '창이 너무 작습니다',
         `최소 ${view.minViewportW} × ${view.minViewportH} — 데스크톱 키보드 전용`);

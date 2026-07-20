@@ -22,7 +22,7 @@
  *     - 보스 코어 격파 시 killEnemy(step.js)가 run.cleared=true 를 세팅 → 여기서 STAGE_CLEAR/승리로 소화.
  */
 
-import { addBossClear, addRunClear } from './score.js';
+import { addBossClear, addRunClear, noteContinue } from './score.js';
 
 export const PHASE = {
   MOB: 'MOB',                 // 잡몹 페이즈 (내부 마지막 25초 = 위기 서브구간)
@@ -187,4 +187,46 @@ export function advanceStage(world) {
   run.bossSpawned = false;
   run.cleared = false;
   return run;
+}
+
+/**
+ * §11.4 — 컨티뉴가 가능한가. 런당 continueMaxPerRun(1) 회 · continueCost(150) 코인.
+ *   승리로 끝난 런에는 제공되지 않는다(사망 두 사인 모두에 제공).
+ */
+export function canContinue(world) {
+  const f = world.data.meta.flow;
+  if (world.run === undefined || world.run.won) return false;
+  return world.score.continues < f.continueMaxPerRun && world.player.coins >= f.continueCost;
+}
+
+/**
+ * §11.4 — 컨티뉴 부활. 대가는 **두 겹**이다: 코인 150 + 퍼펙트·전 스테이지 무피격의 **소급 무효**.
+ *   HP 만재 · 적 탄만 소거(적은 남는다) · 하단 중앙 · 무적 3초 · 보스 HP 는 보존하고
+ *   보스 타이머만 max(잔여, continueTimerRestoreSec) 로 되살린다.
+ */
+export function reviveContinue(world) {
+  if (!canContinue(world)) return false;
+  const f = world.data.meta.flow;
+  const p = world.player;
+  const run = world.run;
+
+  p.coins -= f.continueCost;
+  noteContinue(world);                               // 퍼펙트 + 모든 무피격 소급 무효
+
+  if (f.continueHealToFull) p.hp = p.hpMax;
+  const eb = world.enemyBullets.items;               // 적 탄만 지운다 — 적은 그대로 남는다
+  for (let i = 0; i < eb.length; i += 1) if (eb[i].alive) world.enemyBullets.release(eb[i]);
+
+  p.x = (world.bounds.minX + world.bounds.maxX) / 2; // 하단 중앙 (§2.6 런 시작과 같은 자리)
+  p.y = world.bounds.maxY;
+  p.vx = 0; p.vy = 0;
+  p.iframeSec = f.continueIframeSec;
+  p.slowSec = 0; p.stunSec = 0;
+
+  if (run.phase === PHASE.BOSS && run.bossTimer < f.continueTimerRestoreSec) {
+    run.bossTimer = f.continueTimerRestoreSec;       // 보스 HP 는 건드리지 않는다
+  }
+  run.deathCause = null;
+  world.over = false;
+  return true;
 }
