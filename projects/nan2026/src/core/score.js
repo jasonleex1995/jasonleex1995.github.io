@@ -41,6 +41,13 @@ export function addKill(world, e) {
     v += e.score * s.superEffectiveKillBonusRatio;
   }
   world.score.kills += v;
+  // §13.1.1 — 시뮬 텔레메트리(있을 때만). 게임 실행엔 world.tele 가 없다 = 무영향(§10.2).
+  const t = world.tele;
+  if (t !== undefined) {
+    const k = e.archetypeId === '' ? (e.midBossId !== '' ? e.midBossId : 'boss') : e.archetypeId;
+    t.kills[k] = (t.kills[k] === undefined ? 0 : t.kills[k]) + 1;
+    if (world.run !== undefined && world.run.crisis) t.crisisKills += 1;
+  }
 }
 
 /**

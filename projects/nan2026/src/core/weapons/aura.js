@@ -15,7 +15,7 @@
  * 슬롯 스크래치: a0 = 다음 틱까지 남은 시간
  */
 
-import { playerToEnemy } from '../damage.js';
+import { playerToEnemy, noteDamage } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -48,7 +48,9 @@ function pulse(world, slot, eff) {
     const stamp = stampFor(world, slot.index, 'live', slot.stampElement);
     const d = Math.sqrt(d2);
     const local = 1 + (eff.falloff - 1) * (r > 0 ? d / r : 0);
-    e.hp -= playerToEnemy(ctx, eff.dmg, local, stamp, e);
+    const dealt = playerToEnemy(ctx, eff.dmg, local, stamp, e);
+    e.hp -= dealt;
+    noteDamage(world, slot.family, dealt);
     if (e.hp <= 0) killEnemy(world, e);
   }
 }

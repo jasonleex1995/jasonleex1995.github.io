@@ -18,7 +18,7 @@
  *   a0 이 chargeSec 이하인 구간이 «차지»이며(렌더가 그 구간을 그린다), 0 에 닿는 순간 발사한다.
  */
 
-import { playerToEnemy } from '../damage.js';
+import { playerToEnemy, noteDamage } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -51,7 +51,9 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
     }
     if (best === null) return;
     bound = best.y;
-    best.hp -= playerToEnemy(ctx, eff.dmg, 1, stamp, best);
+    const dealt = playerToEnemy(ctx, eff.dmg, 1, stamp, best);
+    best.hp -= dealt;
+    noteDamage(world, slot.family, dealt);
     if (best.hp <= 0) killEnemy(world, best);
     hits += 1;
   }

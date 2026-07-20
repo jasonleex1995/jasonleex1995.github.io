@@ -67,3 +67,23 @@ export function displayDamage(v) {
 export function enemyToPlayer(rules, player, raw) {
   return Math.ceil(Math.max(raw - player.defense, raw * rules.damageFloorRatio));
 }
+
+/**
+ * §13.1.1 — 시뮬 텔레메트리 싱크. `world.tele` 가 있을 때만 적립한다.
+ *   ★ 게임 실행에는 `world.tele` 가 **없다** → 이 함수는 즉시 반환하고 판정·rng·좌표 어디에도
+ *     되먹임이 없다(결정성 무영향, §10.2). 시뮬만 켠다.
+ */
+export function noteDamage(world, family, amount) {
+  const t = world.tele;
+  if (t === undefined) return;
+  t.dmgByFamily[family] = (t.dmgByFamily[family] === undefined ? 0 : t.dmgByFamily[family]) + amount;
+}
+
+/** §13.1.1 maxArchetypeLethalityShare — 플레이어가 «어느 아키타입에게» 맞았는가. */
+export function noteDamageTaken(world, srcArch, amount) {
+  const t = world.tele;
+  if (t === undefined) return;
+  const k = srcArch === '' ? 'other' : srcArch;
+  t.dmgTakenByArch[k] = (t.dmgTakenByArch[k] === undefined ? 0 : t.dmgTakenByArch[k]) + amount;
+}
+

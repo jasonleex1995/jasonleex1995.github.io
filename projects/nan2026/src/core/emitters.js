@@ -96,7 +96,7 @@ function fireSpread(world, e, em, count, spreadDeg, baseAngle) {
   for (let i = 0; i < count; i += 1) {
     const off = count > 1 ? (i / (count - 1) - 0.5) * spreadDeg : 0;
     const a = baseAngle + off * DEG2RAD;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
   }
 }
 
@@ -120,7 +120,7 @@ function fireAimed(world, e, em, p) {
 function fireRing(world, e, em) {
   for (let i = 0; i < em.count; i += 1) {
     const a = em.rotOffsetDeg * DEG2RAD + (i / em.count) * TAU;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
   }
 }
 
@@ -134,7 +134,7 @@ function fireSpiral(world, e, em, volleyIdx) {
   const spin = volleyIdx * em.rotStepDeg * DEG2RAD;
   for (let i = 0; i < em.count; i += 1) {
     const a = spin + i * em.rotStepDeg * DEG2RAD;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
   }
 }
 
@@ -151,7 +151,7 @@ function fireWall(world, e, em) {
   for (let slot = 0; slot < total; slot += 1) {
     if (slot >= gapStart && slot < gapStart + em.gapCount) continue;   // 틈
     const x = a.x + step * (slot + 1);
-    spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed);
+    spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, e.archetypeId);
     brick += 1;
     if (brick >= em.count) break;
   }

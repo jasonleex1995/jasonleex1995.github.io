@@ -128,6 +128,8 @@ function makeEnemyBullet() {
   return {
     alive: false, idx: 0, gen: 0,
     bulletId: '',
+    // §13.1.1 maxArchetypeLethalityShare — 「누가 쐈는가」. 보스·중간보스는 '' (분모에서도 제외된다)
+    srcArch: '',
     x: 0, y: 0, vx: 0, vy: 0,
     dmg: 0, radius: 0, hitRadius: 0,
     // §4.1 — 적 탄에 element 가 없다. 스키마가 이미 그것을 강제한다 (§9.7)
@@ -711,7 +713,7 @@ export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner)
   return t;
 }
 
-export function spawnEnemyBullet(world, bulletId, x, y, vx, vy) {
+export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   const b = world.enemyBullets.alloc();
   if (b === null) { world.capHits.enemyBullet += 1; return null; }
   const defs = world.data.bullets.bullets;
@@ -719,6 +721,7 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy) {
   for (let i = 0; i < defs.length; i += 1) if (defs[i].id === bulletId) { def = defs[i]; break; }
   if (def === null) throw new Error(`state: 미지의 탄 "${bulletId}" (§9.7)`);
   b.bulletId = def.id;
+  b.srcArch = srcArch === undefined ? '' : srcArch;
   b.x = x; b.y = y; b.vx = vx; b.vy = vy;
   b.dmg = def.dmg;
   b.radius = def.radius;

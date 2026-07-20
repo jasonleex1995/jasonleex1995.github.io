@@ -19,7 +19,7 @@
  * ★ tools/sim.mjs 는 이 파일을 그대로 import 한다 — 렌더·오디오·DOM 은 애초에 없다 (§10.4).
  */
 
-import { playerToEnemy, enemyToPlayer } from './damage.js';
+import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken } from './damage.js';
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
 import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
@@ -324,6 +324,7 @@ function collide(world, dt) {
       const tier = hitTier(ctx.matrix, stamp, e.element);
       const dealt = playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
       e.hp -= dealt;
+      noteDamage(world, b.family, dealt);           // §13.1.1 무기 지배도(시뮬 전용, 게임엔 무영향)
       // §11.3 attribution "damageShare" — 초효과 처치 보너스의 근거는 막타가 아니라 누적 지분이다
       e.dmgTotal += dealt;
       if (tier === 'super') e.dmgSuper += dealt;
@@ -357,7 +358,7 @@ function collide(world, dt) {
     // §2.4(v1.4) — i-frame 중 통과하는 탄은 소멸하지 않는다. **피해를 실제로 준 그 탄 하나만**
     //   소멸(아래 release, 실드 흡수 포함). 광역 소거는 폭탄·hitBulletClearRadius 만.
     if (p.iframeSec > 0) continue;
-    if (applyHit(world, b.dmg)) {
+    if (applyHit(world, b.dmg, b.srcArch)) {
       if (b.status !== null) applyStatus(world, b.status, b.statusDurationSec);
       world.enemyBullets.release(b);
     }
@@ -372,7 +373,7 @@ function collide(world, dt) {
     const dy = p.y - e.y;
     const rr = rp.hitboxRadius + e.radius;
     if (dx * dx + dy * dy > rr * rr) continue;
-    applyHit(world, e.contactDmg);
+    applyHit(world, e.contactDmg, e.archetypeId);
     break;
   }
 }
@@ -397,7 +398,7 @@ function hazards(world, dt) {
     const dx = p.x - z.x;
     const dy = p.y - z.y;
     const rr = z.radius + rp.hitboxRadius;
-    if (dx * dx + dy * dy <= rr * rr) applyHit(world, z.dmg);
+    if (dx * dx + dy * dy <= rr * rr) applyHit(world, z.dmg, '');   // 장판엔 시전자 필드가 없다
   }
 
   const ts = world.telegraphs.items;
@@ -415,7 +416,7 @@ function hazards(world, dt) {
     const ry = p.y - t.y;
     if (rx * ux + ry * uy < 0) continue;
     const perp = Math.abs(rx * uy - ry * ux);
-    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg);
+    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg, '');   // 빔도 마찬가지
   }
 }
 
@@ -431,7 +432,7 @@ function hazards(world, dt) {
  *   → 가드를 제거해 계약을 약화하는 대신, applyHit 를 직접 호출하는 격리 단위 테스트
  *     (tests/step.test.mjs "applyHit 격리 게이트")로 이 조기반환을 고정한다.
  */
-export function applyHit(world, raw) {
+export function applyHit(world, raw, srcArch) {
   const p = world.player;
   const rp = world.data.rules.player;
   if (p.iframeSec > 0) return false;              // 게임초당 최대 1회
@@ -445,7 +446,9 @@ export function applyHit(world, raw) {
     noteHit(world, true);                         // §11.3 shieldPreservesNoHit — 무피격 유지
   } else {
     noteHit(world, false);
-    p.hp -= enemyToPlayer(rp, p, raw);
+    const taken = enemyToPlayer(rp, p, raw);
+    noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);   // §13.1.1 치사 지분
+    p.hp -= taken;
     if (p.hp <= 0) {
       p.hp = 0;
       world.over = true;
@@ -590,7 +593,12 @@ function pickups(world, dt) {
 
 function collect(world, q) {
   const p = world.player;
-  if (q.kind === 'xp') { p.xp += q.value * (1 + world.stats.xpGainMul); return; }      // §9.6 study
+  if (q.kind === 'xp') {
+    const gain = q.value * (1 + world.stats.xpGainMul);                                // §9.6 study
+    p.xp += gain;
+    if (world.tele !== undefined) world.tele.xpGained += gain;                         // §13.1.1 farmXpRatio
+    return;
+  }
   if (q.kind === 'coin') { p.coins += q.value * (1 + world.stats.coinGainMul); return; } // §9.6 salvage
   if (q.kind === 'heal') {
     // §2.1(v1.4) — value 는 이미 절대 회복량(killEnemy 가 healPickupPct×hpMax 로 실었다).

@@ -19,7 +19,7 @@
  */
 
 import { spawnZone } from '../state.js';
-import { playerToEnemy } from '../damage.js';
+import { playerToEnemy, noteDamage } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 import { TAU } from '../angle.js';
@@ -28,7 +28,7 @@ import { TAU } from '../angle.js';
 const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
 
 /** (x,y) 반경 r 안의 적에게 dmg × localMul 을 1회 적용한다. */
-function blastAt(world, eff, x, y, r, localMul, stamp) {
+function blastAt(world, family, eff, x, y, r, localMul, stamp) {
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
@@ -36,7 +36,9 @@ function blastAt(world, eff, x, y, r, localMul, stamp) {
     const dx = e.x - x;
     const dy = e.y - y;
     if (dx * dx + dy * dy > r * r) continue;
-    e.hp -= playerToEnemy(ctx, eff.dmg, localMul, stamp, e);
+    const dealt = playerToEnemy(ctx, eff.dmg, localMul, stamp, e);
+    e.hp -= dealt;
+    noteDamage(world, family, dealt);
     if (e.hp <= 0) killEnemy(world, e);
   }
 }
@@ -84,13 +86,13 @@ export function update(world, slot, eff, dt) {
     }
     if (!hit) continue;
 
-    blastAt(world, eff, z.x, z.y, eff.blastRadius, 1, stamp);
+    blastAt(world, slot.family, eff, z.x, z.y, eff.blastRadius, 1, stamp);
     // ★ slot.evolved 분기 정확히 1개 (§9.5) — 클러스터: 원주 균등 배치의 2차 폭발
     if (slot.evolved) {
       const n = eff.evoClusterCount;
       for (let k = 0; k < n; k += 1) {
         const a = (k / n) * TAU;
-        blastAt(world, eff, z.x + Math.cos(a) * eff.evoClusterRadius,
+        blastAt(world, slot.family, eff, z.x + Math.cos(a) * eff.evoClusterRadius,
           z.y + Math.sin(a) * eff.evoClusterRadius, eff.blastRadius, eff.evoSecondaryDmgMul, stamp);
       }
     }

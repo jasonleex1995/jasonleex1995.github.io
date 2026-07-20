@@ -115,6 +115,39 @@ function dodgeVector(world) {
     else { ay -= w; }
     threats += 1;
   }
+  // ★ 장판(zone)과 빔(laser)도 위협이다 — 실측: 이것을 안 보면 «출처 불명»(장판·빔) 피해가
+  //   전 사인의 최대 항목이 된다(중간보스의 zone/laser). 탄만 피하는 봇은 사람의 하한이 아니다.
+  const zs = world.zones.items;
+  for (let i = 0; i < zs.length; i += 1) {
+    const z = zs[i];
+    if (!z.alive || z.fromPlayer) continue;            // 플레이어 장판(기뢰)은 위협이 아니다
+    const rx = z.x - p.x;
+    const ry = z.y - p.y;
+    const d2 = rx * rx + ry * ry;
+    const danger = rp.hitboxRadius + z.radius + margin;
+    if (d2 > danger * danger) continue;
+    const d = Math.sqrt(d2);
+    const w = (danger - d) / danger;
+    if (d > 0) { ax -= (rx / d) * w; ay -= (ry / d) * w; }
+    else { ay -= w; }
+    threats += 1;
+  }
+  const ts = world.telegraphs.items;
+  for (let i = 0; i < ts.length; i += 1) {
+    const t2 = ts[i];
+    if (!t2.alive || t2.kind !== 'laser') continue;
+    // 빔은 선이다 — 선까지의 수직거리로 위험을 잰다(진행각 a, 폭 r)
+    const rx = p.x - t2.x;
+    const ry = p.y - t2.y;
+    const perp = Math.abs(-Math.sin(t2.a) * rx + Math.cos(t2.a) * ry);
+    const danger = rp.hitboxRadius + t2.r * 0.5 + margin;
+    if (perp > danger) continue;
+    const w = (danger - perp) / danger;
+    const side = (-Math.sin(t2.a) * rx + Math.cos(t2.a) * ry) >= 0 ? 1 : -1;
+    ax += -Math.sin(t2.a) * side * w;                  // 빔의 «옆으로» 벗어난다
+    ay += Math.cos(t2.a) * side * w;
+    threats += 1;
+  }
   if (threats === 0) return null;
 
   // 벽에 몰리지 않도록 경계에서 밀어낸다(구석에서 갇혀 맞는 것이 가장 흔한 사인)
@@ -204,24 +237,31 @@ export function botInput(world, dt) {
   if (b.decideT <= 0) {
     b.decideT = reactionSec(world);
 
+    // ★ 의도(사격선·파밍)를 먼저 세우고, 회피를 **그 위에 더한다**.
+    //   회귀(실측): 회피가 의도를 «대체»하면 화면에 적이 많을수록 봇이 영원히 도망만 다닌다 —
+    //   스테이지1 120초에서 명중이 잠재 화력의 20%에 그쳐 처치율 21%가 나왔다. 사람은 피하면서도
+    //   총구를 맞춘다. 그래서 회피는 **변위**이지 목적지가 아니다.
+    const farm = b.policy.farm;
+    const pick = farm === 'passive' ? null : nearestPickup(world);
+    if (pick !== null && (farm === 'maxFarm' || world.player.hp > world.player.hpMax * 0.5)) {
+      b.tgtX = pick.x; b.tgtY = pick.y;                // 안전하면(또는 maxFarm) 주우러 간다
+    } else {
+      const e = nearestEnemy(world);
+      b.tgtX = e === null ? (bounds.minX + bounds.maxX) / 2 : e.x;   // 사격선을 맞춘다
+      b.tgtY = bounds.maxY;                            // 기본은 하단(§2.6 과 같은 안전 위치)
+    }
     const dodge = dodgeVector(world);
     if (dodge !== null) {
-      b.tgtX = p.x + dodge.x * 200;                    // 위협 반대로 크게 뺀다
-      b.tgtY = p.y + dodge.y * 200;
-    } else {
-      const farm = b.policy.farm;
-      const pick = farm === 'passive' ? null : nearestPickup(world);
-      if (pick !== null && (farm === 'maxFarm' || world.player.hp > world.player.hpMax * 0.5)) {
-        b.tgtX = pick.x; b.tgtY = pick.y;              // 안전하면(또는 maxFarm) 주우러 간다
-      } else {
-        const e = nearestEnemy(world);
-        b.tgtX = e === null ? (bounds.minX + bounds.maxX) / 2 : e.x;   // 사격선을 맞춘다
-        b.tgtY = bounds.maxY;                          // 기본은 하단(§2.6 과 같은 안전 위치)
-      }
-      // §10.4.1 aimErrorPx — 사람의 손 오차
-      b.tgtX += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
-      b.tgtY += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
+      // 비켜서는 거리 = «내다보는 시간 동안 실제로 갈 수 있는 거리». 새 데이터 키를 만들지 않고
+      // dodgeLookaheadSec × 현재 이동속도로 유도한다(빠를수록 크게 비킨다 = 사람의 감각과 같다).
+      const rp = world.data.rules.player;
+      const disp = bt.dodgeLookaheadSec * rp.moveSpeed * (1 + world.stats.moveSpeedMul);
+      b.tgtX += dodge.x * disp;                        // 위협 반대로 «비켜서되» 목적지는 유지한다
+      b.tgtY += dodge.y * disp;
     }
+    // §10.4.1 aimErrorPx — 사람의 손 오차
+    b.tgtX += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
+    b.tgtY += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
 
     b.wantStance = desiredStance(world);
   }
