@@ -9,8 +9,8 @@
  * step.fireWeapons 가 슬롯마다 recomputeEff(world, slot) 를 계산해 넘기므로
  * ★ 무기 모듈은 JSON 을 스스로 읽지 않는다 → weapons/** 숫자 리터럴 제약이 자연히 지켜진다.
  *
- * ★ 구현 진행 = 현재 5 패밀리 (forward fan seeker omni boomerang). 나머지 7
- *   (lance orbit aura mine barrage drone nova) 는 아직 없다 — step.fireWeapons 는 미등록
+ * ★ 구현 진행 = 현재 8 패밀리 (forward fan seeker omni boomerang aura nova lance). 나머지 4
+ *   (orbit mine barrage drone) 는 아직 없다 — step.fireWeapons 는 미등록
  *   패밀리를 만나면 **조용히 넘어가지 않고 던진다**.
  *   ★ 보고 대상: draft.js 의 newWeapon 후보는 data/weapons.json 의 12 패밀리 전부에서 나온다.
  *   미구현 패밀리 카드를 뽑으면 그 던지기에 걸리므로, **드래프트 후보를 이 레지스트리의
@@ -22,8 +22,11 @@ import fan from './fan.js';
 import seeker from './seeker.js';
 import omni from './omni.js';
 import boomerang from './boomerang.js';
+import aura from './aura.js';
+import nova from './nova.js';
+import lance from './lance.js';
 
 /** 키 = §9.5 의 family (id == family, 12종 1:1) */
-export const weapons = { forward, fan, seeker, omni, boomerang };
+export const weapons = { forward, fan, seeker, omni, boomerang, aura, nova, lance };
 
 export default weapons;

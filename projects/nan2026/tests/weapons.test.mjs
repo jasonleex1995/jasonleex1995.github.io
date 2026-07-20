@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import {
-  createWorld, recomputeEff, giveWeapon, levelUpWeapon, spawnPlayerBullet, spawnEnemy,
+  createWorld, recomputeEff, giveWeapon, levelUpWeapon, spawnPlayerBullet, spawnEnemy, spawnEnemyBullet,
 } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -33,6 +33,9 @@ import fan from '../src/core/weapons/fan.js';
 import seeker from '../src/core/weapons/seeker.js';
 import omni from '../src/core/weapons/omni.js';
 import boomerang from '../src/core/weapons/boomerang.js';
+import aura from '../src/core/weapons/aura.js';
+import nova from '../src/core/weapons/nova.js';
+import lance from '../src/core/weapons/lance.js';
 import { DEG2RAD, wrapAngle } from '../src/core/angle.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -552,6 +555,126 @@ suite('weapons/boomerang', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+// aura · nova · lance (인라인 피해 3종)
+// ══════════════════════════════════════════════════════════════════════════
+suite('weapons/aura', () => {
+  test('tickIntervalSec 주기로 반경 안의 적만 때린다 (밖은 무피해)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'aura', 1, false);
+    const p = w.player;
+    const near = addEnemy(w, p.x, p.y - eff.radius * 0.5);   // 반경 안
+    const far = addEnemy(w, p.x, p.y - eff.radius * 2);      // 반경 밖
+    const n0 = near.hp; const f0 = far.hp;
+    aura.update(w, s, eff, dt);                              // 첫 틱에 즉시 1회
+    assert.lt(near.hp, n0, '반경 안 = 피해');
+    assert.eq(far.hp, f0, '반경 밖 = 무피해');
+    const n1 = near.hp;
+    aura.update(w, s, eff, dt);                              // 주기 전이라 추가 피해 없음
+    assert.eq(near.hp, n1, 'tickIntervalSec 전엔 추가 피해 없음');
+  });
+
+  test('falloff: 가장자리가 중심보다 덜 아프다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'aura', 1, false);
+    assert.lt(eff.falloff, 1, 'falloff < 1 (양성 경로)');
+    const p = w.player;
+    const mid = addEnemy(w, p.x, p.y - 1);                   // 거의 중심
+    const edge = addEnemy(w, p.x, p.y - eff.radius * 0.95);  // 가장자리
+    const m0 = mid.hp; const e0 = edge.hp;
+    aura.update(w, s, eff, dt);
+    assert.gt(m0 - mid.hp, e0 - edge.hp, '중심 피해 > 가장자리 피해');
+  });
+
+  test('진화 격리(싱귤래리티): evolved 만 chaff 를 끌어당긴다', () => {
+    const p0 = (evolved) => {
+      const w = mkWorld();
+      const { s, eff } = setup(w, 'aura', 1, evolved);
+      const e = addEnemy(w, w.player.x + 60, w.player.y - 10);
+      const before = e.x;
+      for (let t = 0; t < 30; t += 1) aura.update(w, s, eff, dt);
+      return before - e.x;                                    // 플레이어 쪽(왼쪽)으로 당겨진 거리
+    };
+    assert.gt(p0(true), 0, 'evolved 는 끌어당긴다');
+    assert.eq(p0(false), 0, '비evolved 는 위치를 건드리지 않는다');
+  });
+});
+
+suite('weapons/nova', () => {
+  test('intervalSec 주기로 반경 안을 폭발시킨다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'nova', 1, false);
+    const p = w.player;
+    const near = addEnemy(w, p.x, p.y - eff.radius * 0.5);
+    const far = addEnemy(w, p.x, p.y - eff.radius * 2);
+    const n0 = near.hp; const f0 = far.hp;
+    nova.update(w, s, eff, dt);
+    assert.lt(near.hp, n0, '반경 안 = 폭발 피해');
+    assert.eq(far.hp, f0, '반경 밖 = 무피해');
+  });
+
+  test('진화(슈퍼노바): 2단 링이 더 멀리 닿고 적 탄을 지운다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'nova', 8, true);
+    const p = w.player;
+    assert.gt(eff.evoRing2Radius, eff.radius, '2단 링이 더 크다');
+    const outer = addEnemy(w, p.x, p.y - (eff.radius + eff.evoRing2Radius) * 0.5);
+    const o0 = outer.hp;
+    spawnEnemyBullet(w, 'pelletS', p.x, p.y - 20, 0, 100);
+    assert.gte(w.enemyBullets.live, 1, '적 탄 존재(전제)');
+    nova.update(w, s, eff, dt);
+    assert.lt(outer.hp, o0, '1단 밖·2단 안의 적도 맞는다');
+    assert.eq(w.enemyBullets.live, 0, 'evoClearBullets — 링 안의 적 탄 소거');
+  });
+});
+
+suite('weapons/lance', () => {
+  test('정면 빔 안의 적만, 가까운 순으로 pierce 마리까지', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'lance', 1, false);
+    const p = w.player;
+    const inline = [];
+    for (let k = 0; k < eff.pierce + 2; k += 1) inline.push(addEnemy(w, p.x, p.y - 40 - k * 30));
+    const side = addEnemy(w, p.x + eff.beamWidthPx * 2 + 40, p.y - 60);   // 빔 폭 밖
+    const s0 = side.hp;
+    lance.update(w, s, eff, dt);
+    let hit = 0;
+    for (const e of inline) if (e.hp < e.hpMax) hit += 1;
+    assert.eq(hit, eff.pierce, `정확히 pierce(${eff.pierce}) 마리만 꿴다`);
+    assert.eq(side.hp, s0, '빔 폭 밖 = 무피해');
+    assert.lt(inline[0].hp, inline[0].hpMax, '가장 가까운 적이 포함된다');
+  });
+
+  test('사거리 밖은 맞지 않는다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'lance', 1, false);
+    const p = w.player;
+    const far = addEnemy(w, p.x, p.y - eff.rangePx - 60);
+    const f0 = far.hp;
+    lance.update(w, s, eff, dt);
+    assert.eq(far.hp, f0, 'rangePx 밖 = 무피해');
+  });
+
+  test('진화(레일건): 사거리 밖·pierce 초과도 전부 꿴다', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'lance', 8, true);
+    const p = w.player;
+    const list = [];
+    for (let k = 0; k < eff.pierce + 3; k += 1) list.push(addEnemy(w, p.x, p.y - 40 - k * 40));
+    lance.update(w, s, eff, dt);
+    let hit = 0;
+    for (const e of list) if (e.hp < e.hpMax) hit += 1;
+    assert.eq(hit, list.length, '무제한 관통 — 줄 선 전부');
+  });
+
+  test('음성: 계약 밖 targetMode 는 throw', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'lance', 1, false);
+    eff.targetMode = 'nearest';
+    assert.throws(() => lance.update(w, s, eff, dt), '계약 밖 targetMode → throw');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 // 리터럴 계약 (§9.1) — check.mjs S1 스캐너를 재현해 소스에서 직접 검증
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/리터럴 계약 §9.1', () => {
@@ -572,7 +695,7 @@ suite('weapons/리터럴 계약 §9.1', () => {
     return out;
   }
 
-  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js']) {
+  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js', 'aura.js', 'nova.js', 'lance.js']) {
     test(`${file}: 숫자 리터럴 ⊆ {0,1,-1,0.5,2}`, () => {
       const lits = literals(file);
       assert.gt(lits.length, 0, '스캐너가 실제로 리터럴을 봤다 (vacuous 아님)');
