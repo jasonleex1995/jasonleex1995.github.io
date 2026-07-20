@@ -558,7 +558,6 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
   const el = world.data.rules.elite;
   const freezeScale = world.data.rules.visual.hitFx.superFreezeScale;   // §7.7 ×2 임팩트 프리즈
   const resistLife = world.data.rules.visual.hitFx.resistArcLifeSec;    // §7.7 ×0.5 차폐 플래시 수명
-  const archetypes = world.data.enemies.archetypes;
   const items = world.enemies.items;
 
   for (let i = 0; i < items.length; i += 1) {
@@ -566,11 +565,8 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     if (!e.alive) continue;
     const x = lerpX(interp, interp.enemies, e, alpha);
     const y = lerpY(interp, interp.enemies, e, alpha);
-    let def = null;
-    for (let j = 0; j < archetypes.length; j += 1) {
-      if (archetypes[j].id === e.archetypeId) { def = archetypes[j]; break; }
-    }
-    if (def === null) throw new Error(`draw: 미지의 아키타입 "${e.archetypeId}" (§9.7)`);
+    // ★ 모양은 개체가 들고 있다 — 보스 코어·파트는 archetypes 에 없다(archetypeId ''). 스캔도 사라진다
+    if (e.shapeId === '') throw new Error(`draw: shapeId 없는 개체 (archetypeId "${e.archetypeId}", §9.7)`);
     const color = pal.element[e.element];
 
     // §7.7 — ×2 히트의 0.04초 임팩트 프리즈: 개체(idx,gen)가 프리즈 중이면 본체를 ×superFreezeScale.
@@ -579,7 +575,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     const r = frozen ? e.radius * freezeScale : e.radius;
 
     // 본체 — 속성별로 칠하지 않는다 (§7.6: 3층 분리의 근거)
-    shapePath(ctx, def.shapeId, x, y, r);
+    shapePath(ctx, e.shapeId, x, y, r);
     ctx.fillStyle = pal.enemyBody;
     ctx.fill();
 
@@ -598,7 +594,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     // 외곽선 — 속성색 2px (cvd 3px). 본체 크기 무관 항상
     ctx.lineWidth = pal.enemyOutlinePx;
     ctx.strokeStyle = color;
-    shapePath(ctx, def.shapeId, x, y, r);
+    shapePath(ctx, e.shapeId, x, y, r);
     ctx.stroke();
 
     // §7.7 — ×0.5 저항 피격: 본체를 짧게 **회색으로 차폐 플래시**("클렁크"). super 의 색 팝(프리즈+화이트-핫)과
@@ -610,7 +606,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.globalAlpha = rt;
       ctx.lineWidth = pal.enemyOutlinePx + 2;                            // 정상 외곽선보다 두껍게 = 튕겨냄
       ctx.strokeStyle = pal.neutralGray;
-      shapePath(ctx, def.shapeId, x, y, r);
+      shapePath(ctx, e.shapeId, x, y, r);
       ctx.stroke();
       ctx.restore();
     }
@@ -622,7 +618,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.rotate(world.time * Math.PI * 0.5);
       ctx.lineWidth = pal.enemyOutlinePx;
       ctx.strokeStyle = rgba(color, 0.7);
-      shapePath(ctx, def.shapeId, 0, 0, r * el.sizeMult * 0.82);
+      shapePath(ctx, e.shapeId, 0, 0, r * el.sizeMult * 0.82);
       ctx.stroke();
       ctx.restore();
       // HP 바는 UI 요소 — 프리즈 팝에 흔들리지 않게 원본 e.radius 에 앵커
@@ -888,6 +884,33 @@ function drawHitFx(ctx, world, pal, fx) {
 function drawTelegraphs(ctx, world, pal) {
   const vt = world.data.rules.visual.telegraph;
   const items = world.telegraphs.items;
+  const a = world.data.rules.view.arena;
+  const beamLen = Math.sqrt(a.w * a.w + a.h * a.h);   // 아레나를 확실히 가로지르는 길이
+
+  // (a) §8.5 laser — **활성 빔**. 실선·불투명이라 점선 텔레그래프와 시각적으로 구분된다.
+  //     r = widthPx, a = 진행각. §7.4 의 빔 어휘: 검은 외곽선 + 자홍 본체 + 흰 코어.
+  ctx.save();
+  for (let i = 0; i < items.length; i += 1) {
+    const t = items[i];
+    if (!t.alive || t.kind !== 'laser') continue;
+    const ex = t.x + Math.cos(t.a) * beamLen;
+    const ey = t.y + Math.sin(t.a) * beamLen;
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y);
+    ctx.lineTo(ex, ey);
+    ctx.lineWidth = t.r + vt.strokePx * 2;
+    ctx.strokeStyle = pal.threat.outline;
+    ctx.stroke();
+    ctx.lineWidth = t.r;
+    ctx.strokeStyle = pal.threat.enemyBullet;
+    ctx.stroke();
+    ctx.lineWidth = t.r * 0.3;
+    ctx.strokeStyle = pal.threat.bulletCore;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // (b) 원형 텔레그래프 — 점선·반투명(아직 오지 않은 위협)
   ctx.save();
   ctx.globalAlpha = vt.airAlpha;
   ctx.setLineDash([vt.dashPx, vt.dashPx]);
@@ -895,7 +918,7 @@ function drawTelegraphs(ctx, world, pal) {
   ctx.strokeStyle = pal.threat.telegraph;
   for (let i = 0; i < items.length; i += 1) {
     const t = items[i];
-    if (!t.alive) continue;
+    if (!t.alive || t.kind === 'laser') continue;
     ctx.beginPath();
     ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     ctx.stroke();

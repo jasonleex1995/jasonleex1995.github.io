@@ -69,6 +69,18 @@ suite('boss/spawnBoss', () => {
     assert.near(core.hp, def.core.hp, 1e-6, 'finale 코어 HP = 절대값(스케일 없음)');
   });
 
+  test('회귀: 보스 개체도 shapeId 를 들고 있다 (렌더는 archetypes 에서 모양을 못 찾는다)', () => {
+    // 보스는 archetypeId 가 '' 라 렌더가 아키타입으로 도형을 찾으면 **보스 등장 프레임마다 예외**가 난다.
+    const w = mkRunWorld(1, 0);
+    spawnBoss(w);
+    const { core, parts } = scanBoss(w);
+    assert.gt(core.shapeId.length, 0, '코어 shapeId 보유');
+    for (const p of parts) assert.gt(p.shapeId.length, 0, `파트(${p.partId}) shapeId 보유`);
+    const def = loadData().enemies.archetypes.find((a) => a.id === 'drifter');
+    const e = spawnEnemy(w, 'drifter', 'normal', 600, 200, def.hp, false);
+    assert.eq(e.shapeId, def.shapeId, '잡몹 shapeId = 아키타입 shapeId');
+  });
+
   test('파트가 코어+anchor 위치에 배치된다', () => {
     const w = mkRunWorld(2, 0);
     spawnBoss(w);

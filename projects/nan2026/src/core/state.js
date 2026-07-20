@@ -70,6 +70,9 @@ function makeEnemy() {
   return {
     alive: false, idx: 0, gen: 0,
     archetypeId: '', band: '', element: NORMAL,
+    // ★ 개체가 자기 글리프를 들고 다닌다 — 보스 개체는 archetypes 에 없어서(archetypeId '')
+    //   렌더가 아키타입으로 모양을 찾을 수 없다. 프레임당 스캔도 사라진다(§10.3).
+    shapeId: '',
     x: 0, y: 0, vx: 0, vy: 0,
     hp: 0, hpMax: 0, radius: 0,
     contactDmg: 0, xp: 0, score: 0, coin: 0,
@@ -538,6 +541,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
 
   e.archetypeId = def.id;
   e.band = def.band;
+  e.shapeId = def.shapeId;
   e.element = element;                    // §8.6 — element 는 아키타입 필드가 아니다. 편성이 주입한다
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;
   e.hp = elite ? hp * el.hpMult : hp;     // §8.6 — 엘리트 = 접두 플래그다. 별도 개체가 아니다
@@ -563,7 +567,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
 export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
-  e.archetypeId = ''; e.band = '';
+  e.archetypeId = ''; e.band = ''; e.shapeId = core.shapeId;
   e.element = core.element;                       // §8.14 R1 — 코어는 노말
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;           // 위치는 boss.js 가 직접 세팅(vx/vy=0)
   e.hp = hp; e.hpMax = hp;
@@ -581,7 +585,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
 export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
-  e.archetypeId = ''; e.band = '';
+  e.archetypeId = ''; e.band = ''; e.shapeId = part.shapeId;
   e.element = part.element;
   e.anchorX = part.anchor[0]; e.anchorY = part.anchor[1];
   e.x = cx + e.anchorX; e.y = cy + e.anchorY; e.vx = 0; e.vy = 0;

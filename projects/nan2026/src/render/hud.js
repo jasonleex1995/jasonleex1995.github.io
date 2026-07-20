@@ -21,6 +21,7 @@
  */
 
 import { rgba, glyphPath } from './draw.js';
+import { PHASE } from '../core/stage.js';   // 읽기 전용 상수 (render 는 core 를 읽기만 한다, §9.1)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
 // ★ §11.1 — 드래프트 카드는 키 문자(W/E/R)가 아니라 **속성 이름**을 말한다. 키 배정은 §5.1
@@ -48,11 +49,92 @@ function text(ctx, world, pal, s, x, y, px, color, align, weight) {
 // 레이어 1 — 아레나 오버레이 띠 (§1.2). draw.js 가 아레나 클립 안에서 부른다
 // ---------------------------------------------------------------------------
 /**
- * ★ 1주차에 그리는 띠 = 하단 A(HP) · 하단 B(XP) 둘.
- *   상단 띠(0~40 보스 타이머·배속 배지·개체 이름)와 코어 HP 바(40~48)는 **스테이지·보스가
- *   1주차 범위 밖**이므로 그리지 않는다 — §1.2 「없을 때: 바 자체를 그리지 않는다(빈 트랙 금지)」.
+ * §1.2 상단 띠 (0~48) — 스테이지 표시 · 보스 타이머(§7.12.1 3단) · 보스 코어 HP(40~48).
+ *   §1.2 「없을 때: 바 자체를 그리지 않는다(빈 트랙 금지)」 — 런이 없거나 보스가 없으면 그 요소를 생략.
+ *   §7.12.1 3단: 정상 은색 / 잔여 ≤ timerWarnSec 경고(색 불변 + 크기·맥동) / ≤ timerRedAlertSec 자홍.
+ */
+function drawTopBand(ctx, world, pal) {
+  const run = world.run;
+  if (run === undefined) return;                       // 런 미구동(테스트 월드) — 띠 자체를 그리지 않는다
+  const v = world.data.rules.view;
+  const h = world.data.rules.hud;
+  const vb = world.data.rules.visual.band;
+  const a = v.arena;
+  const topH = v.bandTopH;
+  const pad = 8;
+
+  ctx.fillStyle = rgba(pal.hud.panelBg, vb.plateAlpha);
+  ctx.fillRect(a.x, a.y, a.w, topH);
+
+  ctx.save();
+  if (vb.contentOpaque) ctx.globalAlpha = 1.0;
+
+  // 좌 — 스테이지 n/N + 테마 이름 (지금 어디인지가 항상 보인다)
+  const id = run.order[run.stageIndex];
+  const list = world.data.stages.stages;
+  let stage = null;
+  for (let i = 0; i < list.length; i += 1) if (list[i].id === id) { stage = list[i]; break; }
+  text(ctx, world, pal, `${run.stageIndex + 1}/${run.order.length}  ${stage === null ? id : stage.name}`,
+    a.x + pad, a.y + 16, h.fontBodyPx, pal.hud.textDim, 'left', 600);
+
+  // 우 — 위기 세션 진행 표식 (§8.10). 없을 땐 그리지 않는다
+  if (run.crisis) {
+    text(ctx, world, pal, '위기', a.x + a.w - pad, a.y + 16,
+      h.fontBodyPx, pal.threat.enemyBullet, 'right', 700);
+  }
+
+  // 중앙 — 보스 타이머 (BOSS 페이즈에만)
+  if (run.phase === PHASE.BOSS) {
+    const ph = world.data.stages.phase;
+    const vt = world.data.rules.visual.timer;
+    const left = run.bossTimer < 0 ? 0 : run.bossTimer;
+    let color = pal.element.normal;                    // 정상·경고 = 은색 (§7.12.1 — 호박 없음)
+    let scale = 1;
+    if (left <= ph.timerRedAlertSec) {
+      color = pal.threat.enemyBullet;                  // 빨간불 = 자홍 (타이머 만료가 나를 죽인다)
+      const pulse = 0.5 + 0.5 * Math.sin(world.time * vt.alertPulseHz * Math.PI * 2);
+      scale = 1 + (vt.alertScale - 1) * pulse;
+    } else if (left <= ph.timerWarnSec) {
+      const pulse = 0.5 + 0.5 * Math.sin(world.time * vt.warnPulseHz * Math.PI * 2);
+      scale = 1 + (vt.warnScale - 1) * pulse;
+    }
+    const secs = Math.ceil(left);
+    const mm = Math.floor(secs / 60);
+    const ss = secs - mm * 60;
+    text(ctx, world, pal, `${mm}:${ss < 10 ? '0' : ''}${ss}`,
+      a.x + a.w / 2, a.y + 18, h.fontLargePx * scale, color, 'center', 700);
+  }
+
+  // 보스 코어 HP (40~48) + 살아있는 armor 칸 = §8.13 소프트게이트 단계. 보스가 없으면 안 그린다
+  let core = null;
+  const en = world.enemies.items;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (e.alive && e.isBoss && e.isCore) { core = e; break; }
+  }
+  if (core !== null) {
+    const barY = a.y + topH - h.bossHpBarH;
+    const barW = a.w - pad * 2;
+    const ratio = core.hpMax > 0 ? core.hp / core.hpMax : 0;
+    ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
+    ctx.fillRect(a.x + pad, barY, barW, h.bossHpBarH - 2);
+    ctx.fillStyle = pal.element.normal;                // 코어는 노말 (§8.14 R1)
+    ctx.fillRect(a.x + pad, barY, barW * ratio, h.bossHpBarH - 2);
+    for (let i = 0; i < core.aliveArmorPartCount; i += 1) {   // 남은 armor = 코어가 아직 가려져 있다
+      ctx.fillStyle = pal.threat.enemyBullet;
+      ctx.fillRect(a.x + pad + i * 12, barY - 6, 8, 4);
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 아레나 오버레이 띠 — 상단(스테이지·보스 타이머·코어 HP) · 하단 A(HP) · 하단 B(XP).
+ *   §1.2 「없을 때: 바 자체를 그리지 않는다(빈 트랙 금지)」.
  */
 export function drawArenaBands(ctx, world, pal) {
+  drawTopBand(ctx, world, pal);
   const v = world.data.rules.view;
   const h = world.data.rules.hud;
   const vb = world.data.rules.visual.band;
