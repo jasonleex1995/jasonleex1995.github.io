@@ -22,6 +22,7 @@
  *     - 보스 코어 격파 시 killEnemy(step.js)가 run.cleared=true 를 세팅 → 여기서 STAGE_CLEAR/승리로 소화.
  */
 
+import { midBoss, clearMidBoss } from './midboss.js';
 import { addBossClear, addRunClear, noteContinue } from './score.js';
 
 export const PHASE = {
@@ -75,6 +76,8 @@ export function initRun(world) {
     phase: PHASE.MOB,
     phaseT: 0,                      // 현재 페이즈 경과(게임초)
     crisis: false,                  // 잡몹 페이즈 마지막 25초 서브구간(§8.10)
+    midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
+    midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
     bossSpawned: false,             // BOSS 페이즈 보스 스폰 1회 가드(보스 훅이 본다)
     bossPhase: 0,                   // §8.11 보스 페이즈(코어 HP 임계 [0.6,0.3] → 0/1/2, patternSet 선택)
@@ -115,8 +118,11 @@ export function tickRun(world, dt) {
   if (run.phase === PHASE.MOB) {
     // 위기 서브구간 = 마지막 crisisDurationSec (§8.10). 독립 상태 아님(§6.5).
     run.crisis = run.phaseT >= ph.crisisStartSec;
+    // §8.9 — 중간보스는 «잡몹 페이즈의 선택지»다. 등장·이동·이탈·소환을 midboss.js 가 소유한다.
+    midBoss(world, dt);
     if (run.phaseT >= ph.mobPhaseSec) {
       run.crisis = false;
+      clearMidBoss(world);           // 잡몹 페이즈가 끝나면 무대에 남지 않는다
       run.phase = PHASE.BOSS_INTRO;
       run.phaseT = 0;
       // (배선) mobPhaseExitClearBullets + phaseEndAutocollect 는 여기 전이에서 수행한다
@@ -183,6 +189,8 @@ export function advanceStage(world) {
   run.phase = PHASE.MOB;
   run.phaseT = 0;
   run.crisis = false;
+  run.midBossNext = 0;
+  run.midBossElementPrev = '';
   run.bossTimer = 0;
   run.bossSpawned = false;
   run.cleared = false;

@@ -107,21 +107,26 @@ function drawTopBand(ctx, world, pal) {
   }
 
   // 보스 코어 HP (40~48) + 살아있는 armor 칸 = §8.13 소프트게이트 단계. 보스가 없으면 안 그린다
+  //   ★ §7.6 — **중간보스도 같은 상단 바**를 쓴다(엘리트는 개체에 붙는 바, 중간보스는 화면 상단 바).
+  //     색은 그 개체의 속성색 → §7.6 「바 색이 곧 '무슨 스탠스로 때려야 하나'」. 코어는 노말=은색.
   let core = null;
+  let mid = null;
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (e.alive && e.isBoss && e.isCore) { core = e; break; }
+    if (e.alive && e.midBossId !== '' && mid === null) mid = e;
   }
-  if (core !== null) {
+  const bar = core !== null ? core : mid;
+  if (bar !== null) {
     const barY = a.y + topH - h.bossHpBarH;
     const barW = a.w - pad * 2;
-    const ratio = core.hpMax > 0 ? core.hp / core.hpMax : 0;
+    const ratio = bar.hpMax > 0 ? bar.hp / bar.hpMax : 0;
     ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
     ctx.fillRect(a.x + pad, barY, barW, h.bossHpBarH - 2);
-    ctx.fillStyle = pal.element.normal;                // 코어는 노말 (§8.14 R1)
+    ctx.fillStyle = pal.element[bar.element];          // 코어는 노말(§8.14 R1) · 중간보스는 주입된 속성
     ctx.fillRect(a.x + pad, barY, barW * ratio, h.bossHpBarH - 2);
-    for (let i = 0; i < core.aliveArmorPartCount; i += 1) {   // 남은 armor = 코어가 아직 가려져 있다
+    for (let i = 0; i < bar.aliveArmorPartCount; i += 1) {   // 남은 armor = 코어가 아직 가려져 있다
       ctx.fillStyle = pal.threat.enemyBullet;
       ctx.fillRect(a.x + pad + i * 12, barY - 6, 8, 4);
     }

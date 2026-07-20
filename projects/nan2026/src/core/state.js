@@ -83,6 +83,14 @@ function makeEnemy() {
     // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
     //   partId = 부위 식별(patternSet 이미터 조회). phase = 보스 페이즈 인덱스(patternSet 선택, B2b).
     isBoss: false, bossId: '', partId: '', partType: '', anchorX: 0, anchorY: 0, phase: 0,
+    // §8.9 — 중간보스는 «단일 몸체·부위 없음»이라 isBoss 를 켜지 않는다(보스 처치/타이머/무적 규칙과
+    //   무관해야 한다). 대신 이 표식 하나로 이동·이탈·소환·보상이 갈린다. '' = 중간보스 아님.
+    midBossId: '',
+    // §8.9-R8 — 중간보스만 **이미터 2개**(emitterIds 길이 1~2)를 동시에 돌린다. 두 악절은 서로 다른
+    //   offsetSec 로 교대하므로 스케줄 상태도 **둘**이어야 한다(보스 부위·잡몹은 2번을 안 쓴다).
+    emitT2: 0, emitPhase2: 0,
+    // §8.9-R9 — mbNest 의 잡몹 소환 케이던스(everySec).
+    summonT: 0,
     // §11.3 attribution "damageShare" — 초효과 처치 보너스는 막타가 아니라 **누적 피해 지분**이다
     dmgTotal: 0, dmgSuper: 0,
     // §2.7 — 상태이상은 플레이어 전용이지만 구조는 대칭으로 둔다 (오라 진화의 끌어당김 등)
@@ -567,9 +575,10 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.elite = elite;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.midBossId = '';
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0;
-  e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.emitT = 0; e.emitPhase = 0; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 재사용 stale 방지
   return e;
 }
@@ -590,6 +599,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.elite = false;
   e.isCore = true; e.aliveArmorPartCount = armorCount;
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
@@ -610,9 +620,35 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
+  e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
+  return e;
+}
+
+/**
+ * §8.9 — 중간보스를 적 풀에 스폰한다. **단일 몸체·부위 없음**이므로 isBoss 는 켜지 않는다.
+ *   hp 스케일(bossHpScale)·속성 주입(notThemeAndNotNormal)은 midboss.js 소관 — 이 헬퍼는
+ *   makeEnemy 대칭의 필드 전량 리셋만 책임진다.
+ */
+export function spawnMidBoss(world, def, element, hp, x, y) {
+  const e = world.enemies.alloc();
+  if (e === null) { world.capHits.enemy += 1; return null; }
+  e.archetypeId = ''; e.band = ''; e.shapeId = def.shapeId;
+  e.element = element;                            // §8.9 런타임 주입(저작값은 null)
+  e.x = x; e.y = y; e.vx = 0; e.vy = 0;
+  e.hp = hp; e.hpMax = hp;
+  e.radius = def.radius; e.contactDmg = def.contactDmg;
+  e.xp = def.xp; e.score = def.score; e.coin = def.coin;
+  e.elite = false;
+  e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.midBossId = def.id;
+  e.dmgTotal = 0; e.dmgSuper = 0;
+  e.slowSec = 0; e.stunSec = 0;
+  e.emitT = 0; e.emitPhase = 0; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
+  e.moveT = 0; e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;
   return e;
 }
 

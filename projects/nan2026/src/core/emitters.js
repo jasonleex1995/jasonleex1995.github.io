@@ -54,7 +54,7 @@ function ensureLookup(world) {
 
 /**
  * §9.8.1 — 보스 파트가 이 페이즈에 쏘는 이미터 id. 없으면(코어·미정의·빈 페이즈) null.
- *   보스 파트는 페이즈당 emitterIds 1개다(중간보스 2개는 B2c). from='part' 는 파트가 anchor 위치의
+ *   보스 파트는 페이즈당 emitterIds 1개다(중간보스의 1~2개는 emitters() 가 직접 돌린다). from='part' 는 파트가 anchor 위치의
  *   개별 엔티티라 자동 충족(e.x/e.y = 파트 위치).
  */
 function bossPartEmitterId(look, e) {
@@ -205,6 +205,27 @@ export function emitters(world, dt) {
     const e = items[i];
     if (!e.alive) continue;
     if (e.stunSec > 0) continue;                    // 스턴 = 개체 정지(step.moveBullets 와 대칭). 나이도 얼린다
+
+    // §8.9-R8 — 중간보스는 **이미터 1~2개**를 동시에 돌린다(offsetSec 교대 → 동시 텔레그래프 1개가
+    //   정적으로 증명된다). 그래서 스케줄 상태가 둘이다: (emitT, emitPhase) · (emitT2, emitPhase2).
+    if (e.midBossId !== '') {
+      const mb = look.bossById[e.midBossId];
+      if (mb === undefined) throw new Error(`emitters: 미지의 중간보스 "${e.midBossId}" (§8.9)`);
+      const ids = mb.patternSet[0].emitterIds;              // 중간보스 phases = 1개
+      const emA = look.emitById[ids[0]];
+      if (emA === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[0]}" (§8.9)`);
+      e.emitT += dt;
+      const wantA = scheduledVolleys(e.emitT, emA, 0);
+      while (e.emitPhase < wantA) { fireVolley(world, e, emA, e.emitPhase, p, look); e.emitPhase += 1; }
+      if (ids.length > 1) {
+        const emB = look.emitById[ids[1]];
+        if (emB === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[1]}" (§8.9)`);
+        e.emitT2 += dt;
+        const wantB = scheduledVolleys(e.emitT2, emB, 0);
+        while (e.emitPhase2 < wantB) { fireVolley(world, e, emB, e.emitPhase2, p, look); e.emitPhase2 += 1; }
+      }
+      continue;
+    }
 
     let em;
     let firstDelay;

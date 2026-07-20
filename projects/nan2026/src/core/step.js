@@ -252,7 +252,9 @@ function moveBullets(world, dt) {
     e.moveT += dt;
     // §8.7 — 아레나를 벗어난 적은 보상을 몰수당한다 (enemyExitForfeitsReward).
     //   ★ 보스 개체는 예외 — 느린 스웨이가 자기 자신을 이탈 처리해 사라지면 안 된다(§8.11).
-    if (!e.isBoss && (e.y > a.y + a.h + pad || e.x < a.x - pad * 2 || e.x > a.x + a.w + pad * 2)) {
+    //   ★ 중간보스도 예외 — 이탈은 midBossLeaveAfterSec 이 정한다(§8.9), 좌표가 정하지 않는다.
+    if (!e.isBoss && e.midBossId === ''
+      && (e.y > a.y + a.h + pad || e.x < a.x - pad * 2 || e.x > a.x + a.w + pad * 2)) {
       world.enemies.release(e);
     }
   }
@@ -488,6 +490,7 @@ function applyStatus(world, status, durSec) {
 export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
+  if (e.midBossId !== '') { killMidBoss(world, e); return; }       // §8.9 — 중간보스는 개체 필드가 보상을 소유
   addKill(world, e);                                                // §11.3 처치 점수(초효과 지분 보너스 포함)
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
   const band = world.data.enemies.bands[e.band];
@@ -501,6 +504,24 @@ export function killEnemy(world, e) {
   } else if (band.coinDropChance > 0 && world.rng.drop.f() < band.coinDropChance) {
     spawnPickup(world, 'coin', band.coin, e.x, e.y);
   }
+  world.enemies.release(e);
+}
+
+/**
+ * §8.9 — 중간보스 처치. 보상 필드의 거처가 **`bosses[]` 개체**다(04-R10):
+ *   xp 50(= bands.chaff.xpRef × 25) · coin 5 · healDropChance 0.35(회복 3채널 중 "드랍"의 주 수도꼭지)
+ *   · score. ★ 이탈(midboss.js 의 leave)은 이 경로를 타지 않는다 = 보상 0.
+ */
+function killMidBoss(world, e) {
+  addKill(world, e);                                     // §11.3 개체 점수(초효과 지분 보너스 포함)
+  addMidBossClear(world);                                // §11.3 중간보스 격파 보너스
+  spawnPickup(world, 'xp', e.xp, e.x, e.y);
+  spawnPickup(world, 'coin', e.coin, e.x, e.y);          // 확정 드랍
+  const defs = world.data.bosses.bosses;
+  let chance = 0;
+  for (let i = 0; i < defs.length; i += 1) if (defs[i].id === e.midBossId) { chance = defs[i].healDropChance; break; }
+  const healValue = world.data.rules.player.healPickupPct * world.player.hpMax;
+  if (world.rng.drop.f() < chance) spawnPickup(world, 'heal', healValue, e.x, e.y);
   world.enemies.release(e);
 }
 

@@ -28,7 +28,8 @@
  */
 
 import { spawnEnemy } from './state.js';
-import { TAU, DEG2RAD } from './angle.js';
+import { TAU } from './angle.js';
+import { formationPos } from './formations.js';
 import { PHASE } from './stage.js';
 
 /** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 런 미구동(테스트) 시 폴백. */
@@ -142,52 +143,14 @@ function descentSpeed(mp) {
 }
 
 /**
- * §9.9.2 — 편대별 i번째 개체의 스폰 좌표. spawn RNG(scatter) + formation 파라미터로 유도한다.
+ * §9.9.2 — 편대별 i번째 개체의 스폰 좌표. 원점 = 스폰 라인 중앙.
  * spawnEdge 는 슬라이스에서 top 만 유효(sea stage-1 전량 top). base y = view.spawnLineY.
  */
 function placement(world, wave, i, count, out) {
+  // 편대의 원점 = 스폰 라인 중앙(웨이브). 모양 자체는 formations.js 가 소유한다(§9.9.2).
   const a = world.data.rules.view.arena;
-  const lineY = world.data.rules.view.spawnLineY;
-  const cx = a.x + a.w / 2;
-  const forms = world.data.stages.formations;
-  const rng = world.rng.spawn;
-
-  let x = cx;
-  let y = lineY;
-
-  if (wave.formationId === 'arc') {
-    const f = forms.arc;
-    const t = count > 1 ? i / (count - 1) : 0.5;
-    const ang = (-f.spanDeg / 2 + t * f.spanDeg) * DEG2RAD;
-    x = cx + Math.sin(ang) * f.radiusPx;
-    y = lineY + (1 - Math.cos(ang)) * f.radiusPx * 0.3;   // 가운데가 앞선 아래로 볼록한 호
-  } else if (wave.formationId === 'lineH') {
-    const f = forms.lineH;
-    x = cx + (i - (count - 1) / 2) * f.gapPx;
-    y = lineY;
-  } else if (wave.formationId === 'vWedge') {
-    const f = forms.vWedge;
-    if (i === 0) { x = cx; y = lineY; }
-    else {
-      const rank = Math.ceil(i / 2);
-      const side = (i % 2 === 1) ? -1 : 1;
-      const ar = f.angleDeg * DEG2RAD;
-      x = cx + side * rank * f.gapPx * Math.sin(ar);
-      y = lineY - rank * f.gapPx * Math.cos(ar);          // 날개가 위로·바깥으로 = 아래로 향한 V
-    }
-  } else {
-    // scatter + 폴백(columnV·pincer·미지) — rng.spawn 산포. jitterPx = y 계단, minSepPx = 가장자리 여백.
-    const f = forms.scatter;
-    x = a.x + f.minSepPx + rng.f() * (a.w - 2 * f.minSepPx);
-    y = lineY - rng.f() * f.jitterPx;
-  }
-
-  // 아레나 바깥으로 새지 않게 구조적 클램프(밸런스 값 아님 — 좌표계 경계다).
-  if (x < a.x) x = a.x;
-  if (x > a.x + a.w) x = a.x + a.w;
-  out.x = x;
-  out.y = y;
-  return out;
+  return formationPos(world, wave.formationId, i, count,
+    a.x + a.w / 2, world.data.rules.view.spawnLineY, out);
 }
 
 const _pos = { x: 0, y: 0 };   // 재사용(핫패스 0 alloc)
@@ -284,6 +247,7 @@ function applyMovement(world) {
     const e = items[i];
     if (!e.alive) continue;
     if (e.isBoss) continue;              // 보스 개체는 archIndex 에 없다 — 이동은 boss.js 소관(§8.12.1)
+    if (e.midBossId !== '') continue;    // 중간보스도 마찬가지 — 이동은 midboss.js 소관(§8.9)
     const def = arch[e.archetypeId];
     const mp = def.moveParams;
     const speed = descentSpeed(mp);
