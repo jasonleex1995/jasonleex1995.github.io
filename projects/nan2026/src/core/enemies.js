@@ -43,6 +43,30 @@ const PLAYABLE_BANDS = ['chaff', 'line'];          // turret/bruiser 는 effHP �
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
  * ★ 편성·아키타입 인덱스·간격을 전부 주입된 데이터에서 유도한다(하드코딩 매직넘버 0).
  */
+/**
+ * §8.10 — 위기 편성의 스케일링을 스테이지 진입 시 **1회 확정**한다(핫패스 0 alloc·계산).
+ *   crisisTotal(60) × swarmTotalScale[pos] 을 레코드에 나눌 때 레코드마다 반올림하면 총량이 새고
+ *   (0.5 배율에서 30 → 36), 소수 캐리는 부동소수 잔차로 랜서를 0 으로 잘라 9:1 편성을 깬다.
+ *   → **아키타입별 누적 반올림**: Σcount == round(crisisTotal × scale) 이고 9:1 비율도 보존된다. 결정적.
+ */
+function crisisPlan(world, curveIdx) {
+  const recs = world.data.stages.phase.crisisWaves;
+  const scale = world.data.stages.curve.swarmTotalScale[curveIdx];
+  const cum = Object.create(null);        // archetypeId → 정확 누적
+  const done = Object.create(null);       // archetypeId → 확정한 정수 누적
+  const plan = new Array(recs.length);
+  for (let i = 0; i < recs.length; i += 1) {
+    const r = recs[i];
+    const a = r.archetypeId;
+    if (cum[a] === undefined) { cum[a] = 0; done[a] = 0; }
+    cum[a] += r.count * scale;
+    const target = Math.round(cum[a]);
+    plan[i] = target - done[a];
+    done[a] = target;
+  }
+  return plan;
+}
+
 /** stageId·curveIdx 로 스폰 상태를 만든다(스테이지 진입/전환 시 1회). curveIdx = 런 포지션(0..5). */
 function buildSpawner(world, stageId, curveIdx) {
   const list = world.data.stages.stages;
@@ -75,7 +99,14 @@ function buildSpawner(world, stageId, curveIdx) {
   }
   if (roster.length === 0) throw new Error(`enemies: "${stageId}" 로스터 0종 (§8.6 — 필터가 전부 걸렀다)`);
 
-  return { stageId, curveIdx, waves, archIndex, roster, waveIndex: 0, wavesSpawned: 0, nextWaveT: 0 };
+  return {
+    stageId, curveIdx, waves, archIndex, roster,
+    waveIndex: 0, wavesSpawned: 0, nextWaveT: 0,
+    element: stage.element,                    // §8.10 themePure 위기 속성
+    crisisRule: stage.crisisElementRule,       // "themePure" | "finaleRotating"
+    crisisSpawned: 0,                          // 이미 내보낸 위기 서브웨이브 수
+    crisisPlan: crisisPlan(world, curveIdx),   // 레코드별 확정 스폰 수(총량·9:1 보존)
+  };
 }
 
 /**
@@ -191,6 +222,55 @@ function spawnWave(world, s) {
 }
 
 /**
+ * §8.10 — 위기 서브웨이브의 속성. themePure = 60기 전부 테마 속성(정답 스탠스의 페이오프),
+ *   finaleRotating(최종 전용) = 서브웨이브 1·2 물 → 3·4 불 → 5·6 풀 (§8.16 · §7.12.3).
+ */
+function crisisElement(s, subWave) {
+  if (s.crisisRule === 'themePure') return s.element;
+  if (s.crisisRule !== 'finaleRotating') throw new Error(`enemies: 미지의 crisisElementRule "${s.crisisRule}" (§8.10)`);
+  if (subWave <= 2) return 'water';
+  if (subWave <= 4) return 'fire';
+  return 'grass';
+}
+
+/** §8.10 — 한 위기 서브웨이브(9 swarmChaff + 1 swarmLancer)를 편성대로 내보낸다. */
+function spawnCrisisSubWave(world, s, subWave) {
+  const recs = world.data.stages.phase.crisisWaves;
+  const swarmMax = world.data.rules.fairness.swarmConcurrentMax;
+  const el = crisisElement(s, subWave);
+
+  for (let i = 0; i < recs.length; i += 1) {
+    const r = recs[i];
+    if (r.subWave !== subWave) continue;
+    const def = s.archIndex[r.archetypeId];
+    if (def === undefined) throw new Error(`enemies: 미지의 새떼 아키타입 "${r.archetypeId}" (§8.10)`);
+    const hp = enemyHp(world, def);
+    const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(총량·9:1 보존)
+    for (let k = 0; k < count; k += 1) {
+      if (world.enemies.live >= swarmMax) break;      // §12.4 swarmConcurrentMax (새떼 전용 상한)
+      placement(world, r, k, count, _pos);            // 레코드가 formationId 를 들고 있다(arc/vWedge)
+      spawnEnemy(world, r.archetypeId, el, _pos.x, _pos.y, hp, false);
+    }
+  }
+}
+
+/**
+ * §8.10 — 위기 세션: 잡몹 페이즈 마지막 crisisDurationSec 동안 crisisSubWaves 파를 균등 간격으로.
+ *   정상 웨이브는 멈춘다(crisisSuspendsWaves). 누적 카운트라 큰 dt 도 놓치지 않는다(결정적 캐치업).
+ */
+function spawnCrisis(world, s) {
+  const ph = world.data.stages.phase;
+  const elapsed = world.run.phaseT - ph.crisisStartSec;
+  const interval = ph.crisisDurationSec / ph.crisisSubWaves;
+  let want = Math.floor(elapsed / interval) + 1;
+  if (want > ph.crisisSubWaves) want = ph.crisisSubWaves;
+  while (s.crisisSpawned < want) {
+    s.crisisSpawned += 1;
+    spawnCrisisSubWave(world, s, s.crisisSpawned);     // subWave 는 1-based
+  }
+}
+
+/**
  * §8.4 — 매 틱 alive 적의 vx/vy 를 moveId 로 갱신한다. step.moveBullets 가 등속 적분한다.
  *   dive  : vy = speed, vx = 0 (직하강)
  *   weave : vy = speed, vx = ampPx·ω·cos(ω·moveT), ω = 2π·freqHz (사인 좌우의 해석적 속도)
@@ -234,6 +314,14 @@ export function enemies(world, dt) {
   }
 
   const s = ensureSpawner(world);
+
+  // §8.10 — 위기 세션 구간: 정상 웨이브를 멈추고(crisisSuspendsWaves) 새떼 서브웨이브만 내보낸다.
+  if (runMode && world.run.crisis) {
+    spawnCrisis(world, s);
+    applyMovement(world);
+    return;
+  }
+
   const concurrentMax = world.data.rules.fairness.enemyConcurrentMax;
   const interval = world.data.stages.phase.waveIntervalSec;
   // §6.3 — 런 구동은 mobPhaseMaxWaves 상한. 슬라이스(테스트)는 무한 순환(상한 없음).
