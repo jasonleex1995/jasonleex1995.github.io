@@ -64,6 +64,7 @@ export function step(world, input, dt) {
   if (world.hooks.boss !== null) world.hooks.boss(world, dt);      // §8.11 보스 스폰·이동(이동 적분 전에)
   moveBullets(world, dt);           // 4. 탄 이동
   collide(world, dt);               // 5. 충돌
+  hazards(world, dt);               // 5b. 장판·빔 (§8.5 zone·laser — 적용 1회, i-frame 게이트)
   pickups(world, dt);               // 6. 픽업
   levelUps(world);                  // 7. XP / 레벨
 }
@@ -365,6 +366,46 @@ function collide(world, dt) {
     if (dx * dx + dy * dy > rr * rr) continue;
     applyHit(world, e.contactDmg);
     break;
+  }
+}
+
+/**
+ * §8.5 — 장판(zone) · 빔(laser). 둘 다 **적용 1회 = dmg** 이며 i-frame 이 게이트한다("dps 는 없다").
+ *   zone 은 zones 풀, 활성 빔은 telegraphs 풀(kind 'laser')에 산다. 수명(activeSec)이 다하면 반납.
+ *   ★ fromPlayer 장판(무기 A2)은 적을 때리는 것이라 여기(플레이어 피격)에서는 건너뛴다 — 나이만 먹인다.
+ */
+function hazards(world, dt) {
+  const p = world.player;
+  const rp = world.data.rules.player;
+
+  const zs = world.zones.items;
+  for (let i = 0; i < zs.length; i += 1) {
+    const z = zs[i];
+    if (!z.alive) continue;
+    z.age += dt;
+    if (z.age >= z.activeSec) { world.zones.release(z); continue; }
+    if (z.fromPlayer) continue;
+    const dx = p.x - z.x;
+    const dy = p.y - z.y;
+    const rr = z.radius + rp.hitboxRadius;
+    if (dx * dx + dy * dy <= rr * rr) applyHit(world, z.dmg);
+  }
+
+  const ts = world.telegraphs.items;
+  for (let i = 0; i < ts.length; i += 1) {
+    const t = ts[i];
+    if (!t.alive) continue;
+    t.age += dt;
+    if (t.age >= t.durSec) { world.telegraphs.release(t); continue; }
+    if (t.kind !== 'laser') continue;
+    // 반직선(원점 x,y · 방향 a)까지의 수직거리. 빔 뒤쪽(투영<0)은 맞지 않는다.
+    const ux = Math.cos(t.a);
+    const uy = Math.sin(t.a);
+    const rx = p.x - t.x;
+    const ry = p.y - t.y;
+    if (rx * ux + ry * uy < 0) continue;
+    const perp = Math.abs(rx * uy - ry * ux);
+    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg);
   }
 }
 

@@ -479,6 +479,17 @@
 
 ---
 
+### 2026-07-18 — B2a-2: laser/zone 인프라 → **§8.5 이미터 어휘 8종 전부 구현 완료**
+
+- **새 풀 없이 기존 풀 재사용**(§12.1 S2 「풀 10 ⟺ 초과정책 10」 보존): 장판 = `zones` 풀, **활성 빔 = `telegraphs` 풀**(kind='laser', a=진행각·r=widthPx·durSec=activeSec·dmg). makeTelegraph 에 `dmg` 필드만 추가.
+- **`state.js`**: `spawnZone`/`spawnBeam`. **`step.js`**: `hazards()` 패스(collide 뒤) — 장판·빔 노화/반납 + 플레이어 피격. 피해는 **적용 1회, i-frame 게이트**(§8.5 「dps 는 없다」). 빔은 **반직선**(뒤쪽·폭 밖 무피격). `fromPlayer` 장판은 플레이어 무해(무기 A2용 예약).
+- **`emitters.js`**: `fireZone`/`fireLaser` + `bulletById`(빔 피해는 탄 정의 dmg) + fireVolley 라우팅. 미지 타입은 **소리내어 실패**(폴백 금지). laser 각도 = 화면 표준(0=+x, 90=아래), `trackDuringCharge` 면 발사 시점 플레이어 조준.
+- **헤드리스 실증**: kiln(laser turret + zone vent + ring plate) — 장판·빔 생성 확인, **장판 피격 ✓ 빔 피격 ✓**, 풀런 8/8 승리·예외 0.
+- **검증**: 신규 `hazards.test.mjs` 8개 → **307 통과**(299→307) · `check.mjs` exit 0.
+- 이 인프라는 무기 A2(mine·barrage·nova)가 그대로 재사용한다.
+
+---
+
 ## 다음 할 일
 
 - [x] 저장소 위치 결정 → **방법 1** (블로그 `projects/nan2026/`, 커밋 `nan2026:` 접두어로 분리)

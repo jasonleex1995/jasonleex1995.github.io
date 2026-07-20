@@ -27,7 +27,7 @@
  *   makeEnemy()가 자리를 예약했고 spawnEnemy()가 스폰마다 0 으로 리셋한다(슬롯 재사용 안전).
  */
 
-import { spawnEnemyBullet } from './state.js';
+import { spawnEnemyBullet, spawnZone, spawnBeam } from './state.js';
 import { DEG2RAD, TAU } from './angle.js';
 
 /**
@@ -45,7 +45,10 @@ function ensureLookup(world) {
   const bossById = Object.create(null);                 // §9.8 — 보스 파트 patternSet 조회
   const bs = world.data.bosses.bosses;
   for (let i = 0; i < bs.length; i += 1) bossById[bs[i].id] = bs[i];
-  world.emitLookup = { emitById, archById, bossById };
+  const bulletById = Object.create(null);               // §8.5 laser 의 피해는 탄 정의에서 온다
+  const bl = world.data.bullets.bullets;
+  for (let i = 0; i < bl.length; i += 1) bulletById[bl[i].id] = bl[i];
+  world.emitLookup = { emitById, archById, bossById, bulletById };
   return world.emitLookup;
 }
 
@@ -154,8 +157,29 @@ function fireWall(world, e, em) {
   }
 }
 
-/** 한 볼리를 타입대로 발사한다. laser·zone 은 탄이 아니라 빔/장판이라 spawnEnemyBullet 대상이 아니다. */
-function fireVolley(world, e, em, volleyIdx, p) {
+/**
+ * §8.5 zone — 개체 위치에 원형 장판. 피해는 적용 1회(dmg)이며 i-frame 이 게이트한다(step.hazards).
+ *   텔레그래프 리드는 스케줄(scheduledVolleys 의 telegraphSec)이 이미 소비했으므로 여기선 **즉시 활성**.
+ */
+function fireZone(world, e, em) {
+  spawnZone(world, e.x, e.y, em.radius, em.dmg, em.activeSec, false);
+}
+
+/**
+ * §8.5 laser — 개체에서 뻗는 폭 widthPx 의 빔. angleDeg 는 화면 표준(0=+x, 90=+y 아래).
+ *   trackDuringCharge 면 발사 시점의 플레이어를 조준해 각을 잠근다(충전=텔레그래프 구간은 스케줄이 소비).
+ *   피해는 bulletId 가 가리키는 탄 정의의 dmg.
+ */
+function fireLaser(world, e, em, p, look) {
+  let a = em.angleDeg * DEG2RAD;
+  if (em.trackDuringCharge) a = Math.atan2(p.y - e.y, p.x - e.x);
+  const bul = look.bulletById[em.bulletId];
+  if (bul === undefined) throw new Error(`emitters: laser "${em.id}" 의 미지 탄 "${em.bulletId}" (§9.7)`);
+  spawnBeam(world, e.x, e.y, a, em.widthPx, bul.dmg, em.activeSec, e.idx);
+}
+
+/** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */
+function fireVolley(world, e, em, volleyIdx, p, look) {
   const t = em.type;
   if (t === 'straight') fireSpread(world, e, em, em.count, em.spreadDeg, 0);
   else if (t === 'fan') fireSpread(world, e, em, em.count, em.arcDeg, 0);
@@ -163,8 +187,9 @@ function fireVolley(world, e, em, volleyIdx, p) {
   else if (t === 'ring') fireRing(world, e, em);
   else if (t === 'spiral') fireSpiral(world, e, em, volleyIdx);
   else if (t === 'wall') fireWall(world, e, em);
-  // laser·zone: 빔/장판 엔티티가 필요하고 step 이 적 빔/장판을 아직 처리하지 않는다(슬라이스 밖).
-  //   슬라이스 로스터의 어떤 아키타입도 이 둘을 참조하지 않는다(도달 불가). 붙일 때 여기에 추가.
+  else if (t === 'zone') fireZone(world, e, em);
+  else if (t === 'laser') fireLaser(world, e, em, p, look);
+  else throw new Error(`emitters: 미지의 이미터 타입 "${t}" (${em.id}, §8.5 — 폴백 금지)`);
 }
 
 /**
@@ -190,7 +215,6 @@ export function emitters(world, dt) {
       if (emId === null) continue;                  // 이 페이즈 이미터 없음
       em = look.emitById[emId];
       if (em === undefined) throw new Error(`emitters: 미지의 보스 이미터 "${emId}" (${e.bossId}/${e.partId}, §9.8)`);
-      if (em.type === 'laser' || em.type === 'zone') continue;   // 빔·장판 인프라 = B2a-2(총알만 라우팅)
       firstDelay = 0;                               // 보스는 등장 연출 뒤 스폰 → 즉시 악절 시작
     } else {
       const def = look.archById[e.archetypeId];
@@ -203,7 +227,7 @@ export function emitters(world, dt) {
     e.emitT += dt;
     const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)
-      fireVolley(world, e, em, e.emitPhase, p);
+      fireVolley(world, e, em, e.emitPhase, p, look);
       e.emitPhase += 1;
     }
   }
