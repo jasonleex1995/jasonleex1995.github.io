@@ -29,7 +29,7 @@ import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
-import { initRun, tickRun, advanceStage, applyStageClearHeal, canContinue, reviveContinue, PHASE } from './core/stage.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, canContinue, reviveContinue, stageEntry, PHASE } from './core/stage.js';
 import { buy } from './core/shop.js';
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
@@ -302,39 +302,52 @@ async function boot() {
   const rules = data.rules;
   const view = rules.view;
 
-  // §10.2 — 마스터 시드 = uint32. **비결정성이 들어오는 유일한 지점**이며 core 바깥에서 만들어 주입한다
-  const seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
-
-  // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
-  //   ★ 1주차 슬라이스: enemies 스포너/이동 훅 + emitters 적-공격 훅을 주입한다. sea stage-1 로스터가
-  //     섞인 element 로 내려오고, attack 을 가진 적은 emitter 케이던스대로 탄을 쏜다(step 이 탄 이동·
-  //     플레이어 충돌·i-frame·상태이상을 처리한다). 공정성(속도·텔레그래프 리드)은 이미터 데이터가 보장.
-  const world = createWorld({ data, seed, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook } });
-  // §6.5 — 런 조립(스테이지 순서 추첨 + MOB 페이즈 시작). 배속·시드처럼 core 밖에서 1회 트리거한다.
-  initRun(world);
-
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });
   const pal = resolvePalette(rules);
-  const interp = makeInterp(world);
-  const fx = makeFx(world);
   const kb = makeKeyboard(rules);
   const edge = makeEdge(kb);
   const input = makeInput();
   // §7.10 — SFX. AudioContext 는 사용자 제스처 후에만 소리를 낸다 → 첫 키 입력에서 resume.
   const audio = makeAudio(rules);
   if (audio !== null) window.addEventListener('keydown', () => audio.resume());
+  const baseTitle = document.title;
 
-  document.title = `${document.title} — ${seedHex(seed)}`;
+  // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
+  //   적 스포너/이동 훅 + 적-공격 훅 + 런 디렉터 + 보스 훅을 주입한다.
+  const HOOKS = { enemies, emitters, run: tickRun, boss: bossHook };
 
   // ★★ 배속 — 정본이 코드에 허용한 **유일한 거처** (§6.1 · §10.1) ★★
-  //    난이도는 dt 를 바꾸지 않는다. **초당 소비 틱 수**만 바꾼다.
-  //    src/core/** 는 speed 를 모르며, 아래 tickDur 말고 speed 가 사는 줄이 이 저장소에 없다.
-  const difficultyId = 'normal';              // §6.1 — 난이도 선택 화면은 1주차 범위 밖
-  const speed = data.meta.difficulty[difficultyId].speed;
-  const tickDur = 1000 / (TICK_HZ * speed);   // 실제 ms
+  //    난이도는 dt 를 바꾸지 않는다. **초당 소비 틱 수**만 바꾼다(tickDur).
+  //    §6.5 — 이제 난이도는 DIFFICULTY 화면에서 고른다 → world·seed·tickDur 은 런마다 새로 만든다.
+  let seed = 0;
+  let world = null;
+  let interp = null;
+  let fx = null;
+  let difficultyId = 'normal';
+  let tickDur = 1000 / TICK_HZ;
+  let bannerT = 0;                            // THEME_BANNER 잔여(실시간 ms)
 
-  let state = 'PLAY';                         // PLAY | DRAFT | SHOP | PAUSE | DEATH | RESULTS | TOO_SMALL
+  /** §6.5 RUN_START — 고른 난이도로 새 런을 조립한다(시드·world·보간·FX 전부 신규). */
+  function startRun(diffId) {
+    difficultyId = diffId;
+    tickDur = 1000 / (TICK_HZ * data.meta.difficulty[diffId].speed);
+    // §10.2 — 마스터 시드 = uint32. **비결정성이 들어오는 유일한 지점**. core 밖에서 만들어 주입.
+    seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
+    world = createWorld({ data, seed, weapons, hooks: HOOKS });
+    world.difficultyId = diffId;             // §11.3 점수 배율(tally)이 읽는다
+    initRun(world);
+    interp = makeInterp(world);
+    fx = makeFx(world);
+    document.title = `${baseTitle} — ${seedHex(seed)}`;
+    enterBanner();                           // 스테이지 1 테마 배너 → PLAY
+  }
+
+  let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | SHOP | PAUSE | DEATH | RESULTS | TOO_SMALL
+  const DIFFS = Object.keys(data.meta.difficulty).filter((k) => data.meta.difficulty[k].speed !== undefined);
+  let diffCursor = 0;
+  let optionsFrom = 'TITLE';                 // OPTIONS 를 어디서 들어왔는가(나갈 때 복귀)
+  let tooSmallReturn = 'TITLE';              // TOO_SMALL 에서 복귀할 상태
   const shopIds = Object.keys(data.meta.shop);   // §11.2 표시 순서 = 데이터 키 순(런 1회)
   let shopCursor = 0;
   let shopConfirmExit = false;
@@ -342,6 +355,13 @@ async function boot() {
   let cursor = 0;
   let acc = 0;
   let last = performance.now();
+
+  /** §6.5 THEME_BANNER — 스테이지 시작마다 themeBannerSec 동안 테마를 알린다(Space 스킵). */
+  function enterBanner() {
+    bannerT = data.meta.flow.themeBannerSec * 1000;   // 메뉴 배속 1 → 게임초 = 실초
+    enter('THEME_BANNER');
+    acc = 0;
+  }
 
   function enter(next) {
     state = next;
@@ -399,8 +419,12 @@ async function boot() {
   function frame(now) {
     requestAnimationFrame(frame);
 
-    if (viewportTooSmall(view)) { state = state === 'TOO_SMALL' ? state : 'TOO_SMALL'; }
-    else if (state === 'TOO_SMALL') { enter('PAUSE'); last = now; acc = 0; }
+    if (viewportTooSmall(view)) {
+      if (state !== 'TOO_SMALL') { tooSmallReturn = state; state = 'TOO_SMALL'; }
+    } else if (state === 'TOO_SMALL') {
+      // 창이 다시 커지면 직전 상태로 복귀(런 중이면 PAUSE, 메뉴면 그 메뉴)
+      enter(tooSmallReturn === 'PLAY' ? 'PAUSE' : tooSmallReturn); last = now; acc = 0;
+    }
 
     const dpr = fitCanvas(canvas, view);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 이후 모든 좌표 = 논리 픽셀 (§1.1)
@@ -408,23 +432,61 @@ async function boot() {
     const elapsed = now - last;
     last = now;
 
-    // §5.7 — Escape = 일시정지 토글 (PLAY ↔ PAUSE). blur 자동정지와 별개로 키로도 멈춘다.
-    //   edge 는 매 프레임 소비(prev 갱신)해 상태가 어긋나지 않게 하고, DRAFT/OVER 에서는 무시한다
-    //   (§5.2 — 드래프트는 스킵 불가). 상승 엣지라 키를 눌러도 1회만 토글된다.
+    // ★ 엣지는 매 프레임 소비해 prev 를 갱신한다(상태가 어긋나지 않게). Space=시작/폭탄, Enter=확정,
+    //   Escape=일시정지/뒤로, O=옵션.
     const pauseEdge = edge.pressed(rules.input.bindings.pause);
+    const startEdge = edge.pressed(rules.input.bindings.grab);       // Space
+    const confirmEdge = edge.pressed(rules.input.bindings.confirm);  // Enter
+    const optionsEdge = edge.pressed(rules.input.bindings.options);  // O
+    const tokenEdge = edge.pressed(rules.input.bindings.timeToken);
+    const upEdge = edge.pressed(rules.input.bindings.cursor[2]);
+    const downEdge = edge.pressed(rules.input.bindings.cursor[3]);
+
+    // ── §6.5 메뉴(런 없음) ─────────────────────────────────────────
+    if (state === 'TITLE') {
+      if (startEdge) enter('DIFFICULTY');
+      else if (optionsEdge) { optionsFrom = 'TITLE'; enter('OPTIONS'); }
+      renderFrame();
+      return;
+    }
+    if (state === 'DIFFICULTY') {
+      if (upEdge) diffCursor = (diffCursor + DIFFS.length - 1) % DIFFS.length;
+      if (downEdge) diffCursor = (diffCursor + 1) % DIFFS.length;
+      if (confirmEdge) startRun(DIFFS[diffCursor]);   // → THEME_BANNER
+      else if (pauseEdge) enter('TITLE');
+      renderFrame();
+      return;
+    }
+    if (state === 'OPTIONS') {
+      if (pauseEdge || optionsEdge) enter(optionsFrom);
+      renderFrame();
+      return;
+    }
+
+    // ── §6.5 THEME_BANNER — 실시간으로 카운트다운, Space 로 스킵 → PLAY ──
+    if (state === 'THEME_BANNER') {
+      bannerT -= Math.min(elapsed, rules.loop.maxFrameGapMs);   // §10.1 프레임 갭 클램프(첫 프레임 폭주 방지)
+      if (startEdge || bannerT <= 0) { enter('PLAY'); last = now; acc = 0; }
+      renderFrame();
+      return;
+    }
+
+    // §5.7 — Escape = 일시정지 토글 (PLAY ↔ PAUSE).
     if (pauseEdge && state === 'PLAY') { enter('PAUSE'); acc = 0; }
     else if (pauseEdge && state === 'PAUSE') { enter('PLAY'); acc = 0; }
     else if (pauseEdge && state === 'DEATH') { enter('RESULTS'); }
+    else if (pauseEdge && state === 'RESULTS') { enter('TITLE'); }
     else if (pauseEdge && state === 'SHOP') {
-      // §5.4 — Escape 는 확인 1회를 거쳐 나간다. 나가면 다음 스테이지가 시작된다
-      if (shopConfirmExit) { advanceStage(world); shopConfirmExit = false; enter('PLAY'); acc = 0; }
+      // §5.4 — Escape 는 확인 1회를 거쳐 나간다. 나가면 다음 스테이지 배너가 뜬다
+      if (shopConfirmExit) { advanceStage(world); shopConfirmExit = false; enterBanner(); }
       else shopConfirmExit = true;
     }
+    // §5.5 — PAUSE 에서 O = OPTIONS
+    else if (optionsEdge && state === 'PAUSE') { optionsFrom = 'PAUSE'; enter('OPTIONS'); }
+    // §6.5 — RESULTS 에서 Space = 같은 난이도 즉시 재시작
+    if (startEdge && state === 'RESULTS') { startRun(difficultyId); }
 
     // §11.2 timeToken — 보스전에서만, 보유분을 써서 타이머를 addSec 만큼 늘린다.
-    //   §11.3 timeTokenForfeitsTimeBonus — 쓴 보스전의 시간 보너스는 0 이 된다(run.bossTokenUsed).
-    //   ★ edge 는 조건과 무관하게 매 프레임 소비한다(상태가 어긋나지 않게).
-    const tokenEdge = edge.pressed(rules.input.bindings.timeToken);
     if (tokenEdge && state === 'PLAY' && world.run.phase === PHASE.BOSS && world.player.tokens > 0) {
       world.player.tokens -= 1;
       world.run.bossTimer += data.meta.shop.timeToken.addSec;
@@ -461,44 +523,126 @@ async function boot() {
       else if (state === 'SHOP') tickShop();
       else if (state === 'DEATH') {
         // §11.4 — 카운트다운 없음. Enter = 부활 / Escape 는 아래 엣지 토글이 결과로 보낸다
-        if (edge.pressed(rules.input.bindings.confirm) && reviveContinue(world)) { enter('PLAY'); acc = 0; }
+        if (confirmEdge && reviveContinue(world)) { enter('PLAY'); acc = 0; }
       }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
 
-    // ---- 렌더 ------------------------------------------------------------
+    renderFrame();
+  }
+
+  /** 모든 상태의 렌더. 메뉴 상태(TITLE/DIFFICULTY/OPTIONS)는 world 가 없다 → 메뉴 배경을 그린다. */
+  function renderFrame() {
+    if (state === 'TOO_SMALL') {
+      menuBg();
+      menuBanner('창이 너무 작습니다',
+        `최소 ${view.minViewportW} × ${view.minViewportH} — 데스크톱 키보드 전용`);
+      return;
+    }
+    if (world === null) {   // TITLE / DIFFICULTY / OPTIONS
+      menuBg();
+      if (state === 'TITLE') drawTitleScreen();
+      else if (state === 'DIFFICULTY') drawDifficultyScreen();
+      else if (state === 'OPTIONS') drawOptionsScreen();
+      return;
+    }
+
     const alpha = state === 'PLAY' ? acc / tickDur : 0;    // §10.1 — 위치 lerp 만. 로직 금지
     drawWorld(ctx, world, pal, fx, interp, alpha);
     drawPanels(ctx, world, pal);
+    if (state === 'THEME_BANNER') drawThemeBanner();
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
     if (state === 'SHOP') drawShop(ctx, world, pal, shopIds, shopCursor, shopConfirmExit);
-    if (state === 'PAUSE') banner(ctx, world, pal, '일시정지', '[Escape] 재개');
+    if (state === 'PAUSE') banner(ctx, data, pal, '일시정지', '[Esc] 재개   ·   [O] 옵션');
+    if (state === 'OPTIONS') drawOptionsScreen();          // PAUSE→OPTIONS 는 world 위에 겹친다
     // §11.3 — 결과 화면(죽어도 집계된다). 내역 + 총점.
     if (state === 'DEATH') drawDeath(ctx, world, pal, data.meta.flow.continueCost);
     if (state === 'RESULTS') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
-    if (state === 'TOO_SMALL') {
-      banner(ctx, world, pal, '창이 너무 작습니다',
-        `최소 ${view.minViewportW} × ${view.minViewportH} — 데스크톱 키보드 전용`);
+  }
+
+  // ── §6.5 메뉴 렌더 (world 없이도 그린다) ──────────────────────────────
+  function menuBg() {
+    ctx.fillStyle = pal.hud.panelBg;
+    ctx.fillRect(0, 0, view.logicalW, view.logicalH);
+  }
+  function mText(text, y, sizePx, color, weight, align) {
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = color;
+    ctx.font = `${weight || 400} ${sizePx}px ${rules.visual.text.family}`;
+    ctx.fillText(text, view.logicalW / 2, y);
+  }
+  function menuBanner(title, sub) {
+    const h = rules.hud;
+    mText(title, view.logicalH / 2 - 16, h.fontHeroPx, pal.hud.textPrimary, 800);
+    mText(sub, view.logicalH / 2 + 24, h.fontBodyPx, pal.hud.textDim, 400);
+  }
+  function drawTitleScreen() {
+    const h = rules.hud;
+    mText('NAN 2026', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
+    mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
+    mText('[Space] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
+    mText('QWER 스탠스 · 상성 ×2 · 6 스테이지 · 엔드리스 없음',
+      view.logicalH / 2 + 84, h.fontSmallPx, pal.hud.textDim, 400);
+  }
+  const DIFF_LABEL = { normal: '노멀', hard: '하드', hell: '헬', disaster: '디재스터' };
+  function drawDifficultyScreen() {
+    const h = rules.hud;
+    mText('난이도 선택', view.logicalH / 2 - 110, h.fontLargePx, pal.hud.textPrimary, 800);
+    for (let i = 0; i < DIFFS.length; i += 1) {
+      const id = DIFFS[i];
+      const d = data.meta.difficulty[id];
+      const sel = i === diffCursor;
+      const y = view.logicalH / 2 - 40 + i * 40;
+      const label = `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
+      mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
     }
+    mText('[↑↓] 선택   [Enter] 시작   [Esc] 뒤로',
+      view.logicalH / 2 + 120, h.fontSmallPx, pal.hud.textDim, 400);
+  }
+  function drawOptionsScreen() {
+    const h = rules.hud;
+    const bg = world === null;
+    if (!bg) { ctx.save(); ctx.fillStyle = rgba(pal.threat.outline, 0.72); ctx.fillRect(view.arena.x, 0, view.arena.w, view.logicalH); ctx.restore(); }
+    mText('옵션', view.logicalH / 2 - 60, h.fontLargePx, pal.hud.textPrimary, 800);
+    mText('렌더·오디오 옵션 (준비 중)', view.logicalH / 2 - 12, h.fontBodyPx, pal.hud.textDim, 400);
+    mText('[Esc] 뒤로', view.logicalH / 2 + 40, h.fontSmallPx, pal.hud.textDim, 400);
+  }
+  function drawThemeBanner() {
+    const h = rules.hud;
+    const st = stageEntry(world);
+    const n = world.run.stageIndex + 1;
+    const total = world.run.order.length;
+    ctx.save();
+    ctx.fillStyle = rgba(pal.threat.outline, 0.55);
+    ctx.fillRect(view.arena.x, view.logicalH / 2 - 60, view.arena.w, 120);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = pal.hud.textDim;
+    ctx.font = `700 ${h.fontBodyPx}px ${rules.visual.text.family}`;
+    ctx.fillText(`스테이지 ${n} / ${total}`, view.arena.x + view.arena.w / 2, view.logicalH / 2 - 20);
+    ctx.fillStyle = pal.hud.textPrimary;
+    ctx.font = `800 ${h.fontHeroPx}px ${rules.visual.text.family}`;
+    ctx.fillText(st.name, view.arena.x + view.arena.w / 2, view.logicalH / 2 + 18);
+    ctx.restore();
   }
 
   requestAnimationFrame(frame);
 }
 
-function banner(ctx, world, pal, title, sub) {
-  const v = world.data.rules.view;
-  const h = world.data.rules.hud;
+function banner(ctx, data, pal, title, sub) {
+  const v = data.rules.view;
+  const h = data.rules.hud;
   ctx.save();
   ctx.fillStyle = rgba(pal.threat.outline, 0.72);      // §7.2 — 색의 유일한 거처는 palette 다
   ctx.fillRect(v.arena.x, 0, v.arena.w, v.logicalH);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = pal.hud.textPrimary;
-  ctx.font = `800 ${h.fontHeroPx}px ${world.data.rules.visual.text.family}`;
+  ctx.font = `800 ${h.fontHeroPx}px ${data.rules.visual.text.family}`;
   ctx.fillText(title, v.arena.x + v.arena.w / 2, v.logicalH / 2 - 16);
   ctx.fillStyle = pal.hud.textDim;
-  ctx.font = `400 ${h.fontBodyPx}px ${world.data.rules.visual.text.family}`;
+  ctx.font = `400 ${h.fontBodyPx}px ${data.rules.visual.text.family}`;
   ctx.fillText(sub, v.arena.x + v.arena.w / 2, v.logicalH / 2 + 24);
   ctx.restore();
 }
