@@ -398,7 +398,7 @@ function hazards(world, dt) {
     const dx = p.x - z.x;
     const dy = p.y - z.y;
     const rr = z.radius + rp.hitboxRadius;
-    if (dx * dx + dy * dy <= rr * rr) applyHit(world, z.dmg, '');   // 장판엔 시전자 필드가 없다
+    if (dx * dx + dy * dy <= rr * rr) applyHit(world, z.dmg, z.srcArch);   // §13.1.1 장판 시전자 귀속
   }
 
   const ts = world.telegraphs.items;
@@ -416,7 +416,7 @@ function hazards(world, dt) {
     const ry = p.y - t.y;
     if (rx * ux + ry * uy < 0) continue;
     const perp = Math.abs(rx * uy - ry * ux);
-    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg, '');   // 빔도 마찬가지
+    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg, t.srcArch);   // §13.1.1 빔 시전자 귀속
   }
 }
 

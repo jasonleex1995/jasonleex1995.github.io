@@ -31,6 +31,16 @@ import { spawnEnemyBullet, spawnZone, spawnBeam } from './state.js';
 import { DEG2RAD, TAU } from './angle.js';
 
 /**
+ * §13.1.1 — 발사체의 치사 지분 귀속 키. 잡몹 = 아키타입 / 중간보스 = midBossId('mb…') /
+ *   보스 부위 = 'boss'. sim 의 grade() 는 'mb…'·'boss'·'' 를 분모에서 제외한다(잡몹만 센다).
+ */
+function srcArchOf(e) {
+  if (e.archetypeId !== '') return e.archetypeId;
+  if (e.midBossId !== '') return e.midBossId;
+  return 'boss';
+}
+
+/**
  * 조회 인덱스를 최초 1회만 만든다(§10.3 — 이후 핫패스 0 alloc). Map 순회 금지라 평범한 객체에 담아
  * **조회만** 한다. emitById: 이미터 id → 정의 / archById: 아키타입 id → 정의(attack 을 읽는다).
  */
@@ -96,7 +106,7 @@ function fireSpread(world, e, em, count, spreadDeg, baseAngle) {
   for (let i = 0; i < count; i += 1) {
     const off = count > 1 ? (i / (count - 1) - 0.5) * spreadDeg : 0;
     const a = baseAngle + off * DEG2RAD;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, srcArchOf(e));
   }
 }
 
@@ -120,7 +130,7 @@ function fireAimed(world, e, em, p) {
 function fireRing(world, e, em) {
   for (let i = 0; i < em.count; i += 1) {
     const a = em.rotOffsetDeg * DEG2RAD + (i / em.count) * TAU;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, srcArchOf(e));
   }
 }
 
@@ -134,7 +144,7 @@ function fireSpiral(world, e, em, volleyIdx) {
   const spin = volleyIdx * em.rotStepDeg * DEG2RAD;
   for (let i = 0; i < em.count; i += 1) {
     const a = spin + i * em.rotStepDeg * DEG2RAD;
-    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, e.archetypeId);
+    spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, srcArchOf(e));
   }
 }
 
@@ -151,7 +161,7 @@ function fireWall(world, e, em) {
   for (let slot = 0; slot < total; slot += 1) {
     if (slot >= gapStart && slot < gapStart + em.gapCount) continue;   // 틈
     const x = a.x + step * (slot + 1);
-    spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, e.archetypeId);
+    spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, srcArchOf(e));
     brick += 1;
     if (brick >= em.count) break;
   }
@@ -162,7 +172,7 @@ function fireWall(world, e, em) {
  *   텔레그래프 리드는 스케줄(scheduledVolleys 의 telegraphSec)이 이미 소비했으므로 여기선 **즉시 활성**.
  */
 function fireZone(world, e, em) {
-  spawnZone(world, e.x, e.y, em.radius, em.dmg, em.activeSec, false);
+  spawnZone(world, e.x, e.y, em.radius, em.dmg, em.activeSec, false, srcArchOf(e));
 }
 
 /**
@@ -175,7 +185,7 @@ function fireLaser(world, e, em, p, look) {
   if (em.trackDuringCharge) a = Math.atan2(p.y - e.y, p.x - e.x);
   const bul = look.bulletById[em.bulletId];
   if (bul === undefined) throw new Error(`emitters: laser "${em.id}" 의 미지 탄 "${em.bulletId}" (§9.7)`);
-  spawnBeam(world, e.x, e.y, a, em.widthPx, bul.dmg, em.activeSec, e.idx);
+  spawnBeam(world, e.x, e.y, a, em.widthPx, bul.dmg, em.activeSec, e.idx, srcArchOf(e));
 }
 
 /** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */

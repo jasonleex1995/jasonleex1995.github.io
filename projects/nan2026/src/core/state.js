@@ -144,7 +144,8 @@ function makePickup() {
 }
 
 function makeZone() {
-  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, age: 0, fromPlayer: false };
+  // §13.1.1 srcArch — 「누가 깔았는가」(치사 지분). 플레이어 기뢰·출처불명은 '' (분모에서 제외).
+  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, age: 0, fromPlayer: false, srcArch: '' };
 }
 
 function makeDrone() {
@@ -154,7 +155,8 @@ function makeDrone() {
 function makeTelegraph() {
   // §8.5 laser — 이 풀이 **활성 빔**도 담는다(새 풀 금지, §12.1 S2: 풀 10 ⟺ 초과정책 10).
   //   kind 'laser': x/y=발사 원점 · a=진행각(rad) · r=widthPx · durSec=activeSec · dmg=피해.
-  return { alive: false, idx: 0, gen: 0, kind: '', x: 0, y: 0, r: 0, a: 0, age: 0, durSec: 0, dmg: 0, owner: -1 };
+  //   §13.1.1 srcArch — 「누가 쐈는가」(치사 지분). 플레이어 예고·출처불명은 '' (분모에서 제외).
+  return { alive: false, idx: 0, gen: 0, kind: '', x: 0, y: 0, r: 0, a: 0, age: 0, durSec: 0, dmg: 0, owner: -1, srcArch: '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -694,11 +696,12 @@ export function spawnPickup(world, kind, value, x, y) {
  * §8.5 zone — 원형 장판. 적 장판(fromPlayer=false)은 안에 있는 플레이어를 때리고, 플레이어 장판
  *   (무기 A2)은 적을 때린다. 피해는 **적용 1회**이며 i-frame 이 게이트한다(§8.5 「dps 는 없다」).
  */
-export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer) {
+export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer, srcArch) {
   const z = world.zones.alloc();
   if (z === null) { world.capHits.zone += 1; return null; }
   z.x = x; z.y = y; z.radius = radius; z.dmg = dmg;
   z.activeSec = activeSec; z.age = 0; z.fromPlayer = fromPlayer;
+  z.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속
   return z;
 }
 
@@ -711,16 +714,17 @@ export function spawnTelegraph(world, kind, x, y, r, durSec, owner) {
   const t = world.telegraphs.alloc();
   if (t === null) { world.capHits.telegraph += 1; return null; }
   t.kind = kind; t.x = x; t.y = y; t.a = 0; t.r = r;
-  t.age = 0; t.durSec = durSec; t.dmg = 0; t.owner = owner;
+  t.age = 0; t.durSec = durSec; t.dmg = 0; t.owner = owner; t.srcArch = '';
   return t;
 }
 
 /** §8.5 laser — 활성 빔(telegraphs 풀 재사용). 원점에서 angleRad 방향 반직선, 폭 widthPx. */
-export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner) {
+export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner, srcArch) {
   const t = world.telegraphs.alloc();
   if (t === null) { world.capHits.telegraph += 1; return null; }
   t.kind = 'laser'; t.x = x; t.y = y; t.a = angleRad; t.r = widthPx;
   t.age = 0; t.durSec = activeSec; t.dmg = dmg; t.owner = owner;
+  t.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속
   return t;
 }
 
