@@ -3,8 +3,8 @@
 
   "xp": {
     "curve": "poly",
-    "base": 6,
-    "exp": 1.32,
+    "base": 1.38106,
+    "exp": 1.73,
     "levelUpsPerRunTarget": 54,
     "levelUpQueueMode": "serial"
   },
