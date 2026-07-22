@@ -149,8 +149,9 @@ export function driveRun(data, seed, opts) {
       const i = botDraftPick(world, draft);
       const card = draft.cards[i];
       if (card !== undefined) {
-        r.picks[card.kind] = (r.picks[card.kind] === undefined ? 0 : r.picks[card.kind]) + 1;
-        if (card.kind === 'elementLevel') {
+        // ★ 카드 식별 필드는 `category` 다(`kind` 아님) — 이 오독이 픽/속성 텔레메트리를 전부 죽였다.
+        r.picks[card.category] = (r.picks[card.category] === undefined ? 0 : r.picks[card.category]) + 1;
+        if (card.category === 'elementLevel') {
           r.elementPicks[card.element] = (r.elementPicks[card.element] === undefined ? 0 : r.elementPicks[card.element]) + 1;
         }
       }

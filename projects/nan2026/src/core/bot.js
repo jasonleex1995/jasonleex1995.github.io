@@ -81,6 +81,30 @@ function nearestEnemy(world) {
 }
 
 /**
+ * §8.13 소프트게이트 — 복합 보스는 **armor 부위를 먼저** 부숴야 코어의 게이트(coreGateMul)가 열린다.
+ *   ★ 회귀(측정으로 규명): armor 를 안 부수는 봇은 닫힌 게이트(스테이지1 = ×0.16)의 코어에 직사해
+ *     976 코어가 6,100 출력의 벽이 되고 타임아웃한다. seeker(유도) 빌드는 부위를 자동으로 훑어 100초에
+ *     격파한다 — 즉 보스 HP 는 옳고, 문제는 봇이 armor 를 안 노린 것이다. 사람은 armor 부터 깐다.
+ *   살아있는 armor 부위가 있으면 그 «가장 가까운» 것을 표적으로 삼는다(정면 기둥이 그 x 에 정렬돼
+ *   부위를 때린다). armor 가 다 깨지면 nearestEnemy(코어 포함)로 돌아간다.
+ */
+function primaryTarget(world) {
+  const en = world.enemies.items;
+  const p = world.player;
+  let best = null;
+  let bestD = 0;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || !e.isBoss || e.partType !== 'armor') continue;
+    const dx = e.x - p.x;
+    const dy = e.y - p.y;
+    const d = dx * dx + dy * dy;
+    if (best === null || d < bestD) { bestD = d; best = e; }
+  }
+  return best !== null ? best : nearestEnemy(world);
+}
+
+/**
  * §10.4.1 — 회피: dodgeLookaheadSec 안에 나에게 가장 가까이 접근하는 적 탄을 찾아 **그 접근점의 반대**로.
  *   반환 = 위협이 있으면 회피 방향(정규화), 없으면 null. 결정적(순수 기하).
  */
@@ -248,7 +272,7 @@ export function botInput(world, dt) {
     //   스테이지1 120초에서 명중이 잠재 화력의 20%에 그쳐 처치율 21%가 나왔다. 사람은 피하면서도
     //   총구를 맞춘다. 그래서 회피는 **변위**이지 목적지가 아니다.
     const farm = b.policy.farm;
-    const foe = nearestEnemy(world);
+    const foe = primaryTarget(world);   // §8.13 — 보스는 armor 부위 우선(게이트 개방)
     const pick = farm === 'passive' ? null : nearestPickup(world);
     if (pick !== null && (farm === 'maxFarm' || world.player.hp > world.player.hpMax * 0.5)) {
       b.tgtX = pick.x; b.tgtY = pick.y;                // 안전하면(또는 maxFarm) 주우러 간다
@@ -304,12 +328,19 @@ export function botInput(world, dt) {
 
 /**
  * §10.4.1 draft — 어떤 카드를 고르는가(인덱스). 결정 불가 시 0.
- *   generalist  : 무기 슬롯을 먼저 채우고(newWeapon) → 무기 레벨 → 패시브 → 속성
+ *   generalist  : 무기 슬롯을 먼저 채우고(newWeapon) → 무기 레벨 → **속성** → 패시브
  *   weaponRush  : 무기(신규·레벨) 최우선
  *   elementRush : 속성 최우선
  *   specialist  : 속성 최우선이되 두 축만 (elementRush 와 같은 선호, 투자 축은 stance 가 결정)
- *   greedyDps   : 무기 레벨 > 신규 무기 > 패시브 > 속성
+ *   greedyDps   : 무기 레벨 > 신규 무기 > 패시브 > 속성 (★ 의도적 무속성 플레이스타일)
  *   random      : rng.bot 균등
+ *
+ * ★ 회귀(측정으로 규명, xpScale 급 죽은 커브): generalist 가 속성을 **맨 뒤**에 두면 (원래
+ *   ['newWeapon','weaponLevel','passive','elementLevel']) 보장·피티로 속성 카드가 매 런 2~6장
+ *   깔려도 **한 번도 안 뽑힌다** — 항상 더 앞선 패시브/무기레벨 카드가 있기 때문. §13.5.1 의
+ *   제너럴리스트 사다리는 s1 에서 «2속성·0패시브»를 요구한다(속성이 패시브보다 앞이다). 속성 투자는
+ *   이 게임의 핵심 기전(상성 ×2 + m 배율)이라, 속성을 안 뽑는 봇은 게임을 «플레이하지 않는» 것이므로
+ *   측정 하한이 될 수 없다. 속성을 패시브 앞으로 올려 사다리에 맞춘다.
  */
 export function botDraftPick(world, draft) {
   const b = ensureBot(world);
@@ -323,7 +354,7 @@ export function botDraftPick(world, draft) {
   else if (b.policy.draft === 'elementRush' || b.policy.draft === 'specialist') {
     order = ['elementLevel', 'newWeapon', 'weaponLevel', 'passive'];
   } else if (b.policy.draft === 'greedyDps') order = ['weaponLevel', 'newWeapon', 'passive', 'elementLevel'];
-  else order = ['newWeapon', 'weaponLevel', 'passive', 'elementLevel'];   // generalist
+  else order = ['newWeapon', 'weaponLevel', 'elementLevel', 'passive'];   // generalist (§13.5.1 사다리)
 
   for (let k = 0; k < order.length; k += 1) {
     if (noElement && order[k] === 'elementLevel') continue;               // 속성 투자 금지 프로브
