@@ -35,6 +35,7 @@ function ensureBot(world) {
     tgtX: 0, tgtY: 0,             // 이번 결정의 목표 위치
     stanceT: 0,                   // 스탠스 전환 쿨다운(게임초)
     wantStance: 'normal',
+    armorIdx: -1, armorGen: -1,   // §8.13 — 파괴 중인 armor 부위(격파까지 고정 = 화력 집중)
   };
   return world.bot;
 }
@@ -85,10 +86,12 @@ function nearestEnemy(world) {
  *   ★ 회귀(측정으로 규명): armor 를 안 부수는 봇은 닫힌 게이트(스테이지1 = ×0.16)의 코어에 직사해
  *     976 코어가 6,100 출력의 벽이 되고 타임아웃한다. seeker(유도) 빌드는 부위를 자동으로 훑어 100초에
  *     격파한다 — 즉 보스 HP 는 옳고, 문제는 봇이 armor 를 안 노린 것이다. 사람은 armor 부터 깐다.
- *   살아있는 armor 부위가 있으면 그 «가장 가까운» 것을 표적으로 삼는다(정면 기둥이 그 x 에 정렬돼
- *   부위를 때린다). armor 가 다 깨지면 nearestEnemy(코어 포함)로 돌아간다.
+ *   ★ **한 부위에 고정**한다(sticky): 실측상 봇이 두 armor 를 오가며(런당 30~180회 교체) 화력을
+ *     반씩 나눠 **어느 쪽도 안 죽였다.** 부위를 하나 잡으면 격파까지 그것만 때려 게이트를 연다 —
+ *     화력 집중은 사람의 기본이다. 잡던 부위가 죽거나 사라지면 다음 최근접 armor 로 넘어간다.
+ *   armor 가 다 깨지면 nearestEnemy(코어 포함)로 돌아간다.
  */
-function primaryTarget(world) {
+function nearestArmor(world) {
   const en = world.enemies.items;
   const p = world.player;
   let best = null;
@@ -101,7 +104,23 @@ function primaryTarget(world) {
     const d = dx * dx + dy * dy;
     if (best === null || d < bestD) { bestD = d; best = e; }
   }
-  return best !== null ? best : nearestEnemy(world);
+  return best;
+}
+function primaryTarget(world) {
+  const b = world.bot;
+  // 고정된 armor 가 아직 살아있으면 계속 그것을 때린다(화력 집중)
+  if (b !== undefined && b.armorIdx >= 0) {
+    const held = world.enemies.items[b.armorIdx];
+    if (held !== undefined && held.alive && held.gen === b.armorGen
+      && held.isBoss && held.partType === 'armor') return held;
+    b.armorIdx = -1; b.armorGen = -1;                 // 죽었거나 사라졌다 → 다음 부위로
+  }
+  const armor = nearestArmor(world);
+  if (armor !== null) {
+    if (b !== undefined) { b.armorIdx = armor.idx; b.armorGen = armor.gen; }
+    return armor;
+  }
+  return nearestEnemy(world);
 }
 
 /**
@@ -216,7 +235,7 @@ function nearestPickup(world) {
  *   majorityOnScreen : 화면 다수 속성을 ×2 로 때리는 속성
  *   static           : 전환하지 않는다(노말 고정) — stanceValue 게이트의 대조군
  */
-function desiredStance(world) {
+function desiredStance(world, fireTarget) {
   const b = world.bot;
   if (b.policy.stance === 'static') return 'normal';
   const matrix = world.data.elements.matrix;
@@ -235,7 +254,11 @@ function desiredStance(world) {
       if (c > bestN) { bestN = c; targetElement = e.element; }
     }
   } else {
-    const e = nearestEnemy(world);
+    // ★ greedyNearest — 스탠스는 **지금 쏘는 표적**을 상성으로 때리게 맞춘다.
+    //   회귀(실측): 스탠스가 nearestEnemy 를 봤는데 사격 표적은 primaryTarget(armor)이라 둘이 달랐다.
+    //   보스 코어는 노말(무상성)이라 nearestEnemy 가 코어를 잡으면 스탠스가 안 바뀌어, 봇이 armor 를
+    //   초효과(×2)로 때리는 시간이 75% 뿐이었다. 사격 표적을 그대로 넘겨 스탠스를 그것에 맞춘다.
+    const e = fireTarget !== undefined ? fireTarget : nearestEnemy(world);
     if (e !== null) targetElement = e.element;
   }
   if (targetElement === null) return world.player.stance;
@@ -303,7 +326,7 @@ export function botInput(world, dt) {
     b.tgtX += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
     b.tgtY += (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
 
-    b.wantStance = desiredStance(world);
+    b.wantStance = desiredStance(world, foe);
   }
 
   // ── 이동 — 목표로 향하는 4방향 불리언 ─────────────────────────────────────
