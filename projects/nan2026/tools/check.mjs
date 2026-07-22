@@ -69,7 +69,7 @@ const QUIET = ARGV.includes('--quiet');
 // ---------------------------------------------------------------------------
 // 리포트 수집기
 // ---------------------------------------------------------------------------
-const report = { violation: [], canon: [], ambiguous: [], stub: [], skip: [] };
+const report = { violation: [], canon: [], ambiguous: [], stub: [], skip: [], dynamic: [] };
 
 const V = (check, msg) => report.violation.push({ check, msg });
 const C = (check, msg) => report.canon.push({ check, msg });
@@ -2973,6 +2973,35 @@ function dynamicGateStubs() {
     + `uptimeRef(±0.05) · runFarmDpsRatio 와 완전히 같은 처방의 세 번째 사례다 (§13.1.0)`);
 }
 
+/**
+ * ★ D3 — 동적 게이트 채점 (§23 · §13.1). `tools/report/summary.json`(= `sim.mjs --certify` 산출)이
+ *   있으면 그 안의 `certify.results` 를 읽어 PASS/FAIL/UNMEASURED 로 «채점»한다(없으면 STUB 유지).
+ *   ★ 정적 게이트와 분리된 [DYNAMIC] 채널로 신고한다 — 정적 종료코드(정본 정합)를 흔들지 않는다.
+ *   시뮬은 별도 종료코드(`sim --certify` 자체가 실패 시 exit 1)로 커밋을 막는다(§23 개발 흐름).
+ */
+function dynamicGateGrade() {
+  const reportPath = join(ROOT, 'tools', 'report', 'summary.json');
+  if (!existsSync(reportPath)) { dynamicGateStubs(); return; }
+  let sum;
+  try { sum = JSON.parse(readFileSync(reportPath, 'utf8')); }
+  catch { S('CERT-DYN', 'report/summary.json 파싱 실패 → 동적 게이트 STUB 유지'); dynamicGateStubs(); return; }
+  const cert = sum.certify;
+  if (cert === undefined || !Array.isArray(cert.results)) {
+    S('CERT-DYN', 'report/summary.json 에 certify.results 없음 (sim --certify 미실행) → 동적 게이트 STUB');
+    dynamicGateStubs();
+    return;
+  }
+  for (const r of cert.results) {
+    const v = (r.value === null || r.value === undefined)
+      ? '   —   '
+      : (typeof r.value === 'number' ? r.value.toFixed(4) : String(r.value));
+    const band = `${r.min === undefined ? '' : `≥${r.min}`}${r.max === undefined ? '' : ` ≤${r.max}`}`.trim();
+    const status = r.status === 'PASS' ? 'PASS' : (r.status === 'FAIL' ? 'FAIL' : 'UNMEASURED');
+    report.dynamic.push({ status, name: r.name, v, band });
+  }
+  report.dynamicMeta = { runs: (sum.run && sum.run.runs) || null, path: relative(ROOT, reportPath) };
+}
+
 // ===========================================================================
 //  정본 결함 — 검사를 쓰면서 드러난 것 (하드코딩 신고)
 //  ★ 발명하지 않는다: 아래는 전부 "정본이 답하지 않아 검사를 완성할 수 없는 자리"다
@@ -3048,6 +3077,13 @@ function print() {
   sect('[STUB] 시뮬 필요 — 정적 검사 불가 (인터페이스는 정본대로)',
     report.stub, (s) => `${s.check.padEnd(9)} ${s.msg}`);
 
+  // ★ D3 — 동적 게이트 채점 결과(report/summary.json 이 있을 때만). 정적 종료코드와 분리.
+  if (report.dynamic.length > 0) {
+    const src = report.dynamicMeta ? ` (${report.dynamicMeta.path} · runs ${report.dynamicMeta.runs})` : '';
+    sect(`[DYNAMIC] 동적 게이트 — sim --certify 채점${src}`,
+      report.dynamic, (d) => `${d.status.padEnd(11)} ${d.name.padEnd(38)} ${d.v}   ${d.band}`);
+  }
+
   sect('[SKIP] 검사 대상이 아직 없다',
     report.skip, (s) => `${s.check.padEnd(8)} ${s.msg}`);
 
@@ -3064,6 +3100,12 @@ function print() {
   line(bar);
   line(`요약  VIOLATION ${report.violation.length} · CANON ${report.canon.length} `
     + `· AMBIGUOUS ${report.ambiguous.length} · STUB ${report.stub.length} · SKIP ${report.skip.length}`);
+  if (report.dynamic.length > 0) {
+    const dp = report.dynamic.filter((d) => d.status === 'PASS').length;
+    const df = report.dynamic.filter((d) => d.status === 'FAIL').length;
+    const du = report.dynamic.filter((d) => d.status === 'UNMEASURED').length;
+    line(`동적  PASS ${dp} · FAIL ${df} · UNMEASURED ${du}  (정적 종료코드와 분리 — sim --certify 가 커밋 게이트)`);
+  }
   line(bar);
 
   const hardFail = report.violation.length > 0 || report.canon.length > 0;
@@ -3137,7 +3179,7 @@ function main() {
   S40_shopSchema();          // §11.2.1
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
-  dynamicGateStubs();   // 시뮬 필요 → TODO
+  dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB
   canonDefects();       // 검사를 쓰면서 드러난 정본 결함
   vacuousWatch();       // ★ 0행 게이트 = 공허 통과 = 위반
 
