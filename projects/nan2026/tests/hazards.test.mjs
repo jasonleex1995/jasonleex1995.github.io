@@ -97,3 +97,49 @@ suite('hazards/laser 빔 (§8.5)', () => {
     assert.eq(liveBeams(w), 0, 'activeSec 후 반납');
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════
+suite('hazards/laser 2단(§7.4 「충전이 곧 텔레그래프」)', () => {
+  test('충전(warnSec) 구간은 무해, 활성(activeSec) 구간만 피해', () => {
+    const w = mkWorld(); const p = w.player;
+    const warnSec = 0.5; const activeSec = 0.5;
+    // 플레이어 위 200px 원점에서 아래로 → 플레이어가 경로상. warnSec 동안은 안 맞아야 한다.
+    spawnBeam(w, p.x, p.y - 200, Math.PI / 2, 20, 15, activeSec, -1, '', warnSec, false);
+    const chargeTicks = Math.floor(warnSec / TICK_DT) - 1;
+    assert.gt(chargeTicks, 0, '충전이 여러 틱이다 (vacuous 아님)');
+    const hp0 = p.hp;
+    for (let t = 0; t < chargeTicks; t += 1) { p.iframeSec = 0; step(w, makeInput(), TICK_DT); }
+    assert.eq(p.hp, hp0, '충전 중엔 무해 — 예고 없이 즉발하지 않는다');
+    p.iframeSec = 0;
+    step(w, makeInput(), TICK_DT);
+    step(w, makeInput(), TICK_DT);
+    assert.lt(p.hp, hp0, '활성 진입 후 피해');
+    // 총 수명 = warnSec + activeSec
+    assert.eq(liveBeams(w), 1, '아직 활성');
+    for (let t = 0; t < Math.ceil(activeSec / TICK_DT) + 1; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(liveBeams(w), 0, 'warnSec + activeSec 후 반납');
+  });
+
+  test('track=true — 충전 중 플레이어를 따라 조준하고, 활성 진입 시 각이 잠긴다', () => {
+    const w = mkWorld(); const p = w.player;
+    const warnSec = 0.5;
+    const ox = p.x; const oy = p.y - 200;
+    const b = spawnBeam(w, ox, oy, Math.PI / 2, 20, 15, 0.5, -1, '', warnSec, true);
+    p.iframeSec = 1e9;                                     // 관측 중 피격 무효(각만 본다)
+
+    // 충전 중: 플레이어를 옆으로 옮기면 빔 각이 플레이어를 향해 갱신된다
+    p.x = ox + 150;
+    step(w, makeInput(), TICK_DT);
+    const aCharge = b.a;
+    const wantCharge = Math.atan2(p.y - oy, p.x - ox);
+    assert.near(aCharge, wantCharge, 1e-6, '충전 중 각이 플레이어를 겨눈다');
+
+    // 충전이 끝날 때까지 진행 → 각이 잠긴다
+    for (let t = 0; t < Math.ceil(warnSec / TICK_DT) + 1; t += 1) step(w, makeInput(), TICK_DT);
+    const aLocked = b.a;
+    // 이제 플레이어를 반대로 크게 옮겨도 각이 안 변한다(활성 = 잠김)
+    p.x = ox - 300;
+    step(w, makeInput(), TICK_DT);
+    assert.near(b.a, aLocked, 1e-9, '활성 진입 후 각이 잠긴다(더는 안 따라온다)');
+  });
+});

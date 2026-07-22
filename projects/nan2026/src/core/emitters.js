@@ -176,8 +176,11 @@ function fireZone(world, e, em) {
 }
 
 /**
- * §8.5 laser — 개체에서 뻗는 폭 widthPx 의 빔. angleDeg 는 화면 표준(0=+x, 90=+y 아래).
- *   trackDuringCharge 면 발사 시점의 플레이어를 조준해 각을 잠근다(충전=텔레그래프 구간은 스케줄이 소비).
+ * §8.5 · §7.4 laser — 개체에서 뻗는 폭 widthPx 의 빔. angleDeg 는 화면 표준(0=+x, 90=+y 아래).
+ *   ★ 2단(§7.4 「충전이 곧 텔레그래프」): telegraphSec 동안 **충전(경고·무해)** — 이때 그려지는
+ *     점선/보간이 예고다 — 뒤에 activeSec 동안 **활성(피해)**. trackDuringCharge 면 충전 중 플레이어를
+ *     따라 조준하다가 활성 진입 시 각이 잠긴다(hazards 소관). 이 2단이 없으면 빔이 예고 없이 즉발해
+ *     사람도 봇도 피할 수 없다(실측된 공정성 결함).
  *   피해는 bulletId 가 가리키는 탄 정의의 dmg.
  */
 function fireLaser(world, e, em, p, look) {
@@ -185,7 +188,8 @@ function fireLaser(world, e, em, p, look) {
   if (em.trackDuringCharge) a = Math.atan2(p.y - e.y, p.x - e.x);
   const bul = look.bulletById[em.bulletId];
   if (bul === undefined) throw new Error(`emitters: laser "${em.id}" 의 미지 탄 "${em.bulletId}" (§9.7)`);
-  spawnBeam(world, e.x, e.y, a, em.widthPx, bul.dmg, em.activeSec, e.idx, srcArchOf(e));
+  spawnBeam(world, e.x, e.y, a, em.widthPx, bul.dmg, em.activeSec, e.idx, srcArchOf(e),
+    em.telegraphSec, em.trackDuringCharge === true);
 }
 
 /** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */

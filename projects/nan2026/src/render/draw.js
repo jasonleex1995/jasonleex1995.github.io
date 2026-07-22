@@ -887,14 +887,30 @@ function drawTelegraphs(ctx, world, pal) {
   const a = world.data.rules.view.arena;
   const beamLen = Math.sqrt(a.w * a.w + a.h * a.h);   // 아레나를 확실히 가로지르는 길이
 
-  // (a) §8.5 laser — **활성 빔**. 실선·불투명이라 점선 텔레그래프와 시각적으로 구분된다.
-  //     r = widthPx, a = 진행각. §7.4 의 빔 어휘: 검은 외곽선 + 자홍 본체 + 흰 코어.
+  // (a) §8.5 · §7.4 laser — 2단으로 그린다:
+  //     충전(age < warnSec) = **점선·반투명·폭 0→최종폭 보간**(경고, 무해) — 이 리드가 회피 시간이다.
+  //     활성(age ≥ warnSec) = **실선·불투명**(검은 외곽선 + 자홍 본체 + 흰 코어, 피해).
   ctx.save();
   for (let i = 0; i < items.length; i += 1) {
     const t = items[i];
     if (!t.alive || t.kind !== 'laser') continue;
     const ex = t.x + Math.cos(t.a) * beamLen;
     const ey = t.y + Math.sin(t.a) * beamLen;
+    if (t.warnSec > 0 && t.age < t.warnSec) {
+      // 충전 — 점선·반투명, 폭이 최종폭으로 자란다(§7.4 「폭 0→최종폭 보간」)
+      const prog = t.age / t.warnSec;
+      ctx.globalAlpha = 0.35 + 0.35 * prog;
+      ctx.setLineDash([12, 10]);
+      ctx.beginPath();
+      ctx.moveTo(t.x, t.y);
+      ctx.lineTo(ex, ey);
+      ctx.lineWidth = Math.max(2, t.r * prog);
+      ctx.strokeStyle = pal.threat.enemyBullet;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      continue;
+    }
     ctx.beginPath();
     ctx.moveTo(t.x, t.y);
     ctx.lineTo(ex, ey);

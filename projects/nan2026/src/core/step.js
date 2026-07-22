@@ -409,7 +409,12 @@ function hazards(world, dt) {
     // ★ 소유권 — 'laser'(적 빔)만 step 이 소유한다. 그 외 kind 는 만든 무기가 소유(barrage 예고 등).
     if (t.kind !== 'laser') continue;
     if (t.age >= t.durSec) { world.telegraphs.release(t); continue; }
-    // 반직선(원점 x,y · 방향 a)까지의 수직거리. 빔 뒤쪽(투영<0)은 맞지 않는다.
+    // §7.4 — 충전(경고) 구간: 무해. track 이면 플레이어를 따라 조준하다가 활성 진입 시 각이 잠긴다.
+    if (t.age < t.warnSec) {
+      if (t.track) t.a = Math.atan2(p.y - t.y, p.x - t.x);   // 예고가 플레이어를 겨눈다(회피 리드)
+      continue;
+    }
+    // 활성 구간: 반직선(원점 x,y · 방향 a)까지의 수직거리. 빔 뒤쪽(투영<0)은 맞지 않는다.
     const ux = Math.cos(t.a);
     const uy = Math.sin(t.a);
     const rx = p.x - t.x;
