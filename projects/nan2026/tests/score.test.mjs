@@ -102,12 +102,22 @@ suite('score/무피격 · 보너스', () => {
 });
 
 suite('score/집계 tally', () => {
-  test('전 스테이지 무피격 + 컨티뉴 0 = 퍼펙트', () => {
+  test('전 스테이지 무피격 + 컨티뉴 0 + 승리 = 퍼펙트', () => {
     const w = mkWorld();
+    w.run.won = true;                                   // ★ 퍼펙트는 승리한 런에만 성립(§11.3)
     const t = tally(w);
     assert.eq(t.noHitCount, w.score.noHit.length, '6/6 무피격');
     assert.ok(t.perfect, '퍼펙트 성립');
     assert.eq(t.perfectBonus, S().perfectBonus, '퍼펙트 보너스');
+  });
+
+  test('미승리 런은 무피격이어도 퍼펙트가 아니다 (타임아웃 익스플로잇 방지)', () => {
+    const w = mkWorld();
+    w.run.won = false; w.run.stageIndex = 2;            // 스테이지 3에서 사망(1~2만 클리어)
+    const t = tally(w);
+    assert.eq(t.noHitCount, 2, '클리어한 2 스테이지만 무피격으로 센다');
+    assert.ok(!t.perfect, '미승리 = 퍼펙트 아님');
+    assert.eq(t.perfectBonus, 0, '퍼펙트 보너스 0');
   });
 
   test('컨티뉴는 퍼펙트 + 모든 무피격을 소급 무효로 만든다 (§11.4)', () => {
@@ -128,8 +138,8 @@ suite('score/집계 tally', () => {
     for (let i = 0; i < w.score.noHit.length; i += 1) w.score.noHit[i] = false;  // 보너스 격리
     w.score.kills = 1;
     const t = tally(w);
-    const raw = 1 + Math.floor(10.7) * s.coinToScore;
-    assert.eq(t.coinBonus, Math.floor(10.7) * s.coinToScore, '코인은 정수분만 환산');
+    const raw = 1 + 10.7 * s.coinToScore;              // ★ floor 는 마지막 한 번뿐 — 코인을 미리 안 floor 한다
+    assert.eq(t.coinBonus, 10.7 * s.coinToScore, '코인은 floor 없이 환산(단일 floor 규약)');
     assert.eq(t.scoreMul, loadData().meta.difficulty.hell.scoreMul, '난이도 배율');
     assert.eq(t.total, Math.floor(raw * t.scoreMul), '총점 = floor(합 × 배율) — floor 1회');
   });

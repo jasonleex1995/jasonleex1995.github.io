@@ -119,8 +119,8 @@ function makePlayerBullet(capEnemies) {
     //   다른 개체다. 관통탄의 재히트 가드가 (hitStamp==hitEpoch && hitGen==e.gen)여야
     //   재사용된 슬롯의 새 적을 조용히 통과하지 않는다 (seeker.targetGen 방어와 대칭).
     hitGen: new Int32Array(capEnemies),
-    // 패밀리별 스크래치 (부메랑 왕복 · 시커 타겟 등)
-    s0: 0, s1: 0, s2: 0, target: -1, targetGen: -1,
+    // 패밀리별 스크래치 (부메랑 왕복 · 시커 타겟 등). s2gen = s2(직전 경유 적)의 gen — 슬롯 재사용 판별.
+    s0: 0, s1: 0, s2: 0, s2gen: -1, target: -1, targetGen: -1,
   };
 }
 
@@ -149,7 +149,8 @@ function makeZone() {
 }
 
 function makeDrone() {
-  return { alive: false, idx: 0, gen: 0, slot: 0, x: 0, y: 0, ox: 0, oy: 0, fireT: 0 };
+  // §5.3 — family 로 식별한다(slot.index 는 슬롯 재정렬 swapSlots 에 불안정). orbit/mine 과 같은 규약.
+  return { alive: false, idx: 0, gen: 0, family: '', x: 0, y: 0, ox: 0, oy: 0, fireT: 0 };
 }
 
 function makeTelegraph() {
@@ -688,8 +689,25 @@ export function spawnPickup(world, kind, value, x, y) {
       const d = dx * dx + dy * dy;
       if (d < bestD) { bestD = d; best = q; }
     }
-    if (best !== null) best.value += value;
-    return best;
+    if (best !== null) { best.value += value; return best; }
+    // ★ 같은 kind 픽업이 하나도 없다 = 풀이 «다른» kind 로 포화. 손실 0 을 지키려면 다른 kind 두 개를
+    //   병합해 슬롯을 비우고 새 픽업을 그 자리에 놓는다. kind 3종·cap ≥ 4 이면 비둘기집으로 어떤 kind 는
+    //   반드시 ≥2 존재한다. (핫패스 아님 — 풀 포화 시에만 도달하며 실측상 도달 0.)
+    const firstOf = Object.create(null);
+    for (let i = 0; i < items.length; i += 1) {
+      const q = items[i];
+      if (!q.alive) continue;
+      const prev = firstOf[q.kind];
+      if (prev !== undefined) {
+        prev.value += q.value;                        // 같은 kind 두 개 병합(손실 0)
+        world.pickups.release(q);                     // 슬롯 확보
+        const np = world.pickups.alloc();
+        np.kind = kind; np.value = value; np.x = x; np.y = y; np.vx = 0; np.vy = 0; np.magnet = false;
+        return np;
+      }
+      firstOf[q.kind] = q;
+    }
+    return null;                                      // 도달 불가(포화인데 전 kind 유일)
   }
   p.kind = kind; p.value = value;
   p.x = x; p.y = y; p.vx = 0; p.vy = 0; p.magnet = false;

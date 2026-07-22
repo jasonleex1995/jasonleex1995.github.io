@@ -198,6 +198,14 @@ export function driveRun(data, seed, opts) {
 
     if (world.over) {
       if (!world.run.won && allowContinue && canContinue(world)) { reviveContinue(world); continue; }
+      // ★ 최종(finale) 격파는 STAGE_CLEAR 로 안 가고 곧장 won+over → 6번째 보스가 STAGE_CLEAR-게이트
+      //   텔레메트리에서 누락되고 stagesCleared 도 5 에 멈춘다. 여기서 최종 스테이지를 집계한다.
+      if (world.run.won && r.bossKillSec.length === r.stagesCleared) {
+        r.bossKillSec.push(world.time - bossStartT);
+        r.bossTimerLeft.push(world.run.bossTimer);
+        r.bossUptime.push(bossTicks > 0 ? bossDmgTicks / bossTicks : 0);
+        r.stagesCleared += 1;
+      }
       break;
     }
   }
@@ -509,7 +517,10 @@ function grade(data, summary) {
     }
     band('dpsProbe.killTimeMedianBalanced', p.killSecMedian,
       c.dpsProbe.killTimeMedianBalanced.min, c.dpsProbe.killTimeMedianBalanced.max);
-    band('dpsProbe.uptimeRef(실측)', p.uptime, c.dpsProbe.uptimeRef - 0.05, c.dpsProbe.uptimeRef + 0.05);
+    // ★ 정직성 — 현재 uptime 은 «피해가 오른 틱의 비율»(tick-proxy)이지 §10.4.3 의 «명목 DPS 대비 실효
+    //   전달률»이 아니다(느린 무기에서 크게 과소계상 → 오도하는 FAIL). 올바른 측정(명목 DPS 대비)이
+    //   구현되기 전엔 **UNMEASURED** 로 남긴다. 진단용 tick-proxy 는 bosses.csv 에 그대로 남는다.
+    band('dpsProbe.uptimeRef(실측)', null, c.dpsProbe.uptimeRef - 0.05, c.dpsProbe.uptimeRef + 0.05);
   }
   return out;
 }

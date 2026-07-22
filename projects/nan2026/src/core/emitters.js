@@ -149,21 +149,25 @@ function fireSpiral(world, e, em, volleyIdx) {
 }
 
 /**
- * §8.5 wall — count 개 벽돌을 아레나 폭에 가로로 펼쳐 직하강, 가운데에 gapCount 칸(폭 gapWidthPx)을 비운다.
- * ★ 슬라이스 근사(미실행 경로): 로스터가 wall 을 쓰지 않는다. 좁은 틈으로 지나가는 판정만 재현한다.
+ * §8.5 wall — 아레나를 가로지르는 벽. 가운데에 폭 gapWidthPx 의 안전 통로 «하나»(gapCount)를 비우고
+ *   count 개 벽돌을 좌우 두 벽에 **가장자리까지** 균등 배치한다.
+ *   ★ 회귀(실측): 예전엔 gapWidthPx 를 안 읽고(틈이 slot 개수에서 창발) 양 끝에 step 폭 여백을 남겨
+ *     **벽을 통째로 우회**할 수 있었다(frostCrown·tetrarch 보스가 실제로 쓴다 — «미실행» 주석은 낡음).
  */
 function fireWall(world, e, em) {
   const a = world.data.rules.view.arena;
-  const total = em.count + em.gapCount;
-  const gapStart = Math.floor((total - em.gapCount) / 2);   // 틈을 가운데로
-  const step = a.w / (total + 1);
-  let brick = 0;
-  for (let slot = 0; slot < total; slot += 1) {
-    if (slot >= gapStart && slot < gapStart + em.gapCount) continue;   // 틈
-    const x = a.x + step * (slot + 1);
+  const cx = a.x + a.w * 0.5;
+  const half = em.gapWidthPx * 0.5;              // 고정 중앙 통로 반폭
+  const sideW = a.w * 0.5 - half;                // 한쪽 벽이 덮는 폭 [가장자리 … 통로]
+  const leftN = Math.ceil(em.count * 0.5);       // 홀수면 왼쪽에 하나 더(결정적)
+  const rightN = em.count - leftN;
+  for (let j = 0; j < leftN; j += 1) {           // 왼쪽 벽: [a.x, cx-half] 균등, 각 칸 중앙
+    const x = a.x + (j + 0.5) * (sideW / leftN);
     spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, srcArchOf(e));
-    brick += 1;
-    if (brick >= em.count) break;
+  }
+  for (let j = 0; j < rightN; j += 1) {          // 오른쪽 벽: [cx+half, a.x+a.w] 균등
+    const x = cx + half + (j + 0.5) * (sideW / rightN);
+    spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, srcArchOf(e));
   }
 }
 

@@ -24,6 +24,7 @@ import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
 import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
+import { DEG2RAD, wrapAngle } from './angle.js';
 
 /** §10.1 — 잠금. 배속과 무관한 상수 */
 export const TICK_HZ = 60;
@@ -220,6 +221,7 @@ function moveBullets(world, dt) {
   }
 
   const eb = world.enemyBullets.items;
+  const pl = world.player;
   for (let i = 0; i < eb.length; i += 1) {
     const b = eb[i];
     if (!b.alive) continue;
@@ -229,6 +231,24 @@ function moveBullets(world, dt) {
         const ns = sp + b.accel * dt;
         b.vx = (b.vx / sp) * ns;
         b.vy = (b.vy / sp) * ns;
+      }
+    }
+    // §8.5·§9.7 — 유도: turnRateDegSec>0 이면 retargetSec 마다 플레이어 쪽으로 각을 꺾는다(재조준 간격이
+    //   회피 창을 준다). 사이엔 직진. 이 통합이 없으면 «유도탄»이 직진해 유도의 의미가 사라진다(실측 버그).
+    if (b.turnRateDegSec !== 0) {
+      b.retargetT -= dt;
+      if (b.retargetT <= 0) {
+        b.retargetT += b.retargetSec;
+        const sp2 = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (sp2 > 0) {
+          const cur = Math.atan2(b.vy, b.vx);
+          let d = wrapAngle(Math.atan2(pl.y - b.y, pl.x - b.x) - cur);
+          const maxTurn = b.turnRateDegSec * DEG2RAD * b.retargetSec;   // 간격 동안 누적 가능한 최대 회전
+          if (d > maxTurn) d = maxTurn; else if (d < -maxTurn) d = -maxTurn;
+          const na = cur + d;
+          b.vx = Math.cos(na) * sp2;
+          b.vy = Math.sin(na) * sp2;
+        }
       }
     }
     b.x += b.vx * dt;
@@ -584,7 +604,9 @@ function pickups(world, dt) {
     if (q.magnet) {
       const d = Math.sqrt(d2);
       if (d > 0) {
-        const v = rp.moveSpeed;                    // 자석은 플레이어보다 느리지 않아야 회수가 성립한다
+        // ★ 자석은 플레이어보다 느리면 안 된다 — movePlayer 와 같은 상한(상점%·패시브 배율 포함)을 쓴다.
+        //   base moveSpeed 만 쓰면 이속 업그레이드 후 반대로 도망가는 픽업을 영영 못 잡는다(실측 버그).
+        const v = rp.moveSpeed * (1 + world.shopMoveSpeedPct) * (1 + world.stats.moveSpeedMul);
         q.x += (dx / d) * v * dt;
         q.y += (dy / d) * v * dt;
       }

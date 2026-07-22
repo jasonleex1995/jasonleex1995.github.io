@@ -16,7 +16,7 @@
  * 슬롯 스크래치: a0 = 다음 폭발까지 남은 시간
  */
 
-import { playerToEnemy, noteDamage } from '../damage.js';
+import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -33,10 +33,8 @@ function ring(world, slot, eff, r, localMul, stamp) {
     const dx = e.x - p.x;
     const dy = e.y - p.y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = playerToEnemy(ctx, eff.dmg, localMul, stamp, e);
-    e.hp -= dealt;
-    noteDamage(world, slot.family, dealt);
-    if (e.hp <= 0) killEnemy(world, e);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, localMul, stamp, e);
+    if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }
 

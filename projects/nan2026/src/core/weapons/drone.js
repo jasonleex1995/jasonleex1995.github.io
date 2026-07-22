@@ -37,15 +37,15 @@ function nearestEnemy(world, x, y, radius) {
   return best;
 }
 
-/** 이 슬롯의 살아있는 위성 수 */
+/** 이 슬롯의 살아있는 위성 수 (§5.3 family-키로 식별) */
 function liveDrones(world, slot) {
   const it = world.drones.items;
   let n = 0;
-  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].slot === slot.index) n += 1;
+  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].family === slot.family) n += 1;
   return n;
 }
 
-/** droneCount 만큼 위성을 유지한다. ox/oy 에 anchorOffsets 를 담아 배치의 근거로 쓴다. */
+/** droneCount 만큼 위성을 유지한다. ox/oy 는 update 가 매 틱 현재 eff 로 다시 각인한다(레벨업 반영). */
 function ensureDrones(world, slot, eff) {
   let have = liveDrones(world, slot);
   const want = eff.droneCount;
@@ -53,7 +53,7 @@ function ensureDrones(world, slot, eff) {
     const d = world.drones.alloc();
     if (d === null) { world.capHits.drone += 1; return; }   // §12.1 초과 = 이번 틱 포기
     const off = eff.anchorOffsets[have];
-    d.slot = slot.index;
+    d.family = slot.family;
     d.ox = off[0]; d.oy = off[1];
     d.x = world.player.x + d.ox;
     d.y = world.player.y + d.oy;
@@ -75,9 +75,16 @@ export function update(world, slot, eff, dt) {
 
   const p = world.player;
   const it = world.drones.items;
+  let k = 0;
   for (let i = 0; i < it.length; i += 1) {
     const d = it[i];
-    if (!d.alive || d.slot !== slot.index) continue;
+    if (!d.alive || d.family !== slot.family) continue;
+
+    // ★ 앵커를 매 틱 현재 eff 로 다시 각인 — 레벨업이 droneCount·anchorOffsets 를 바꾸면 기존 위성도
+    //   새 편대 자리로 옮긴다(스폰 때 굳지 않게). k = 이 family 위성의 순번(0..droneCount-1).
+    const off = eff.anchorOffsets[k];
+    d.ox = off[0]; d.oy = off[1];
+    k += 1;
 
     const tx = p.x + d.ox;
     const ty = p.y + d.oy;

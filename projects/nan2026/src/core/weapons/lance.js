@@ -18,7 +18,7 @@
  *   a0 이 chargeSec 이하인 구간이 «차지»이며(렌더가 그 구간을 그린다), 0 에 닿는 순간 발사한다.
  */
 
-import { playerToEnemy, noteDamage } from '../damage.js';
+import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -36,25 +36,29 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
   const en = world.enemies.items;
   const halfW = eff.beamWidthPx * 0.5;
   const topY = p.y - length;
-  let bound = p.y;                                   // 이 값보다 y 가 작은 적만 후보(가까운 순 진행)
+  // ★ 커서 = (boundY, boundIdx). y 만으로 진행하면 **같은 y 의 적을 한 명만 맞히고 나머지를 배제**했다
+  //   (편대는 한 줄이 정확히 같은 y — lineH/arc 대칭쌍/vWedge 동랭크). idx 동점 처리로 같은 y 안에서
+  //   커서가 «전진»하게 해 관통이 그 줄 전부를 때린다(레일건이 한 행을 통째로 관통).
+  let boundY = p.y;
+  let boundIdx = en.length;
   let hits = 0;
 
   while (hits < limit) {
     let best = null;
     let bestY = 0;
+    let bestIdx = -1;
     for (let i = 0; i < en.length; i += 1) {
       const e = en[i];
       if (!e.alive) continue;
-      if (e.y >= bound || e.y < topY) continue;      // 이미 지난 구간 / 사거리 밖
+      if (!(e.y < boundY || (e.y === boundY && i > boundIdx))) continue;   // 이미 지난 (y,idx)
+      if (e.y < topY) continue;                                            // 사거리 밖
       if (e.x < bx - halfW - e.radius || e.x > bx + halfW + e.radius) continue;
-      if (best === null || e.y > bestY) { bestY = e.y; best = e; }
+      if (best === null || e.y > bestY || (e.y === bestY && i < bestIdx)) { bestY = e.y; best = e; bestIdx = i; }
     }
     if (best === null) return;
-    bound = best.y;
-    const dealt = playerToEnemy(ctx, eff.dmg, 1, stamp, best);
-    best.hp -= dealt;
-    noteDamage(world, slot.family, dealt);
-    if (best.hp <= 0) killEnemy(world, best);
+    boundY = bestY; boundIdx = bestIdx;
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, best);
+    if (dealt > 0 && best.hp <= 0) killEnemy(world, best);
     hits += 1;
   }
 }

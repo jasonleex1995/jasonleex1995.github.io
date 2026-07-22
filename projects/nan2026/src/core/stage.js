@@ -79,6 +79,7 @@ export function initRun(world) {
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
+    timedOut: false,                // §6.3 — 타이머 만료 지연 확정 플래그(막타가 이기게)
     bossSpawned: false,             // BOSS 페이즈 보스 스폰 1회 가드(보스 훅이 본다)
     bossPhase: 0,                   // §8.11 보스 페이즈(코어 HP 임계 [0.6,0.3] → 0/1/2, patternSet 선택)
     bossTransitionT: 0,             // 페이즈 전환 잔여(>0 = 보스 무적 + 타이머 정지, §6.3)
@@ -136,6 +137,7 @@ export function tickRun(world, dt) {
       run.phase = PHASE.BOSS;
       run.phaseT = 0;
       run.bossTimer = ph.bossTimerSec;   // timerStartsAfterIntro (§8.11)
+      run.timedOut = false;
       run.bossSpawned = false;           // 보스 훅이 이 틱 이후 스폰
     }
     return;
@@ -155,13 +157,21 @@ export function tickRun(world, dt) {
       run.phaseT = 0;
       return;
     }
-    // §6.3 — 타이머 만료 = 즉사(timerExpire "kill"). 페이즈 전환 중엔 정지(timerPausesOnPhaseTransition).
+    // ★ 타이머 만료를 **한 틱 미룬다**(§6.3). killEnemy 는 collide(run 훅 뒤)에서 run.cleared 를
+    //   세팅하므로, 타이머가 0 을 넘는 그 틱에 «막타»가 들어오면 cleared 는 이 틱엔 아직 안 보인다.
+    //   그 틱에 즉사시키면 clutch 격파가 시간초과 패배로 뒤집힌다 → 만료는 flag 만 세우고, 다음 틱에
+    //   cleared(위)를 먼저 본 뒤에도 여전히 미격파면 그때 확정한다(격파가 항상 이긴다).
+    if (run.timedOut) {
+      run.deathCause = 'timeout';
+      world.over = true;
+      return;
+    }
+    // §6.3 — 페이즈 전환 중엔 타이머 정지(timerPausesOnPhaseTransition).
     if (run.bossTransitionT <= 0) {
       run.bossTimer -= dt;
       if (run.bossTimer <= 0) {
         run.bossTimer = 0;
-        run.deathCause = 'timeout';
-        world.over = true;
+        run.timedOut = true;     // 이 틱엔 확정 보류 — 같은 틱 격파에게 기회를 준다
       }
     }
     return;
@@ -192,6 +202,7 @@ export function advanceStage(world) {
   run.midBossNext = 0;
   run.midBossElementPrev = '';
   run.bossTimer = 0;
+  run.timedOut = false;
   run.bossSpawned = false;
   run.cleared = false;
   return run;
@@ -233,6 +244,7 @@ export function reviveContinue(world) {
 
   if (run.phase === PHASE.BOSS && run.bossTimer < f.continueTimerRestoreSec) {
     run.bossTimer = f.continueTimerRestoreSec;       // 보스 HP 는 건드리지 않는다
+    run.timedOut = false;
   }
   run.deathCause = null;
   world.over = false;

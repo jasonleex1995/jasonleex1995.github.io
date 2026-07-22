@@ -27,7 +27,9 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     const t = count > 1 ? i / (count - 1) : 0.5;
     const ang = (-f.spanDeg / 2 + t * f.spanDeg) * DEG2RAD;
     x = originX + Math.sin(ang) * f.radiusPx;
-    y = originY + (1 - Math.cos(ang)) * f.radiusPx * 0.3;   // 가운데가 앞선 아래로 볼록한 호
+    // 가운데가 앞선(=최대 y, 하강 방향으로 선두) 아래로 볼록한 호. (1-cos) 은 가운데 0·날개 양수라
+    //   **빼야** 가운데가 앞선다(더하면 날개가 앞서는 ∩ 로 뒤집힌다 — 주석과 반대였다).
+    y = originY - (1 - Math.cos(ang)) * f.radiusPx * 0.3;
   } else if (formationId === 'lineH') {
     const f = forms.lineH;
     x = originX + (i - (count - 1) / 2) * f.gapPx;
@@ -44,8 +46,11 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     }
   } else {
     // scatter + 폴백(columnV·pincer·미지) — rng.spawn 산포. jitterPx = y 계단, minSepPx = 가장자리 여백.
+    //   ★ 원점 중심으로 흩는다(소환 편대가 소환자 자리에 놓이는 계약). 웨이브는 originX=아레나 중앙이라
+    //     결과·rng 소비가 기존과 **완전히 동일**하고(중앙±(a.w-2minSep)/2 = a.x+minSep…a.x+a.w-minSep),
+    //     소환(mbNest)만 originX=소환자로 옮겨간다. 아래 클램프가 아레나 밖을 막는다.
     const f = forms.scatter;
-    x = a.x + f.minSepPx + rng.f() * (a.w - 2 * f.minSepPx);
+    x = originX + (rng.f() - 0.5) * (a.w - 2 * f.minSepPx);
     y = originY - rng.f() * f.jitterPx;
   }
 

@@ -58,6 +58,11 @@ function place(world, slot, eff) {
     b.y = p.y + Math.sin(a) * eff.orbitRadius;
     b.vx = 0; b.vy = 0;
     b.age = 0;
+    // ★ 공전체는 영속(수명 없음)이라 스폰 때 각인한 dmg/반경/쿨다운이 **레벨업해도 안 갱신**됐다 —
+    //   기존 공전체가 Lv1 수치로 굳었다. 매 틱 현재 eff 로 다시 각인해 레벨 성장이 반영되게 한다.
+    b.dmg = eff.dmg;
+    b.radius = eff.projRadius;
+    b.hitCooldownSec = eff.hitCooldownSec;
     k += 1;
   }
 }

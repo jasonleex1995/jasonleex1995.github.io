@@ -203,6 +203,10 @@ export function midBoss(world, dt) {
   }
   if (e === null) return;
 
+  // ★ §2.7 「스턴 = 개체 정지」 — 이동·소환을 멈춘다(발사는 emitters, 시계는 moveBullets 가 이미 얼린다).
+  //   stunSec 은 여기서 감소시키지 않는다 — step.moveBullets 가 단일 소유자다(이중 감소 방지).
+  if (e.stunSec > 0) return;
+
   // (3) 이탈 — 등장 후 midBossLeaveAfterSec. 그 전까지는 계속 쏜다(공짜 회피가 아니다)
   //   ★ e.moveT 는 step.moveBullets 가 이미 매 틱 올린다 — 여기서 또 올리면 시계가 2배로 간다.
   if (e.moveT >= ph.midBossLeaveAfterSec) { leave(world, e); return; }

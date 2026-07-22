@@ -20,7 +20,7 @@
  */
 
 import { spawnTelegraph } from '../state.js';
-import { playerToEnemy, noteDamage } from '../damage.js';
+import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -76,10 +76,8 @@ function detonate(world, slot, eff, x, y, r) {
     const dx = e.x - x;
     const dy = e.y - y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = playerToEnemy(ctx, eff.dmg, 1, stamp, e);
-    e.hp -= dealt;
-    noteDamage(world, slot.family, dealt);
-    if (e.hp <= 0) killEnemy(world, e);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, e);
+    if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }
 

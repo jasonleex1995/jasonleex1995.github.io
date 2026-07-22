@@ -93,12 +93,21 @@ export function tally(world) {
   const s = world.data.meta.score;
   const sc = world.score;
 
+  // ★ 무피격은 **클리어한 스테이지만** 센다. noHit[] 기본값이 true 라, 미도달·미클리어 스테이지가
+  //   거짓 무피격으로 잡히면 «타임아웃 사망이 만점 퍼펙트»가 된다(실측 익스플로잇 — 사망 런이 +48000).
+  const cleared = world.run !== undefined
+    ? (world.run.won ? sc.noHit.length : world.run.stageIndex)
+    : sc.noHit.length;
   let noHitCount = 0;
-  for (let i = 0; i < sc.noHit.length; i += 1) if (sc.noHit[i]) noHitCount += 1;
+  for (let i = 0; i < cleared; i += 1) if (sc.noHit[i]) noHitCount += 1;
   const noHitBonus = noHitCount * s.stageNoHitBonus;
-  const perfect = sc.continues === 0 && noHitCount === sc.noHit.length;
+  // 퍼펙트 = **승리** + 무컨티뉴 + 전 스테이지 무피격 (미승리 런은 퍼펙트가 될 수 없다)
+  const perfect = (world.run !== undefined && world.run.won)
+    && sc.continues === 0 && noHitCount === sc.noHit.length;
   const perfectBonus = perfect ? s.perfectBonus : 0;
-  const coinBonus = Math.floor(world.player.coins) * s.coinToScore;
+  // §11.3-6항 — floor 는 **마지막에 한 번뿐**. 코인을 여기서 미리 floor 하면 그 규약이 깨진다(정수 코인엔
+  //   무해하나 규약을 지킨다). 최종 floor(raw × scoreMul)가 전체를 정수로 만든다.
+  const coinBonus = world.player.coins * s.coinToScore;
 
   const raw = sc.kills + sc.bossClear + sc.midBossClear + sc.time
     + sc.runClear + noHitBonus + perfectBonus + coinBonus;

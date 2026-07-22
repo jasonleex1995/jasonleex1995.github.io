@@ -71,6 +71,7 @@ function steer(world, slot, eff, chain) {
         b.s0 = RETURN;
         b.s1 = chain ? eff.evoChainCount : 0;   // s1 재용도: 남은 경유 수
         b.s2 = -1;                              // s2 재용도: 직전 경유 적(-1=없음)
+        b.s2gen = -1;
         b.target = -1;
         b.targetGen = -1;
       }
@@ -83,7 +84,10 @@ function steer(world, slot, eff, chain) {
       if (lost) {
         // ★ 직전 경유 적(s2)을 제외하고 다음 최근접을 고른다 — 안 그러면 방금 닿은 적이 여전히
         //   rr 안이라 같은 적에 evoChainCount 를 ~3틱만에 몰아 소진해 체인이 한 적으로 붕괴한다.
-        b.target = nearest(world, b.x, b.y, b.s2);
+        //   ★ gen 확인: s2 슬롯이 죽거나 **다른 적으로 재사용**됐으면 제외를 무효화한다(엉뚱한 신규
+        //     적을 배제하지 않도록). 원래 경유 적이 그대로 살아있을 때만 제외가 의미 있다.
+        const ex = (b.s2 >= 0 && en[b.s2].alive && en[b.s2].gen === b.s2gen) ? b.s2 : -1;
+        b.target = nearest(world, b.x, b.y, ex);
         b.targetGen = b.target < 0 ? -1 : en[b.target].gen;
         if (b.target < 0) b.s1 = 0;              // 경유할 적이 없다 → 곧장 플레이어로
       }
@@ -94,6 +98,7 @@ function steer(world, slot, eff, chain) {
         const ey = e.y - b.y;
         if (ex * ex + ey * ey <= rr * rr) {       // 경유 도달 → 이 경유 소진
           b.s2 = b.target;                        // 방금 경유한 적을 기억 = 다음 재획득에서 제외
+          b.s2gen = e.gen;                        // 그 적의 gen(슬롯 재사용 판별용)
           b.s1 -= 1;
           b.target = -1;
           b.targetGen = -1;

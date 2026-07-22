@@ -19,7 +19,7 @@
  */
 
 import { spawnZone } from '../state.js';
-import { playerToEnemy, noteDamage } from '../damage.js';
+import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 import { TAU } from '../angle.js';
@@ -36,10 +36,8 @@ function blastAt(world, family, eff, x, y, r, localMul, stamp) {
     const dx = e.x - x;
     const dy = e.y - y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = playerToEnemy(ctx, eff.dmg, localMul, stamp, e);
-    e.hp -= dealt;
-    noteDamage(world, family, dealt);
-    if (e.hp <= 0) killEnemy(world, e);
+    const dealt = hitEnemy(world, ctx, family, eff.dmg, localMul, stamp, e);
+    if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }
 

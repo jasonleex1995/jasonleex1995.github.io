@@ -397,22 +397,23 @@ async function boot() {
     return true;
   }
 
-  /** §5.4 — 상점 입력. ↑↓ 선택 · Enter 구매 (Escape 나가기는 위의 엣지 토글이 처리) */
-  function tickShop() {
-    const b = rules.input.bindings;
-    if (edge.pressed(b.cursor[2])) { shopCursor = (shopCursor + shopIds.length - 1) % shopIds.length; shopConfirmExit = false; }
-    if (edge.pressed(b.cursor[3])) { shopCursor = (shopCursor + 1) % shopIds.length; shopConfirmExit = false; }
-    if (edge.pressed(b.confirm)) { buy(world, shopIds[shopCursor]); shopConfirmExit = false; }
+  /** §5.4 — 상점 입력. ↑↓ 선택 · Enter 구매 (Escape 나가기는 위의 엣지 토글이 처리).
+   *   ★ 엣지는 프레임 상단에서 이미 소비했다(upEdge/downEdge/confirmEdge) — 여기서 다시 폴링하면
+   *     stateful edge.pressed 가 prev 를 두 번 읽어 항상 false 가 된다(상점 먹통 회귀). 넘겨받아 쓴다. */
+  function tickShop(upE, downE, confirmE) {
+    if (upE) { shopCursor = (shopCursor + shopIds.length - 1) % shopIds.length; shopConfirmExit = false; }
+    if (downE) { shopCursor = (shopCursor + 1) % shopIds.length; shopConfirmExit = false; }
+    if (confirmE) { buy(world, shopIds[shopCursor]); shopConfirmExit = false; }
   }
 
-  function tickDraft() {
+  function tickDraft(confirmE) {
     const b = rules.input.bindings;
     for (let i = 0; i < b.draftPick.length; i += 1) {
       if (edge.pressed(b.draftPick[i]) && i < draft.cards.length) { pick(i); return; }
     }
     if (edge.pressed(b.cursor[0])) cursor = (cursor + draft.cards.length - 1) % draft.cards.length;
     if (edge.pressed(b.cursor[1])) cursor = (cursor + 1) % draft.cards.length;
-    if (edge.pressed(b.confirm)) { pick(cursor); return; }
+    if (confirmE) { pick(cursor); return; }             // ★ 상단에서 소비한 Enter 를 넘겨받는다
     if (edge.pressed(b.reroll)) {
       if (rerollDraft(world, draft)) { dropUnimplementedWeapons(world, draft); cursor = 0; }
     }
@@ -533,8 +534,8 @@ async function boot() {
       if (acc >= tickDur) acc = 0;
     } else {
       acc = 0;
-      if (state === 'DRAFT') tickDraft();
-      else if (state === 'SHOP') tickShop();
+      if (state === 'DRAFT') tickDraft(confirmEdge);
+      else if (state === 'SHOP') tickShop(upEdge, downEdge, confirmEdge);
       else if (state === 'DEATH') {
         // §11.4 — 카운트다운 없음. Enter = 부활 / Escape 는 아래 엣지 토글이 결과로 보낸다
         if (confirmEdge && reviveContinue(world)) { enter('PLAY'); acc = 0; }

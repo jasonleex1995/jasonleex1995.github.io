@@ -93,11 +93,14 @@ suite('stage/페이즈 §6.5', () => {
     assert.eq(run.bossSpawned, false, '보스 스폰 트리거 대기');
   });
 
-  test('BOSS 타이머 만료 = 즉사 (deathCause timeout · over)', () => {
+  test('BOSS 타이머 만료 = 즉사 (deathCause timeout · over) — 만료는 한 틱 미뤄 확정된다', () => {
     const w = mkWorld(); const run = initRun(w);
     run.phase = PHASE.BOSS; run.bossTimer = dt * 0.5;   // 반 틱 남음
     tickRun(w, dt);
     assert.eq(run.bossTimer, 0, '타이머 0');
+    assert.ok(run.timedOut, '만료 flag (이 틱엔 미확정 — 막타 기회)');
+    assert.ok(!w.over, '만료 틱엔 아직 over 아님');
+    tickRun(w, dt);                                     // 다음 틱: cleared 없으면 확정
     assert.eq(run.deathCause, 'timeout', '사인 = 시간초과');
     assert.ok(w.over, 'over');
   });

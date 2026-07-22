@@ -19,7 +19,7 @@
 
 import { DEG2RAD } from '../angle.js';
 import { spawnPlayerBullet } from '../state.js';
-import { playerToEnemy, noteDamage } from '../damage.js';
+import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -53,10 +53,8 @@ function blast(world, slot, eff, b) {
     const dx = e.x - b.x;
     const dy = e.y - b.y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = playerToEnemy(ctx, eff.dmg, eff.evoSecondaryDmgMul, stamp, e);
-    e.hp -= dealt;
-    noteDamage(world, slot.family, dealt);
-    if (e.hp <= 0) killEnemy(world, e);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, eff.evoSecondaryDmgMul, stamp, e);
+    if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }
 

@@ -88,11 +88,18 @@ function buildSpawner(world, stageId, curveIdx) {
   const archetypes = world.data.enemies.archetypes;
   for (let i = 0; i < archetypes.length; i += 1) archIndex[archetypes[i].id] = archetypes[i];
 
+  // ★ 위기(새떼) 전용 아키타입은 정상 웨이브 로스터에서 제외한다(데이터 유도, 하드코딩 id 없음) —
+  //   crisisWaves 가 선언한 종이 평범한 웨이브에 섞여 나오면 §8.10 위기의 «장면»이 미리 새 버린다(실측).
+  const crisisArch = Object.create(null);
+  const cw = world.data.stages.phase.crisisWaves;
+  for (let i = 0; i < cw.length; i += 1) crisisArch[cw[i].archetypeId] = true;
+
   // ★ 로스터 — 구현된 이동(dive·weave) × 플레이 가능한 밴드(chaff·line) × 이 스테이지 테마 부합.
   //   웨이브가 골격을 대고(케이던스·편대·element·count) 이 로스터가 아키타입 다양성을 댄다(§8.6).
   const roster = [];
   for (let i = 0; i < archetypes.length; i += 1) {
     const a = archetypes[i];
+    if (crisisArch[a.id]) continue;                                // 위기 전용 → 정상 로스터 제외
     if (IMPLEMENTED_MOVES.indexOf(a.moveId) < 0) continue;         // 이동 미구현 → 애초에 제외
     if (PLAYABLE_BANDS.indexOf(a.band) < 0) continue;              // turret/bruiser 스폰지 제외
     if (a.themeOnly !== null && a.themeOnly !== stageId) continue;  // 테마 부합만
