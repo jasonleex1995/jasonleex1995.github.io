@@ -163,6 +163,32 @@ function dodgeVector(world) {
     else { ay -= w; }
     threats += 1;
   }
+  // ★ 적 «몸통»도 임박 접촉 위협이다 — 실측: 모브 피해의 61%가 접촉(§2.5)이고 #1 사인이 drifter
+  //   (attack:null, 직하강 = 닿아야만 피해). 봇의 회피가 탄만 봐서 몸통을 못 피했다 → 다이빙 적에게
+  //   그대로 받혔다. 탄과 같은 최근접-시각 기하로, «곧 닿을» 적만(작은 여유) 옆으로 비킨다 —
+  //   먼 적까지 피하면 요격을 포기한다(회피=변위이지 도주가 아니다, 위와 같은 원리).
+  const en = world.enemies.items;
+  const contactMargin = margin * 0.5;                  // 접촉은 탄보다 관대하게(요격을 살린다)
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || e.isBoss || e.midBossId !== '') continue;   // 보스·중간보스는 별도 처리
+    const rx = e.x - p.x;
+    const ry = e.y - p.y;
+    const vv = e.vx * e.vx + e.vy * e.vy;
+    let t = vv > 0 ? -(rx * e.vx + ry * e.vy) / vv : 0;
+    if (t < 0) t = 0;
+    if (t > look) t = look;
+    const cx = rx + e.vx * t;
+    const cy = ry + e.vy * t;
+    const d2 = cx * cx + cy * cy;
+    const danger = rp.hitboxRadius + e.radius + contactMargin;
+    if (d2 > danger * danger) continue;
+    const d = Math.sqrt(d2);
+    const w = (danger - d) / danger;
+    if (d > 0) { ax -= (cx / d) * w; ay -= (cy / d) * w; }
+    else { ay -= w; }
+    threats += 1;
+  }
   // ★ 장판(zone)과 빔(laser)도 위협이다 — 실측: 이것을 안 보면 «출처 불명»(장판·빔) 피해가
   //   전 사인의 최대 항목이 된다(중간보스의 zone/laser). 탄만 피하는 봇은 사람의 하한이 아니다.
   const zs = world.zones.items;
