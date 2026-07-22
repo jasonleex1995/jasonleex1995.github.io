@@ -223,11 +223,14 @@ function makeAudio(rules) {
   const sfxGain = rules.audio.busGain.sfx;                       // §7.10 busGain.sfx = 0.8
   const minInterval = 1 / rules.audio.cueRateLimitPerSec;        // §7.10 동일 큐 초당 상한
   const lastAt = { super: -1, neutral: -1, resist: -1 };
+  let muted = false;                          // §5.5 OPTIONS — SFX 버스 뮤트/볼륨
+  let vol = 1;
+  function applyGain() { if (master !== null) master.gain.value = muted ? 0 : sfxGain * vol; }
   function ensure() {
     if (ctx === null) {
       ctx = new AC();
       master = ctx.createGain();
-      master.gain.value = sfxGain;
+      master.gain.value = muted ? 0 : sfxGain * vol;
       master.connect(ctx.destination);
     }
     return ctx;
@@ -265,8 +268,14 @@ function makeAudio(rules) {
   }
   return {
     resume() { try { ensure(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) { /* 무음 폴백 */ } },
+    setMuted(m) { muted = m; applyGain(); },
+    toggleMuted() { muted = !muted; applyGain(); return muted; },
+    isMuted() { return muted; },
+    setVolume(v) { vol = v < 0 ? 0 : (v > 1 ? 1 : v); applyGain(); return vol; },
+    getVolume() { return vol; },
     cue(tier) {
       try {
+        if (muted) return;                                      // §5.5 뮤트
         ensure();
         if (ctx.state !== 'running') return;                    // 사용자 제스처 전 → 무음
         const now = ctx.currentTime;
@@ -458,6 +467,11 @@ async function boot() {
       return;
     }
     if (state === 'OPTIONS') {
+      if (audio !== null) {
+        if (startEdge) audio.toggleMuted();                    // Space = 뮤트 토글
+        if (upEdge) audio.setVolume(audio.getVolume() + 0.1);
+        if (downEdge) audio.setVolume(audio.getVolume() - 0.1);
+      }
       if (pauseEdge || optionsEdge) enter(optionsFrom);
       renderFrame();
       return;
@@ -603,11 +617,18 @@ async function boot() {
   }
   function drawOptionsScreen() {
     const h = rules.hud;
-    const bg = world === null;
-    if (!bg) { ctx.save(); ctx.fillStyle = rgba(pal.threat.outline, 0.72); ctx.fillRect(view.arena.x, 0, view.arena.w, view.logicalH); ctx.restore(); }
-    mText('옵션', view.logicalH / 2 - 60, h.fontLargePx, pal.hud.textPrimary, 800);
-    mText('렌더·오디오 옵션 (준비 중)', view.logicalH / 2 - 12, h.fontBodyPx, pal.hud.textDim, 400);
-    mText('[Esc] 뒤로', view.logicalH / 2 + 40, h.fontSmallPx, pal.hud.textDim, 400);
+    if (world !== null) { ctx.save(); ctx.fillStyle = rgba(pal.threat.outline, 0.72); ctx.fillRect(view.arena.x, 0, view.arena.w, view.logicalH); ctx.restore(); }
+    mText('옵션', view.logicalH / 2 - 70, h.fontLargePx, pal.hud.textPrimary, 800);
+    if (audio === null) {
+      mText('오디오 인프라 없음 (시각 전용)', view.logicalH / 2 - 12, h.fontBodyPx, pal.hud.textDim, 400);
+    } else {
+      const muted = audio.isMuted();
+      const vol = Math.round(audio.getVolume() * 100);
+      mText(`효과음   ${muted ? '음소거' : `${vol}%`}`, view.logicalH / 2 - 12,
+        h.fontBodyPx, muted ? pal.hud.textDim : pal.hud.textPrimary, 700);
+      mText('[Space] 음소거   [↑↓] 볼륨', view.logicalH / 2 + 28, h.fontSmallPx, pal.hud.textDim, 400);
+    }
+    mText('[Esc] 뒤로', view.logicalH / 2 + 60, h.fontSmallPx, pal.hud.textDim, 400);
   }
   function drawThemeBanner() {
     const h = rules.hud;
