@@ -655,6 +655,16 @@ D2 시뮬로 «측정»이 가능해지자, 클리어율 0%의 뿌리를 **4전�
 - **검증**: 400 테스트 · check.mjs exit 0 · 브라우저 스모크(로드·렌더·에러 0). 커밋 11개.
 - 남음: 봇 모브 생존/빌드 성숙 → 인증 밴드(계측기 경쟁력, 열린 과제) · OPTIONS 실구현 · D3 동적게이트 채점 · 제출물.
 
+### 2026-07-22 — D3 동적게이트 채점 + ★ 첫 실인증 (게임은 옳다, 봇이 유일 병목)
+
+- **★ D3 — check.mjs 가 동적 게이트를 채점한다 (§23)**: STUB 27개로만 신고하던 것을 `report/summary.json`(= `sim --certify` 산출)이 있으면 그 `certify.results` 를 읽어 **PASS/FAIL/UNMEASURED [DYNAMIC] 섹션**으로 채점(없으면 STUB 폴백). 정적 종료코드와 분리(정본 정합만 exit 를 몬다) — sim --certify 가 커밋 게이트. **파이프라인 폐쇄: AI 데이터 → check(정적) → sim --certify(동적) → check 가 동적 판정도 표면화.** `tools/report/` 는 gitignore(재생성 산출물).
+- **★ 첫 실인증 (120 런)** — `8 PASS · 16 FAIL · 3 UNMEASURED`. **분할이 진단 그대로다**:
+  - **PASS (구조 밸런스 정합)**: `capHits 0`(전 예산 준수) · `maxLevelUps 12≤60`(XP 정합) · `farmXpRatio 2.85≥2` · `maxWeaponPickShare 0.11≤0.16` · `maxElementWinShare 0.38≤0.42`(지배 없음) · `themeClearStddev 0.012` · 코인 희소성.
+  - **FAIL (전부 `runClearRate 0` 의 하류)**: 클리어 의존 게이트(stanceValue·noDeadLuck·dpsProbe·difficultySpread) 전부. = **저작 밸런스가 아니라 계측기(봇)가 못 깨는 것.**
+  - 참고 신호 2개(둘 다 약한 봇에 오염됨, 봇 향상 시 하락 예상): `startWeaponDamageShare 0.45`(forward 편중) · `maxArchetypeLethalityShare 0.49`(접촉 다이버 과치사).
+- **봇 = 확정된 병목**: 이번 세션에 봇 경쟁력 개선을 다각도로 시도(속성 죽은커브·치사귀속·스탠스=사격표적·armor 우선/고정·몸통 회피·저체력 수비·밀집열 조준). 대부분 **한계효용 체감**으로 스테이지1 클리어 ~3/48 에서 정체. **결론: 인라인 튜닝은 소진됐다 — 봇은 재설계(예측 회피 + 무기별 포지셔닝을 통합 정책으로)가 필요하며 별도의 집중 작업 대상.** 게임 콘텐츠·데이터는 검증상 완성·정합.
+- **검증**: 400 테스트 · check.mjs exit 0(정적) · 실인증 리포트 산출.
+
 ---
 
 ## 다음 할 일
@@ -688,7 +698,7 @@ D2 시뮬로 «측정»이 가능해지자, 클리어율 0%의 뿌리를 **4전�
 - [x] **A. 무기 9종** — ★ **12 패밀리 전부 구현 완료**. A1 `omni`·`boomerang` / A2a `aura`·`nova`·`lance` / A2b `orbit`·`mine`·`barrage`·`drone`(기존 풀 재사용, 새 풀 0)
 - [~] **B. 보스+스테이지** — done: 런 오케스트레이션(`stage.js`) · `boss.js` 복합보스 · §8.5 이미터 8종 · 위기 세션 · 상단 띠 HUD · **중간보스 3종(§8.9)**. **플로우 화면(TITLE/DIFFICULTY/THEME_BANNER/RESULTS)·레이저 2단 공정성 done**. 남음: 중간보스 렌더 폴리시·OPTIONS 실구현
 - [x] **C. 메타** — `shop.js`+상점화면 · `score.js`+RESULTS · DEATH+컨티뉴(1회/런) · 시간 토큰
-- [~] **D. AI 밸런싱** — D1 `bot.js` · **D2 `tools/sim.mjs`** · **밸런스 진단**(게임 데이터 검증상 정합 확인 · 죽은 커브 3개·레이저 공정성 수정) done. 남음: **봇 모브 생존/픽 분배**로 클리어율을 인증 밴드에 · **D3 check.mjs 동적게이트 채점**(summary.json 읽어 STUB 20 채점)
+- [~] **D. AI 밸런싱** — D1 `bot.js` · **D2 `tools/sim.mjs`** · **D3 동적게이트 채점** · **실인증**(8P/16F/3U — 구조 밸런스 PASS, 봇이 유일 병목) done. 남음: **봇 재설계**로 클리어율을 인증 밴드에(인라인 튜닝 소진 → 예측 회피+무기별 포지셔닝 통합 정책)
 - [ ] AI 콘텐츠 생성 파이프라인 (공모전 'AI 활용 문서'의 핵심)
 - [ ] AI 콘텐츠 생성 + 헤드리스 시뮬 밸런싱 → 제출물
 - [ ] 제목 미정
