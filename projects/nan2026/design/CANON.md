@@ -1472,7 +1472,7 @@ v1.2는 이 값을 `stages.themes[].midBossAtSec`(= **테마별** 필드)로 인
 | ★ `stages.phase.midBossAtSec` | **`[[35],[35],[30,70],[30,70],[30,70],[30,70]]`** — ★ **거처가 바뀌었다 (v1.3), 아래** |
 | **hp** | ★ **`bosses[].hp × bossHpScale[stage]`** — **루트 필드**다(`core.hp` 아님, §9.8.2). `enemyHpScale`이 아닌 이유는 아래 |
 | **`stages.phase.midBossLeaveAfterSec`** | **30** ← **"선택적"의 정의** |
-| `midBossElementRule` | **`"notThemeAndNotNormal"`** (= `counter` 또는 `prey`), **런타임 주입** (아래) |
+| `midBossElementRule` ★v1.5 | **`"themeElseNonTheme"`** — 스테이지=테마 속성 주입, finale=비-테마. **런타임 주입** (v1.4 `"notThemeAndNotNormal"` 을 뒤집음, 사용자 결정) |
 | `midBossForcedLeaveOnCrisis` | true |
 | **`boss.midBossSummonsAllowed`** ★ | **`["mbNest"]`** (중간보스는 잡몹 페이즈에 있으므로 XP 획득이 정상) — **거처 = `rules.json > boss`**, 인쇄 자리 §9.4 |
 
@@ -1741,8 +1741,9 @@ R5: armor 부위 속성 ≠ 테마 속성
 | **R1** | `core` 속성 = **항상 노말** | `boss.coreElement = "normal"` | **브릭 방지** — 어떤 스탠스로도 ×1 마무리 가능 |
 | **R2** | 주변부 속성에 **노말 금지** | `boss.partNormalForbidden = true` | 모든 주변부는 상성 대상 |
 | **R3** | 주변부는 **서로 다른 속성 ≥ 2종** | `boss.partElementDistinctMin = 2` | **스탠스 1개 샌드백 금지** |
-| **R4** | **테마 속성은 최대 1개 부위** | `boss.partThemeElementMax = 1` | 보스 = 테마의 반복이 아니라 **커버리지 시험** |
-| **R5** | **`armor` 부위 속성 ≠ 테마 속성** | `boss.armorElementNotTheme = true` | 가장 오래 때리는 부위가 **다른 스탠스를 강제** |
+| **R4** ★v1.5 | **테마 속성은 최대 2개 부위** | `boss.partThemeElementMax = 2` | 보스 = «대부분 테마»(테마 일관성) — 단 R3·R6 이 장갑 2개를 여전히 distinct 로 강제해 2-스탠스 유지 |
+| **R5** ★v1.5 | **`armor` 부위 속성 = 테마 허용** | `boss.armorElementNotTheme = false` | 장갑 하나는 테마·하나는 다른속성 → «테마 카운터 + 장갑 1개용 스탠스»의 2-스탠스 퍼즐 |
+| **★ v1.5 개정 (사용자 결정 2026-07-23)** | 위 R4·R5 는 v1.4 의 「보스=예고편·테마 반대」(§8.6/§8.9)를 **뒤집었다** — 보스·중간보스가 테마와 일치. 중간보스 규칙도 `notThemeAndNotNormal → themeElseNonTheme`. §8.9 의 «예고편» 산문(§본 절 아래·1512)은 이 개정으로 **폐기**이며, 스탠스 전환은 이제 «장갑 1개가 테마 아님»에서 나온다 | | |
 | **R6** | ★ **`armor` 부위 수 = 2** (최종은 3, `exemptRules`) | `boss.armorPartCountRange = [2, 2]` | §8.13.2 — 게이트 강도 + **특화의 전멸 방지** |
 | **R7** ★ | **`armorCoreRatio` φ ∈ [0.85·B, B)**, `B = 0.4^-a − 1` | ★ 값 = **`bosses[].armorCoreRatio`** / 밴드 = **`boss.armorCoreRatioBandPct`** (v1.3 정정) | §8.13.1 — **게이트가 게이트이기 위한 조건** |
 
@@ -1939,7 +1940,7 @@ data/bosses.json     data/stages.json     data/meta.json
                "introSec":3.0, "timerStartsAfterIntro":true, "timerExpire":"kill",
                "coreGateMul":0.4, "mobilityPenalty":0.5, "coreElement":"normal",
                "partNormalForbidden":true, "partElementDistinctMin":2,
-               "partThemeElementMax":1, "armorElementNotTheme":true,
+               "partThemeElementMax":2, "armorElementNotTheme":false,
                "armorPartCountRange":[2,2], "armorCoreRatioBandPct":[0.85,1.0], "coin":12, "partCoin":2,
                "optionalPartArmorRatio":0.20,
                "midBossSummonsAllowed":["mbNest"],
