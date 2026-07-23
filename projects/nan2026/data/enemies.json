@@ -925,14 +925,14 @@
       "type": "zone",
       "bulletId": null,
       "from": "part",
-      "telegraphSec": 1.50,
+      "telegraphSec": 1.90,
       "everySec": 3.6,
       "offsetSec": 2.4,
       "repeat": 2,
-      "restSec": 3.6,
-      "radius": 76,
-      "activeSec": 3.0,
-      "dmg": 10
+      "restSec": 6.0,
+      "radius": 470,
+      "activeSec": 0.5,
+      "dmg": 11
     },
     {
       "id": "scarabCarapaceP1",
