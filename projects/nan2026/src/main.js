@@ -222,7 +222,7 @@ function makeAudio(rules) {
   let master = null;
   const sfxGain = rules.audio.busGain.sfx;                       // §7.10 busGain.sfx = 0.8
   const minInterval = 1 / rules.audio.cueRateLimitPerSec;        // §7.10 동일 큐 초당 상한
-  const lastAt = { super: -1, neutral: -1, resist: -1 };
+  const lastAt = { super: -1, neutral: -1, resist: -1, levelup: -1, coin: -1, hurt: -1, stance: -1 };
   let muted = false;                          // §5.5 OPTIONS — SFX 버스 뮤트/볼륨
   let vol = 1;
   function applyGain() { if (master !== null) master.gain.value = muted ? 0 : sfxGain * vol; }
@@ -266,6 +266,35 @@ function makeAudio(rules) {
       env(o, ctx.createGain(), t0, parts[i][1], parts[i][2]);
     }
   }
+  function chime(t0) {                                           // 레벨업 — 밝은 2음 상승(보상감)
+    const freqs = [660, 990];
+    for (let i = 0; i < freqs.length; i += 1) {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(freqs[i], t0 + i * 0.06);
+      env(o, ctx.createGain(), t0 + i * 0.06, 0.3, 0.12);
+    }
+  }
+  function blip(t0) {                                            // 코인 — 짧고 밝은 한 음
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1250, t0);
+    o.frequency.exponentialRampToValueAtTime(1650, t0 + 0.04);
+    env(o, ctx.createGain(), t0, 0.24, 0.07);
+  }
+  function thud(t0) {                                            // 피격 — 낮고 둔탁한 경고
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(200, t0);
+    o.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
+    env(o, ctx.createGain(), t0, 0.5, 0.16);
+  }
+  function clickS(t0) {                                          // 스탠스 전환 — 얇은 클릭
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(880, t0);
+    env(o, ctx.createGain(), t0, 0.12, 0.03);
+  }
   return {
     resume() { try { ensure(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) { /* 무음 폴백 */ } },
     setMuted(m) { muted = m; applyGain(); },
@@ -283,6 +312,10 @@ function makeAudio(rules) {
         lastAt[tier] = now;
         if (tier === 'super') crunch(now);
         else if (tier === 'resist') tin(now);
+        else if (tier === 'levelup') chime(now);
+        else if (tier === 'coin') blip(now);
+        else if (tier === 'hurt') thud(now);
+        else if (tier === 'stance') clickS(now);
         else tick(now);
       } catch (e) { /* 오디오 실패는 게임을 막지 않는다 */ }
     },
@@ -302,6 +335,18 @@ function playHitCues(audio, world) {
   if (res) audio.cue('resist');
   if (neu) audio.cue('neutral');
 }
+
+/** §7.10 — 플레이어 상태 변화를 SFX 로: 레벨업·코인 획득·피격·스탠스 전환. prev 는 프레임 간 유지. */
+function playEventCues(audio, world, prev) {
+  if (audio === null) return;
+  const p = world.player;
+  if (p.level > prev.level) audio.cue('levelup');
+  if (p.coins > prev.coins) audio.cue('coin');
+  if (p.hp < prev.hp) audio.cue('hurt');
+  if (p.stance !== prev.stance) audio.cue('stance');
+  prev.level = p.level; prev.coins = p.coins; prev.hp = p.hp; prev.stance = p.stance;
+}
+const audioPrev = { level: 1, coins: 0, hp: 0, stance: '' };
 
 // ---------------------------------------------------------------------------
 // 부트
@@ -517,6 +562,7 @@ async function boot() {
         step(world, pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다
         updateFx(fx, world, 1 / TICK_HZ);
         playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
+        playEventCues(audio, world, audioPrev); // §7.10 — 레벨업·코인·피격·스탠스 SFX
         acc -= tickDur;
         steps += 1;
         // §11.4 — 사망이면 컨티뉴를 제안(가능할 때만). 승리·제안 불가면 바로 결과로.
