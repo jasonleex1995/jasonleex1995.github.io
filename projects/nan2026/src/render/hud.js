@@ -119,17 +119,41 @@ function drawTopBand(ctx, world, pal) {
   }
   const bar = core !== null ? core : mid;
   if (bar !== null) {
-    const barY = a.y + topH - h.bossHpBarH;
+    // §18 — 굵은 코어 바 + 수치 + armor 파트별 HP 세그먼트(속성색 = §7.6 「무슨 스탠스로」).
+    //   기존 6px 은색 실오라기 + magenta 카운트 핍이라 «남은 체력이 안 보였다».
     const barW = a.w - pad * 2;
+    const bx = a.x + pad;
+    const coreH = 12;
+    const armorH = 8;
+    const coreY = a.y + topH - coreH;
+    // armor 파트(살아있는) 수집 — 코어를 가리는 §8.13 게이트 부위
+    const armor = [];
+    if (core !== null) {
+      for (let i = 0; i < en.length; i += 1) {
+        const e = en[i];
+        if (e.alive && e.isBoss && !e.isCore && e.partType === 'armor') armor.push(e);
+      }
+    }
+    if (armor.length > 0) {
+      const armorY = coreY - armorH - 3;
+      const gap = 4;
+      const segW = (barW - gap * (armor.length - 1)) / armor.length;
+      for (let k = 0; k < armor.length; k += 1) {
+        const sx = bx + k * (segW + gap);
+        ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
+        ctx.fillRect(sx, armorY, segW, armorH);
+        ctx.fillStyle = pal.element[armor[k].element];   // 이 armor 의 속성 → 상성 스탠스 단서
+        const r = armor[k].hpMax > 0 ? armor[k].hp / armor[k].hpMax : 0;
+        ctx.fillRect(sx, armorY, segW * r, armorH);
+      }
+    }
     const ratio = bar.hpMax > 0 ? bar.hp / bar.hpMax : 0;
     ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
-    ctx.fillRect(a.x + pad, barY, barW, h.bossHpBarH - 2);
-    ctx.fillStyle = pal.element[bar.element];          // 코어는 노말(§8.14 R1) · 중간보스는 주입된 속성
-    ctx.fillRect(a.x + pad, barY, barW * ratio, h.bossHpBarH - 2);
-    for (let i = 0; i < bar.aliveArmorPartCount; i += 1) {   // 남은 armor = 코어가 아직 가려져 있다
-      ctx.fillStyle = pal.threat.enemyBullet;
-      ctx.fillRect(a.x + pad + i * 12, barY - 6, 8, 4);
-    }
+    ctx.fillRect(bx, coreY, barW, coreH);
+    ctx.fillStyle = pal.element[bar.element];            // 코어=노말 은색 · 중간보스=주입 속성
+    ctx.fillRect(bx, coreY, barW * ratio, coreH);
+    text(ctx, world, pal, `${Math.ceil(bar.hp)}/${Math.round(bar.hpMax)}`,
+      bx + barW - 6, coreY + coreH / 2, h.fontSmallPx, pal.hud.textPrimary, 'right', 700);
   }
 
   ctx.restore();
