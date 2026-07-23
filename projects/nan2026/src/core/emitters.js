@@ -114,7 +114,7 @@ function fireSpread(world, e, em, count, spreadDeg, baseAngle) {
  * §8.5 aimed — 플레이어를 leadSec 만큼 앞질러 조준한 뒤 spreadDeg 로 편다.
  * §9.6 afterimage — ghostSec>0(피격 직후)면 조준 대상에서 제외 → 직하강으로 폴백(지어낸 규칙 아님).
  */
-function fireAimed(world, e, em, p) {
+function fireAimed(world, e, em, p, count) {
   let dx;
   let dy;
   if (p.ghostSec > 0) {
@@ -123,13 +123,13 @@ function fireAimed(world, e, em, p) {
     dx = (p.x + p.vx * em.leadSec) - e.x;
     dy = (p.y + p.vy * em.leadSec) - e.y;
   }
-  fireSpread(world, e, em, em.count, em.spreadDeg, Math.atan2(dx, dy));   // atan2(dx,dy): +y 축 기준각
+  fireSpread(world, e, em, count, em.spreadDeg, Math.atan2(dx, dy));   // atan2(dx,dy): +y 축 기준각
 }
 
 /** §8.5 ring — count 발을 360° 등분, rotOffsetDeg 만큼 회전. base(아래)는 전원(全圓)이라 무의미. */
-function fireRing(world, e, em) {
-  for (let i = 0; i < em.count; i += 1) {
-    const a = em.rotOffsetDeg * DEG2RAD + (i / em.count) * TAU;
+function fireRing(world, e, em, count) {
+  for (let i = 0; i < count; i += 1) {
+    const a = em.rotOffsetDeg * DEG2RAD + (i / count) * TAU;
     spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, srcArchOf(e));
   }
 }
@@ -140,9 +140,9 @@ function fireRing(world, e, em) {
  *   돌린다(회전감 보존). 시간 확장(durationSec/rateSec)은 모델링하지 않는다 — 슬라이스 로스터가
  *   spiral 을 쓰지 않으므로 미실행 경로다(보스/시그니처에서 붙을 때 확장).
  */
-function fireSpiral(world, e, em, volleyIdx) {
+function fireSpiral(world, e, em, volleyIdx, count) {
   const spin = volleyIdx * em.rotStepDeg * DEG2RAD;
-  for (let i = 0; i < em.count; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const a = spin + i * em.rotStepDeg * DEG2RAD;
     spawnEnemyBullet(world, em.bulletId, e.x, e.y, Math.sin(a) * em.speed, Math.cos(a) * em.speed, srcArchOf(e));
   }
@@ -154,13 +154,13 @@ function fireSpiral(world, e, em, volleyIdx) {
  *   ★ 회귀(실측): 예전엔 gapWidthPx 를 안 읽고(틈이 slot 개수에서 창발) 양 끝에 step 폭 여백을 남겨
  *     **벽을 통째로 우회**할 수 있었다(frostCrown·tetrarch 보스가 실제로 쓴다 — «미실행» 주석은 낡음).
  */
-function fireWall(world, e, em) {
+function fireWall(world, e, em, count) {
   const a = world.data.rules.view.arena;
   const cx = a.x + a.w * 0.5;
   const half = em.gapWidthPx * 0.5;              // 고정 중앙 통로 반폭
   const sideW = a.w * 0.5 - half;                // 한쪽 벽이 덮는 폭 [가장자리 … 통로]
-  const leftN = Math.ceil(em.count * 0.5);       // 홀수면 왼쪽에 하나 더(결정적)
-  const rightN = em.count - leftN;
+  const leftN = Math.ceil(count * 0.5);          // 홀수면 왼쪽에 하나 더(결정적)
+  const rightN = count - leftN;
   for (let j = 0; j < leftN; j += 1) {           // 왼쪽 벽: [a.x, cx-half] 균등, 각 칸 중앙
     const x = a.x + (j + 0.5) * (sideW / leftN);
     spawnEnemyBullet(world, em.bulletId, x, e.y, 0, em.speed, srcArchOf(e));
@@ -197,14 +197,23 @@ function fireLaser(world, e, em, p, look) {
 }
 
 /** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */
+// §17 — 보스 발사체 밀도는 스테이지가 갈수록 는다(bossBulletScale). 잡몹·중간보스는 1(불변).
+//   발사 시점 count 만 곱한다(이미터 데이터·66슬롯 명명법 불변). laser·zone 은 count 가 없어 제외.
+function effCount(world, e, em) {
+  if (!e.isBoss) return em.count;
+  const mul = world.data.stages.curve.bossBulletScale[world.run.stageIndex];
+  return Math.round(em.count * mul);
+}
+
 function fireVolley(world, e, em, volleyIdx, p, look) {
   const t = em.type;
-  if (t === 'straight') fireSpread(world, e, em, em.count, em.spreadDeg, 0);
-  else if (t === 'fan') fireSpread(world, e, em, em.count, em.arcDeg, 0);
-  else if (t === 'aimed') fireAimed(world, e, em, p);
-  else if (t === 'ring') fireRing(world, e, em);
-  else if (t === 'spiral') fireSpiral(world, e, em, volleyIdx);
-  else if (t === 'wall') fireWall(world, e, em);
+  const count = effCount(world, e, em);
+  if (t === 'straight') fireSpread(world, e, em, count, em.spreadDeg, 0);
+  else if (t === 'fan') fireSpread(world, e, em, count, em.arcDeg, 0);
+  else if (t === 'aimed') fireAimed(world, e, em, p, count);
+  else if (t === 'ring') fireRing(world, e, em, count);
+  else if (t === 'spiral') fireSpiral(world, e, em, volleyIdx, count);
+  else if (t === 'wall') fireWall(world, e, em, count);
   else if (t === 'zone') fireZone(world, e, em);
   else if (t === 'laser') fireLaser(world, e, em, p, look);
   else throw new Error(`emitters: 미지의 이미터 타입 "${t}" (${em.id}, §8.5 — 폴백 금지)`);
