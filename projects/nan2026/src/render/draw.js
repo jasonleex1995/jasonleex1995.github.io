@@ -437,10 +437,18 @@ function spawnHit(fx, vh, ev) {
 // 레이어 0 — 배경 (§7.9 · §12.3: 채도 ≤0.25 / 명도 ≤ bgMaxLightness, **소프트 엣지만**)
 //   ★ 테마 hue 는 stages.json 의 소관이고 1주차에는 스테이지가 없다 → 무채색 차콜 (보고 대상)
 // ---------------------------------------------------------------------------
+// §7.9 테마 hue (Lab a·b) — 스테이지 id 로 배경을 물들인다. v1.4 까지 «무채색 차콜 TODO»였다.
+const THEME_AB = {
+  sea: [-6, -26], glacier: [-12, -6], volcano: [34, 26],
+  desert: [10, 34], forest: [-26, 22], bog: [-6, 16], finale: [22, 8],
+};
+
 function drawBackground(ctx, world, pal, fx) {
   const v = world.data.rules.view;
   const a = v.arena;
-  const base = labToHex(pal.bgMaxLightness * 100 * 0.45, 0, 0);
+  const rid = world.run && world.run.order ? world.run.order[world.run.stageIndex] : null;
+  const ab = THEME_AB[rid] || [0, 0];                        // 테마 없으면(타이틀 등) 무채색
+  const base = labToHex(pal.bgMaxLightness * 100 * 0.45, ab[0] * 0.5, ab[1] * 0.5);
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, v.logicalW, v.logicalH);
 
@@ -456,7 +464,7 @@ function drawBackground(ctx, world, pal, fx) {
     const step = 64 + L * 40;
     const speed = depth;
     const lum = pal.bgMaxLightness * 100 * (0.55 + 0.35 * depth);
-    ctx.fillStyle = rgba(labToHex(lum, 0, 0), 0.5);
+    ctx.fillStyle = rgba(labToHex(lum, ab[0], ab[1]), 0.5);  // 테마 hue 로 물든 시차 레이어
     const off = (fx.bgScroll * speed) % step;
     for (let y = a.y - step + off; y < a.y + a.h + step; y += step) {
       for (let x = a.x; x < a.x + a.w; x += step) {

@@ -152,9 +152,12 @@ export function drawArenaBands(ctx, world, pal) {
   const xpY = a.y + a.h - v.bandXpH;                  // 696
   const pad = 8;
 
-  // 판 — 알파 0.30 (내용은 아래에서 불투명하게 그린다)
-  ctx.fillStyle = rgba(pal.hud.panelBg, vb.plateAlpha);
+  // 하단 띠 = 플레이영역 «밖»의 가라앉은 패널로 읽히게 — 불투명 판 + 상단 «바닥» 구분선
+  //   (사이드 패널과 통일. 반투명 0.30 은 «떠 있는» 느낌이라는 플레이테스트 #7).
+  ctx.fillStyle = rgba(pal.hud.panelBg, 0.94);
   ctx.fillRect(a.x, hpY, a.w, v.bandHpH + v.bandXpH);
+  ctx.fillStyle = rgba(pal.hud.panelRule, 0.9);
+  ctx.fillRect(a.x, hpY, a.w, 1.5);                    // 플레이영역과의 경계(바닥)
 
   ctx.save();
   if (vb.contentOpaque) ctx.globalAlpha = 1.0;
