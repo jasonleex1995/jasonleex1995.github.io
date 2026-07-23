@@ -1017,6 +1017,26 @@ function drawHitboxDot(ctx, world, pal, px, py) {
 // ---------------------------------------------------------------------------
 // 전체 (§12.3 레이어 스택 — 이 함수의 호출 순서가 곧 그 표다)
 // ---------------------------------------------------------------------------
+// §5.3 드론(옵션) — 위성이 플레이어를 따라다니며 대신 쏜다. 이제껏 렌더가 없어 «안 보이는 무기»였다.
+//   플레이어와 잇는 가는 테더 + 밝은 위성 본체(바깥 링 + 코어)로 «내 편대»임을 명확히 한다.
+function drawDrones(ctx, world, pal, interp, alpha, px, py) {
+  const items = world.drones.items;
+  for (let i = 0; i < items.length; i += 1) {
+    const d = items[i];
+    if (!d.alive) continue;
+    const x = lerpX(interp, interp.drones, d, alpha);
+    const y = lerpY(interp, interp.drones, d, alpha);
+    ctx.strokeStyle = rgba(pal.hud.textDim, 0.3);            // 편대 테더
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+    ctx.strokeStyle = pal.hud.textPrimary;                   // 위성 본체 — 바깥 링
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(x, y, 5.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = pal.hud.textPrimary;                     // 코어
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   const v = world.data.rules.view;
   const a = v.arena;
@@ -1034,6 +1054,7 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   drawPlayerBullets(ctx, world, pal, interp, alpha);          // 4
   drawEnemies(ctx, world, pal, fx, interp, alpha);            // 5 (§7.7 임팩트 프리즈 = 본체 팝)
   const pp = drawPlayer(ctx, world, pal, fx, interp, alpha);  // 6
+  drawDrones(ctx, world, pal, interp, alpha, pp.x, pp.y);     // 6.5 — 위성 편대(테더로 플레이어와의 관계 표시)
   drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9

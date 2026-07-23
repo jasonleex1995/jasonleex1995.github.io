@@ -214,7 +214,7 @@ function checkRules(c, r) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',
       'allowNormalPeripheral']);
   }
-  c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'minStunTelegraphSec', 'maxStunSec',
+  c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
     'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'enemyConcurrentMax',
     'swarmConcurrentMax', 'crisisWaveResidualMax', 'telegraphConcurrentMaxPerEntity',

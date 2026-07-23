@@ -120,26 +120,30 @@ suite('hazards/laser 2단(§7.4 「충전이 곧 텔레그래프」)', () => {
     assert.eq(liveBeams(w), 0, 'warnSec + activeSec 후 반납');
   });
 
-  test('track=true — 충전 중 플레이어를 따라 조준하고, 활성 진입 시 각이 잠긴다', () => {
+  test('track=true — 충전 초반엔 추적, beamLockSec 잠금창부터 각이 멈추고 그대로 발사(§7.4 잠금창)', () => {
     const w = mkWorld(); const p = w.player;
-    const warnSec = 0.5;
+    const lockSec = w.data.rules.fairness.beamLockSec;     // 잠금·뜸 창(회피 리드)
+    const warnSec = lockSec + 0.5;                         // 추적 0.5s + 잠금 lockSec
     const ox = p.x; const oy = p.y - 200;
     const b = spawnBeam(w, ox, oy, Math.PI / 2, 20, 15, 0.5, -1, '', warnSec, true);
     p.iframeSec = 1e9;                                     // 관측 중 피격 무효(각만 본다)
 
-    // 충전 중: 플레이어를 옆으로 옮기면 빔 각이 플레이어를 향해 갱신된다
+    // ① 잠금창 전(충전 초반): 플레이어를 옮기면 각이 따라온다
     p.x = ox + 150;
     step(w, makeInput(), TICK_DT);
-    const aCharge = b.a;
-    const wantCharge = Math.atan2(p.y - oy, p.x - ox);
-    assert.near(aCharge, wantCharge, 1e-6, '충전 중 각이 플레이어를 겨눈다');
+    assert.near(b.a, Math.atan2(p.y - oy, p.x - ox), 1e-6, '잠금창 전엔 추적');
 
-    // 충전이 끝날 때까지 진행 → 각이 잠긴다
-    for (let t = 0; t < Math.ceil(warnSec / TICK_DT) + 1; t += 1) step(w, makeInput(), TICK_DT);
+    // ② 잠금창 진입 직전까지 진행 → 각 기록
+    const trackUntilTicks = Math.floor((warnSec - lockSec) / TICK_DT);
+    for (let t = 1; t < trackUntilTicks; t += 1) step(w, makeInput(), TICK_DT);
     const aLocked = b.a;
-    // 이제 플레이어를 반대로 크게 옮겨도 각이 안 변한다(활성 = 잠김)
+    // 잠금창 동안 플레이어를 크게 옮겨도 각이 안 변한다(뜸 = 회피 창)
     p.x = ox - 300;
     step(w, makeInput(), TICK_DT);
-    assert.near(b.a, aLocked, 1e-9, '활성 진입 후 각이 잠긴다(더는 안 따라온다)');
+    assert.near(b.a, aLocked, 1e-9, '잠금창에선 각이 멈춘다(발사 전 뜸)');
+
+    // ③ 활성(발사) 진입 후에도 잠긴 각 그대로
+    for (let t = 0; t < Math.ceil(lockSec / TICK_DT) + 2; t += 1) step(w, makeInput(), TICK_DT);
+    assert.near(b.a, aLocked, 1e-9, '발사도 잠긴 각 그대로');
   });
 });

@@ -527,7 +527,7 @@ function S2_schema() {
   }
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
-  closedKeys('S2', r.fairness, ['minTelegraphSec', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
+  closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
     'maxSimultaneousEnemyBullets', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');
