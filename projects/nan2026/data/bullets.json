@@ -34,7 +34,7 @@
       "status": null,
       "statusDurationSec": 0,
       "accel": 0,
-      "turnRateDegSec": 60,
+      "turnRateDegSec": 36,
       "retargetSec": 0.5
     },
     {
@@ -46,7 +46,7 @@
       "status": null,
       "statusDurationSec": 0,
       "accel": 0,
-      "turnRateDegSec": 30,
+      "turnRateDegSec": 20,
       "retargetSec": 0.6
     },
     {
