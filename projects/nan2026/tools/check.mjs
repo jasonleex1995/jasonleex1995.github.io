@@ -1887,8 +1887,8 @@ function S15_midBossElement() {
     }
   }
   const rule = D.stages.phase && D.stages.phase.midBossElementRule;
-  if (rule !== 'notThemeAndNotNormal') {
-    V('S15', `stages.phase.midBossElementRule = ${JSON.stringify(rule)} ≠ "notThemeAndNotNormal" (§8.9)`);
+  if (rule !== 'themeElseNonTheme') {
+    V('S15', `stages.phase.midBossElementRule = ${JSON.stringify(rule)} ≠ "themeElseNonTheme" (§8.9 v1.5)`);
   }
 }
 

@@ -65,15 +65,15 @@ function atSecList(world) {
  */
 function injectElement(world) {
   const run = world.run;
-  const theme = themeElement(world);              // finale = null → "테마가 아님"이 공허참
+  const theme = themeElement(world);
+  // §8.9(v1.5, 사용자 결정) — 중간보스는 «무조건 테마 속성»(화산=불 중간보스, 테마 일관성).
+  //   finale(테마 null)만 기존처럼 비-노말 후보에서 직전과 다르게 뽑는다(§8.16 서로 다른 속성).
+  if (theme !== null) { run.midBossElementPrev = theme; return theme; }
   let n = 0;
   const pick = [];
   for (let i = 0; i < ELEMENTS3.length; i += 1) {
     const el = ELEMENTS3[i];
-    if (el === theme) continue;                       // "테마가 아님"
-    // ★ 비복원은 **최종 스테이지에만** 걸린다(§8.16 「서로 다른 속성」). 테마 스테이지는 후보가
-    //   이미 2종뿐이라 여기서까지 빼면 두 마리가 강제로 교대한다 = 정본에 없는 규칙이 생긴다.
-    if (theme === null && el === run.midBossElementPrev) continue;
+    if (el === run.midBossElementPrev) continue;
     pick.push(el);
     n += 1;
   }

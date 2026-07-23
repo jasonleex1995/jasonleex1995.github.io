@@ -104,7 +104,7 @@ suite('midboss — 등장 스케줄 (§8.9)', () => {
 
 // ══════════════════════════════════════════════════════════════════════
 suite('midboss — 속성 주입 · HP (§8.9)', () => {
-  test('notThemeAndNotNormal — 테마 속성도 노말도 아니다', () => {
+  test('themeElseNonTheme — 테마 스테이지는 테마 속성으로 주입 (§8.9 v1.5)', () => {
     const data = loadData();
     let checked = 0;
     for (let seed = 1; seed <= 12; seed += 1) {
@@ -115,7 +115,7 @@ suite('midboss — 속성 주입 · HP (§8.9)', () => {
       const e = midOf(w);
       assert.ne(e, null, '등장했다');
       assert.ne(e.element, 'normal', '노말이 아니다');
-      assert.ne(e.element, theme, `테마(${theme}) 속성이 아니다`);
+      assert.eq(e.element, theme, `테마(${theme}) 속성이다 — 중간보스=테마`);
       checked += 1;
     }
     assert.eq(checked, 12, '12 시드 전부 검사했다 (vacuous 아님)');

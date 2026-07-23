@@ -15,7 +15,7 @@
         { "id": "thruster", "name": "스러스터", "partType": "mobility", "element": "water",
           "hp": 478, "radius": 22, "anchor": [0, 44], "contactDmg": 14, "shapeId": "fin", "score": 1200,
           "patternSet": [ { "emitterIds": ["mantaThrusterP1"] }, { "emitterIds": ["mantaThrusterP2"] }, { "emitterIds": ["mantaThrusterP3"] } ] },
-        { "id": "finL", "name": "좌 지느러미", "partType": "armor", "element": "fire",
+        { "id": "finL", "name": "좌 지느러미", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 26, "anchor": [-52, 10], "contactDmg": 15, "shapeId": "fin", "score": 1500,
           "patternSet": [ { "emitterIds": ["mantaFinLP1"] }, { "emitterIds": ["mantaFinLP2"] }, { "emitterIds": ["mantaFinLP3"] } ] },
         { "id": "finR", "name": "우 지느러미", "partType": "armor", "element": "grass",
@@ -34,10 +34,10 @@
       "summon": null,
       "core": { "element": "normal", "hp": 976, "radius": 40, "contactDmg": 16, "shapeId": "orb", "score": 8000 },
       "parts": [
-        { "id": "pylon", "name": "서리탑", "partType": "armament", "element": "fire",
+        { "id": "pylon", "name": "서리탑", "partType": "armament", "element": "water",
           "hp": 478, "radius": 22, "anchor": [0, -38], "contactDmg": 14, "shapeId": "cross", "score": 1300,
           "patternSet": [ { "emitterIds": ["frostCrownPylonP1"] }, { "emitterIds": ["frostCrownPylonP2"] }, { "emitterIds": ["frostCrownPylonP3"] } ] },
-        { "id": "crownL", "name": "좌관", "partType": "armor", "element": "grass",
+        { "id": "crownL", "name": "좌관", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 26, "anchor": [-56, 16], "contactDmg": 15, "shapeId": "spike", "score": 2400,
           "patternSet": [ { "emitterIds": ["frostCrownCrownLP1"] }, { "emitterIds": ["frostCrownCrownLP2"] }, { "emitterIds": ["frostCrownCrownLP3"] } ] },
         { "id": "crownR", "name": "우관", "partType": "armor", "element": "fire",
@@ -59,10 +59,10 @@
         { "id": "turret", "name": "포탑", "partType": "armament", "element": "fire",
           "hp": 478, "radius": 24, "anchor": [0, -40], "contactDmg": 14, "shapeId": "slab", "score": 1300,
           "patternSet": [ { "emitterIds": ["kilnTurretP1"] }, { "emitterIds": ["kilnTurretP2"] }, { "emitterIds": ["kilnTurretP3"] } ] },
-        { "id": "plate", "name": "흉갑", "partType": "armor", "element": "water",
+        { "id": "plate", "name": "흉갑", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 30, "anchor": [-52, 20], "contactDmg": 15, "shapeId": "ring", "score": 2400,
           "patternSet": [ { "emitterIds": ["kilnPlateP1"] }, { "emitterIds": ["kilnPlateP2"] }, { "emitterIds": ["kilnPlateP3"] } ] },
-        { "id": "vent", "name": "배기구", "partType": "armor", "element": "grass",
+        { "id": "vent", "name": "배기구", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 30, "anchor": [52, 20], "contactDmg": 15, "shapeId": "ring", "score": 2400,
           "patternSet": [ { "emitterIds": ["kilnVentP1"] }, { "emitterIds": ["kilnVentP2"] }, { "emitterIds": ["kilnVentP3"] } ] }
       ]
@@ -78,7 +78,7 @@
       "summon": null,
       "core": { "element": "normal", "hp": 976, "radius": 38, "contactDmg": 16, "shapeId": "hexPod", "score": 8000 },
       "parts": [
-        { "id": "carapace", "name": "갑각", "partType": "armor", "element": "water",
+        { "id": "carapace", "name": "갑각", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 30, "anchor": [-50, 26], "contactDmg": 15, "shapeId": "slab", "score": 2400,
           "patternSet": [ { "emitterIds": ["scarabCarapaceP1"] }, { "emitterIds": ["scarabCarapaceP2"] }, { "emitterIds": ["scarabCarapaceP3"] } ] },
         { "id": "stinger", "name": "침포", "partType": "armor", "element": "grass",
@@ -100,7 +100,7 @@
       "summon": null,
       "core": { "element": "normal", "hp": 976, "radius": 40, "contactDmg": 16, "shapeId": "bulb", "score": 8000 },
       "parts": [
-        { "id": "podL", "name": "좌 꼬투리", "partType": "armor", "element": "water",
+        { "id": "podL", "name": "좌 꼬투리", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 25, "anchor": [-54, 12], "contactDmg": 15, "shapeId": "orb", "score": 2400,
           "patternSet": [ { "emitterIds": ["thornKingPodLP1"] }, { "emitterIds": ["thornKingPodLP2"] }, { "emitterIds": ["thornKingPodLP3"] } ] },
         { "id": "podR", "name": "우 꼬투리", "partType": "armor", "element": "fire",
@@ -122,7 +122,7 @@
       "summon": null,
       "core": { "element": "normal", "hp": 976, "radius": 38, "contactDmg": 16, "shapeId": "bulb", "score": 8000 },
       "parts": [
-        { "id": "shell", "name": "이끼갑", "partType": "armor", "element": "fire",
+        { "id": "shell", "name": "이끼갑", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 30, "anchor": [-50, 28], "contactDmg": 15, "shapeId": "hexPod", "score": 2400,
           "patternSet": [ { "emitterIds": ["mireShellP1"] }, { "emitterIds": ["mireShellP2"] }, { "emitterIds": ["mireShellP3"] } ] },
         { "id": "tendril", "name": "촉수각", "partType": "armor", "element": "water",
