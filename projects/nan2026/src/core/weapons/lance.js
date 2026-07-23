@@ -14,8 +14,9 @@
  *   **가까운 순으로 pierce 마리**까지 꿴다. hitCooldownSec 0 = 한 발에 한 대상 1회.
  * ★ 진화(레일건) evoFullHeight — 사거리가 아레나 세로 전체가 되고 관통이 무제한이 된다.
  *
- * 슬롯 스크래치: a0 = 발사 주기 타이머(차지 구간 포함)
+ * 슬롯 스크래치: a0 = 발사 주기 타이머(차지 구간 포함) · a1 = 발사 섬광 타이머(렌더 신호)
  *   a0 이 chargeSec 이하인 구간이 «차지»이며(렌더가 그 구간을 그린다), 0 에 닿는 순간 발사한다.
+ *   발사 시 a1 = chargeSec 로 세워 drawLance 가 그 동안 밝은 빔을 그린다(즉발 무기의 가시화).
  */
 
 import { hitEnemy } from '../damage.js';
@@ -85,12 +86,16 @@ function fire(world, slot, eff) {
     beam(world, slot, eff, bx, length, limit, stamp);
     bx += eff.beamWidthPx;
   }
+  // ★ 렌더 신호(§7.4) — 랜스는 즉발이라 «방금 쐈다»를 알릴 흔적이 없다. a1 에 섬광 타이머를
+  //   세워(= chargeSec, 리터럴 금지라 파생값) drawLance 가 그 동안 밝은 빔을 그린다.
+  slot.a1 = eff.chargeSec;
 }
 
 export function update(world, slot, eff, dt) {
   if (eff.targetMode !== FORWARD) {
     throw new Error(`lance: 미구현 targetMode "${eff.targetMode}" — weapons.json 은 forward 만 쓴다 (§9.5)`);
   }
+  if (slot.a1 > 0) slot.a1 -= dt;                     // 발사 섬광 타이머 감산(렌더용)
   slot.a0 -= dt;
   if (slot.a0 > 0) return;                            // 차지 구간 포함(a0 ≤ chargeSec 이 «차지»)
   slot.a0 += eff.cooldownSec;

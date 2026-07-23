@@ -20,6 +20,7 @@
  */
 
 import { drawArenaBands } from './hud.js';
+import { recomputeEff } from '../core/state.js';   // §5.3 랜스 빔 기하 재구성용(즉발 무기 가시화)
 
 // ---------------------------------------------------------------------------
 // 색 — sRGB ↔ CIE Lab. §7.12.8 의 「L*+25」와 §7.3 의 「채도 0」이 실제 수를 요구한다
@@ -1045,6 +1046,40 @@ function drawDrones(ctx, world, pal, interp, alpha, px, py) {
   }
 }
 
+// §5.3 랜스(즉발 빔) — 탄이 없어 «작동이 안 보이던» 무기(드론과 같은 부류). 차지 예고 + 발사 섬광.
+//   §7.4/I-1: 플레이어 FX 는 additive · 하드 외곽선 금지 · 알파 ≤ playerBulletMaxAlpha. lance.js:78-79 의
+//   evoFullHeight 기하(length=arena.h)를 그대로 미러 → 레일건이 아레나 세로 전체로 읽힌다.
+function drawLance(ctx, world, pal, px, py) {
+  const arena = world.data.rules.view.arena;
+  const cap = world.data.rules.render.playerBulletMaxAlpha;
+  const slots = world.slots;
+  for (let si = 0; si < slots.length; si += 1) {
+    const slot = slots[si];
+    if (slot.weaponId === null || slot.family !== 'lance') continue;
+    const eff = recomputeEff(world, slot);
+    const charging = slot.a0 > 0 && slot.a0 <= eff.chargeSec;
+    const firing = slot.a1 > 0;
+    if (!charging && !firing) continue;
+    let length = eff.rangePx;
+    if (slot.evolved && eff.evoFullHeight) length = arena.h;   // 레일건 = 세로 전체
+    const topY = py - length;
+    const col = pal.element[slot.stampElement] || pal.hud.textPrimary;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const n = eff.count;
+    let bx = px - (n - 1) * eff.beamWidthPx * 0.5;
+    for (let i = 0; i < n; i += 1) {
+      let a; let w;
+      if (firing) { const t = slot.a1 / eff.chargeSec; a = 0.75 * t; w = eff.beamWidthPx; }        // 섬광(감쇠)
+      else { const c = 1 - slot.a0 / eff.chargeSec; a = 0.28 * c; w = eff.beamWidthPx * (0.35 + 0.65 * c); } // 차지
+      ctx.fillStyle = rgba(col, Math.min(a, cap));
+      ctx.fillRect(bx - w * 0.5, topY, w, length);
+      bx += eff.beamWidthPx;
+    }
+    ctx.restore();
+  }
+}
+
 export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   const v = world.data.rules.view;
   const a = v.arena;
@@ -1063,6 +1098,7 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   drawEnemies(ctx, world, pal, fx, interp, alpha);            // 5 (§7.7 임팩트 프리즈 = 본체 팝)
   const pp = drawPlayer(ctx, world, pal, fx, interp, alpha);  // 6
   drawDrones(ctx, world, pal, interp, alpha, pp.x, pp.y);     // 6.5 — 위성 편대(테더로 플레이어와의 관계 표시)
+  drawLance(ctx, world, pal, pp.x, pp.y);                     // 6.6 — 랜스 빔(플레이어 위 · 적 탄 9 아래 = I-4)
   drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9
