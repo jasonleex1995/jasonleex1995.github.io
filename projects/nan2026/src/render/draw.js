@@ -510,9 +510,10 @@ function drawPickups(ctx, world, pal, interp, alpha) {
       ctx.arc(x, y, 5, 0, Math.PI * 2);
       ctx.arc(x, y, 1.8, 0, Math.PI * 2, true);
       ctx.fill('evenodd');
-    } else if (q.kind === 'xp') {                            // 작은 마름모
+    } else if (q.kind === 'xp') {                            // 마름모 — 값이 클수록 크게 (플레이테스트 #5b)
       ctx.fillStyle = pal.pickup.xp;
-      glyphPath(ctx, 'water', x, y, 2.6);
+      const s = 2.2 + Math.min(q.value, 24) * 0.09;          // 1→2.3 · 6→2.7 · 12→3.3 · 병합24+→4.4
+      glyphPath(ctx, 'water', x, y, s);
       ctx.fill();
     } else {                                                 // heal — §7.12.4 목록 밖이므로 호박 금지
       ctx.fillStyle = pal.hud.hpFill;
