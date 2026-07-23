@@ -215,7 +215,9 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     s.effDirty = true;
     const e7 = recomputeEff(w, s);
     assert.eq(e7.pierce, 1, 'seeker Lv7 pierce = 1 (levels[6]) — 증발하지 않는다');
-    assert.eq(e7.dmg, 16, 'Lv7 dmg = 16 (levels[5] 이 Lv7 까지 유지, levels[6] 은 dmg 미변경)');
+    // ★ 하드코딩 대신 데이터에서 유도(튜닝에 강함): Lv6(levels[5]) 이 dmg 를 정하고 Lv7 은 미변경 → 상속
+    const wantDmg = w.data.weapons.weapons.find((x) => x.id === 'seeker').levels[5].dmg;
+    assert.eq(e7.dmg, wantDmg, `Lv7 dmg = ${wantDmg} (levels[5] 이 Lv7 까지 유지, levels[6] 은 dmg 미변경 → 상속)`);
   });
 
   test('forward levels[4] = {count:2, spreadDeg:6} 누적 (양성)', () => {
