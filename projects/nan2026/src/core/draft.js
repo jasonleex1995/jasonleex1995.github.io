@@ -98,8 +98,13 @@ export function candidates(world) {
     const s = world.slots[i];
     if (s.weaponId === null) continue;
     if (s.level >= MAX_WEAPON_LEVEL) continue;              // §11.1 — Lv8 이면 그 카드 제외
-    // §9.5 — Lv7 → Lv8 레벨업 카드 그 자체가 진화 카드다
+    // §9.5(v1.5) — Lv7→Lv8 진화 카드는 «짝 패시브»가 Lv≥threshold 일 때만 등장한다(뱀서식).
+    //   짝이 부족하면 진화 카드를 내지 않는다 → 그 무기는 Lv7 에서 멈춘다.
     const isEvo = s.level + 1 === MAX_WEAPON_LEVEL;
+    if (isEvo) {
+      const req = world.weaponDefs[s.family].evolution.requiresPassive;
+      if (passiveLevel(world, req.id) < req.level) continue;
+    }
     out.push({ category: CAT_WEAPON_LEVEL, key: `${CAT_WEAPON_LEVEL}:${s.weaponId}`,
       slot: i, weaponId: s.weaponId, from: s.level, to: s.level + 1, isEvolution: isEvo,
       weight: cw.weaponLevel * (isEvo ? d.weaponLevelEvolutionBonus : 1) });

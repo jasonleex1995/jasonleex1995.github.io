@@ -14,7 +14,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, giveWeapon, levelUpWeapon } from '../src/core/state.js';
+import { createWorld, giveWeapon, levelUpWeapon, givePassive } from '../src/core/state.js';
 import { investElement } from '../src/core/stance.js';
 import {
   candidates, buildDraft, rerollDraft, applyCard,
@@ -64,12 +64,17 @@ suite('draft/candidates', () => {
     assert.eq(c.weight, d.categoryWeights.passive * d.passiveNewBonus, '신규 패시브 보너스');
   });
 
-  test('Lv7 무기의 레벨업 카드 = 진화 = weaponLevelEvolutionBonus 가중치 (§9.5)', () => {
+  test('Lv7 진화 카드는 짝 패시브 Lv3 이 있어야 등장한다 (§9.5 v1.5 뱀서식)', () => {
     const w = mkWorld();
     const d = w.data.meta.draft;
     for (let i = 0; i < 6; i += 1) levelUpWeapon(w, 0);   // forward Lv1 → Lv7
-    const c = candidates(w).find((x) => x.category === 'weaponLevel' && x.weaponId === 'forward');
-    assert.eq(c.isEvolution, true, 'Lv7→Lv8 = 진화');
+    // 짝 패시브(overclock) 없이는 진화(Lv8) 카드가 나오지 않는다 → 무기는 Lv7 에서 멈춘다
+    let c = candidates(w).find((x) => x.category === 'weaponLevel' && x.weaponId === 'forward');
+    assert.eq(c, undefined, '짝 패시브 없으면 Lv8 진화 카드 미등장');
+    // overclock 을 Lv3 까지 투자하면 진화 카드가 등장한다
+    for (let i = 0; i < 3; i += 1) givePassive(w, 'overclock');
+    c = candidates(w).find((x) => x.category === 'weaponLevel' && x.weaponId === 'forward');
+    assert.eq(c.isEvolution, true, 'Lv7→Lv8 = 진화 (짝 패시브 Lv3 충족)');
     assert.eq(c.weight, d.categoryWeights.weaponLevel * d.weaponLevelEvolutionBonus, '진화 보너스 가중치');
   });
 

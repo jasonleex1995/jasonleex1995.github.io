@@ -2192,12 +2192,28 @@ data/bosses.json     data/stages.json     data/meta.json
 | **id 네임스페이스** | ★ **`id == family`** (12종 1:1). `forward fan seeker lance orbit aura mine boomerang barrage omni drone nova`. 초안 C의 `blitz/fanout/pulse/return/rearguard/option` 네임스페이스는 **폐기.** `startWeaponId = "forward"` |
 | `levels` | **정확히 8행**, `base`에 대한 부분 오버라이드 (§9.3의 유일한 예외) |
 | 레벨업 = 파라미터 델타 | 거동 변화도 파라미터로만 (`pierce: 0→1`, `count: 1→3`). **Lv1~7의 레벨업은 계약 안의 숫자만 바꾼다** |
-| **★ 진화 (확정)** | **Lv7 → Lv8 레벨업 카드 그 자체가 진화 카드다.** 자동도, 별도 카테고리도, 패시브 페어링도 아니다 |
+| **★ 진화 (확정 · v1.5 뱀서식 개정)** | **진화 = 무기 Lv8 + «짝 패시브» 콤보다(뱀서식).** Lv7→Lv8 진화 카드는 그 무기의 짝 패시브(`evolution.requiresPassive.id`)가 **Lv≥`requiresPassive.level`(=3)** 일 때만 드래프트에 등장한다. 짝이 없으면 무기는 **Lv7 에서 멈춘다**(진화 불가). 진화 카드 «그 자체»가 Lv8 레벨업 카드인 점·자동 아님·별도 카테고리 아님은 유지. **짝 = 데이터 소유(`weapons[].evolution.requiresPassive`), 무기 유형에서 «유추 가능»하고 기계적으로 유효(그 무기의 무효 패시브 아님)해야 한다 — `check.mjs` S41 이 강제.** ★ **v1.4까지의 「Lv8 카드 그 자체 = 진화, 패시브 페어링 아님」은 사용자 결정(2026-07-23)으로 뒤집혔다** |
 | **★ 진화의 코드 표현 (blocker)** | 각 패밀리의 update 함수는 **`w.evolved` 불리언 하나를 읽는다.** 진화 = 같은 함수 안의 `if (w.evolved)` 분기 **정확히 1개** + `evolution.params`의 **`evo*` 접두 파라미터**(계약에 선언됨). **패밀리당 ~15줄 × 12 = 약 180줄이 4주 예산의 확정 입력값이다.** |
 | `family` 변경 | **금지.** 진화해도 슬롯의 패밀리 정체성은 유지된다. 초안 F의 `evolution.family` 변경(seeker→drone)은 폐기 — 계약이 두 개 겹치고 슬롯 정체성이 몰래 바뀐다 |
 | 진화 `flags` | **폐기.** 초안 C의 `flags: ["distinct_targets", ...]` 임의 문자열은 AI가 발명할 수 있다 → `evolution.params`의 선언된 `evo*` 키로만 |
 | 불가역 / 슬롯 | 진화체는 **같은 슬롯 인덱스 유지** → 슬롯 순서·임뷰 계산에 특별 취급 없음. 스탠스 임뷰도 동일하게 받는다 |
 | Lv 종료 | Lv8에서 종료. Lv9 없음 → `weaponLevel` 풀에서 제외 |
+
+**★★ 진화 짝 패시브 표 (v1.5 확정 · 값은 `weapons[].evolution.requiresPassive` 소유 · `check.mjs` S41)**
+
+> ★ **유추가능성 실증 채택**: 7명 독립 추측 워크숍(무기·패시브 «설명만» 제공, 의도 은닉)으로 «사람이 유추 가능한 짝»을 실측했다. 대부분 무기의 직관적 강화가 «투사체 수↑(autoload)」·「범위↑(coil)」로 뭉쳤다(무기 «유형»이 짝을 정한다). 애매하게 갈린 `orbit`·`barrage`는 **진화 효과**가 가리키는 짝으로 확정(분산 + 게이트 강화). threshold = 3(튜너블).
+
+| 유형 | 짝 패시브 | 무기 | 유추 근거 |
+|---|---|---|---|
+| 연사 | `overclock` | `forward` | 오버드라이브 = 연사 램프 |
+| 관통 | `coating` | `lance` | 레일건 = 무제한 관통 |
+| 범위 | `coil` | `aura` · `nova` · `barrage` | 오라·대폭발·오비탈(반경2배) = 범위 |
+| 다투사체 | `autoload` | `fan` · `seeker` · `mine` · `omni` · `boomerang` | 부채·스웜·기뢰밭·전방위·왕복 = 탄 수 |
+| 편대/잔상 | `afterimage` | `drone` | 잔상 편대 = 잔광 |
+| 탄소거 | `reactive` | `orbit` | 이지스 = 적 탄 소거 = 반응장갑 |
+
+- ★ **기계적 유효성 (S41 강제)**: 짝 패시브는 그 무기의 «무효» 목록에 들면 안 된다 — `coating` 무효(`orbit aura mine barrage nova boomerang`) · `autoload` 무효(`aura nova drone`). 위 표는 전부 유효(예: `boomerang`은 `coating` 무효라 `autoload`).
+- ★ **밸런스 부수효과**: 진화가 무기 Lv8 + 짝 패시브 Lv3 콤보가 되어 후반 진화 수가 줄고 화력이 낮아진다 → §13.6의 속성 게이트가 자연히 강화된다(dpsRef 재도출 필요).
 
 **★★ 무기 런타임 계약 — `update` · `onExpire` · `killEnemy` (v1.4 신설 — D2·D3 blocker, 12 패밀리의 공통 경계면)**
 

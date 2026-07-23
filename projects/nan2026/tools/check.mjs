@@ -91,7 +91,7 @@ const EX = (check, n) => { examined[check] = (examined[check] || 0) + n; };
 const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
-  'S30', 'S31', 'S32', 'S33', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S40',
+  'S30', 'S31', 'S32', 'S33', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S40', 'S41',
   'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
@@ -730,7 +730,11 @@ function S2_files() {
     closedKeys('S2', w, ['id', 'family', 'name', 'desc', 'elementStampMode', 'base', 'levels', 'evolution'],
       `weapons[${w.id}]`);
     if (isObj(w.evolution)) {
-      closedKeys('S2', w.evolution, ['name', 'desc', 'params'], `weapons[${w.id}].evolution`);
+      closedKeys('S2', w.evolution, ['name', 'desc', 'params', 'requiresPassive'], `weapons[${w.id}].evolution`);
+      // §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 의미 검증은 S41.
+      if (isObj(w.evolution.requiresPassive)) {
+        closedKeys('S2', w.evolution.requiresPassive, ['id', 'level'], `weapons[${w.id}].evolution.requiresPassive`);
+      }
       // §9.5: 진화 flags 는 폐기 — evo* 파라미터로만
       if (has(w.evolution, 'flags')) {
         V('S2', `weapons[${w.id}].evolution.flags: 폐기된 키 — §9.5 "임의 문자열은 AI가 발명할 수 있다"`);
@@ -2791,6 +2795,43 @@ function S40_shopSchema() {
   EX('S40', n);
 }
 
+// §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 12 무기 전부 requiresPassive{id,level} 를 갖고,
+//   짝은 실재 패시브 · level∈[1,maxLevel] · 그 무기에 기계적으로 유효(무효 패시브 아님).
+function S41_evolutionPairing() {
+  const byId = {};
+  for (const p of rowsQuiet(D.passives.passives)) if (isObj(p)) byId[p.id] = p;
+  const maxLv = D.passives.maxLevel;
+  const hooks = D.rules.passiveHooks;
+  let n = 0;
+  for (const w of rowsQuiet(D.weapons.weapons)) {
+    if (!isObj(w) || !isObj(w.evolution)) continue;
+    const rp = w.evolution.requiresPassive;
+    if (!isObj(rp)) {
+      V('S41', `weapons[${w.id}].evolution.requiresPassive: 없음 — §9.5(v1.5) 진화는 짝 패시브를 요구한다`);
+      continue;
+    }
+    n += 1;
+    if (!byId[rp.id]) {
+      V('S41', `weapons[${w.id}]: requiresPassive.id "${rp.id}" — 실재하지 않는 패시브 (§9.5)`);
+      continue;
+    }
+    if (!num(rp.level) || rp.level < 1 || rp.level > maxLv) {
+      V('S41', `weapons[${w.id}]: requiresPassive.level ${JSON.stringify(rp.level)} — [1, ${maxLv}] 밖 (§9.5)`);
+    }
+    // 기계적 유효성 — 짝 패시브가 이 무기에 무효면 «투자해도 소용없는 진화 조건»이 된다
+    const h = hooks[w.family];
+    if (isObj(h)) {
+      if (rp.id === 'coating' && h.pierceApplies === false) {
+        V('S41', `weapons[${w.id}]: 짝 coating(관통 +N)은 이 무기에 무효(pierceApplies=false) — §9.5 "기계적으로 유효해야 한다"`);
+      }
+      if (rp.id === 'autoload' && (h.countKey === null || h.countKey === undefined)) {
+        V('S41', `weapons[${w.id}]: 짝 autoload(발사 개체 수 +N)은 이 무기에 무효(countKey=null) — §9.5`);
+      }
+    }
+  }
+  EX('S41', n);
+}
+
 // ===========================================================================
 //  §13.1 certify 게이트 — 정적으로 검사 가능한 것
 //  ★ v1.3: certify.m 이 인쇄됐다 (§13.1.0) → 19개 스텁이 읽을 값을 갖는다
@@ -3177,6 +3218,7 @@ function main() {
   S38_midBossLeave();        // §9.8.2
   S39_waveUnlockCoherence(); // §9.9
   S40_shopSchema();          // §11.2.1
+  S41_evolutionPairing();    // §9.5 v1.5 진화 짝 패시브
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB

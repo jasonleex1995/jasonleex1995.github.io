@@ -508,6 +508,22 @@ export function botDraftPick(world, draft) {
   if (cards.length === 0) return 0;
   if (b.policy.draft === 'random') return Math.floor(world.rng.bot.f() * cards.length);
 
+  // §9.5(v1.5) — 진화 준비: Lv≥6 무기의 «짝 패시브»가 부족하면 그 패시브 카드를 최우선으로 집는다.
+  //   진화가 후반 화력의 핵심이므로 어떤 정책이든(무투자 정책도) 이 콤보는 노린다 — 진화 게이트의 전제.
+  for (let si = 0; si < world.slots.length; si += 1) {
+    const s = world.slots[si];
+    if (s.weaponId === null || s.level < 6) continue;
+    const req = world.weaponDefs[s.family].evolution.requiresPassive;
+    let lv = 0;
+    for (let j = 0; j < world.passives.length; j += 1) {
+      if (world.passives[j].id === req.id) { lv = world.passives[j].level; break; }
+    }
+    if (lv >= req.level) continue;
+    for (let i = 0; i < cards.length; i += 1) {
+      if (cards[i].category === 'passive' && cards[i].passiveId === req.id) return i;
+    }
+  }
+
   const noElement = b.policy.forceNoElement;
   let order;
   if (b.policy.draft === 'weaponRush') order = ['newWeapon', 'weaponLevel', 'passive', 'elementLevel'];

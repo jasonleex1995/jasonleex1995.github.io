@@ -357,8 +357,12 @@ function checkWeapons(c, w) {
       }
     }
     // §9.5 — evolution.params 의 키 집합 == 그 family 의 evo* 목록
-    if (c.closed(`${p}.evolution`, it.evolution, ['name', 'desc', 'params'])) {
+    if (c.closed(`${p}.evolution`, it.evolution, ['name', 'desc', 'params', 'requiresPassive'])) {
       c.closed(`${p}.evolution.params`, it.evolution.params, FAMILY_EVO_KEYS[it.family]);
+      // §9.5(v1.5) — 진화 짝 패시브 (뱀서식). 의미 검증은 check.mjs S41.
+      if (it.evolution.requiresPassive !== undefined) {
+        c.closed(`${p}.evolution.requiresPassive`, it.evolution.requiresPassive, ['id', 'level']);
+      }
     }
   }
 }
