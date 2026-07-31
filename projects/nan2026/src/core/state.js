@@ -145,7 +145,7 @@ function makePickup() {
 
 function makeZone() {
   // §13.1.1 srcArch — 「누가 깔았는가」(치사 지분). 플레이어 기뢰·출처불명은 '' (분모에서 제외).
-  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, age: 0, fromPlayer: false, srcArch: '' };
+  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, warnSec: 0, age: 0, fromPlayer: false, srcArch: '' };
 }
 
 function makeDrone() {
@@ -719,11 +719,12 @@ export function spawnPickup(world, kind, value, x, y) {
  * §8.5 zone — 원형 장판. 적 장판(fromPlayer=false)은 안에 있는 플레이어를 때리고, 플레이어 장판
  *   (무기 A2)은 적을 때린다. 피해는 **적용 1회**이며 i-frame 이 게이트한다(§8.5 「dps 는 없다」).
  */
-export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer, srcArch) {
+export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer, srcArch, warnSec) {
   const z = world.zones.alloc();
   if (z === null) { world.capHits.zone += 1; return null; }
   z.x = x; z.y = y; z.radius = radius; z.dmg = dmg;
   z.activeSec = activeSec; z.age = 0; z.fromPlayer = fromPlayer;
+  z.warnSec = warnSec === undefined ? 0 : warnSec;    // §8.5 v1.5 — mortar «퓨즈»(착탄→폭발). 0 = 즉시 활성(기존)
   z.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속
   return z;
 }

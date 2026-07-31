@@ -180,6 +180,21 @@ function fireZone(world, e, em) {
 }
 
 /**
+ * §8.5 mortar — «폭탄»(v1.5): 플레이어 예측 위치로 던져 fuseSec 뒤 터진다(반경 radius·dmg).
+ *   착탄점에 warnSec=fuseSec 장판을 놓는다 → 퓨즈 동안 예고(무해)만, 그 뒤 activeSec 폭발(hazards 소유).
+ *   예측 = 현재 위치 + 속도×leadSec (제자리면 발밑, 이동 중이면 진행 앞) → 방향을 바꿔야 피한다.
+ *   착탄점은 아레나 안으로 클램프. zone 과 달리 «개체 자리»가 아니라 «표적 자리»에 놓인다.
+ */
+function fireMortar(world, e, em, p) {
+  const a = world.data.rules.view.arena;
+  let tx = p.x + p.vx * em.leadSec;
+  let ty = p.y + p.vy * em.leadSec;
+  if (tx < a.x) tx = a.x; else if (tx > a.x + a.w) tx = a.x + a.w;
+  if (ty < a.y) ty = a.y; else if (ty > a.y + a.h) ty = a.y + a.h;
+  spawnZone(world, tx, ty, em.radius, em.dmg, em.activeSec, false, srcArchOf(e), em.fuseSec);
+}
+
+/**
  * §8.5 · §7.4 laser — 개체에서 뻗는 폭 widthPx 의 빔. angleDeg 는 화면 표준(0=+x, 90=+y 아래).
  *   ★ 2단(§7.4 「충전이 곧 텔레그래프」): telegraphSec 동안 **충전(경고·무해)** — 이때 그려지는
  *     점선/보간이 예고다 — 뒤에 activeSec 동안 **활성(피해)**. trackDuringCharge 면 충전 중 플레이어를
@@ -215,6 +230,7 @@ function fireVolley(world, e, em, volleyIdx, p, look) {
   else if (t === 'spiral') fireSpiral(world, e, em, volleyIdx, count);
   else if (t === 'wall') fireWall(world, e, em, count);
   else if (t === 'zone') fireZone(world, e, em);
+  else if (t === 'mortar') fireMortar(world, e, em, p);
   else if (t === 'laser') fireLaser(world, e, em, p, look);
   else throw new Error(`emitters: 미지의 이미터 타입 "${t}" (${em.id}, §8.5 — 폴백 금지)`);
 }

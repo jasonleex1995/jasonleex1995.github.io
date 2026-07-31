@@ -36,7 +36,7 @@ const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCou
   'xpGainMul', 'coinGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];
-const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall'];
+const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar'];
 const BOSS_TIERS = ['stage', 'mid', 'final'];
 
 /** §9.5 — 패밀리별 base 필수 키 집합 12행 (공통 ✔ + 고유 non-evo). 동결 */
@@ -102,12 +102,13 @@ const EMIT_OWN = {
   laser: ['widthPx', 'activeSec', 'angleDeg', 'trackDuringCharge'],
   zone: ['radius', 'activeSec', 'dmg'],
   wall: ['count', 'gapCount', 'gapWidthPx', 'speed'],
+  mortar: ['radius', 'activeSec', 'dmg', 'fuseSec', 'leadSec'],
 };
 
 /** §7.4 — 텔레그래프 하한 3축. 겹치면 max */
 const TELEGRAPH_FLOOR_BY_TYPE = {
   straight: 0.55, fan: 0.60, aimed: 0.60, ring: 0.60,
-  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20,
+  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60,
 };
 
 /** §9.4 — rules.json 루트 = schemaVersion + 정확히 17 블록 */
@@ -688,6 +689,10 @@ function checkFairness(c, d) {
     if (b !== null && b.status === 'stun' && b.statusDurationSec > f.maxStunSec) {
       c.fail(`${p} → bullets[${b.id}].statusDurationSec`,
         `${b.statusDurationSec} > fairness.maxStunSec(${f.maxStunSec}) (§12.4)`);
+    }
+    // (6) §7.4 v1.5 — mortar 의 퓨즈(착탄→폭발)가 곧 회피 창 → 절대 하한 강제(이미터 로컬 축)
+    if (e.type === 'mortar' && typeof e.fuseSec === 'number' && e.fuseSec < f.minTelegraphSec - 1e-9) {
+      c.fail(`${p}.fuseSec`, `${e.fuseSec} < fairness.minTelegraphSec(${f.minTelegraphSec}) — 착탄 후 폭발까지가 회피 창 (§7.4)`);
     }
   }
 }

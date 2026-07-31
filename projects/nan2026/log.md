@@ -818,6 +818,16 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - 터치포인트 전수 확인: emitters·bot·step·score·state 는 이미 개체별(적 전수 순회) → 동시 다수 자동 대응. 변경은 midboss.js + HUD + 테스트에 국한.
 - 검증: check0 · 405테스트(스폰카운터 방식·동시다수 테스트로 갱신) · 무적50+실50런 crash0·capHits0 · 결정적 재현 OK · 브라우저 클린 · **적대적 리뷰 워크플로**(3렌즈 → 검증).
 
+### 2026-07-31 — 신규 적 공격: 박격포(mortar) — 폭탄 «표적 착탄 + 퓨즈»
+
+사용자: 적 공격 중 «특정 위치로 폭탄을 발사 → 몇초 뒤 폭발». → 이미터 어휘 9번째 `mortar` 신설(§8.5 v1.5).
+- **메커닉**: 개체 자리가 아니라 «플레이어 예측 표적»(현재+속도×leadSec, 아레나 클램프)에 착탄. zone 재사용 + `warnSec=fuseSec` 필드 — 퓨즈 동안 예고(무해=회피 창), 그 뒤 activeSec 폭발. draw: 착탄 표적 링 + 퓨즈 수축 링 → 폭발.
+- **귀속**: 이미 «mortarHulk»(volcano·finale) 라는 이름의 적이 있어 그 `hulkZone` 을 zone→mortar 로 전환(radius70·dmg10·fuseSec1.4·leadSec0.4·activeSec0.6). 신규 적/로스터/웨이브 0.
+- **하위호환**: 기존 zone(warnSec 0)은 age0부터 피해·activeSec 반납 = 동작 불변. mine 장판은 fromPlayer라 hazards 에서 스킵 — 무관. 전 spawnZone 호출자 확인.
+- **게이트**: check+schema EMITTER_TYPES 8→9 · EMIT_OWN · 텔레그래프 하한 0.60 · S19 확장((zone|mortar)⟺bulletId null) + **fuseSec ≥ minTelegraphSec 강제**(공정성 기계검사).
+- ★ **적대적 리뷰 워크플로(3렌즈)가 실결함 포착**: check.mjs 의 텔레그래프 하한 표·S19 퓨즈 검사를 확장하면서 **런타임 로더(schema.mjs)의 짝 검사를 안 옮김** → 로더는 under-telegraphed/짧은-퓨즈 mortar 를 통과시키는데 CI 는 거부(게이트 불일치). 로더에도 `mortar:0.60` + fuseSec≥minTelegraph 추가 → 두 게이트 일치 실증. (mortarHulk 실값 0.9/1.4 는 원래 통과라 라이브 영향 없음, 계약 구멍만 메움.)
+- 검증: check0 · **408테스트**(hazard 퓨즈 + 이미터 표적/예측 3종 추가) · 실40런 crash0·capHits0 · 브라우저 클린 · 로더 거부 실증.
+
 ---
 
 ## 다음 할 일

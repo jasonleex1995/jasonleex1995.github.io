@@ -77,6 +77,41 @@ suite('emitters · firstDelaySec + telegraphSec 리드 (§7.4/§12.4 — 예고 
 });
 
 // ─────────────────────────────────────────────────────────────────────────
+suite('emitters · mortar 박격포 (§8.5 v1.5 — 표적 착탄 + 퓨즈)', () => {
+  test('개체 자리가 아니라 «플레이어 표적»에 warnSec=fuseSec 장판을 놓는다', () => {
+    const w = mkSolo(5);
+    const a = w.data.rules.view.arena;
+    const p = w.player;
+    p.x = a.x + a.w * 0.3; p.y = a.y + a.h * 0.7; p.vx = 0; p.vy = 0;   // 표적(정지)
+    const em = emit(w, 'hulkZone');
+    assert.eq(em.type, 'mortar', 'hulkZone = mortar');
+    const def = arch(w, 'mortarHulk');
+    const ex = a.x + a.w * 0.6, ey = a.y + 120;                         // 개체는 다른 자리
+    spawnEnemy(w, 'mortarHulk', 'fire', ex, ey, def.hp, false);
+    for (let i = 0; i < 600 && w.zones.live === 0; i += 1) emitters(w, dt);
+    assert.eq(w.zones.live, 1, '박격포 착탄 = 장판 1개');
+    const z = w.zones.items.find((zz) => zz.alive);
+    assert.near(z.x, p.x, 1e-6, '착탄 x = 플레이어 표적(개체 자리 아님)');
+    assert.near(z.y, p.y, 1e-6, '착탄 y = 플레이어 표적');
+    assert.near(z.warnSec, em.fuseSec, 1e-9, 'warnSec = fuseSec(퓨즈)');
+    assert.gt(Math.abs(z.x - ex), 50, '개체 자리와 다르다(표적 착탄)');
+  });
+
+  test('이동 중인 플레이어는 진행 방향 앞(leadSec 예측)으로 착탄한다', () => {
+    const w = mkSolo(6);
+    const a = w.data.rules.view.arena;
+    const p = w.player;
+    p.x = a.x + a.w * 0.5; p.y = a.y + a.h * 0.5; p.vx = 120; p.vy = 0;  // 오른쪽 이동
+    const em = emit(w, 'hulkZone');
+    const def = arch(w, 'mortarHulk');
+    spawnEnemy(w, 'mortarHulk', 'fire', p.x, a.y + 120, def.hp, false);
+    for (let i = 0; i < 600 && w.zones.live === 0; i += 1) { emitters(w, dt); }  // p.vx 유지(step 없음)
+    const z = w.zones.items.find((zz) => zz.alive);
+    assert.near(z.x, p.x + p.vx * em.leadSec, 1e-6, '착탄 = 현재 위치 + 속도×leadSec');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
 suite('emitters · 개수 · 케이던스 (§8.5 — 메트로놈)', () => {
   test('한 볼리 = emitter.count 발, everySec 뒤 다음 볼리', () => {
     const w = mkSolo(4);

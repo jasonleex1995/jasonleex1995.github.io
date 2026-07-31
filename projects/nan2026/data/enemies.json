@@ -427,7 +427,7 @@
     },
     {
       "id": "hulkZone",
-      "type": "zone",
+      "type": "mortar",
       "bulletId": null,
       "from": "self",
       "telegraphSec": 0.90,
@@ -436,8 +436,10 @@
       "repeat": 1,
       "restSec": 0,
       "radius": 70,
-      "activeSec": 3.0,
-      "dmg": 10
+      "activeSec": 0.6,
+      "dmg": 10,
+      "fuseSec": 1.4,
+      "leadSec": 0.4
     },
     {
       "id": "magmaZone",

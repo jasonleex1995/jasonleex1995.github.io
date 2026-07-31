@@ -273,7 +273,7 @@ function census() {
 // 동결 어휘 (§13.4 S3)
 // ---------------------------------------------------------------------------
 const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'rearIn'];              // §8.4 (8)
-const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall'];                   // §8.5 (8)
+const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar'];         // §8.5 (9, v1.5 mortar)
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];                                // §8.7 · §9.9.2 (6)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
@@ -353,7 +353,7 @@ const FAMILY_TARGET_MODES = {
 // §7.4 텔레그래프 하한 — 3축 (거동별 표 · 탄 상태 · 개체 클래스). ★ 겹치면 max
 const TELEGRAPH_FLOOR_BY_TYPE = {              // §7.4 · §8.5 거동별 표
   straight: 0.55, fan: 0.60, aimed: 0.60, ring: 0.60,
-  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20,
+  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60,
 };
 const TELEGRAPH_FLOOR_SLOW_BULLET = 0.80;   // §7.4 "상태이상(slow) 탄"
 const TELEGRAPH_FLOOR_MIDBOSS = 1.20;       // §7.4 "중간보스 패턴" (개체 클래스)
@@ -710,6 +710,7 @@ function S2_files() {
     spiral: ['count', 'speed', 'rotStepDeg', 'durationSec', 'rateSec'],
     laser: ['widthPx', 'activeSec', 'angleDeg', 'trackDuringCharge'],
     zone: ['radius', 'activeSec', 'dmg'],
+    mortar: ['radius', 'activeSec', 'dmg', 'fuseSec', 'leadSec'],
     wall: ['count', 'gapCount', 'gapWidthPx', 'speed'],
   };
   for (const e of rowsQuiet(D.enemies.emitters)) {
@@ -1979,13 +1980,19 @@ function S19_zoneBullet() {
   for (const e of EMITTERS()) {
     if (!isObj(e) || isAmb(e.type)) continue;
     n += 1;
-    const lhs = e.type === 'zone';
+    const lhs = e.type === 'zone' || e.type === 'mortar';   // §9.7 v1.5 — mortar 도 탄 없이 dmg 직접
     const rhs = has(e, 'bulletId') && e.bulletId === null;
     if (lhs !== rhs) {
-      V('S19', `enemies.emitters[${e.id}]: (type=="zone")=${lhs} ≠ (bulletId==null)=${rhs} `
-        + `— zone 은 dmg 를 직접 갖는다 (§9.7/S19)`);
+      V('S19', `enemies.emitters[${e.id}]: (type∈{zone,mortar})=${lhs} ≠ (bulletId==null)=${rhs} `
+        + `— zone·mortar 은 dmg 를 직접 갖는다 (§9.7/S19)`);
     }
-    if (lhs && !num(e.dmg)) V('S19', `enemies.emitters[${e.id}]: zone 인데 dmg 가 없다 (§3.2 피해원 목록)`);
+    if (lhs && !num(e.dmg)) V('S19', `enemies.emitters[${e.id}]: ${e.type} 인데 dmg 가 없다 (§3.2 피해원 목록)`);
+    // §7.4 v1.5 — mortar 의 «퓨즈»(착탄 후 폭발까지)가 곧 회피 창 → 절대 하한 강제(공정성)
+    if (e.type === 'mortar' && num(e.fuseSec) && num(D.rules.fairness.minTelegraphSec)
+        && e.fuseSec < D.rules.fairness.minTelegraphSec) {
+      V('S19', `enemies.emitters[${e.id}]: mortar fuseSec ${e.fuseSec} < fairness.minTelegraphSec(${D.rules.fairness.minTelegraphSec}) `
+        + `— 착탄 후 폭발까지가 회피 창이다 (§7.4)`);
+    }
   }
   EX('S19', n);
 }

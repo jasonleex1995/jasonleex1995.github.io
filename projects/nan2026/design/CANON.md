@@ -1278,7 +1278,7 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 - ★ **`rearIn`은 `rearSpawnAllowed[stage]`(3+)에서만**, 그리고 **반드시 `warnSec = 0.8` 동안 하단 경계에 진입 표식**이 선행한다. **뒤에서 소리 없이 나오는 적은 금지** (무-트위치 기둥). 초안 F의 무제약 `entrySide: "bottom"`은 폐기.
 - `charge.windUpSec ≥ fairness.minTelegraphSec`.
 
-### 8.5 ★ 이미터 어휘 `emitterType` (8종, 동결) — 유도·상태이상은 **탄 속성**이다
+### 8.5 ★ 이미터 어휘 `emitterType` (9종 ★v1.5, 동결) — 유도·상태이상은 **탄 속성**이다
 
 | `type` | 파라미터 | 텔레그래프 하한 |
 |---|---|---|
@@ -1290,6 +1290,9 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 | `laser` | `widthPx, activeSec, angleDeg, trackDuringCharge` | 1.20 |
 | `zone` | `radius, activeSec, dmg` | 0.90 |
 | `wall` | `count, gapCount, gapWidthPx, speed` | 0.80 |
+| `mortar` ★v1.5 | `radius, activeSec, dmg, fuseSec, leadSec` | 0.60 |
+
+**★ `mortar`(v1.5, 사용자 결정 2026-07-31) = «폭탄»**: 개체 자리가 아니라 **플레이어 예측 표적**(현재 위치 + 속도×`leadSec`, 아레나 클램프)에 착탄해 `fuseSec` 뒤 반경 `radius` 로 폭발(`dmg`, `activeSec`)한다. `bulletId=null`(zone 처럼 dmg 직접, S19). 구현 = `zone` 재사용 + `warnSec=fuseSec` 필드(퓨즈 동안 예고·무해 = 회피 창, hazards 소유). **`fuseSec ≥ fairness.minTelegraphSec` 강제**(S19). 사용처: `mortarHulk`(volcano·finale) `hulkZone`.
 
 공통 파라미터: `type, bulletId, from, telegraphSec, everySec, offsetSec, repeat, restSec`
 

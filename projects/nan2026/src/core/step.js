@@ -414,7 +414,8 @@ function hazards(world, dt) {
     z.age += dt;
     // ★ 소유권 — 플레이어 장판(무기 mine 등)은 **그 무기가** 수명·반납을 소유한다. 여기선 나이만 먹인다.
     if (z.fromPlayer) continue;
-    if (z.age >= z.activeSec) { world.zones.release(z); continue; }
+    if (z.age >= z.warnSec + z.activeSec) { world.zones.release(z); continue; }   // 퓨즈+활성 종료 = 반납
+    if (z.age < z.warnSec) continue;                                              // §8.5 mortar 퓨즈(예고) = 무해 회피창
     const dx = p.x - z.x;
     const dy = p.y - z.y;
     const rr = z.radius + rp.hitboxRadius;

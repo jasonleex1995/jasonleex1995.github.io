@@ -485,19 +485,33 @@ function drawBackground(ctx, world, pal, fx) {
 function drawGroundZones(ctx, world, pal) {
   const vz = world.data.rules.visual.zone;
   const items = world.zones.items;
+  const strokePx = world.data.rules.visual.telegraph.strokePx;
   for (let i = 0; i < items.length; i += 1) {
     const z = items[i];
     if (!z.alive || z.fromPlayer) continue;                 // 플레이어 장판은 레이어 3
+    // §8.5 mortar 퓨즈(예고, 무해) — 착탄 표적 링 + 수축 링(퓨즈 카운트다운, «곧 여기 터진다»)
+    if (z.age < z.warnSec) {
+      const frac = z.warnSec > 0 ? z.age / z.warnSec : 1;
+      ctx.lineWidth = strokePx + 1;
+      ctx.strokeStyle = pal.threat.outline;
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = strokePx;
+      ctx.strokeStyle = rgba(pal.threat.telegraph, 0.9);
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = rgba(pal.threat.telegraph, 0.4 + 0.6 * frac);   // 착탄 순간 중심 수렴
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.radius * (1 - frac), 0, Math.PI * 2); ctx.stroke();
+      continue;
+    }
     const pulse = 0.5 + 0.5 * Math.sin(world.time * vz.pulseHz * Math.PI * 2);
     ctx.fillStyle = rgba(pal.threat.enemyBullet, vz.fillAlpha);
     ctx.beginPath();
     ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
     ctx.fill();
     // §12.3 — 활성 장판 = 외곽선 불투명 + 검은 외곽선 + 내부 0.30 + 1Hz 맥동
-    ctx.lineWidth = world.data.rules.visual.telegraph.strokePx + 2;
+    ctx.lineWidth = strokePx + 2;
     ctx.strokeStyle = pal.threat.outline;
     ctx.stroke();
-    ctx.lineWidth = world.data.rules.visual.telegraph.strokePx;
+    ctx.lineWidth = strokePx;
     ctx.strokeStyle = rgba(pal.threat.enemyBullet, 0.7 + 0.3 * pulse);
     ctx.stroke();
   }

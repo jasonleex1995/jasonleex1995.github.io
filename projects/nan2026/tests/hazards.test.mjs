@@ -56,6 +56,20 @@ suite('hazards/zone 장판 (§8.5)', () => {
     step(w, makeInput(), TICK_DT);
     assert.eq(p.hp, hp0, '플레이어 장판은 플레이어에게 무해');
   });
+
+  test('§8.5 mortar 퓨즈 — warnSec 동안 무해, 그 뒤 폭발 피해, warnSec+activeSec 에 반납', () => {
+    const w = mkWorld(); const p = w.player;
+    const warnSec = 0.5, activeSec = 0.3;
+    spawnZone(w, p.x, p.y, 60, 10, activeSec, false, '', warnSec);   // 발밑 퓨즈 폭탄(warnSec 9번째 인자)
+    const hp0 = p.hp;
+    for (let t = 0; t < 18; t += 1) { p.iframeSec = 0; step(w, makeInput(), TICK_DT); }   // ~0.30s < warnSec
+    assert.eq(p.hp, hp0, '퓨즈 동안 무해(회피 창)');
+    assert.eq(w.zones.live, 1, '폭발 전이라 살아있음');
+    for (let t = 0; t < 15; t += 1) { p.iframeSec = 0; step(w, makeInput(), TICK_DT); }   // ~0.55s > warnSec
+    assert.lt(p.hp, hp0, '퓨즈 경과 후 = 폭발 피해');
+    for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);                         // > warnSec+activeSec
+    assert.eq(w.zones.live, 0, 'warnSec+activeSec 후 반납');
+  });
 });
 
 suite('hazards/laser 빔 (§8.5)', () => {
