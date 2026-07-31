@@ -76,29 +76,24 @@ suite('midboss — 등장 스케줄 (§8.9)', () => {
       const w = mkRun(5 + idx);
       w.run.stageIndex = idx;
       const ph = w.data.stages.phase;
-      let spawns = 0;
-      let prev = null;
-      const n = Math.floor(ph.crisisStartSec / dt);
-      for (let i = 0; i < n; i += 1) {
-        tickMob(w, 1);
-        const cur = midOf(w);
-        if (cur !== null && prev === null) spawns += 1;
-        prev = cur;
-      }
-      assert.eq(spawns, counts[idx], `스테이지 ${idx + 1} 등장 수`);
+      tickMob(w, Math.floor(ph.crisisStartSec / dt));
+      // §8.9(v1.5) 동시 다수 — «등장 수»는 스폰 카운터로 센다(겹쳐 나오므로 null 전이로 못 센다).
+      assert.eq(w.run.midBossNext, counts[idx], `스테이지 ${idx + 1} 등장 수 = midBossCount`);
     }
   });
 
-  test('동시에 2마리가 되지 않는다', () => {
+  test('§8.9(v1.5) 동시 다수 — 15초 간격 + 30초 수명 = 겹쳐서 나온다(우르르)', () => {
     const w = mkRun(9);
-    w.run.stageIndex = 3;                               // midBossCount 2 인 스테이지
+    w.run.stageIndex = 4;                               // 4마리(22,37,52,67), 15초 간격
     const n = Math.floor(w.data.stages.phase.crisisStartSec / dt);
+    let maxLive = 0;
     for (let i = 0; i < n; i += 1) {
       tickMob(w, 1);
       let live = 0;
       for (const e of w.enemies.items) if (e.alive && e.midBossId !== '') live += 1;
-      assert.lte(live, 1, '동시 1마리');
+      if (live > maxLive) maxLive = live;
     }
+    assert.gte(maxLive, 2, '최소 2마리가 동시에 떠 있는 순간이 있다');
   });
 });
 
@@ -121,24 +116,22 @@ suite('midboss — 속성 주입 · HP (§8.9)', () => {
     assert.eq(checked, 12, '12 시드 전부 검사했다 (vacuous 아님)');
   });
 
-  test('최종 스테이지는 후보 3종 전부 + 두 마리가 서로 다른 속성', () => {
+  test('최종 스테이지(테마 없음) — 주입 후보 3종 전부 + 시드마다 2종 이상(비복원)', () => {
     const data = loadData();
     const lastIdx = data.stages.curve.midBossCount.length - 1;
     const seen = new Set();
     for (let seed = 1; seed <= 10; seed += 1) {
       const w = mkRun(seed);
       w.run.stageIndex = lastIdx;
-      const els = [];
-      let prev = null;
+      const perSeed = new Set();
       const n = Math.floor(data.stages.phase.crisisStartSec / dt);
       for (let i = 0; i < n; i += 1) {
         tickMob(w, 1);
-        const cur = midOf(w);
-        if (cur !== null && prev === null) { els.push(cur.element); seen.add(cur.element); }
-        prev = cur;
+        for (const e of w.enemies.items) {
+          if (e.alive && e.midBossId !== '') { perSeed.add(e.element); seen.add(e.element); }
+        }
       }
-      assert.eq(els.length, 2, '최종 스테이지는 2마리');
-      assert.ne(els[0], els[1], '서로 다른 속성(비복원)');
+      assert.gte(perSeed.size, 2, '연속 주입은 직전과 다르다 → 최소 2종');
     }
     assert.eq(seen.size, 3, '10 시드에 걸쳐 후보 3종이 전부 나온다(테마가 없으므로)');
   });

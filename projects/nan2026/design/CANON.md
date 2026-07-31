@@ -1468,8 +1468,9 @@ v1.2는 이 값을 `stages.themes[].midBossAtSec`(= **테마별** 필드)로 인
 
 | 키 | 값 |
 |---|---|
-| `stages.curve.midBossCount` | 스테이지별 (1~2, §8.3) |
-| ★ `stages.phase.midBossAtSec` | **`[[35],[35],[30,70],[30,70],[30,70],[30,70]]`** — ★ **거처가 바뀌었다 (v1.3), 아래** |
+| `stages.curve.midBossCount` ★v1.5 | **`[1,2,2,3,4,5]`** — 후반일수록 «우르르»(사용자 결정 2026-07-31). v1.4 `[1,2,2,3,3,2]` 개정 |
+| ★ `stages.phase.midBossAtSec` ★v1.5 | **`[[35],[30,45],[30,45],[25,40,55],[22,37,52,67],[20,35,50,65,80]]`** — ~15초 간격 클러스터(len == midBossCount, 전 시각 < crisisStartSec 95, S29). 거처는 `stages.phase`(v1.3) |
+| ★ **동시 다수 (§8.9 v1.5)** | ★ **v1.4의 「동시 1마리」(등장 스케줄이 보장)를 폐기.** midboss.js 는 스케줄 시각마다 등장(타 개체 생존 무관), 살아있는 각 중간보스를 개체별로 처리(이탈·이동·소환). 15초 간격+30초 수명 → 정상 2·순간 3 동시. 진입 x 를 **스폰 순번 %3**(중앙·우·좌)으로 순환 — 연속 3스폰이 3슬롯이라 겹치지 않는다(«생존 수» 기준은 정상상태 2에서 좌슬롯 중복 → 적대 리뷰가 잡음). 결정적·capHits 0·crash 0 |
 | **hp** | ★ **`bosses[].hp × bossHpScale[stage]`** — **루트 필드**다(`core.hp` 아님, §9.8.2). `enemyHpScale`이 아닌 이유는 아래 |
 | **`stages.phase.midBossLeaveAfterSec`** | **30** ← **"선택적"의 정의** |
 | `midBossElementRule` ★v1.5 | **`"themeElseNonTheme"`** — 스테이지=테마 속성 주입, finale=비-테마. **런타임 주입** (v1.4 `"notThemeAndNotNormal"` 을 뒤집음, 사용자 결정) |

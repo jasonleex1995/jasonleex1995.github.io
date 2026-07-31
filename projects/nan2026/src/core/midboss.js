@@ -83,23 +83,23 @@ function injectElement(world) {
   return el;
 }
 
-/** §8.9 — 한 마리 등장. 아레나 상단 중앙(스폰 라인)에서 들어온다. */
+/** §8.9 — 한 마리 등장. 아레나 상단 스폰 라인에서 들어온다.
+ *   ★ v1.5 동시 다수: 진입 x 를 «스폰 순번»으로 3슬롯 순환(중앙·우·좌). 연속 3스폰이 항상 서로 다른
+ *     슬롯이라 동시(≤2, 순간 ≤3)에도 x 가 겹치지 않는다 — 생존 «수»로 고르면 정상상태 2에서 3번째부터
+ *     좌슬롯이 중복된다(리뷰 지적). 결정적(RNG 0). ★ midBossNext 는 spawnOne 직전 이미 +1 됨. */
 function spawnOne(world) {
   const defs = ensureMidDefs(world);
   const def = defs[Math.floor(world.rng.spawn.f() * defs.length) % defs.length];
   const a = world.data.rules.view.arena;
   const hp = def.hp * world.data.stages.curve.bossHpScale[world.run.stageIndex];
+  const slot = (world.run.midBossNext - 1) % 3;         // 0=중앙 1=우 2=좌 (연속 3스폰 = 3슬롯)
+  const q = a.w / 4;
+  const off = slot === 0 ? 0 : (slot === 1 ? q : -q);
   const e = spawnMidBoss(world, def, injectElement(world), hp,
-    a.x + a.w / 2, world.data.rules.view.spawnLineY);
+    a.x + a.w / 2 + off, world.data.rules.view.spawnLineY);
   return e;
 }
 
-/** 살아있는 중간보스. 없으면 null. (동시 1마리 — 등장 스케줄이 그것을 보장한다) */
-function liveMidBoss(world) {
-  const it = world.enemies.items;
-  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') return it[i];
-  return null;
-}
 
 /** 이탈 — 화면 위로 사라진다. 보상 0(반납만 한다). */
 function leave(world, e) {
@@ -187,47 +187,50 @@ function summon(world, e, def, dt) {
 export function midBoss(world, dt) {
   const run = world.run;
   const ph = world.data.stages.phase;
-  const e = liveMidBoss(world);
+  const it = world.enemies.items;
 
-  // (1) §8.9 midBossForcedLeaveOnCrisis — 새떼가 오면 무대를 비운다
-  if (e !== null && ph.midBossForcedLeaveOnCrisis && run.crisis) { leave(world, e); return; }
+  // (1) §8.9 midBossForcedLeaveOnCrisis — 새떼가 오면 무대를 «전원» 비운다
+  if (ph.midBossForcedLeaveOnCrisis && run.crisis) {
+    for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') leave(world, it[i]);
+    return;
+  }
 
-  // (2) 등장 — 예정 시각을 지났고 아직 안 나온 마리가 있으면 낸다(동시 1마리)
-  if (e === null && !run.crisis) {
+  // (2) 등장 — 예정 시각을 지난 «모든» 미등장 마리를 낸다. §8.9(v1.5): «동시 1마리» 게이트를
+  //     제거 → 스케줄(midBossAtSec)이 곧 등장이다. 15초 간격 + 30초 수명 = 겹쳐서 «우르르».
+  if (!run.crisis) {
     const list = atSecList(world);
-    if (run.midBossNext < list.length && run.phaseT >= list[run.midBossNext]) {
+    while (run.midBossNext < list.length && run.phaseT >= list[run.midBossNext]) {
       run.midBossNext += 1;
       spawnOne(world);
     }
-    return;
   }
-  if (e === null) return;
 
-  // ★ §2.7 「스턴 = 개체 정지」 — 이동·소환을 멈춘다(발사는 emitters, 시계는 moveBullets 가 이미 얼린다).
-  //   stunSec 은 여기서 감소시키지 않는다 — step.moveBullets 가 단일 소유자다(이중 감소 방지).
-  if (e.stunSec > 0) return;
-
-  // (3) 이탈 — 등장 후 midBossLeaveAfterSec. 그 전까지는 계속 쏜다(공짜 회피가 아니다)
-  //   ★ e.moveT 는 step.moveBullets 가 이미 매 틱 올린다 — 여기서 또 올리면 시계가 2배로 간다.
-  if (e.moveT >= ph.midBossLeaveAfterSec) { leave(world, e); return; }
-
-  // (4) 이동 — §9.8.2 moveId(anchor | charge)
+  // (3~5) 살아있는 각 중간보스를 «개체별 독립»으로 처리한다(이탈 타이머·이동·소환).
   const defs = ensureMidDefs(world);
-  let def = null;
-  for (let i = 0; i < defs.length; i += 1) if (defs[i].id === e.midBossId) { def = defs[i]; break; }
-  if (def === null) throw new Error(`midboss: 미지의 중간보스 "${e.midBossId}" (§8.9)`);
-  if (def.moveId === 'charge') moveCharge(world, e, def.moveParams, dt);
-  else if (def.moveId === 'anchor') moveAnchor(world, e, def.moveParams, dt);
-  else throw new Error(`midboss: 미구현 moveId "${def.moveId}" — §8.9 는 anchor|charge 만 쓴다`);
-
-  // (5) 소환 — midBossSummonsAllowed 를 통과한 개체만 summon 이 non-null 이다(S17)
-  summon(world, e, def, dt);
+  for (let i = 0; i < it.length; i += 1) {
+    const e = it[i];
+    if (!e.alive || e.midBossId === '') continue;
+    // ★ §2.7 「스턴 = 개체 정지」 — 이동·소환 멈춤. stunSec 감소는 step.moveBullets 단일 소유(이중 방지).
+    if (e.stunSec > 0) continue;
+    // (3) 이탈 — 등장 후 midBossLeaveAfterSec. 그 전까진 계속 쏜다(공짜 회피 아님).
+    //   ★ e.moveT 는 step.moveBullets 가 매 틱 올린다 — 여기서 또 올리면 시계가 2배.
+    if (e.moveT >= ph.midBossLeaveAfterSec) { leave(world, e); continue; }
+    // (4) 이동 — §9.8.2 moveId(anchor | charge)
+    let def = null;
+    for (let j = 0; j < defs.length; j += 1) if (defs[j].id === e.midBossId) { def = defs[j]; break; }
+    if (def === null) throw new Error(`midboss: 미지의 중간보스 "${e.midBossId}" (§8.9)`);
+    if (def.moveId === 'charge') moveCharge(world, e, def.moveParams, dt);
+    else if (def.moveId === 'anchor') moveAnchor(world, e, def.moveParams, dt);
+    else throw new Error(`midboss: 미구현 moveId "${def.moveId}" — §8.9 는 anchor|charge 만 쓴다`);
+    // (5) 소환 — midBossSummonsAllowed 를 통과한 개체만 summon 이 non-null 이다(S17)
+    summon(world, e, def, dt);
+  }
 }
 
-/** 페이즈/스테이지 전이에서 무대를 비운다(잡몹 페이즈가 끝나면 중간보스는 남지 않는다). */
+/** 페이즈/스테이지 전이에서 무대를 «전원» 비운다(잡몹 페이즈가 끝나면 중간보스는 남지 않는다). */
 export function clearMidBoss(world) {
-  const e = liveMidBoss(world);
-  if (e !== null) leave(world, e);
+  const it = world.enemies.items;
+  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') leave(world, it[i]);
 }
 
 export default { midBoss, clearMidBoss };

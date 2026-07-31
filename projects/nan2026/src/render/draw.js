@@ -639,6 +639,15 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.fillRect(x - bw / 2, y - e.radius - 8, bw * (e.hp / e.hpMax), 3);
     }
 
+    // §8.9(v1.5) 중간보스 — 개체 위 속성색 HP 바. 동시 다수라 상단 바 하나로는 부족 → 각 개체에 붙인다.
+    if (e.midBossId !== '') {
+      const bw = e.radius * 2;
+      ctx.fillStyle = rgba(pal.threat.outline, 0.85);
+      ctx.fillRect(x - bw / 2, y - e.radius - 10, bw, 4);
+      ctx.fillStyle = color;
+      ctx.fillRect(x - bw / 2, y - e.radius - 10, bw * (e.hp / e.hpMax), 4);
+    }
+
     // 코어 글리프 — max(6, bodyPx × bodyRatio), 상한 maxPx. cvd 는 ×1.5 + 항상 렌더
     const bodyPx = r * 2;
     if (e.elite || pal.cvd || bodyPx >= vg.lodMinBodyPx) {
