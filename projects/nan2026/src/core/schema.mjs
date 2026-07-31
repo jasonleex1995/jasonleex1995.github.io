@@ -130,11 +130,12 @@ function collector() {
      * §9.3 — 미지 키 = 에러 / 누락 키 = 에러 / 폴백 금지.
      * allowed 와 required 가 같은 집합인 것이 정본의 기본값이다.
      */
-    closed(path, node, allowed) {
+    closed(path, node, allowed, optional) {
       if (!isObj(node)) {
         this.fail(path, `객체가 아니다 (${node === undefined ? 'undefined' : typeof node})`);
         return false;
       }
+      const opt = optional || [];
       let ok = true;
       const keys = Object.keys(node);
       for (let i = 0; i < keys.length; i += 1) {
@@ -144,7 +145,7 @@ function collector() {
         }
       }
       for (let i = 0; i < allowed.length; i += 1) {
-        if (!own(node, allowed[i])) {
+        if (!own(node, allowed[i]) && opt.indexOf(allowed[i]) < 0) {
           this.fail(`${path}.${allowed[i]}`, '누락 키 = 에러, 기본값 폴백 금지 (§9.3)');
           ok = false;
         }
@@ -206,7 +207,7 @@ function checkRules(c, r) {
     'coin', 'healDropChance', 'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
-    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'coreElement',
+    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'coin', 'partCoin', 'optionalPartArmorRatio',
     'midBossSummonsAllowed', 'finale']);
@@ -465,7 +466,7 @@ function checkBosses(c, b) {
         for (let j = 0; j < it.parts.length; j += 1) {
           const pt = it.parts[j];
           c.closed(`${p}.parts[${pt && pt.id}]`, pt, ['id', 'name', 'partType', 'element', 'hp',
-            'radius', 'anchor', 'contactDmg', 'shapeId', 'score', 'patternSet']);
+            'radius', 'anchor', 'contactDmg', 'shapeId', 'score', 'patternSet', 'extra'], ['extra']);
         }
       }
     }
@@ -478,8 +479,8 @@ function checkBosses(c, b) {
 function checkStages(c, s) {
   c.closed('stages', s, ['schemaVersion', 'themeDraw', 'curve', 'phase', 'stages', 'formations']);
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
-  c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'spawnDensityScale',
-    'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed']);
+  c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
+    'spawnDensityScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',

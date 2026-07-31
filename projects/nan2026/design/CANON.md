@@ -1578,7 +1578,7 @@ v1.1은 **자기 손으로 이 수를 깼다**: §13.2-⑤ · §18.3-9가 04에�
 
 | 키 | 값 |
 |---|---|
-| `boss.partCount` | **4** (최종만 5) |
+| `boss.partCount` ★v1.5 | **7** (최종만 8) — base 3 + extra armament 3. 런 포지션별 동적 스폰(`stages.curve.firingPartsPerStage`=[3,3,4,5,6,7], §8.9.1). extra 부위(`extra:true`)는 발사 위협만 더하고 armor·소프트게이트는 불변 |
 | `boss.partRegen` | **false** — 부위 파괴는 영구. `parts[].regenSec`는 **존재하지 않는다** |
 | `boss.summonsAllowed` | **false** — 스테이지 보스는 잡몹을 소환하지 않는다 |
 | `boss.partHitPriority` | `"outermostFirst"` — 히트박스가 겹치면 바깥 부위 우선. 부위 파괴 시 히트박스가 제거되어 **자동으로 코어가 노출**(별도 규칙 불필요) |
@@ -1934,18 +1934,25 @@ data/bosses.json     data/stages.json     data/meta.json
                "xpMult":6.0, "coin":3, "healDropChance":0.12,
                "bandAllowed":["line","turret","bruiser"],
                "elementAllowed":["fire","water","grass"] },
-  "boss":    { "partCount":4, "partRegen":false, "summonsAllowed":false,
+  "boss":    { "partCount":7, "partRegen":false, "summonsAllowed":false,
                "partHitPriority":"outermostFirst", "phaseThresholds":[0.6,0.3],
                "phaseTransitionSec":1.5, "timerPausesOnPhaseTransition":true,
                "introSec":3.0, "timerStartsAfterIntro":true, "timerExpire":"kill",
-               "coreGateMul":0.4, "mobilityPenalty":0.5, "coreElement":"normal",
+               "coreGateMul":0.4, "mobilityPenalty":1.5,
+               "escalateFireRateMul":1.25, "escalateFireRateMax":1.60, "coreElement":"normal",
                "partNormalForbidden":true, "partElementDistinctMin":2,
                "partThemeElementMax":2, "armorElementNotTheme":false,
                "armorPartCountRange":[2,2], "armorCoreRatioBandPct":[0.85,1.0], "coin":12, "partCoin":2,
                "optionalPartArmorRatio":0.20,
                "midBossSummonsAllowed":["mbNest"],
-               "finale":{ "partCount":5, "armorPartCount":3,
+               "finale":{ "partCount":8, "armorPartCount":3,
                           "exemptRules":["R4","R6"], "allowNormalPeripheral":true } },
+  // ★v1.5(#20/#26) — partCount 4→7(테마)·finale 5→8: «발사 파트» base 3 + extra armament 3(테마=base 4+3).
+  //   런 포지션별 동적 스폰 = stages.curve.firingPartsPerStage[3,3,4,5,6,7](§8.9.1) — base 항상,
+  //   extra 는 앞에서부터 (target−base)개. extra 부위: extra:true(선택 optional·hp=armor×0.20 S24 준수·
+  //   bossHpScale 적용)·비-테마 속성(R4 유지, 후반 풀-스탠스 강제). armor 는 전부 base → 소프트게이트 불변.
+  //   mobilityPenalty 0.5→1.5(폭주). escalateFireRateMul 1.25(부위 파괴마다 발사 가속)·
+  //   escalateFireRateMax 1.60(상한, 페어니스 320 보호). 이미터 66→129(§8.9.1).
   "render":  { "...§9.4.2 전 키..." },
   "fairness":{ "minTelegraphSec":0.55, "minStunTelegraphSec":1.5, "maxStunSec":1.0,
                "maxBulletSpeed":260, "maxAimedBulletSpeed":200, "statusBulletSpeedMul":0.6,

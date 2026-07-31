@@ -108,7 +108,7 @@
   },
 
   "boss": {
-    "partCount": 4,
+    "partCount": 7,
     "partRegen": false,
     "summonsAllowed": false,
     "partHitPriority": "outermostFirst",
@@ -121,6 +121,7 @@
     "coreGateMul": 0.4,
     "mobilityPenalty": 1.5,
     "escalateFireRateMul": 1.25,
+    "escalateFireRateMax": 1.60,
     "coreElement": "normal",
     "partNormalForbidden": true,
     "partElementDistinctMin": 2,
@@ -133,7 +134,7 @@
     "optionalPartArmorRatio": 0.20,
     "midBossSummonsAllowed": ["mbNest"],
     "finale": {
-      "partCount": 5,
+      "partCount": 8,
       "armorPartCount": 3,
       "exemptRules": ["R4", "R6"],
       "allowNormalPeripheral": true

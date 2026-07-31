@@ -573,7 +573,10 @@ function killBossEntity(world, e) {
   }
   spawnPickup(world, 'coin', bcfg.partCoin, e.x, e.y);
   // §8.12(v1.5) — 모듈 파괴 = «격화». 부위가 부서질수록 보스가 더 공격적으로(발사 빨라짐).
-  if (world.run !== undefined) world.run.bossFireRateMul *= bcfg.escalateFireRateMul;
+  //   ★ escalateFireRateMax 로 상한 — 부위 수(최대 7)가 늘어도 발사 밀도가 페어니스 상한(320)을 넘지 않게.
+  if (world.run !== undefined) {
+    world.run.bossFireRateMul = Math.min(world.run.bossFireRateMul * bcfg.escalateFireRateMul, bcfg.escalateFireRateMax);
+  }
   if (e.partType === 'armor') {
     for (let i = 0; i < en.length; i += 1) {
       const c = en[i];

@@ -20,7 +20,10 @@
           "patternSet": [ { "emitterIds": ["mantaFinLP1"] }, { "emitterIds": ["mantaFinLP2"] }, { "emitterIds": ["mantaFinLP3"] } ] },
         { "id": "finR", "name": "우 지느러미", "partType": "armor", "element": "grass",
           "hp": 2391, "radius": 26, "anchor": [52, 10], "contactDmg": 15, "shapeId": "fin", "score": 1500,
-          "patternSet": [ { "emitterIds": ["mantaFinRP1"] }, { "emitterIds": ["mantaFinRP2"] }, { "emitterIds": ["mantaFinRP3"] } ] }
+          "patternSet": [ { "emitterIds": ["mantaFinRP1"] }, { "emitterIds": ["mantaFinRP2"] }, { "emitterIds": ["mantaFinRP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["mantaExt1P1"] }, { "emitterIds": ["mantaExt1P2"] }, { "emitterIds": ["mantaExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["mantaExt2P1"] }, { "emitterIds": ["mantaExt2P2"] }, { "emitterIds": ["mantaExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["mantaExt3P1"] }, { "emitterIds": ["mantaExt3P2"] }, { "emitterIds": ["mantaExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -42,7 +45,10 @@
           "patternSet": [ { "emitterIds": ["frostCrownCrownLP1"] }, { "emitterIds": ["frostCrownCrownLP2"] }, { "emitterIds": ["frostCrownCrownLP3"] } ] },
         { "id": "crownR", "name": "우관", "partType": "armor", "element": "fire",
           "hp": 2391, "radius": 26, "anchor": [56, 16], "contactDmg": 15, "shapeId": "spike", "score": 2400,
-          "patternSet": [ { "emitterIds": ["frostCrownCrownRP1"] }, { "emitterIds": ["frostCrownCrownRP2"] }, { "emitterIds": ["frostCrownCrownRP3"] } ] }
+          "patternSet": [ { "emitterIds": ["frostCrownCrownRP1"] }, { "emitterIds": ["frostCrownCrownRP2"] }, { "emitterIds": ["frostCrownCrownRP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["frostCrownExt1P1"] }, { "emitterIds": ["frostCrownExt1P2"] }, { "emitterIds": ["frostCrownExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["frostCrownExt2P1"] }, { "emitterIds": ["frostCrownExt2P2"] }, { "emitterIds": ["frostCrownExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["frostCrownExt3P1"] }, { "emitterIds": ["frostCrownExt3P2"] }, { "emitterIds": ["frostCrownExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -64,7 +70,10 @@
           "patternSet": [ { "emitterIds": ["kilnPlateP1"] }, { "emitterIds": ["kilnPlateP2"] }, { "emitterIds": ["kilnPlateP3"] } ] },
         { "id": "vent", "name": "배기구", "partType": "armor", "element": "water",
           "hp": 2391, "radius": 30, "anchor": [52, 20], "contactDmg": 15, "shapeId": "ring", "score": 2400,
-          "patternSet": [ { "emitterIds": ["kilnVentP1"] }, { "emitterIds": ["kilnVentP2"] }, { "emitterIds": ["kilnVentP3"] } ] }
+          "patternSet": [ { "emitterIds": ["kilnVentP1"] }, { "emitterIds": ["kilnVentP2"] }, { "emitterIds": ["kilnVentP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["kilnExt1P1"] }, { "emitterIds": ["kilnExt1P2"] }, { "emitterIds": ["kilnExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["kilnExt2P1"] }, { "emitterIds": ["kilnExt2P2"] }, { "emitterIds": ["kilnExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["kilnExt3P1"] }, { "emitterIds": ["kilnExt3P2"] }, { "emitterIds": ["kilnExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -86,7 +95,10 @@
           "patternSet": [ { "emitterIds": ["scarabStingerP1"] }, { "emitterIds": ["scarabStingerP2"] }, { "emitterIds": ["scarabStingerP3"] } ] },
         { "id": "legs", "name": "다리마디", "partType": "mobility", "element": "fire",
           "hp": 478, "radius": 20, "anchor": [0, 44], "contactDmg": 14, "shapeId": "claw", "score": 1200,
-          "patternSet": [ { "emitterIds": ["scarabLegsP1"] }, { "emitterIds": ["scarabLegsP2"] }, { "emitterIds": ["scarabLegsP3"] } ] }
+          "patternSet": [ { "emitterIds": ["scarabLegsP1"] }, { "emitterIds": ["scarabLegsP2"] }, { "emitterIds": ["scarabLegsP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "grass", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["scarabExt1P1"] }, { "emitterIds": ["scarabExt1P2"] }, { "emitterIds": ["scarabExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["scarabExt2P1"] }, { "emitterIds": ["scarabExt2P2"] }, { "emitterIds": ["scarabExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["scarabExt3P1"] }, { "emitterIds": ["scarabExt3P2"] }, { "emitterIds": ["scarabExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -108,7 +120,10 @@
           "patternSet": [ { "emitterIds": ["thornKingPodRP1"] }, { "emitterIds": ["thornKingPodRP2"] }, { "emitterIds": ["thornKingPodRP3"] } ] },
         { "id": "bloom", "name": "화포", "partType": "armament", "element": "grass",
           "hp": 478, "radius": 26, "anchor": [0, -34], "contactDmg": 14, "shapeId": "ring", "score": 1300,
-          "patternSet": [ { "emitterIds": ["thornKingBloomP1"] }, { "emitterIds": ["thornKingBloomP2"] }, { "emitterIds": ["thornKingBloomP3"] } ] }
+          "patternSet": [ { "emitterIds": ["thornKingBloomP1"] }, { "emitterIds": ["thornKingBloomP2"] }, { "emitterIds": ["thornKingBloomP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["thornKingExt1P1"] }, { "emitterIds": ["thornKingExt1P2"] }, { "emitterIds": ["thornKingExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["thornKingExt2P1"] }, { "emitterIds": ["thornKingExt2P2"] }, { "emitterIds": ["thornKingExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["thornKingExt3P1"] }, { "emitterIds": ["thornKingExt3P2"] }, { "emitterIds": ["thornKingExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -130,7 +145,10 @@
           "patternSet": [ { "emitterIds": ["mireTendrilP1"] }, { "emitterIds": ["mireTendrilP2"] }, { "emitterIds": ["mireTendrilP3"] } ] },
         { "id": "sac", "name": "포자낭", "partType": "armament", "element": "grass",
           "hp": 478, "radius": 22, "anchor": [0, -40], "contactDmg": 14, "shapeId": "orb", "score": 1300,
-          "patternSet": [ { "emitterIds": ["mireSacP1"] }, { "emitterIds": ["mireSacP2"] }, { "emitterIds": ["mireSacP3"] } ] }
+          "patternSet": [ { "emitterIds": ["mireSacP1"] }, { "emitterIds": ["mireSacP2"] }, { "emitterIds": ["mireSacP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "water", "hp": 478, "radius": 20, "anchor": [78, -30], "contactDmg": 12, "shapeId": "spike", "score": 900, "patternSet": [ { "emitterIds": ["mireExt1P1"] }, { "emitterIds": ["mireExt1P2"] }, { "emitterIds": ["mireExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [-78, -30], "contactDmg": 12, "shapeId": "dart", "score": 900, "patternSet": [ { "emitterIds": ["mireExt2P1"] }, { "emitterIds": ["mireExt2P2"] }, { "emitterIds": ["mireExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "fire", "hp": 478, "radius": 20, "anchor": [0, 74], "contactDmg": 12, "shapeId": "fin", "score": 900, "patternSet": [ { "emitterIds": ["mireExt3P1"] }, { "emitterIds": ["mireExt3P2"] }, { "emitterIds": ["mireExt3P3"] } ], "extra": true }
       ]
     },
     {
@@ -155,7 +173,10 @@
           "patternSet": [ { "emitterIds": ["tetrarchCoffinGrassP1"] }, { "emitterIds": ["tetrarchCoffinGrassP2"] }, { "emitterIds": ["tetrarchCoffinGrassP3"] } ] },
         { "id": "throne", "name": "왕좌", "partType": "armament", "element": "normal",
           "hp": 5200, "radius": 26, "anchor": [0, -44], "contactDmg": 15, "shapeId": "ring", "score": 1800,
-          "patternSet": [ { "emitterIds": ["tetrarchThroneP1"] }, { "emitterIds": ["tetrarchThroneP2"] }, { "emitterIds": ["tetrarchThroneP3"] } ] }
+          "patternSet": [ { "emitterIds": ["tetrarchThroneP1"] }, { "emitterIds": ["tetrarchThroneP2"] }, { "emitterIds": ["tetrarchThroneP3"] } ] },
+        { "id": "ext1", "name": "증설포 α", "partType": "armament", "element": "water", "hp": 5160, "radius": 20, "anchor": [116, -58], "contactDmg": 20, "shapeId": "spike", "score": 3000, "patternSet": [ { "emitterIds": ["tetrarchExt1P1"] }, { "emitterIds": ["tetrarchExt1P2"] }, { "emitterIds": ["tetrarchExt1P3"] } ], "extra": true },
+        { "id": "ext2", "name": "증설포 β", "partType": "armament", "element": "fire", "hp": 5160, "radius": 20, "anchor": [-116, -58], "contactDmg": 20, "shapeId": "dart", "score": 3000, "patternSet": [ { "emitterIds": ["tetrarchExt2P1"] }, { "emitterIds": ["tetrarchExt2P2"] }, { "emitterIds": ["tetrarchExt2P3"] } ], "extra": true },
+        { "id": "ext3", "name": "증설포 γ", "partType": "armament", "element": "grass", "hp": 5160, "radius": 20, "anchor": [0, 128], "contactDmg": 20, "shapeId": "fin", "score": 3000, "patternSet": [ { "emitterIds": ["tetrarchExt3P1"] }, { "emitterIds": ["tetrarchExt3P2"] }, { "emitterIds": ["tetrarchExt3P3"] } ], "extra": true }
       ]
     },
     {

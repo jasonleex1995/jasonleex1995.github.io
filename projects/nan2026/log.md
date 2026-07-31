@@ -794,6 +794,13 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 
 **남은 2건 = 구조/CANON 결정(사용자 몫)**: #20 보스 모듈 스테이지별 증가(66슬롯 이미터법칙 재작성 ↔ «수치만» 원칙 충돌) · #24 탄막제거 무기(§9.5 진화/신무기/패시브 중 귀속처).
 
+### 2026-07-31 — #20 보스 발사-파트 그라디언트 (사용자 결정: 완전 동적 3,3,4,5,6,7)
+
+무작위 테마 순서 고지 → 사용자 «완전 그라디언트» 선택. 런 포지션별 발사 파트 = `firingPartsPerStage`[3,3,4,5,6,7], 동적 스폰(base 항상 + extra 앞에서부터). **구조 변경**: 테마 보스 3→6 파트, tetrarch 4→7 · 이미터 66→129(§8.9.1) · `partCount` 4→7·finale 5→8. extra 부위 = `extra:true`·armament·hp=armor×0.20(S24 준수·bossHpScale 적용)·**비-테마 속성**(R4 유지 + 후반 풀-스탠스 강제 = 사용자 «6은 풀속성» 목표 강화) · 발사선 밖 배치 · 조준탄 light(telegraph 1.5·pelletS). armor 는 전부 base → **소프트게이트·killTime 축 불변**.
+- **격화 상한 추가**(#26 보정): `escalateFireRateMax` 1.60 — 부위 7개로 ×1.25 누적이 페어니스 320 을 넘던 것을 상한. **capHits 59→5**(baseline 32 보다도 낮음).
+- **★ 핵심 발견 — certify 는 오버홀 이후 이미 accepted-red**: baseline(HEAD) certify 도 19/19 FAIL(runClearRate 0.13·killTime 167·capHits 32). 난이도 오버홀이 봇을 밴드 밑으로 내린 «봇이 약함, 게임은 옳음»(사용자 판단) 상태. #20 은 이를 **재현·개선**(capHits 32→5·killTime 167→164·clearRate 0.13→0.09 = 의도한 «더 어렵게»). killTime 은 extra HP 가 아니라 **코어 DPS 천장**이 병목(extra 는 optional·발사선 밖 → DPS 흡수 없음).
+- 검증: check0 · 404테스트(그라디언트 테스트 추가) · 실플레이 60런 crash0·탄 capHits0(픽업 merge 만) · 브라우저 클린.
+
 ---
 
 ## 다음 할 일

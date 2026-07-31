@@ -44,12 +44,26 @@ suite('boss/spawnBoss', () => {
     spawnBoss(w);
     const { core, parts } = scanBoss(w);
     assert.ok(core, '코어 스폰됨');
-    assert.eq(parts.length, def.parts.length, `파트 수 = ${def.parts.length}`);
+    // §8.9.1(v1.5) 동적 발사 파트: 포지션 0 = firingPartsPerStage[0] (base 만, extra 0)
+    const target0 = w.data.stages.curve.firingPartsPerStage[0];
+    const baseCount = def.parts.filter((p) => p.extra !== true).length;
+    const extraCount = def.parts.filter((p) => p.extra === true).length;
+    const expected0 = baseCount + Math.max(0, Math.min(target0 - baseCount, extraCount));
+    assert.eq(parts.length, expected0, `파트 수 = ${expected0} (포지션0 target ${target0})`);
     const scale = w.data.stages.curve.bossHpScale[0];
     assert.near(core.hp, def.core.hp * scale, 1e-6, '코어 HP = core.hp × bossHpScale[0]');
     assert.near(core.hpMax, core.hp, 1e-9, 'hpMax = hp');
     const armorCount = def.parts.filter((p) => p.partType === 'armor').length;
     assert.eq(core.aliveArmorPartCount, armorCount, 'aliveArmorPartCount = armor 파트 수');
+  });
+
+  test('§8.9.1(v1.5) 발사 파트 수가 런 포지션으로 성장 (3,3,4,5,6,7)', () => {
+    for (let s = 0; s < 6; s += 1) {
+      const w = mkRunWorld(1, s);
+      const want = w.data.stages.curve.firingPartsPerStage[s];
+      spawnBoss(w);
+      assert.eq(scanBoss(w).parts.length, want, `포지션 ${s}: 발사 파트 = ${want}`);
+    }
   });
 
   test('후반 포지션: 코어 HP 가 bossHpScale 로 커진다 (포지션 3)', () => {

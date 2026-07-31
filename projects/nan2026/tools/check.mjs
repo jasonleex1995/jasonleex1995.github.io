@@ -513,7 +513,7 @@ function S2_schema() {
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
   closedKeys('S2', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
-    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'coreElement',
+    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'coin', 'partCoin', 'optionalPartArmorRatio',
     'midBossSummonsAllowed', 'finale'], 'rules.boss');
@@ -791,7 +791,8 @@ function S2_files() {
       for (const p of rowsQuiet(b.parts)) {
         if (!isObj(p)) continue;
         closedKeys('S2', p, ['id', 'name', 'partType', 'element', 'hp', 'radius', 'anchor',
-          'contactDmg', 'shapeId', 'score', 'patternSet'], `bosses[${b.id}].parts[${p.id}]`);
+          'contactDmg', 'shapeId', 'score', 'patternSet', 'extra'], `bosses[${b.id}].parts[${p.id}]`,
+          { optional: ['extra'] });
         // §9.8: 존재하지 않는 키들
         for (const dead of ['regenSec', 'onDestroy', 'hpShare', 'xp']) {
           if (has(p, dead)) V('S2', `bosses[${b.id}].parts[${p.id}].${dead}: 존재하지 않는 키 (§9.8)`);
@@ -818,8 +819,8 @@ function S2_files() {
     V('S2', 'stages.themes: 개명된 키 → stages.stages (§9.9/§23.3) — 파일 이름이 stages.json 이고 게이트가 stages[] 라 부른다');
   }
   closedKeys('S2', D.stages.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId'], 'stages.themeDraw');
-  closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'spawnDensityScale',
-    'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed'], 'stages.curve');
+  closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
+    'spawnDensityScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
@@ -2652,8 +2653,8 @@ function S36_bossEmitterIdRule() {
     }
   }
   EX('S36', n);
-  if (n && n !== 66) {
-    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1 은 66개(보스 6종 × 부위 3~4 × 페이즈 3 + 최종)라 인쇄했다. `
+  if (n && n !== 129) {
+    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1(v1.5) 은 129개(테마 6종 × 부위 6 + 최종 7, × 페이즈 3)라 인쇄했다. `
       + `개수가 다르면 §23.1-D4 의 저작 범위가 바뀐 것이다`);
   }
 }

@@ -60,11 +60,24 @@ export function spawnBoss(world) {
 
   clearField(world);
 
-  let armorCount = 0;
-  for (let i = 0; i < def.parts.length; i += 1) if (def.parts[i].partType === 'armor') armorCount += 1;
+  // §8.9.1(v1.5) — «발사 파트 수»가 런 포지션으로 성장한다(3,3,4,5,6,7). base 부위(extra≠true)는 항상
+  //   스폰하고, extra 부위(선택 armament)는 firingPartsPerStage[포지션] − base 수 만큼 앞에서부터 스폰한다.
+  //   ★ armor 는 전부 base 라 armorCount(코어 소프트게이트)는 포지션 불변 = killTime 축은 그대로.
+  const target = world.data.stages.curve.firingPartsPerStage[world.run.stageIndex];
+  const parts = def.parts;
+  let baseCount = 0;
+  for (let i = 0; i < parts.length; i += 1) if (parts[i].extra !== true) baseCount += 1;
+  const extraQuota = target - baseCount < 0 ? 0 : target - baseCount;
 
-  for (let i = 0; i < def.parts.length; i += 1) {
-    const part = def.parts[i];
+  let armorCount = 0;
+  let extraSpawned = 0;
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i];
+    if (part.extra === true) {
+      if (extraSpawned >= extraQuota) continue;          // 포지션 정원 초과 = 미스폰(정의엔 존재, 런엔 부재)
+      extraSpawned += 1;
+    }
+    if (part.partType === 'armor') armorCount += 1;
     spawnBossPart(world, def.id, part, part.hp * scale, cx, cy);
   }
   spawnBossCore(world, def.id, def.core, def.core.hp * scale, cx, cy, armorCount);
