@@ -5,7 +5,7 @@
     "curve": "poly",
     "base": 5.02337,
     "exp": 1.37,
-    "levelUpsPerRunTarget": 54,
+    "levelUpsPerRunTarget": 46,
     "levelUpQueueMode": "serial"
   },
 
