@@ -572,14 +572,16 @@ function killBossEntity(world, e) {
     return;
   }
   spawnPickup(world, 'coin', bcfg.partCoin, e.x, e.y);
+  // §8.12(v1.5) — 모듈 파괴 = «격화». 부위가 부서질수록 보스가 더 공격적으로(발사 빨라짐).
+  if (world.run !== undefined) world.run.bossFireRateMul *= bcfg.escalateFireRateMul;
   if (e.partType === 'armor') {
     for (let i = 0; i < en.length; i += 1) {
       const c = en[i];
       if (c.alive && c.isBoss && c.isCore && c.aliveArmorPartCount > 0) { c.aliveArmorPartCount -= 1; break; }
     }
   } else if (e.partType === 'mobility' && world.run !== undefined) {
-    world.run.bossMoveSpeedMul = bcfg.mobilityPenalty;    // §8.12 speedPxSec ×0.5
-    world.run.bossMoveAmpMul = 0;                          //   ampPx →0 (스웨이 정지)
+    world.run.bossMoveSpeedMul = bcfg.mobilityPenalty;    // §8.12(v1.5) 엔진 파괴 = 폭주(×1.5, 정지 아님)
+    world.run.bossMoveAmpMul = 1;                          //   스웨이 유지(격렬하게 왕복)
   }
   world.enemies.release(e);
 }

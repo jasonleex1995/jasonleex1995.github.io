@@ -272,7 +272,9 @@ export function emitters(world, dt) {
       firstDelay = def.attack.firstDelaySec;
     }
 
-    e.emitT += dt;
+    // §8.12(v1.5) — 보스는 모듈이 부서질수록 «격화»한다(발사 빨라짐). run.bossFireRateMul(부위 파괴 시 상승).
+    const edt = (e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt;
+    e.emitT += edt;
     const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)
       fireVolley(world, e, em, e.emitPhase, p, look);

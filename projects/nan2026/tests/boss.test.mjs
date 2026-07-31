@@ -139,7 +139,7 @@ suite('boss/처치 규칙 (killBossEntity)', () => {
     assert.eq(livePickups(w, 'xp'), xpBefore, '보스 개체는 xp 드랍 없음 (§8.11 xp 0)');
   });
 
-  test('mobility 파트 파괴 → 이동 배율 감소 (§8.12 speedPxSec×0.5 · ampPx→0)', () => {
+  test('mobility 파트 파괴 → 폭주 (§8.12 v1.5: speedPxSec ×mobilityPenalty(1.5) · 스웨이 유지 · 발사 격화)', () => {
     const w = mkRunWorld(1, 0);
     w.run.order[0] = 'sea';                            // manta = thruster(mobility) 보유 (결정적)
     spawnBoss(w);
@@ -148,9 +148,11 @@ suite('boss/처치 규칙 (killBossEntity)', () => {
     assert.gt(mob.length, 0, 'manta 는 mobility 파트(thruster) 보유');
     assert.eq(w.run.bossMoveSpeedMul, 1, '초기 속도 배율 1');
     assert.eq(w.run.bossMoveAmpMul, 1, '초기 진폭 배율 1');
+    assert.eq(w.run.bossFireRateMul, 1, '초기 발사 배율 1');
     killEnemy(w, mob[0]);
-    assert.eq(w.run.bossMoveSpeedMul, w.data.rules.boss.mobilityPenalty, 'speedPxSec ×mobilityPenalty');
-    assert.eq(w.run.bossMoveAmpMul, 0, 'ampPx →0 (스웨이 정지)');
+    assert.eq(w.run.bossMoveSpeedMul, w.data.rules.boss.mobilityPenalty, 'speedPxSec ×mobilityPenalty(폭주 1.5)');
+    assert.eq(w.run.bossMoveAmpMul, 1, 'ampPx 유지 (스웨이 유지 — 격렬하게 왕복, 정지 아님)');
+    assert.eq(w.run.bossFireRateMul, w.data.rules.boss.escalateFireRateMul, '부위 파괴 = 발사 격화');
   });
 });
 

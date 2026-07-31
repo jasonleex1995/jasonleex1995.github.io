@@ -83,8 +83,9 @@ export function initRun(world) {
     bossSpawned: false,             // BOSS 페이즈 보스 스폰 1회 가드(보스 훅이 본다)
     bossPhase: 0,                   // §8.11 보스 페이즈(코어 HP 임계 [0.6,0.3] → 0/1/2, patternSet 선택)
     bossTransitionT: 0,             // 페이즈 전환 잔여(>0 = 보스 무적 + 타이머 정지, §6.3)
-    bossMoveSpeedMul: 1,            // §8.12 mobility 파괴 시 speedPxSec ×0.5
-    bossMoveAmpMul: 1,              //   그리고 ampPx →0 (스웨이 정지)
+    bossMoveSpeedMul: 1,            // §8.12(v1.5) mobility 파괴 = 폭주(×1.5, 정지 아님)
+    bossMoveAmpMul: 1,              //   스웨이 유지(격렬하게 움직인다)
+    bossFireRateMul: 1,             // §8.12(v1.5) 부위 파괴마다 상승 = 보스 격화(발사 빨라짐)
     bossTokenUsed: false,           // §11.3 timeTokenForfeitsTimeBonus — 이 보스전에 토큰을 썼는가
     cleared: false,                 // 보스 코어 격파 신호(killEnemy 가 세팅 → tickRun 이 소화)
     won: false,                     // finale 격파 = 런 클리어(승리)
