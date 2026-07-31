@@ -75,14 +75,32 @@ function pull(world, eff, dt) {
   }
 }
 
-export function update(world, slot, eff, dt) {
-  // ★ slot.evolved 분기 정확히 1개 (§9.5 "진화의 코드 표현")
-  if (slot.evolved) pull(world, eff, dt);
+/**
+ * ★ §9.5(v1.5) — 펄스필드의 정체성 = «탄막 제거». 반경 안의 적 탄을 소거한다(피해 아님).
+ *   base 는 이것만 한다(무피해 방어 무기). 진화(싱귤래리티)에서 pulse 피해가 열린다.
+ */
+function clearBullets(world, eff) {
+  const p = world.player;
+  const r = eff.radius;
+  const eb = world.enemyBullets.items;
+  for (let i = 0; i < eb.length; i += 1) {
+    const b = eb[i];
+    if (!b.alive) continue;
+    const dx = b.x - p.x;
+    const dy = b.y - p.y;
+    if (dx * dx + dy * dy <= r * r) world.enemyBullets.release(b);
+  }
+}
 
+export function update(world, slot, eff, dt) {
   slot.a0 -= dt;
-  if (slot.a0 > 0) return;
-  slot.a0 += eff.tickIntervalSec;
-  pulse(world, slot, eff);
+  const tick = slot.a0 <= 0;
+  if (tick) { slot.a0 += eff.tickIntervalSec; clearBullets(world, eff); }   // base·진화 공통 — 탄막 제거
+  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티): 끌어당김(매 틱) + 피해(주기)
+  if (slot.evolved) {
+    pull(world, eff, dt);
+    if (tick) pulse(world, slot, eff);
+  }
 }
 
 export default { update };

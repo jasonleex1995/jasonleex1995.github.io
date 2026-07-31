@@ -67,18 +67,18 @@
                      "requiresPassive": { "id":"reactive", "level":3 } }
     },
     {
-      "id": "aura", "family": "aura", "name": "펄스필드", "desc": "몸 주위에 지속 피해장을 편다",
+      "id": "aura", "family": "aura", "name": "펄스필드", "desc": "주위 적 탄막을 지운다 (피해 없음)",
       "elementStampMode": "live",
       "base": { "dmg":3, "radius":70, "tickIntervalSec":0.70, "falloff":0.35 },
       "levels": [ {}, {"dmg":4}, {"radius":88,"tickIntervalSec":0.60}, {"dmg":6},
                   {"radius":104,"falloff":0.50}, {"dmg":9,"tickIntervalSec":0.50},
                   {"dmg":12}, {"dmg":20,"radius":120,"tickIntervalSec":0.42,"falloff":0.60} ],
-      "evolution": { "name":"싱귤래리티", "desc":"반경 안의 잡몹을 중심으로 끌어당긴다",
+      "evolution": { "name":"싱귤래리티", "desc":"탄막 제거 + 잡몹을 빨아들여 피해",
                      "params": { "evoPullForce":90 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "mine", "family": "mine", "name": "마인필드", "desc": "기뢰를 깔아둔다. 지나가면 터진다",
+      "id": "mine", "family": "mine", "name": "마인필드", "desc": "기뢰를 깔아둔다. 터지면 탄막 제거·적 둔화",
       "elementStampMode": "spawn",
       "base": { "dmg":12, "placeIntervalSec":1.40, "armSec":0.50,
                 "triggerRadius":26, "blastRadius":50, "maxAlive":3 },

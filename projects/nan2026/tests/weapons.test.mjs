@@ -558,31 +558,37 @@ suite('weapons/boomerang', () => {
 // aura · nova · lance (인라인 피해 3종)
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/aura', () => {
-  test('tickIntervalSec 주기로 반경 안의 적만 때린다 (밖은 무피해)', () => {
+  test('base(펄스필드) = 반경 안의 적 탄만 제거 (무피해, §9.5 v1.5)', () => {
     const w = mkWorld();
     const { s, eff } = setup(w, 'aura', 1, false);
     const p = w.player;
-    const near = addEnemy(w, p.x, p.y - eff.radius * 0.5);   // 반경 안
-    const far = addEnemy(w, p.x, p.y - eff.radius * 2);      // 반경 밖
-    const n0 = near.hp; const f0 = far.hp;
+    const inB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 0.5, 0, 0);
+    const outB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 2, 0, 0);
+    const en = addEnemy(w, p.x, p.y - eff.radius * 0.5);     // 반경 안 적
+    const h0 = en.hp;
     aura.update(w, s, eff, dt);                              // 첫 틱에 즉시 1회
-    assert.lt(near.hp, n0, '반경 안 = 피해');
-    assert.eq(far.hp, f0, '반경 밖 = 무피해');
-    const n1 = near.hp;
-    aura.update(w, s, eff, dt);                              // 주기 전이라 추가 피해 없음
-    assert.eq(near.hp, n1, 'tickIntervalSec 전엔 추가 피해 없음');
+    assert.eq(inB.alive, false, '반경 안 적 탄 = 제거');
+    assert.eq(outB.alive, true, '반경 밖 적 탄 = 유지');
+    assert.eq(en.hp, h0, 'base 는 적에게 무피해 (탄막만 제거)');
   });
 
-  test('falloff: 가장자리가 중심보다 덜 아프다', () => {
+  test('진화(싱귤래리티) = falloff 피해 (중심 > 가장자리), base 는 무피해', () => {
     const w = mkWorld();
-    const { s, eff } = setup(w, 'aura', 1, false);
+    const { s, eff } = setup(w, 'aura', 1, true);            // 진화 = 제거 + 피해
     assert.lt(eff.falloff, 1, 'falloff < 1 (양성 경로)');
     const p = w.player;
     const mid = addEnemy(w, p.x, p.y - 1);                   // 거의 중심
     const edge = addEnemy(w, p.x, p.y - eff.radius * 0.95);  // 가장자리
     const m0 = mid.hp; const e0 = edge.hp;
     aura.update(w, s, eff, dt);
-    assert.gt(m0 - mid.hp, e0 - edge.hp, '중심 피해 > 가장자리 피해');
+    assert.gt(m0 - mid.hp, e0 - edge.hp, '진화: 중심 피해 > 가장자리 피해');
+    // base 무피해 대조
+    const w2 = mkWorld();
+    const su = setup(w2, 'aura', 1, false);
+    const en = addEnemy(w2, w2.player.x, w2.player.y - 1);
+    const b0 = en.hp;
+    aura.update(w2, su.s, su.eff, dt);
+    assert.eq(en.hp, b0, 'base 는 무피해');
   });
 
   test('진화 격리(싱귤래리티): evolved 만 chaff 를 끌어당긴다', () => {

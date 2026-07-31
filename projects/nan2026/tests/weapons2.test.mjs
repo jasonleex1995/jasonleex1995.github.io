@@ -177,6 +177,21 @@ suite('weapons/mine — 마인필드 (§9.5)', () => {
     assert.eq(z.alive, false, '터진 기뢰는 소유자가 반납한다');
   });
 
+  test('기폭 = 탄막 제거 + 잡몹 둔화 (§9.5 v1.5)', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'mine', 1, false);
+    tickWeapon(w, 'mine', s, 1);
+    const z = liveZones(w)[0];
+    const trigger = fatEnemy(w, z.x, z.y);                          // 기폭 + 둔화 대상
+    const bId = w.data.bullets.bullets[0].id;
+    const inB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 0.5, z.y, 0, 0);
+    const outB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 3, z.y, 0, 0);
+    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 기폭
+    assert.eq(inB.alive, false, '폭발 반경 안 적 탄 = 제거');
+    assert.eq(outB.alive, true, '폭발 반경 밖 적 탄 = 유지');
+    assert.gt(trigger.slowSec, 0, '기폭 반경 안 잡몹 = 둔화(이동 방해)');
+  });
+
   test('클러스터 2차 폭발은 evolved 에서만 blastRadius 밖을 때린다', () => {
     // 1차 폭발 밖 · 2차(클러스터) 안이 되는 거리를 «진화 eff» 에서 유도한다
     const probe = mkWorld();

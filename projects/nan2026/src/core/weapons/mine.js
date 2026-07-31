@@ -41,6 +41,29 @@ function blastAt(world, family, eff, x, y, r, localMul, stamp) {
   }
 }
 
+/**
+ * ★ §9.5(v1.5) — 기폭은 «판을 흔든다»: 폭발 반경 안의 적 탄을 지우고(탄막 제거) 잡몹을 둔화(이동 방해).
+ *   보스는 둔화 면제(위치·이동은 보스 스크립트 소유). base·진화 공통.
+ */
+function disrupt(world, x, y, r) {
+  const eb = world.enemyBullets.items;
+  for (let i = 0; i < eb.length; i += 1) {
+    const b = eb[i];
+    if (!b.alive) continue;
+    const dx = b.x - x;
+    const dy = b.y - y;
+    if (dx * dx + dy * dy <= r * r) world.enemyBullets.release(b);
+  }
+  const en = world.enemies.items;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || e.isBoss) continue;
+    const dx = e.x - x;
+    const dy = e.y - y;
+    if (dx * dx + dy * dy <= r * r && e.slowSec < 1) e.slowSec = 1;   // 1초 둔화(리터럴 1 허용)
+  }
+}
+
 /** 이 슬롯의 살아있는 기뢰 수 */
 function liveMines(world) {
   const it = world.zones.items;
@@ -85,6 +108,7 @@ export function update(world, slot, eff, dt) {
     if (!hit) continue;
 
     blastAt(world, slot.family, eff, z.x, z.y, eff.blastRadius, 1, stamp);
+    disrupt(world, z.x, z.y, eff.blastRadius);         // ★ v1.5 — 탄막 제거 + 잡몹 둔화
     // ★ slot.evolved 분기 정확히 1개 (§9.5) — 클러스터: 원주 균등 배치의 2차 폭발
     if (slot.evolved) {
       const n = eff.evoClusterCount;
