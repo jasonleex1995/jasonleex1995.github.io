@@ -67,13 +67,12 @@
                      "requiresPassive": { "id":"reactive", "level":3 } }
     },
     {
-      "id": "aura", "family": "aura", "name": "펄스필드", "desc": "주위 적 탄막을 지운다 (피해 없음)",
+      "id": "aura", "family": "aura", "name": "펄스필드", "desc": "범위 안 적 탄막을 느리게 (지우지 않음)",
       "elementStampMode": "live",
       "base": { "dmg":3, "radius":70, "tickIntervalSec":0.70, "falloff":0.35 },
-      "levels": [ {}, {"dmg":4}, {"radius":88,"tickIntervalSec":0.60}, {"dmg":6},
-                  {"radius":104,"falloff":0.50}, {"dmg":9,"tickIntervalSec":0.50},
-                  {"dmg":12}, {"dmg":20,"radius":120,"tickIntervalSec":0.42,"falloff":0.60} ],
-      "evolution": { "name":"싱귤래리티", "desc":"탄막 제거 + 잡몹을 빨아들여 피해",
+      "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
+                  {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148} ],
+      "evolution": { "name":"싱귤래리티", "desc":"범위 안 탄막 완전 정지 + 잡몹 빨아들임",
                      "params": { "evoPullForce":90 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     },

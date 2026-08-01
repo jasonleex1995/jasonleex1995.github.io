@@ -251,8 +251,11 @@ function moveBullets(world, dt) {
         }
       }
     }
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    // §9.5(v1.5) 펄스필드 슬로우/정지 — slowMul(펄스필드가 이번 틱 세팅)로 이동을 줄인다. 적용 후 1로 리셋
+    //   → 필드를 벗어나면 다음 틱부터 원속도(«범위 안에서만 느려진다»). 정지(0)면 이 틱 이동 0.
+    b.x += b.vx * b.slowMul * dt;
+    b.y += b.vy * b.slowMul * dt;
+    b.slowMul = 1;
     b.age += dt;
     if (b.x < a.x - pad || b.x > a.x + a.w + pad || b.y < a.y - pad || b.y > a.y + a.h + pad) {
       world.enemyBullets.release(b);
