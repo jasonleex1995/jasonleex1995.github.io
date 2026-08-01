@@ -621,6 +621,24 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     shapePath(ctx, e.shapeId, x, y, r);
     ctx.stroke();
 
+    // §8.11(v1.5) 봉인된 파트 — 잠금 표시(무채색 차폐 + 점선 자물쇠 링). "앞 모듈을 부숴야 열린다"를 상시 신호.
+    if (e.isBoss && e.sealedNow) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = pal.neutralGray;
+      shapePath(ctx, e.shapeId, x, y, r);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = pal.neutralGray;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     // §7.7 — ×0.5 저항 피격: 본체를 짧게 **회색으로 차폐 플래시**("클렁크"). super 의 색 팝(프리즈+화이트-핫)과
     //   대비되는 무채색 반응 → "맞았지만 안 통했다". 색은 안 바꾼다(속성 외곽선은 이미 그렸다 = I-2 준수).
     //   회색은 neutralGray = §7.7 「튕겼다」의 단일 회색(팔레트 소유, §7.2). 발광 없음(방어는 둔하다).

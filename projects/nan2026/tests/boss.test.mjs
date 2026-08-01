@@ -170,6 +170,50 @@ suite('boss/처치 규칙 (killBossEntity)', () => {
   });
 });
 
+suite('boss/레이어 봉인 (§8.11 v1.5)', () => {
+  test('낮은 레이어(앞)가 살아있으면 높은 레이어(불 키스톤)는 무적 — kiln', () => {
+    const w = mkRunWorld(1, 0);
+    w.run.order[0] = 'volcano';                        // kiln — turret/plate(불,L1) · vent(물,L0)
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100; w.run.bossTransitionT = 0;
+    bossHook(w, TICK_DT);                              // sealedNow 계산
+    const parts = scanBoss(w).parts;
+    const turret = parts.find((p) => p.partId === 'turret');
+    const plate = parts.find((p) => p.partId === 'plate');
+    const vent = parts.find((p) => p.partId === 'vent');
+    assert.ok(turret && plate && vent, 'turret·plate·vent 스폰');
+    assert.eq(turret.sealLayer, 1, 'turret sealLayer=1');
+    assert.eq(vent.sealLayer, 0, 'vent sealLayer=0');
+    assert.eq(turret.sealedNow, true, 'turret 봉인 (L0 vent 생존)');
+    assert.eq(plate.sealedNow, true, 'plate 봉인');
+    assert.eq(vent.sealedNow, false, 'vent 열림 (최소 레이어)');
+
+    // 데미지 게이트: 봉인 파트는 탄이 닿아도 hp 불변, 열린 파트는 감소
+    const s = w.slots[0];
+    const hp0 = turret.hp;
+    spawnPlayerBullet(w, s, recomputeEff(w, s), turret.x, turret.y, 0, 0, 1);
+    step(w, makeInput(), TICK_DT);
+    assert.eq(turret.hp, hp0, '봉인 파트 = 피해 0 (탄 통과)');
+    const ventHp0 = vent.hp;
+    spawnPlayerBullet(w, s, recomputeEff(w, s), vent.x, vent.y, 0, 0, 1);
+    step(w, makeInput(), TICK_DT);
+    assert.lt(vent.hp, ventHp0, '열린 파트는 피해를 받는다');
+  });
+
+  test('낮은 레이어를 다 부수면 높은 레이어가 열린다 (봉인 불사 방지)', () => {
+    const w = mkRunWorld(1, 0);
+    w.run.order[0] = 'volcano';
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100; w.run.bossTransitionT = 0;
+    bossHook(w, TICK_DT);
+    for (const p of scanBoss(w).parts) if (p.sealLayer === 0) killEnemy(w, p);   // 최소 레이어 전멸
+    bossHook(w, TICK_DT);
+    const parts = scanBoss(w).parts;
+    assert.gt(parts.length, 0, 'L1 파트 생존');
+    for (const p of parts) assert.eq(p.sealedNow, false, `${p.partId} 봉인 해제 (최소 레이어 상승)`);
+  });
+});
+
 suite('boss/페이즈 전환 (§8.11)', () => {
   test('코어 HP 임계 통과 → 전환(무적·타이머 정지) 후 파트 phase 각인', () => {
     const w = mkRunWorld(1, 0);

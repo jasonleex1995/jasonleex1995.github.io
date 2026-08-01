@@ -83,6 +83,8 @@ function makeEnemy() {
     // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
     //   partId = 부위 식별(patternSet 이미터 조회). phase = 보스 페이즈 인덱스(patternSet 선택, B2b).
     isBoss: false, bossId: '', partId: '', partType: '', anchorX: 0, anchorY: 0, phase: 0,
+    // §8.11(v1.5) 레이어 봉인 — 낮은 sealLayer 파트가 살아있으면 이 파트는 무적. sealedNow = 보스훅이 매틱 계산.
+    sealLayer: 0, sealedNow: false,
     // §8.9 — 중간보스는 «단일 몸체·부위 없음»이라 isBoss 를 켜지 않는다(보스 처치/타이머/무적 규칙과
     //   무관해야 한다). 대신 이 표식 하나로 이동·이탈·소환·보상이 갈린다. '' = 중간보스 아님.
     midBossId: '',
@@ -597,6 +599,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   e.elite = elite;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = '';
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0;
@@ -642,6 +645,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
+  e.sealLayer = part.sealLayer === undefined ? 0 : part.sealLayer; e.sealedNow = false;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
@@ -666,6 +670,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
+  e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = def.id;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0;

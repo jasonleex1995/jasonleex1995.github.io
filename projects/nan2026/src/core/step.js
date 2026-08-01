@@ -329,6 +329,9 @@ function collide(world, dt) {
         if (shielded) continue;
       }
 
+      // §8.11(v1.5) 레이어 봉인 — 낮은 레이어(앞) 파트가 살아있으면 이 파트는 무적. 탄은 통과(잠금 렌더가 신호).
+      if (e.isBoss && !e.isCore && e.sealedNow) continue;
+
       // §6.3 — 페이즈 전환 중 보스(코어·파트) 무적 = 공짜 숨돌릴 틈. 탄은 통과(소멸 아님, i-frame 과 대칭).
       if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) continue;
 

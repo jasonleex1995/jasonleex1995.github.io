@@ -467,7 +467,7 @@ function checkBosses(c, b) {
         for (let j = 0; j < it.parts.length; j += 1) {
           const pt = it.parts[j];
           c.closed(`${p}.parts[${pt && pt.id}]`, pt, ['id', 'name', 'partType', 'element', 'hp',
-            'radius', 'anchor', 'contactDmg', 'shapeId', 'score', 'patternSet', 'extra'], ['extra']);
+            'radius', 'anchor', 'contactDmg', 'shapeId', 'score', 'patternSet', 'extra', 'sealLayer'], ['extra', 'sealLayer']);
         }
       }
     }

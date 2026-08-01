@@ -140,6 +140,20 @@ function moveBoss(world) {
     e.x = core.x + e.anchorX;
     e.y = core.y + e.anchorY;
   }
+
+  // §8.11(v1.5) 레이어 봉인 — 살아있는 파트 중 «최소 sealLayer»보다 높은 파트는 무적(sealedNow).
+  //   낮은 레이어(앞)를 다 부숴야 높은 레이어(뒤·키스톤)가 열린다. 항상 최소 레이어 파트는 열려 있어
+  //   보스가 봉인으로 불사가 되는 일은 없다. 코어는 자체 armor 게이트라 제외.
+  let minLayer = Infinity;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (e.alive && e.isBoss && !e.isCore && e.sealLayer < minLayer) minLayer = e.sealLayer;
+  }
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || !e.isBoss || e.isCore) continue;
+    e.sealedNow = e.sealLayer > minLayer;
+  }
 }
 
 /**

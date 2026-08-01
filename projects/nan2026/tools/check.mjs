@@ -792,8 +792,8 @@ function S2_files() {
       for (const p of rowsQuiet(b.parts)) {
         if (!isObj(p)) continue;
         closedKeys('S2', p, ['id', 'name', 'partType', 'element', 'hp', 'radius', 'anchor',
-          'contactDmg', 'shapeId', 'score', 'patternSet', 'extra'], `bosses[${b.id}].parts[${p.id}]`,
-          { optional: ['extra'] });
+          'contactDmg', 'shapeId', 'score', 'patternSet', 'extra', 'sealLayer'], `bosses[${b.id}].parts[${p.id}]`,
+          { optional: ['extra', 'sealLayer'] });
         // §9.8: 존재하지 않는 키들
         for (const dead of ['regenSec', 'onDestroy', 'hpShare', 'xp']) {
           if (has(p, dead)) V('S2', `bosses[${b.id}].parts[${p.id}].${dead}: 존재하지 않는 키 (§9.8)`);
