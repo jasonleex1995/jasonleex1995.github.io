@@ -282,6 +282,21 @@
   ],
   "emitters": [
     {
+      "id": "bossCore",
+      "type": "aimed",
+      "bulletId": "heavyRound",
+      "from": "self",
+      "telegraphSec": 1.20,
+      "everySec": 3.0,
+      "offsetSec": 0,
+      "repeat": 1,
+      "restSec": 0,
+      "count": 1,
+      "spreadDeg": 0,
+      "speed": 100,
+      "leadSec": 0.25
+    },
+    {
       "id": "spitStraight",
       "type": "straight",
       "bulletId": "pelletS",

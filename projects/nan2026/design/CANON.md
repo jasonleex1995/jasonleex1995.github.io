@@ -1944,6 +1944,7 @@ data/bosses.json     data/stages.json     data/meta.json
                "introSec":3.0, "timerStartsAfterIntro":true, "timerExpire":"kill",
                "coreGateMul":0.4, "mobilityPenalty":1.5,
                "escalateFireRateMul":1.25, "escalateFireRateMax":1.60, "coreElement":"normal",
+               "coreEmitterId":"bossCore",
                "partNormalForbidden":true, "partElementDistinctMin":2,
                "partThemeElementMax":2, "armorElementNotTheme":false,
                "armorPartCountRange":[2,2], "armorCoreRatioBandPct":[0.85,1.0], "coin":12, "partCoin":2,
@@ -1957,6 +1958,10 @@ data/bosses.json     data/stages.json     data/meta.json
   //   bossHpScale 적용)·비-테마 속성(R4 유지, 후반 풀-스탠스 강제). armor 는 전부 base → 소프트게이트 불변.
   //   mobilityPenalty 0.5→1.5(폭주). escalateFireRateMul 1.25(부위 파괴마다 발사 가속)·
   //   escalateFireRateMax 1.60(상한, 페어니스 320 보호). 이미터 66→129(§8.9.1).
+  // ★v1.5 코어 발사(§9.8.1 개정, 사용자 결정 2026-08-01) — v1.4의 「코어는 발사 안 함」 폐기.
+  //   코어(무속성 중앙)가 coreEmitterId(="bossCore") 로 «회피가능한 원거리 압박»을 쏜다: 어느 거리에서도
+  //   닿아 «원거리 치즈»를 막고 가운데가 살아난다. 부위 이미터법칙(66→129·{bossId}{Part}P{phase}) 밖의
+  //   단일 공용 이미터(from:self·메트로놈·enemies.emitters 에 1개). S28 이 coreRef 로 «참조됨» 인정.
   "render":  { "...§9.4.2 전 키..." },
   "fairness":{ "minTelegraphSec":0.55, "minStunTelegraphSec":1.5, "maxStunSec":1.0,
                "maxBulletSpeed":260, "maxAimedBulletSpeed":200, "statusBulletSpeedMul":0.6,

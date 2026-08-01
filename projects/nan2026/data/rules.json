@@ -123,6 +123,7 @@
     "escalateFireRateMul": 1.25,
     "escalateFireRateMax": 1.60,
     "coreElement": "normal",
+    "coreEmitterId": "bossCore",
     "partNormalForbidden": true,
     "partElementDistinctMin": 2,
     "partThemeElementMax": 2,

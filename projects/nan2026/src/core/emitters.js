@@ -273,15 +273,22 @@ export function emitters(world, dt) {
     let em;
     let firstDelay;
     if (e.isBoss) {
-      // §9.8.1 — 보스 파트가 patternSet 이미터로 발사한다(코어는 발사 안 함).
-      if (e.isCore) continue;
       // ★ 강림(BOSS_INTRO)·페이즈 전환 중엔 발사 정지 = 진짜 «숨돌릴 틈». emitT 도 안 올린다(백로그 방지).
       if (world.run !== undefined && world.run.bossTransitionT > 0) continue;
-      const emId = bossPartEmitterId(look, e);
-      if (emId === null) continue;                  // 이 페이즈 이미터 없음
-      em = look.emitById[emId];
-      if (em === undefined) throw new Error(`emitters: 미지의 보스 이미터 "${emId}" (${e.bossId}/${e.partId}, §9.8)`);
-      firstDelay = 0;                               // 보스는 등장 연출 뒤 스폰 → 즉시 악절 시작
+      if (e.isCore) {
+        // §9.8.1(v1.5) — 코어(무속성 중앙)도 발사한다: 회피가능한 원거리 압박(rules.boss.coreEmitterId).
+        //   어느 거리에서도 닿아 «원거리 치즈»를 막고 가운데가 살아난다. 배치는 언제나 = 메트로놈.
+        em = look.emitById[world.data.rules.boss.coreEmitterId];
+        if (em === undefined) throw new Error(`emitters: 미지의 코어 이미터 "${world.data.rules.boss.coreEmitterId}" (§9.8.1)`);
+        firstDelay = 0;
+      } else {
+        // §9.8.1 — 보스 파트가 patternSet 이미터로 발사한다.
+        const emId = bossPartEmitterId(look, e);
+        if (emId === null) continue;                // 이 페이즈 이미터 없음
+        em = look.emitById[emId];
+        if (em === undefined) throw new Error(`emitters: 미지의 보스 이미터 "${emId}" (${e.bossId}/${e.partId}, §9.8)`);
+        firstDelay = 0;                             // 보스는 등장 연출 뒤 스폰 → 즉시 악절 시작
+      }
     } else {
       const def = look.archById[e.archetypeId];
       if (def === undefined || def.attack === null) continue;   // 사격 안 함 = attack: null (§8.5)

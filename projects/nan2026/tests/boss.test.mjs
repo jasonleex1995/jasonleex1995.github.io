@@ -293,16 +293,17 @@ suite('boss/bossHook · clearField', () => {
     assert.eq(fire(2), fire(2), '동일 시드 = 동일 적탄 수(결정성)');
   });
 
-  test('코어는 발사하지 않는다 (파트만 쏜다)', () => {
-    // 파트를 전부 제거하고 코어만 남기면 적 탄이 더는 생기지 않는다
+  test('§9.8.1(v1.5) 코어도 발사한다 — 파트를 다 없애도 코어 원거리 탄이 나온다', () => {
     const w = mkRunWorld(3, 0);
     spawnBoss(w);
-    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 200; w.player.iframeSec = 99999;
-    for (const e of w.enemies.items) if (e.alive && e.isBoss && !e.isCore) killEnemy(w, e);   // 파트 전멸
-    // 남은 적 탄 소거 후 관찰
-    for (const b of w.enemyBullets.items) if (b.alive) w.enemyBullets.release(b);
-    for (let t = 0; t < 180; t += 1) step(w, makeInput(), TICK_DT);
-    assert.eq(w.enemyBullets.live, 0, '코어만 남으면 적 탄 없음 (코어 미발사)');
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 200;
+    w.run.bossTransitionT = 0; w.player.iframeSec = 99999;
+    for (const e of w.enemies.items) if (e.alive && e.isBoss && !e.isCore) killEnemy(w, e);   // 파트 전멸 → 코어만
+    for (const b of w.enemyBullets.items) if (b.alive) w.enemyBullets.release(b);             // 잔탄 소거
+    for (let t = 0; t < 300; t += 1) step(w, makeInput(), TICK_DT);
+    assert.gt(w.enemyBullets.live, 0, '코어만 남아도 적 탄이 나온다 (코어 발사 = 원거리 압박)');
+    const coreEm = w.data.enemies.emitters.find((e) => e.id === w.data.rules.boss.coreEmitterId);
+    assert.ok(w.enemyBullets.items.some((b) => b.alive && b.bulletId === coreEm.bulletId), '코어 이미터 탄이다');
   });
 
   test('clearField: 보스 등장 시 잔존 잡몹·적탄 정리', () => {

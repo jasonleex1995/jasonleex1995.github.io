@@ -513,7 +513,7 @@ function S2_schema() {
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
   closedKeys('S2', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
-    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement',
+    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'coin', 'partCoin', 'optionalPartArmorRatio',
     'midBossSummonsAllowed', 'finale'], 'rules.boss');
@@ -990,6 +990,7 @@ function refIntegrity() {
     need(formIds, cw && cw.formationId, 'stages.phase.crisisWaves[].formationId');
   }
   need(weaponIds, D.rules.player && D.rules.player.startWeaponId, 'rules.player.startWeaponId');
+  need(emitIds, D.rules.boss && D.rules.boss.coreEmitterId, 'rules.boss.coreEmitterId');   // §9.8.1 v1.5
   for (const id of rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed)) {
     need(bossIds, id, 'rules.boss.midBossSummonsAllowed');
   }
@@ -2354,13 +2355,15 @@ function S28_fromLegality() {
   const partRef = bossPartEmitterIds();
   const midRef = midBossEmitterIds();
   const mobRef = mobEmitterIds();
+  const coreRef = new Set();   // §9.8.1(v1.5) — 코어 이미터(rules.boss.coreEmitterId)도 «참조됨»으로 친다
+  if (D.rules.boss && D.rules.boss.coreEmitterId) coreRef.add(D.rules.boss.coreEmitterId);
   let n = 0;
   for (const e of EMITTERS()) {
     if (!isObj(e) || isAmb(e.from)) continue;
     n += 1;
     const lhs = e.from === 'part';
     const inPart = partRef.has(e.id);
-    const inOther = midRef.has(e.id) || mobRef.has(e.id);
+    const inOther = midRef.has(e.id) || mobRef.has(e.id) || coreRef.has(e.id);
     const rhs = inPart && !inOther;     // "…에서만 참조된다"
     if (lhs !== rhs) {
       V('S28', `enemies.emitters[${e.id}]: (from=="part")=${lhs} ≠ (보스 부위 patternSet 에서만 참조)=${rhs} `
