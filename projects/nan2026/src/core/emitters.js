@@ -275,6 +275,8 @@ export function emitters(world, dt) {
     if (e.isBoss) {
       // §9.8.1 — 보스 파트가 patternSet 이미터로 발사한다(코어는 발사 안 함).
       if (e.isCore) continue;
+      // ★ 강림(BOSS_INTRO)·페이즈 전환 중엔 발사 정지 = 진짜 «숨돌릴 틈». emitT 도 안 올린다(백로그 방지).
+      if (world.run !== undefined && world.run.bossTransitionT > 0) continue;
       const emId = bossPartEmitterId(look, e);
       if (emId === null) continue;                  // 이 페이즈 이미터 없음
       em = look.emitById[emId];

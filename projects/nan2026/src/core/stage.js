@@ -127,6 +127,7 @@ export function tickRun(world, dt) {
       clearMidBoss(world);           // 잡몹 페이즈가 끝나면 무대에 남지 않는다
       run.phase = PHASE.BOSS_INTRO;
       run.phaseT = 0;
+      run.bossSpawned = false;       // ★ 보스를 «인트로»에 스폰해 위에서 서서히 강림시킨다(boss.js)
       // (배선) mobPhaseExitClearBullets + phaseEndAutocollect 는 여기 전이에서 수행한다
     }
     return;
@@ -139,7 +140,7 @@ export function tickRun(world, dt) {
       run.phaseT = 0;
       run.bossTimer = ph.bossTimerSec;   // timerStartsAfterIntro (§8.11)
       run.timedOut = false;
-      run.bossSpawned = false;           // 보스 훅이 이 틱 이후 스폰
+      // ★ bossSpawned 은 BOSS_INTRO 에서 이미 true — 강림이 끝난 보스가 그대로 전투에 들어간다.
     }
     return;
   }

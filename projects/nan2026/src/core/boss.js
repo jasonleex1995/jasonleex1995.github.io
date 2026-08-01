@@ -50,7 +50,11 @@ export function spawnBoss(world) {
   const entry = stageEntry(world);
   const def = findBoss(world, entry.bossId);
   const run = world.run;
-  run.bossPhase = 0; run.bossTransitionT = 0; run.bossMoveSpeedMul = 1; run.bossMoveAmpMul = 1;  // 새 보스 = 1페이즈
+  // ★ BOSS_INTRO 에 스폰되면 introSec 동안 무적(damage.js·step.js 의 bossTransitionT 게이트 재사용) +
+  //   무발사(emitters) → 그 사이 위에서 서서히 강림한다. BOSS 에 직접 스폰(테스트)이면 0.
+  run.bossPhase = 0;
+  run.bossTransitionT = run.phase === PHASE.BOSS_INTRO ? world.data.rules.boss.introSec : 0;
+  run.bossMoveSpeedMul = 1; run.bossMoveAmpMul = 1;  // 새 보스 = 1페이즈
   run.bossFireRateMul = 1;                                                                       // §8.12(v1.5) 격화 초기화
   run.bossTokenUsed = false;
   const scale = def.tier === 'final' ? 1 : world.data.stages.curve.bossHpScale[world.run.stageIndex];
@@ -97,6 +101,25 @@ function moveBoss(world) {
   const mp = def.movePatternParams;
   const arena = world.data.rules.view.arena;
   const cx = arena.x + arena.w / 2;
+
+  // ★ BOSS_INTRO — 위(spawnLineY)에서 yHoldPx 로 «서서히 강림»(smoothstep). 무적·무발사는
+  //   bossTransitionT 게이트(damage.js·step.js·emitters)가 소유 — 여기선 위치만.
+  if (run.phase === PHASE.BOSS_INTRO) {
+    const introSec = world.data.rules.boss.introSec;
+    const t = introSec > 0 ? Math.min(run.phaseT / introSec, 1) : 1;
+    const eased = t * t * (3 - 2 * t);
+    const sy = world.data.rules.view.spawnLineY;
+    core.x = cx;
+    core.y = sy + (mp.yHoldPx - sy) * eased;
+    const en = world.enemies.items;
+    for (let i = 0; i < en.length; i += 1) {
+      const e = en[i];
+      if (!e.alive || !e.isBoss || e.isCore) continue;
+      e.x = core.x + e.anchorX;
+      e.y = core.y + e.anchorY;
+    }
+    return;
+  }
 
   // §8.12 — mobility 파괴 시 speedPxSec ×0.5 · ampPx →0(스웨이 정지). 배율은 run 이 소유.
   const effAmp = mp.ampPx * run.bossMoveAmpMul;
@@ -158,7 +181,7 @@ function advancePhase(world, dt) {
  */
 export function bossHook(world, dt) {
   const run = world.run;
-  if (run.phase !== PHASE.BOSS) return;
+  if (run.phase !== PHASE.BOSS && run.phase !== PHASE.BOSS_INTRO) return;   // ★ 강림 연출도 여기서
   if (!run.bossSpawned) { spawnBoss(world); run.bossSpawned = true; }
   advancePhase(world, dt);
   moveBoss(world);

@@ -21,7 +21,7 @@
  */
 
 import { rgba, glyphPath } from './draw.js';
-import { PHASE } from '../core/stage.js';   // 읽기 전용 상수 (render 는 core 를 읽기만 한다, §9.1)
+import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
 import { price, buyBlockedBy } from '../core/shop.js';   // 읽기 전용 질의(가격·구매 가능 여부)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
@@ -163,6 +163,14 @@ function drawTopBand(ctx, world, pal) {
  * 아레나 오버레이 띠 — 상단(스테이지·보스 타이머·코어 HP) · 하단 A(HP) · 하단 B(XP).
  *   §1.2 「없을 때: 바 자체를 그리지 않는다(빈 트랙 금지)」.
  */
+/** BOSS_INTRO 강림 배너용 — 지금 스테이지 보스의 한국어 이름(없으면 null). */
+function bossNameFor(world) {
+  if (world.run === undefined) return null;
+  const entry = stageEntry(world);
+  const b = world.data.bosses.bosses.find((x) => x.id === entry.bossId);
+  return b ? b.name : null;
+}
+
 export function drawArenaBands(ctx, world, pal) {
   drawTopBand(ctx, world, pal);
   const v = world.data.rules.view;
@@ -171,6 +179,19 @@ export function drawArenaBands(ctx, world, pal) {
   const rp = world.data.rules.player;
   const p = world.player;
   const a = v.arena;
+
+  // ★ BOSS_INTRO — «WARNING» 강림 배너(비행슈팅 연출). 필드가 비어 있어 아레나 중앙에 크게 점멸.
+  if (world.run !== undefined && world.run.phase === PHASE.BOSS_INTRO) {
+    const bx = a.x + a.w / 2;
+    const by = a.y + a.h * 0.58;
+    const blink = 0.55 + 0.45 * Math.sin(world.time * Math.PI * 4);   // 2Hz 점멸
+    ctx.save();
+    ctx.globalAlpha = blink;
+    text(ctx, world, pal, 'WARNING', bx, by, h.fontHeroPx, pal.threat.enemyBullet, 'center', 800);
+    const nm = bossNameFor(world);
+    if (nm !== null) text(ctx, world, pal, `${nm} 강림`, bx, by + h.fontHeroPx * 0.85, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
+    ctx.restore();
+  }
 
   const hpY = a.y + a.h - v.bandHpH - v.bandXpH;      // 672
   const xpY = a.y + a.h - v.bandXpH;                  // 696

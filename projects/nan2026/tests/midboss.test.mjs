@@ -160,10 +160,17 @@ suite('midboss — 이탈 (§8.9 「선택적」의 정의)', () => {
     assert.ne(e, null, '등장했다');
     const before = livePickups(w).length;
     const scoreBefore = w.score.midBossClear;
+    // ★ v1.5 — 수명이 다하면 «즉시 반납»이 아니라 위로 서서히 빠져나가는 «퇴장 연출»(mp0=-1)이 시작된다.
     tickMob(w, Math.floor(ph.midBossLeaveAfterSec / dt) + 2);
-    assert.eq(e.alive, false, '이탈했다');
-    assert.eq(livePickups(w).length, before, '이탈 = 드랍 0');
-    assert.eq(w.score.midBossClear, scoreBefore, '이탈 = 격파 점수 0');
+    assert.eq(e.alive, true, '아직 살아서 위로 빠져나가는 중(연출)');
+    assert.eq(e.mp0, -1, '퇴장 상태');
+    const yMid = e.y;
+    tickMob(w, 20);
+    assert.lt(e.y, yMid, '위로 상승 중');
+    tickMob(w, 200);                                    // off-screen 까지 충분히
+    assert.eq(e.alive, false, '퇴장 완료 = 반납');
+    assert.eq(livePickups(w).length, before, '퇴장 = 드랍 0');
+    assert.eq(w.score.midBossClear, scoreBefore, '퇴장 = 격파 점수 0');
   });
 
   test('midBossForcedLeaveOnCrisis — 새떼가 오면 즉시 이탈', () => {

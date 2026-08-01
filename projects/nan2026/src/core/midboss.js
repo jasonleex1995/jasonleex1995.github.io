@@ -30,6 +30,7 @@ import { spawnMidBoss, spawnEnemy } from './state.js';
 import { formationPos } from './formations.js';
 
 const ELEMENTS3 = ['fire', 'water', 'grass'];   // §4.1 — 노말을 뺀 3종(주입 후보)
+const EXIT_SPEED_PX = 220;                      // §8.9(v1.5) 퇴장 상승 속도(비행슈팅 «서서히 빠져나감»)
 
 /**
  * 현재 스테이지의 **테마 속성**. finale 은 저작값이 null 이고 그것이 곧 "테마가 없다"이다.
@@ -207,14 +208,21 @@ export function midBoss(world, dt) {
 
   // (3~5) 살아있는 각 중간보스를 «개체별 독립»으로 처리한다(이탈 타이머·이동·소환).
   const defs = ensureMidDefs(world);
+  const sy = world.data.rules.view.spawnLineY;
   for (let i = 0; i < it.length; i += 1) {
     const e = it[i];
     if (!e.alive || e.midBossId === '') continue;
+    // ★ 퇴장 연출(v1.5) — 수명이 다한 마리는 위로 «서서히 빠져나간다»(비행슈팅). off-screen 에서 반납.
+    if (e.mp0 === -1) {
+      e.y -= EXIT_SPEED_PX * dt;
+      if (e.y < sy - 60) leave(world, e);
+      continue;
+    }
     // ★ §2.7 「스턴 = 개체 정지」 — 이동·소환 멈춤. stunSec 감소는 step.moveBullets 단일 소유(이중 방지).
     if (e.stunSec > 0) continue;
-    // (3) 이탈 — 등장 후 midBossLeaveAfterSec. 그 전까진 계속 쏜다(공짜 회피 아님).
+    // (3) 이탈 — 등장 후 midBossLeaveAfterSec: 즉시 반납이 아니라 «퇴장 연출»(위로 상승) 시작.
     //   ★ e.moveT 는 step.moveBullets 가 매 틱 올린다 — 여기서 또 올리면 시계가 2배.
-    if (e.moveT >= ph.midBossLeaveAfterSec) { leave(world, e); continue; }
+    if (e.moveT >= ph.midBossLeaveAfterSec) { e.mp0 = -1; continue; }
     // (4) 이동 — §9.8.2 moveId(anchor | charge)
     let def = null;
     for (let j = 0; j < defs.length; j += 1) if (defs[j].id === e.midBossId) { def = defs[j]; break; }
