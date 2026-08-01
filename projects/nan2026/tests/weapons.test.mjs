@@ -352,10 +352,10 @@ suite('weapons/seeker', () => {
   });
 
   test('distinct 타겟: evolved 다발은 서로 다른 적을, 비evolved 는 같은 최근접을 겨눈다', () => {
-    // evolved: 2발이 서로 다른 적
+    // evolved: 2발이 서로 다른 적 (플레이어 640,664 기준 acquireRadius 210 안 — v1.5 시커 하향 반영)
     const we = mkWorld();
-    const a = addEnemy(we, 700, 400);
-    const b = addEnemy(we, 705, 402);
+    const a = addEnemy(we, 660, 500);
+    const b = addEnemy(we, 665, 502);
     const e = setup(we, 'seeker', 3, true);            // Lv3 count 2 · evolved distinct
     assert.eq(e.eff.count, 2, 'Lv3 count = 2');
     e.s.cooldownT = 0;
@@ -367,7 +367,7 @@ suite('weapons/seeker', () => {
 
     // 비evolved: 2발이 같은 최근접을 겨눈다
     const wn = mkWorld();
-    addEnemy(wn, 700, 400); addEnemy(wn, 705, 402);
+    addEnemy(wn, 660, 500); addEnemy(wn, 665, 502);
     const n = setup(wn, 'seeker', 3, false);
     n.s.cooldownT = 0;
     seeker.update(wn, n.s, n.eff, dt);

@@ -516,7 +516,7 @@
     },
     {
       "id": "hammerZone",
-      "type": "zone",
+      "type": "mortar",
       "bulletId": null,
       "from": "self",
       "telegraphSec": 1.20,
@@ -525,8 +525,10 @@
       "repeat": 2,
       "restSec": 3.0,
       "radius": 82,
-      "activeSec": 3.0,
-      "dmg": 10
+      "activeSec": 0.6,
+      "dmg": 12,
+      "fuseSec": 1.2,
+      "leadSec": 0.4
     },
     {
       "id": "lancerLaser",

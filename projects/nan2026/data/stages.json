@@ -51,7 +51,7 @@
       { "subWave": 6, "formationId": "vWedge",  "archetypeId": "swarmChaff",  "count": 13, "spawnEdge": "top" },
       { "subWave": 6, "formationId": "vWedge",  "archetypeId": "swarmLancer", "count": 1, "spawnEdge": "top" }
     ],
-    "midBossAtSec": [[35], [30, 45], [30, 45], [25, 40, 55], [22, 37, 52, 67], [20, 35, 50, 65, 80]],
+    "midBossAtSec": [[30], [30, 35], [30, 35], [26, 31, 36], [24, 29, 34, 39], [20, 25, 30, 35, 40]],
     "midBossLeaveAfterSec": 30,
     "midBossElementRule": "themeElseNonTheme",
     "midBossForcedLeaveOnCrisis": true,

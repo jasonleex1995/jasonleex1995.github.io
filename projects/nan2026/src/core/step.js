@@ -411,6 +411,9 @@ function collide(world, dt) {
     for (let j = 0; j < eb.length; j += 1) {
       const ebul = eb[j];
       if (!ebul.alive) continue;
+      // §9.5(v1.5.1) — 요격 대상은 «잡몹 탄»뿐. 보스('boss')·중간보스('mb…') 탄은 상쇄 불가.
+      //   보스/중간보스 탄막을 통째로 지우면 위엄·긴장이 사라진다 = 무력화 방지(사용자 지시).
+      if (ebul.srcArch === 'boss' || ebul.srcArch.startsWith('mb')) continue;
       const dx = ebul.x - b.x;
       const dy = ebul.y - b.y;
       const rr = ebul.hitRadius + b.radius;

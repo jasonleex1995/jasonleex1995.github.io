@@ -79,6 +79,8 @@ export function update(world, slot, eff, dt) {
     for (let j = 0; j < eb.length && z.hp > 0; j += 1) {
       const b = eb[j];
       if (!b.alive) continue;
+      // 잡몹 탄만 막는다. 보스('boss')·중간보스('mb…') 탄은 관통(무력화 방지, §9.5 v1.5.1과 동일 방침).
+      if (b.srcArch === 'boss' || b.srcArch.startsWith('mb')) continue;
       const dx = b.x - z.x;
       const dy = b.y - z.y;
       if (dx * dx + dy * dy <= br2) { world.enemyBullets.release(b); z.hp -= 1; }
