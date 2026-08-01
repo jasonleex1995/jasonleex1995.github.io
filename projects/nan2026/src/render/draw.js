@@ -1103,6 +1103,42 @@ function drawLance(ctx, world, pal, px, py) {
   }
 }
 
+// §5.3 노바(주기 대폭발) — 탄이 없어 «작동이 안 보이던» 무기(랜스·드론과 같은 부류). 판정은 폭발
+//   시점 1회(nova.js). 여기선 연출만: expandSec 동안 0→radius 확장 플래시 + telegraphSec 예고.
+//   since = intervalSec − a0 (a0 = 다음 폭발까지 남은 시간) → 새 스크래치 필드 없이 파생.
+function drawNova(ctx, world, pal, px, py) {
+  const cap = world.data.rules.render.playerBulletMaxAlpha;
+  const slots = world.slots;
+  for (let si = 0; si < slots.length; si += 1) {
+    const slot = slots[si];
+    if (slot.weaponId === null || slot.family !== 'nova') continue;
+    const eff = recomputeEff(world, slot);
+    const col = pal.element[slot.stampElement] || pal.hud.textPrimary;
+    const since = eff.intervalSec - slot.a0;                    // 폭발 후 경과
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (since >= 0 && since < eff.expandSec) {                  // 폭발 확장 플래시
+      const f = since / eff.expandSec;                          // 0→1
+      const rr = eff.radius * f;
+      ctx.fillStyle = rgba(pal.threat.bulletCore, Math.min(0.5 * (1 - f), cap));
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = rgba(col, Math.min(0.9 * (1 - f), cap));
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.stroke();
+      if (slot.evolved) {                                       // 슈퍼노바 2단 링
+        ctx.strokeStyle = rgba(col, Math.min(0.5 * (1 - f), cap));
+        ctx.beginPath(); ctx.arc(px, py, eff.evoRing2Radius * f, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (slot.a0 < eff.telegraphSec) {                    // 다음 폭발 임박 예고
+      const f = 1 - slot.a0 / eff.telegraphSec;                 // 0→1
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = rgba(col, Math.min(0.15 + 0.35 * f, cap));
+      ctx.beginPath(); ctx.arc(px, py, eff.radius, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
 export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   const v = world.data.rules.view;
   const a = v.arena;
@@ -1122,6 +1158,7 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   const pp = drawPlayer(ctx, world, pal, fx, interp, alpha);  // 6
   drawDrones(ctx, world, pal, interp, alpha, pp.x, pp.y);     // 6.5 — 위성 편대(테더로 플레이어와의 관계 표시)
   drawLance(ctx, world, pal, pp.x, pp.y);                     // 6.6 — 랜스 빔(플레이어 위 · 적 탄 9 아래 = I-4)
+  drawNova(ctx, world, pal, pp.x, pp.y);                      // 6.65 — 노바 대폭발(확장 플래시 + 예고)
   drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9
