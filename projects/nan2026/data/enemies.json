@@ -911,17 +911,17 @@
     },
     {
       "id": "kilnVentP1",
-      "type": "zone",
-      "bulletId": null,
+      "type": "ring",
+      "bulletId": "pelletS",
       "from": "part",
       "telegraphSec": 1.50,
       "everySec": 6.0,
       "offsetSec": 4.0,
       "repeat": 2,
       "restSec": 6.0,
-      "radius": 76,
-      "activeSec": 3.0,
-      "dmg": 10
+      "count": 16,
+      "speed": 108,
+      "rotOffsetDeg": 11
     },
     {
       "id": "kilnVentP2",
@@ -1387,17 +1387,17 @@
     },
     {
       "id": "tetrarchCoffinFireP1",
-      "type": "zone",
-      "bulletId": null,
+      "type": "ring",
+      "bulletId": "pelletS",
       "from": "part",
       "telegraphSec": 1.50,
       "everySec": 6.0,
       "offsetSec": 1.5,
       "repeat": 2,
       "restSec": 6.0,
-      "radius": 72,
-      "activeSec": 3.0,
-      "dmg": 10
+      "count": 14,
+      "speed": 108,
+      "rotOffsetDeg": 11
     },
     {
       "id": "tetrarchCoffinFireP2",
@@ -1417,17 +1417,17 @@
     },
     {
       "id": "tetrarchCoffinFireP3",
-      "type": "zone",
-      "bulletId": null,
+      "type": "ring",
+      "bulletId": "pelletS",
       "from": "part",
       "telegraphSec": 1.50,
       "everySec": 3.6,
       "offsetSec": 0.9,
       "repeat": 2,
       "restSec": 3.6,
-      "radius": 72,
-      "activeSec": 3.0,
-      "dmg": 10
+      "count": 18,
+      "speed": 115,
+      "rotOffsetDeg": 9
     },
     {
       "id": "tetrarchCoffinGrassP1",
