@@ -402,6 +402,24 @@ function collide(world, dt) {
     applyHit(world, e.contactDmg, e.archetypeId);
     break;
   }
+
+  // (d) §9.5(v1.5) 요격(omni 재설계) — omni 플레이어 탄이 적 탄과 부딪히면 «상쇄»(둘 다 소멸).
+  //   omni 는 전방위로 쏘므로 사방에서 오는 탄을 요격한다. 적을 맞히면 (a)에서 이미 피해·소진.
+  for (let i = 0; i < pb.length; i += 1) {
+    const b = pb[i];
+    if (!b.alive || b.family !== 'omni') continue;
+    for (let j = 0; j < eb.length; j += 1) {
+      const ebul = eb[j];
+      if (!ebul.alive) continue;
+      const dx = ebul.x - b.x;
+      const dy = ebul.y - b.y;
+      const rr = ebul.hitRadius + b.radius;
+      if (dx * dx + dy * dy > rr * rr) continue;
+      world.enemyBullets.release(ebul);       // 적 탄 상쇄
+      releasePlayerBullet(world, b);          // omni 탄도 소멸(1:1 상쇄)
+      break;
+    }
+  }
 }
 
 /**

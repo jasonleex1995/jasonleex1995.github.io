@@ -2273,6 +2273,7 @@ data/bosses.json     data/stages.json     data/meta.json
 > ★ **v1.5(#24) 탄막 대응 무기 (사용자 결정 2026-07-31)** — 후반 탄막 밀도(§8.3·§8.9.1)의 «대항 수단». 파라미터 계약·키 집합 변경 **0**(거동만 재정의):
 > - **`aura`(펄스필드)** ★v1.5(2026-08-01 재개정 — 탄막 제거는 «너무 쉬움», 사용자 결정) — base = **영역 슬로우**(반경 안 적 탄 이동 ×0.5, **지우지 않음·무피해**). 진화(**싱귤래리티**) = 반경 안 적 탄 **완전 정지**(×0) + 잡몹 끌어당김. 구현 = `enemyBullet.slowMul`(펄스필드가 매 틱 세팅 → `step.moveBullets` 가 적용 후 1 리셋 → 필드 밖=원속도). 레벨업 = `radius`만(필드 확대). `dmg`/`falloff`/`tickIntervalSec` 는 계약에 남되 미사용(순수 제어 무기). ★ v1.5(#24)의 «탄막 제거»는 폐기.
 > - **`mine`(마인필드)** ★v1.5(2026-08-01 재개정) — «탄 막는 설치물». 발밑 자동 설치(`placeIntervalSec`, space 아님) 후: ① 탄 막기 — `blastRadius` 안 적 탄을 막고(소거) `blockHp`(base 신규 param)를 1씩 깎는다, hp 0 = **소멸**(폭발 아님) · ② 폭발 — 적 «기체»가 `triggerRadius` 에 닿으면 터진다(`blastRadius` 광역 `dmg`, hp 무관). z.hp = 탄막이 체력. v1.5(#24)의 «탄 소거+둔화»는 폐기. ★ 부수: `fairness.maxBulletAgeSec`(12) 신설 — 펄스필드 정지 등으로 묶인 탄이 무한 누적(capHits) 안 하게 흩어져 사라짐.
+> - **`omni`(리어가드→«인터셉터»)** ★v1.5(2026-08-01, 사용자 «요격 무기» 결정) — 12 로스터 중 가장 특색 약한 omni(전방위)를 «요격기»로 재해석. omni 플레이어 탄이 적 탄과 부딪히면 **상쇄**(둘 다 소멸, step.collide 절(d), 1:1). 전방위 발사라 사방 요격. 적을 맞히면 (a)에서 이미 피해·소진 = 공수 겸용. 파라미터 계약 변경 0(거동만). family id `omni` 유지 → §9.5 어휘·슬롯 불변.
 
 **★ `targetMode` 어휘 (폐쇄)**: `forward` `nearest` `lowestHp` `densest` `randomInArena`
 

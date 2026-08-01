@@ -451,6 +451,26 @@ suite('weapons/omni', () => {
     assert.near(e.s.a0, e.eff.evoRingRotDeg * DEG2RAD, 1e-9, 'evolved: 한 볼리 = a0 += evoRingRotDeg(rad)');
     assert.gt(e.s.a0, 0, 'evolved 는 링이 회전한다');
   });
+
+  test('§9.5(v1.5) 인터셉터 — omni 탄이 적 탄과 부딪히면 «상쇄»(둘 다 소멸)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'omni', 1, false);
+    const p = w.player;
+    p.iframeSec = 99999;                                            // 적 탄이 플레이어에 안 맞게(요격만 관측)
+    spawnPlayerBullet(w, s, eff, p.x, p.y - 50, 0, -300, 1);        // omni 탄
+    const eb = spawnEnemyBullet(w, 'pelletS', p.x, p.y - 50, 0, 0); // 같은 자리 적 탄
+    assert.eq(eb.alive, true, '적 탄 놓임');
+    step(w, makeInput(), dt);
+    assert.eq(eb.alive, false, 'omni 탄에 요격(상쇄)되어 소멸');
+    // 대조: forward 탄은 적 탄을 요격하지 않는다
+    const w2 = mkWorld();
+    const f = setup(w2, 'forward', 1, false);
+    w2.player.iframeSec = 99999;
+    spawnPlayerBullet(w2, f.s, f.eff, w2.player.x, w2.player.y - 50, 0, -300, 1);
+    const eb2 = spawnEnemyBullet(w2, 'pelletS', w2.player.x, w2.player.y - 50, 0, 0);
+    step(w2, makeInput(), dt);
+    assert.eq(eb2.alive, true, 'forward 탄은 적 탄을 요격하지 않는다(omni 전용)');
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════

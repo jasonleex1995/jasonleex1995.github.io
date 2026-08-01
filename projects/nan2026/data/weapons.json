@@ -117,7 +117,7 @@
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "omni", "family": "omni", "name": "리어가드", "desc": "여러 방향으로 동시에 쏜다. 사각이 없다",
+      "id": "omni", "family": "omni", "name": "인터셉터", "desc": "전방위로 쏴 날아오는 적 탄을 요격(상쇄)한다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "cooldownSec":0.85, "projSpeed":300, "projRadius":4,
                 "lifetimeSec":1.40, "pierce":0, "hitCooldownSec":0.0,
@@ -125,7 +125,7 @@
       "levels": [ {}, {"dmg":6}, {"dirCount":4,"dmg":8},
                   {"dmg":9,"cooldownSec":0.78,"rearBias":1.30}, {"dirCount":5,"dmg":14},
                   {"dmg":16}, {"dmg":28,"pierce":1}, {"dirCount":8,"dmg":44,"cooldownSec":0.70} ],
-      "evolution": { "name":"링 버스트", "desc":"발사마다 링이 회전해 사각이 완전히 사라진다",
+      "evolution": { "name":"링 버스트", "desc":"링이 회전해 사방을 빈틈없이 요격한다",
                      "params": { "evoRingRotDeg":22.5 },
                      "requiresPassive": { "id":"autoload", "level":3 } }
     },
