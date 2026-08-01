@@ -910,7 +910,7 @@
     },
     {
       "id": "kilnVentP2",
-      "type": "zone",
+      "type": "mortar",
       "bulletId": null,
       "from": "part",
       "telegraphSec": 1.50,
@@ -919,8 +919,10 @@
       "repeat": 2,
       "restSec": 4.5,
       "radius": 76,
-      "activeSec": 3.0,
-      "dmg": 10
+      "activeSec": 0.6,
+      "dmg": 10,
+      "fuseSec": 1.4,
+      "leadSec": 0.4
     },
     {
       "id": "kilnVentP3",
@@ -1384,7 +1386,7 @@
     },
     {
       "id": "tetrarchCoffinFireP2",
-      "type": "zone",
+      "type": "mortar",
       "bulletId": null,
       "from": "part",
       "telegraphSec": 1.50,
@@ -1393,8 +1395,10 @@
       "repeat": 2,
       "restSec": 4.5,
       "radius": 72,
-      "activeSec": 3.0,
-      "dmg": 10
+      "activeSec": 0.6,
+      "dmg": 10,
+      "fuseSec": 1.4,
+      "leadSec": 0.4
     },
     {
       "id": "tetrarchCoffinFireP3",
