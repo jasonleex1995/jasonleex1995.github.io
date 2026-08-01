@@ -77,14 +77,14 @@
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "mine", "family": "mine", "name": "마인필드", "desc": "기뢰를 깔아둔다. 터지면 탄막 제거·적 둔화",
+      "id": "mine", "family": "mine", "name": "마인필드", "desc": "발밑에 기뢰 설치 — 탄을 막다 닳고, 적이 닿으면 폭발",
       "elementStampMode": "spawn",
       "base": { "dmg":12, "placeIntervalSec":1.40, "armSec":0.50,
-                "triggerRadius":26, "blastRadius":50, "maxAlive":3 },
+                "triggerRadius":26, "blastRadius":50, "maxAlive":3, "blockHp":5 },
       "levels": [ {}, {"dmg":16}, {"maxAlive":5,"placeIntervalSec":1.20},
-                  {"dmg":24,"blastRadius":60}, {"maxAlive":7,"dmg":30},
+                  {"dmg":24,"blastRadius":60,"blockHp":7}, {"maxAlive":7,"dmg":30},
                   {"dmg":42,"placeIntervalSec":1.00,"triggerRadius":32},
-                  {"dmg":58,"blastRadius":72}, {"dmg":80,"maxAlive":10,"placeIntervalSec":0.90} ],
+                  {"dmg":58,"blastRadius":72,"blockHp":10}, {"dmg":80,"maxAlive":10,"placeIntervalSec":0.90} ],
       "evolution": { "name":"클러스터 마인", "desc":"폭발이 자탄으로 흩어져 2차 폭발한다",
                      "params": { "evoClusterCount":6, "evoClusterRadius":32, "evoSecondaryDmgMul":0.5 },
                      "requiresPassive": { "id":"autoload", "level":3 } }

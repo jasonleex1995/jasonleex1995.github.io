@@ -257,7 +257,10 @@ function moveBullets(world, dt) {
     b.y += b.vy * b.slowMul * dt;
     b.slowMul = 1;
     b.age += dt;
-    if (b.x < a.x - pad || b.x > a.x + a.w + pad || b.y < a.y - pad || b.y > a.y + a.h + pad) {
+    // §9.5(v1.5) — 최대 수명(maxBulletAgeSec): 펄스필드 정지 등으로 화면에 묶인 탄이 무한 누적하지
+    //   않게 흩어져 사라진다(정상 탄은 그 전에 off-screen 으로 나간다). 풀 포화(capHits) 방지.
+    if (b.x < a.x - pad || b.x > a.x + a.w + pad || b.y < a.y - pad || b.y > a.y + a.h + pad
+        || b.age > world.data.rules.fairness.maxBulletAgeSec) {
       world.enemyBullets.release(b);
     }
   }

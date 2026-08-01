@@ -177,19 +177,33 @@ suite('weapons/mine — 마인필드 (§9.5)', () => {
     assert.eq(z.alive, false, '터진 기뢰는 소유자가 반납한다');
   });
 
-  test('기폭 = 탄막 제거 + 잡몹 둔화 (§9.5 v1.5)', () => {
+  test('§9.5(v1.5) 마인 = 탄을 막고 hp 가 닳으면 «소멸»(폭발 아님)', () => {
     const w = mkWorld();
     const [s, eff] = setup(w, 'mine', 1, false);
     tickWeapon(w, 'mine', s, 1);
     const z = liveZones(w)[0];
-    const trigger = fatEnemy(w, z.x, z.y);                          // 기폭 + 둔화 대상
+    assert.eq(z.hp, eff.blockHp, '설치 시 blockHp 세팅');
     const bId = w.data.bullets.bullets[0].id;
-    const inB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 0.5, z.y, 0, 0);
-    const outB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 3, z.y, 0, 0);
-    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 기폭
-    assert.eq(inB.alive, false, '폭발 반경 안 적 탄 = 제거');
-    assert.eq(outB.alive, true, '폭발 반경 밖 적 탄 = 유지');
-    assert.gt(trigger.slowSec, 0, '기폭 반경 안 잡몹 = 둔화(이동 방해)');
+    const bullets = [];
+    for (let i = 0; i < eff.blockHp; i += 1) bullets.push(spawnEnemyBullet(w, bId, z.x, z.y, 0, 0));  // 반경 안 blockHp 발
+    const outB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 3, z.y, 0, 0);                       // 밖
+    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 막기
+    for (const b of bullets) assert.eq(b.alive, false, '반경 안 탄 = 막힘(소거)');
+    assert.eq(outB.alive, true, '반경 밖 탄 = 유지');
+    assert.eq(z.alive, false, 'hp 소진 → 마인 소멸(폭발 아님)');
+  });
+
+  test('§9.5(v1.5) 마인 = 적 기체가 닿으면 폭발(광역 피해)', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'mine', 1, false);
+    tickWeapon(w, 'mine', s, 1);
+    const z = liveZones(w)[0];
+    fatEnemy(w, z.x, z.y);                                          // 접촉 = 폭발 유발
+    const victim = fatEnemy(w, z.x + eff.blastRadius * 0.5, z.y);   // 폭발 피해 관측
+    const h0 = victim.hp;
+    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 접촉 폭발
+    assert.lt(victim.hp, h0, '접촉 폭발 = 반경 안 적 피해');
+    assert.eq(z.alive, false, '폭발 후 반납');
   });
 
   test('클러스터 2차 폭발은 evolved 에서만 blastRadius 밖을 때린다', () => {

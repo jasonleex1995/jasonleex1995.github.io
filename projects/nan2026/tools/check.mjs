@@ -320,7 +320,7 @@ const FAMILY_OWN_BASE = {
   lance:     ['beamWidthPx', 'chargeSec', 'rangePx'],
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
-  mine:      ['placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive'],
+  mine:      ['placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive', 'blockHp'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec'],
   omni:      ['dirCount', 'dirOffsetDeg', 'rearBias'],
@@ -529,7 +529,7 @@ function S2_schema() {
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
-    'maxSimultaneousEnemyBullets', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
+    'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');
 
   // ★ v1.3: hud.icons 9 → 14 (§9.4.1 — 상점 10항목을 전부 그릴 수 있어야 한다)

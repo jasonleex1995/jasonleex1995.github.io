@@ -51,7 +51,7 @@ const FAMILY_BASE_KEYS = {
     'beamWidthPx', 'chargeSec', 'rangePx'],
   orbit: ['dmg', 'projRadius', 'hitCooldownSec', 'orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura: ['dmg', 'radius', 'tickIntervalSec', 'falloff'],
-  mine: ['dmg', 'placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive'],
+  mine: ['dmg', 'placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive', 'blockHp'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
@@ -218,7 +218,7 @@ function checkRules(c, r) {
   }
   c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
-    'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'enemyConcurrentMax',
+    'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax',
     'swarmConcurrentMax', 'crisisWaveResidualMax', 'telegraphConcurrentMaxPerEntity',
     'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt']);
   c.closed('rules.hud', r.hud, ['hitboxAlwaysVisible', 'showElementBudget', 'fontHeroPx',

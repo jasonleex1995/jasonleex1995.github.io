@@ -146,7 +146,7 @@ function makePickup() {
 
 function makeZone() {
   // §13.1.1 srcArch — 「누가 깔았는가」(치사 지분). 플레이어 기뢰·출처불명은 '' (분모에서 제외).
-  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, warnSec: 0, age: 0, fromPlayer: false, srcArch: '' };
+  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, warnSec: 0, hp: 0, age: 0, fromPlayer: false, srcArch: '' };
 }
 
 function makeDrone() {
@@ -726,6 +726,7 @@ export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer, srcAr
   z.x = x; z.y = y; z.radius = radius; z.dmg = dmg;
   z.activeSec = activeSec; z.age = 0; z.fromPlayer = fromPlayer;
   z.warnSec = warnSec === undefined ? 0 : warnSec;    // §8.5 v1.5 — mortar «퓨즈»(착탄→폭발). 0 = 즉시 활성(기존)
+  z.hp = 0;                                            // §9.5 v1.5 — 마인 탄-막이 체력(마인이 스폰 직후 세팅). 적 장판은 미사용
   z.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속
   return z;
 }

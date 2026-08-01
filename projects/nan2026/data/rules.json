@@ -154,6 +154,7 @@
     "minGapWidthPx": 46,
     "minSpawnRadiusPx": 140,
     "maxSimultaneousEnemyBullets": 320,
+    "maxBulletAgeSec": 12,
     "enemyConcurrentMax": 40,
     "swarmConcurrentMax": 85,
     "crisisWaveResidualMax": 10,
