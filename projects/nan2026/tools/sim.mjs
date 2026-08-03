@@ -206,6 +206,8 @@ export function driveRun(data, seed, opts) {
   r.capHits = { ...world.capHits };
   r.score = tally(world).total;
   for (const s of world.slots) if (s.weaponId !== null) r.weaponsOwned.push(s.family);
+  r.evolvedCount = world.slots.reduce((n, s) => n + (s.evolved ? 1 : 0), 0);
+  r.maxWeaponLevel = world.slots.reduce((mx, s) => (s.weaponId !== null && s.level > mx ? s.level : mx), 0);
   return r;
 }
 

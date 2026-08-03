@@ -26,13 +26,14 @@ import { elementMul } from './elements.js';
 //   «사격 위치(표적 x정렬)에 가장 가까워지는» 방향을 고른다 → 위협이 없으면 총구를 지켜
 //   uptime 을 최대화하고, 있을 때만 최소한으로 비킨다(11%→ 목표 60% uptime).
 const T = {
-  MOB_LINE_OFFSET: 360,  // 모브 사격선 = 하단에서 위로 얼마(px) — 중단이 명중·클리어 최적(실측)
+  MOB_LINE_OFFSET: 260,  // 모브 사격선 = 하단에서 위로 얼마(px) — 중단이 명중·클리어 최적(실측)
   BOSS_STANDOFF: 40,     // 보스 표적 아래 여유(px) — 사거리 안이되 몸통에 붙지 않게
   ALIGN_XW: 1.0,         // 정렬 페널티 x가중(무기는 위로 나간다 §1.1 → x정렬이 명중의 전제)
   ALIGN_YW: 0.4,         // y가중(사거리/스탠드오프 — x보다 관대)
   ALIGN_W: 1.0,          // 정렬 vs 생존 트레이드오프(생존이 SURV_BASE 로 지배하므로 동점 판정용)
   ALIGN_STEP: 8,         // 정렬 점수용 투영 틱수(이 방향으로 몇 틱 뒤 위치가 ideal 에 얼마나 가깝나)
   LOWHP_ALIGN_MUL: 0.35, // 저체력 시 정렬 경시(사격보다 생존)
+  SEG1_FRAC: 0.45,       // ★ 2세그 롤아웃 — 1세그(현재 커밋) 길이 비율. 나머지는 재기동(juke) 세그.
   PAD_BUL: 14,            // 롤아웃 위험 여유 — 탄(얇게: 지평이 예측을 대신하므로 반경은 얇게)
   PAD_CON: 24,           // 몸통·장판(접촉사 61% → 더 두껍게)
   PAD_LAS: 10,           // 빔
@@ -66,7 +67,8 @@ function ensureBot(world) {
     },
     input: { left: false, right: false, up: false, down: false,
       stanceNormal: false, stanceFire: false, stanceWater: false, stanceGrass: false },
-    decideT: 0,                   // 다음 재결정까지 남은 게임초(= 반응 지연)
+    decideT: 0,                   // 다음 재결정까지 남은 게임초(= 반응 지연 — 표적·스탠스 의도)
+    percT: 0,                     // 다음 위협 스냅샷까지 남은 게임초(= 회피 지각 주기, 지연보다 짧다)
     rollH: 24,                    // 롤아웃 지평(틱) — decide 블록이 dodgeLookaheadSec 로 세팅
     stanceT: 0,                   // 스탠스 전환 쿨다운(게임초)
     wantStance: 'normal',
@@ -106,6 +108,22 @@ function reactionSec(world) {
   const speed = diff === undefined ? 1 : diff.speed;
   const jitter = (world.rng.bot.f() * 2 - 1) * b.reactionJitterMs;
   const ms = b.reactionMs + jitter;
+  const ticks = Math.round((ms / 1000) * TICK_HZ * speed);
+  return (ticks < 1 ? 1 : ticks) / TICK_HZ;
+}
+
+/**
+ * ★ 회피 지각 주기(게임초) — 위협 스냅샷을 얼마나 자주 갱신하는가. 반응 지연(표적·스탠스 «의도»)과
+ *   분리한다: 사람 플레이어는 조준·판단은 느려도(reactionMs) 날아오는 탄은 계속 본다. 스냅샷이
+ *   지연 주기(250ms)에 묶이면 그 창 동안 «새로 생성된» 탄이 안 보여(≈70px 맹점) 접촉·피탄사한다.
+ *   dodgePerceptionMs 로 훨씬 촘촘히 지각해 회피 정확도를 올린다(= deep dodge 의 핵심 지각 층).
+ *   미설정(구데이터)이면 reactionMs 로 폴백(동작 불변).
+ */
+function perceptionSec(world) {
+  const b = world.data.meta.bot;
+  const diff = world.data.meta.difficulty[world.difficultyId];
+  const speed = diff === undefined ? 1 : diff.speed;
+  const ms = b.dodgePerceptionMs === undefined ? b.reactionMs : b.dodgePerceptionMs;
   const ticks = Math.round((ms / 1000) * TICK_HZ * speed);
   return (ticks < 1 ? 1 : ticks) / TICK_HZ;
 }
@@ -336,36 +354,38 @@ function firingIdeal(world, b) {
   }
 }
 
+// 롤아웃 세그 끝 위치(모듈 스코프 — 핫패스 0 alloc). rollSeg 가 완주 시 채운다.
+const _rollEnd = { x: 0, y: 0 };
+
 /**
- * ★ 롤아웃 — 시작(플레이어)에서 dir 로 등속 이동하며 지평(rollH) 안에서 처음 맞는 틱을 찾는다.
- *   위협은 스냅샷 시점 + 경과(snapElapsed + k·dt)로 외삽. 무피격이면 rollH 반환(=완주).
- *   ★ 벽 클램프 포함 — 벽으로 미는 방향의 실제 궤적(멈춤)을 정확히 평가한다.
+ * ★ 롤아웃 세그 — (sx,sy)에서 dir 로 startK 틱 뒤부터 n 틱 등속 이동. 외삽 위협과 처음 맞는
+ *   «전역» 틱(startK+로컬)을 반환한다. 무피격이면 0(완주)을 반환하고 끝 위치를 _rollEnd 에 쓴다.
+ *   위협은 스냅샷 시점 + (snapElapsed + 전역틱·dt)로 외삽. 벽 클램프 포함(실제 궤적).
  */
-function firstHitTick(world, b, dirx, diry) {
-  const p = world.player;
+function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
   const bounds = world.bounds;
   const rp = world.data.rules.player;
   const dt = TICK_DT;
   const vx = dirx * rp.moveSpeed * dt;
   const vy = diry * rp.moveSpeed * dt;
-  const H = b.rollH;
-  let px = p.x;
-  let py = p.y;
-  for (let k = 1; k <= H; k += 1) {
+  let px = sx;
+  let py = sy;
+  for (let k = 1; k <= n; k += 1) {
     px += vx; if (px < bounds.minX) px = bounds.minX; else if (px > bounds.maxX) px = bounds.maxX;
     py += vy; if (py < bounds.minY) py = bounds.minY; else if (py > bounds.maxY) py = bounds.maxY;
-    const tk = b.snapElapsed + k * dt;
+    const gk = startK + k;
+    const tk = b.snapElapsed + gk * dt;
     for (let i = 0; i < b.nBul; i += 1) {
       const ex = px - (b.bx[i] + b.bvx[i] * tk);
       const ey = py - (b.by[i] + b.bvy[i] * tk);
       const r = b.br[i];
-      if (ex * ex + ey * ey < r * r) return k;
+      if (ex * ex + ey * ey < r * r) return gk;
     }
     for (let i = 0; i < b.nCon; i += 1) {
       const ex = px - (b.cx[i] + b.cvx[i] * tk);
       const ey = py - (b.cy[i] + b.cvy[i] * tk);
       const r = b.cr[i];
-      if (ex * ex + ey * ey < r * r) return k;
+      if (ex * ex + ey * ey < r * r) return gk;
     }
     for (let i = 0; i < b.nLas; i += 1) {
       const rx = px - b.lx[i];
@@ -373,15 +393,20 @@ function firstHitTick(world, b, dirx, diry) {
       const a = b.la[i];
       const signed = -Math.sin(a) * rx + Math.cos(a) * ry;
       const perp = signed < 0 ? -signed : signed;
-      if (perp < b.lr[i]) return k;
+      if (perp < b.lr[i]) return gk;
     }
   }
-  return H;
+  _rollEnd.x = px; _rollEnd.y = py;
+  return 0;
 }
 
 /**
- * ★ 매 틱 조향 — 9 후보를 전개 탐색. 생존(완주)이 지배, 그 안에서 사격 위치 정렬을 최대화.
- *   결과 방향을 _steer(×100)에 쓴다(botInput 의 DEAD 임계로 4불리언 변환).
+ * ★ 매 틱 조향 — 2세그(juke) 전개 탐색. 각 1세그 방향 d1 을 seg1 틱 커밋한 뒤, 그 끝에서
+ *   9개 2세그 방향 d2 중 최선의 재기동을 이어붙여 «지평 완주 여부/깊이»를 매긴다. 단일 직선
+ *   롤아웃은 «지금 꺾어 피할 길»을 보지 못해 안전한 방향을 죽은 것으로 오판했다 — 2세그는
+ *   틱마다 재결정하는 실제 궤적공간(9^H)을 근사해 생존을 회복한다. 조기탈출: 완주하는 d2 를
+ *   하나 찾으면 그 d1 은 «완전 생존»으로 확정하고 멈춘다(안전한 틱은 사실상 9회 롤아웃).
+ *   생존이 지배, 동점(둘 다 완주)에서만 1세그 사격 위치 정렬을 최대화한다.
  */
 function steer(world, b) {
   firingIdeal(world, b);
@@ -389,14 +414,37 @@ function steer(world, b) {
   const bounds = world.bounds;
   const rp = world.data.rules.player;
   const H = b.rollH;
+  let s1 = (H * T.SEG1_FRAC) | 0;
+  if (s1 < 1) s1 = 1; else if (s1 > H) s1 = H;
+  const rem = H - s1;
   const proj = rp.moveSpeed * TICK_DT * T.ALIGN_STEP;
   const alignMul = (b.lowHp ? T.LOWHP_ALIGN_MUL : 1) * T.ALIGN_W;
 
   let bestScore = -Infinity;
   let bestDir = 0;
   for (let d = 0; d < 9; d += 1) {
-    const hk = firstHitTick(world, b, DIRX[d], DIRY[d]);
-    // 정렬: 이 방향으로 ALIGN_STEP 틱 뒤 위치가 ideal 에 얼마나 가까운가(x가중)
+    // 1세그: d 방향으로 s1 틱. 이 안에서 맞으면 그 방향의 생존 깊이는 거기까지.
+    const hit1 = rollSeg(world, b, p.x, p.y, 0, DIRX[d], DIRY[d], s1);
+    let surv;
+    if (hit1 !== 0) {
+      surv = hit1;                     // 1세그 내 피격 — 재기동 이전에 죽는다
+    } else if (rem <= 0) {
+      surv = H;                        // 지평 == 1세그 → 완주
+    } else {
+      // 2세그: 끝 위치에서 9개 재기동 방향 중 하나라도 완주하면 «완전 생존» 확정(조기탈출).
+      const mx = _rollEnd.x;
+      const my = _rollEnd.y;
+      let best2 = 0;
+      let full = false;
+      for (let q = 0; q < 9; q += 1) {
+        const d2 = q === 0 ? d : (q === d ? 0 : q);   // d(직진 계속)·정지를 먼저 → 조기탈출 잦게
+        const hit2 = rollSeg(world, b, mx, my, s1, DIRX[d2], DIRY[d2], rem);
+        if (hit2 === 0) { full = true; break; }
+        if (hit2 > best2) best2 = hit2;
+      }
+      surv = full ? H : best2;
+    }
+    // 정렬: 이 1세그 방향으로 ALIGN_STEP 틱 뒤 위치가 ideal 에 얼마나 가까운가(x가중)
     let ax = p.x + DIRX[d] * proj;
     if (ax < bounds.minX) ax = bounds.minX; else if (ax > bounds.maxX) ax = bounds.maxX;
     let ay = p.y + DIRY[d] * proj;
@@ -404,7 +452,7 @@ function steer(world, b) {
     const dxi = (ax - _ideal.x) * T.ALIGN_XW;
     const dyi = (ay - _ideal.y) * T.ALIGN_YW;
     const alignPen = Math.sqrt(dxi * dxi + dyi * dyi) * alignMul;
-    const score = (hk >= H ? T.SURV_BASE : hk * T.HIT_W) - alignPen;
+    const score = (surv >= H ? T.SURV_BASE : surv * T.HIT_W) - alignPen;
     if (score > bestScore) { bestScore = score; bestDir = d; }
   }
   _steer.x = DIRX[bestDir] * 100;
@@ -429,7 +477,6 @@ export function botInput(world, dt) {
   b.decideT -= dt;
   if (b.decideT <= 0) {
     b.decideT = reactionSec(world);
-    b.snapElapsed = 0;
     b.margin = rp.moveSpeed * (bt.reactionMs / 1000);
     b.rollH = Math.round(bt.dodgeLookaheadSec * TICK_HZ);   // §10.4.1 dodgeLookaheadSec → 롤아웃 지평
     b.lowHp = p.hp < p.hpMax * rp.lowHpThreshold;
@@ -466,8 +513,16 @@ export function botInput(world, dt) {
     b.aimJx = (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
     b.aimJy = (world.rng.bot.f() * 2 - 1) * bt.aimErrorPx;
 
-    snapshotThreats(world, b);
     b.wantStance = desiredStance(world, foe);
+  }
+
+  // ── 회피 지각 갱신 (반응 지연과 분리 · 훨씬 촘촘) ─────────────────────────────
+  //   위협 스냅샷을 자주 새로 잡아 「새 탄 맹점」을 줄인다. 갱신 시 외삽 기준(snapElapsed)도 0으로.
+  b.percT -= dt;
+  if (b.percT <= 0) {
+    b.percT = perceptionSec(world);
+    b.snapElapsed = 0;
+    snapshotThreats(world, b);
   }
 
   // ── 연속 조향 (매 틱) ──────────────────────────────────────────────────────
