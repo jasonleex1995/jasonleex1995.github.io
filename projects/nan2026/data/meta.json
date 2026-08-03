@@ -76,7 +76,7 @@
     "reactionMs": 250,
     "reactionJitterMs": 80,
     "stanceSwitchMs": 180,
-    "dodgeLookaheadSec": 0.8,
+    "dodgeLookaheadSec": 0.6,
     "aimErrorPx": 12,
     "slotOrder": "dpsDescending",
     "policies": {

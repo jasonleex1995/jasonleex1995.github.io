@@ -16,29 +16,37 @@
  *   §10.3  봇 상태는 ensureBot 에서 최초 1회만 alloc. 핫패스 0 alloc(스냅샷은 미리 잡은 배열에 채운다).
  */
 
-import { TICK_HZ } from './step.js';
+import { TICK_HZ, TICK_DT } from './step.js';
 import { elementMul } from './elements.js';
 
-// ── 조향 가중치(튜닝 축 — bot.js 인라인 리터럴, §데이터 아님) ───────────────────
+// ── 조향 파라미터(튜닝 축 — bot.js 인라인 리터럴, §데이터 아님) ───────────────────
+// ★ 변종 C — ROLLOUT DODGER (지연 스냅샷 + 짧은 지평 전개 탐색).
+//   9 후보 방향(정지+4직교+4대각)을 각각 dodgeLookaheadSec 만큼 전개해, 외삽 위협과의
+//   최초 피격 시점을 구한다. «완주(=지평 내 무피격)»가 생존을 지배하고, 완주 후보 중에서는
+//   «사격 위치(표적 x정렬)에 가장 가까워지는» 방향을 고른다 → 위협이 없으면 총구를 지켜
+//   uptime 을 최대화하고, 있을 때만 최소한으로 비킨다(11%→ 목표 60% uptime).
 const T = {
-  W_ATTRACT_X: 0.85,   // 사격선 x정렬 인력(강하게 — 무기는 위로 나간다 §1.1)
-  W_ATTRACT_Y: 0.35,   // 표적 아래 스탠드오프로의 인력
-  ATTRACT_CAP: 180,    // 인력 성분 상한(px) — 근접 위협이 인력을 압도하게
-  W_BULLET: 4.5,       // 적탄 반발
-  W_CONTACT: 5.0,      // 적 몸통·장판 반발(접촉사 61% — 최우선 회피)
-  W_LASER: 4.2,        // 빔 반발
-  W_WALL: 2.6,         // 경계 반발(구석에 몰리지 않게)
-  PERCEPT: 340,        // 지각 반경(px) — 이 안의 위협만 스냅샷(지연·성능)
-  CONTACT_MARGIN_MUL: 0.55, // 접촉 여유(탄보다 관대 — 요격을 살린다)
-  CLUSTER_X: 62,       // 밀집 클러스터 x창(px)
-  LOWHP_REP_MUL: 1.45, // 저체력 시 반발 증폭
-  LOWHP_ATTRACT_MUL: 0.6, // 저체력 시 인력 감쇠
-  DEAD: 3,             // 목표 근처 떨림 방지(px)
   MOB_LINE_OFFSET: 360,  // 모브 사격선 = 하단에서 위로 얼마(px) — 중단이 명중·클리어 최적(실측)
-  BOSS_ATTRACT_X: 4.5,   // 보스전 x정렬 인력(강 — 열을 지켜 명중을 유지)
-  BOSS_CAP_X: 500,       // 보스전 x인력 상한(px) — 크게(반발보다 우선)
+  BOSS_STANDOFF: 40,     // 보스 표적 아래 여유(px) — 사거리 안이되 몸통에 붙지 않게
+  ALIGN_XW: 1.0,         // 정렬 페널티 x가중(무기는 위로 나간다 §1.1 → x정렬이 명중의 전제)
+  ALIGN_YW: 0.4,         // y가중(사거리/스탠드오프 — x보다 관대)
+  ALIGN_W: 1.0,          // 정렬 vs 생존 트레이드오프(생존이 SURV_BASE 로 지배하므로 동점 판정용)
+  ALIGN_STEP: 8,         // 정렬 점수용 투영 틱수(이 방향으로 몇 틱 뒤 위치가 ideal 에 얼마나 가깝나)
+  LOWHP_ALIGN_MUL: 0.35, // 저체력 시 정렬 경시(사격보다 생존)
+  PAD_BUL: 14,            // 롤아웃 위험 여유 — 탄(얇게: 지평이 예측을 대신하므로 반경은 얇게)
+  PAD_CON: 24,           // 몸통·장판(접촉사 61% → 더 두껍게)
+  PAD_LAS: 10,           // 빔
+  PERCEPT: 380,          // 지각 반경(px) — 이 안의 위협만 스냅샷(지연·성능)
+  CLUSTER_X: 62,         // 밀집 클러스터 x창(px)
+  DEAD: 3,               // 목표 근처 떨림 방지(px)
   PICK_MAX_DIST: 140,    // 이 거리 안의 픽업만 좇는다(balanced) — 자석 밖 근접만
+  SURV_BASE: 1000000,    // 지평 완주(무피격)가 생존을 지배한다
+  HIT_W: 3000,           // 전부 피격이면 «가장 늦게 맞는» 방향(최선의 최악)
 };
+
+// 후보 방향(단위 벡터) — 정지 · 4직교 · 4대각. 입력은 4불리언이라 이 9개로 닫힌다.
+const DIRX = [0, 0, 0, -1, 1, -0.70710678, 0.70710678, -0.70710678, 0.70710678];
+const DIRY = [0, -1, 1, 0, 0, -0.70710678, -0.70710678, 0.70710678, 0.70710678];
 
 // 스냅샷 용량(ensureBot 에서 1회 alloc)
 const CAP_BUL = 72;
@@ -59,6 +67,7 @@ function ensureBot(world) {
     input: { left: false, right: false, up: false, down: false,
       stanceNormal: false, stanceFire: false, stanceWater: false, stanceGrass: false },
     decideT: 0,                   // 다음 재결정까지 남은 게임초(= 반응 지연)
+    rollH: 24,                    // 롤아웃 지평(틱) — decide 블록이 dodgeLookaheadSec 로 세팅
     stanceT: 0,                   // 스탠스 전환 쿨다운(게임초)
     wantStance: 'normal',
     armorIdx: -1, armorGen: -1,   // §8.13 격파 중인 armor 부위(화력 집중)
@@ -119,7 +128,11 @@ function nearestEnemy(world) {
   return best;
 }
 
-/** §8.13 소프트게이트 — armor 부위를 먼저 부순다(화력 집중, sticky). */
+/**
+ * §8.13 소프트게이트 — armor 부위를 먼저 부순다(화력 집중, sticky).
+ * ★ 봉인(sealedNow)된 부위는 «무적»이라 탄이 통과한다(§8.11) → 조준 대상에서 제외.
+ *   조준하면 사격 uptime 이 0이 되는 죽은 표적이다(봉인 안 뚫린 키스톤). 최소 레이어(=열린 앞면)만 노린다.
+ */
 function nearestArmor(world) {
   const en = world.enemies.items;
   const p = world.player;
@@ -127,7 +140,7 @@ function nearestArmor(world) {
   let bestD = 0;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
-    if (!e.alive || !e.isBoss || e.partType !== 'armor') continue;
+    if (!e.alive || !e.isBoss || e.partType !== 'armor' || e.sealedNow) continue;
     const dx = e.x - p.x;
     const dy = e.y - p.y;
     const d = dx * dx + dy * dy;
@@ -176,7 +189,7 @@ function pickFoe(world) {
   if (b.armorIdx >= 0) {
     const held = world.enemies.items[b.armorIdx];
     if (held !== undefined && held.alive && held.gen === b.armorGen
-      && held.isBoss && held.partType === 'armor') return held;
+      && held.isBoss && held.partType === 'armor' && !held.sealedNow) return held;
     b.armorIdx = -1; b.armorGen = -1;
   }
   const armor = nearestArmor(world);
@@ -242,10 +255,9 @@ function desiredStance(world, fireTarget) {
  *   지각 반경(PERCEPT) 안의 위협만 담는다(지연 · 성능). 이후 매 틱 외삽해 반발을 만든다.
  */
 function snapshotThreats(world, b) {
-  const { PERCEPT, CONTACT_MARGIN_MUL } = T;
+  const { PERCEPT, PAD_BUL, PAD_CON, PAD_LAS } = T;
   const p = world.player;
   const rp = world.data.rules.player;
-  const margin = b.margin;
   const percept2 = PERCEPT * PERCEPT;
 
   // ── 적탄 ──
@@ -258,7 +270,7 @@ function snapshotThreats(world, b) {
     const ry = bu.y - p.y;
     if (rx * rx + ry * ry > percept2) continue;
     b.bx[n] = bu.x; b.by[n] = bu.y; b.bvx[n] = bu.vx; b.bvy[n] = bu.vy;
-    b.br[n] = rp.hitboxRadius + bu.hitRadius + margin;
+    b.br[n] = rp.hitboxRadius + bu.hitRadius + PAD_BUL;
     n += 1;
   }
   b.nBul = n;
@@ -266,7 +278,6 @@ function snapshotThreats(world, b) {
   // ── 적 몸통(모브만 — 보스/중간보스는 별도) + 장판을 한 배열에 ──
   let m = 0;
   const en = world.enemies.items;
-  const cMargin = margin * CONTACT_MARGIN_MUL;
   for (let i = 0; i < en.length && m < CAP_CON; i += 1) {
     const e = en[i];
     if (!e.alive || e.isBoss || e.midBossId !== '') continue;
@@ -274,7 +285,7 @@ function snapshotThreats(world, b) {
     const ry = e.y - p.y;
     if (rx * rx + ry * ry > percept2) continue;
     b.cx[m] = e.x; b.cy[m] = e.y; b.cvx[m] = e.vx; b.cvy[m] = e.vy;
-    b.cr[m] = rp.hitboxRadius + e.radius + cMargin;
+    b.cr[m] = rp.hitboxRadius + e.radius + PAD_CON;
     m += 1;
   }
   const zs = world.zones.items;
@@ -285,7 +296,7 @@ function snapshotThreats(world, b) {
     const ry = z.y - p.y;
     if (rx * rx + ry * ry > percept2) continue;
     b.cx[m] = z.x; b.cy[m] = z.y; b.cvx[m] = 0; b.cvy[m] = 0;
-    b.cr[m] = rp.hitboxRadius + z.radius + margin;
+    b.cr[m] = rp.hitboxRadius + z.radius + PAD_CON;
     m += 1;
   }
   b.nCon = m;
@@ -297,7 +308,7 @@ function snapshotThreats(world, b) {
     const t2 = ts[i];
     if (!t2.alive || t2.kind !== 'laser') continue;
     b.lx[k] = t2.x; b.ly[k] = t2.y; b.la[k] = t2.a;
-    b.lr[k] = rp.hitboxRadius + t2.r * 0.5 + margin;
+    b.lr[k] = rp.hitboxRadius + t2.r * 0.5 + PAD_LAS;
     k += 1;
   }
   b.nLas = k;
@@ -305,116 +316,99 @@ function snapshotThreats(world, b) {
 
 // 조향 스크래치(모듈 스코프 — 핫패스 0 alloc)
 const _steer = { x: 0, y: 0 };
+const _ideal = { x: 0, y: 0 };
+
+/** ★ 사격 이상위치(ideal) — 봇이 서 있고 싶은 곳(uptime 최대). 표적 x정렬이 핵심. */
+function firingIdeal(world, b) {
+  const bounds = world.bounds;
+  if (b.hasPick) { _ideal.x = b.pickX; _ideal.y = b.pickY; return; }
+  const t = b.tgtIdx >= 0 ? world.enemies.items[b.tgtIdx] : undefined;
+  if (t !== undefined && t.alive && t.gen === b.tgtGen) {
+    _ideal.x = t.x + b.aimJx;
+    if (b.tgtBoss) {
+      const rp = world.data.rules.player;
+      _ideal.y = t.y + rp.hitboxRadius + t.radius + T.BOSS_STANDOFF;   // 아래에서 위로 쏜다
+    } else {
+      _ideal.y = bounds.maxY - T.MOB_LINE_OFFSET;                       // 모브 사격선
+    }
+  } else {
+    _ideal.x = b.fallbackX; _ideal.y = bounds.maxY - T.MOB_LINE_OFFSET;
+  }
+}
 
 /**
- * ★ 매 틱 조향 벡터 — 기억된 의도(표적·위협 SET) + 라이브 기하.
- *   결과(px 스케일)를 _steer 에 쓴다. 인력(표적 사격위치) + 반발(외삽 위협) + 경계.
+ * ★ 롤아웃 — 시작(플레이어)에서 dir 로 등속 이동하며 지평(rollH) 안에서 처음 맞는 틱을 찾는다.
+ *   위협은 스냅샷 시점 + 경과(snapElapsed + k·dt)로 외삽. 무피격이면 rollH 반환(=완주).
+ *   ★ 벽 클램프 포함 — 벽으로 미는 방향의 실제 궤적(멈춤)을 정확히 평가한다.
  */
-function steer(world, b) {
-  const { W_ATTRACT_X, W_ATTRACT_Y, ATTRACT_CAP, W_BULLET, W_CONTACT, W_LASER, W_WALL,
-    LOWHP_REP_MUL, LOWHP_ATTRACT_MUL, MOB_LINE_OFFSET, BOSS_ATTRACT_X, BOSS_CAP_X } = T;
+function firstHitTick(world, b, dirx, diry) {
   const p = world.player;
   const bounds = world.bounds;
-  const el = b.snapElapsed;
-  const repMul = b.lowHp ? LOWHP_REP_MUL : 1;
-
-  // ── 표적 사격 위치(라이브) ──
-  let tx;
-  let ty;
-  if (b.hasPick) {
-    tx = b.pickX; ty = b.pickY;
-  } else {
-    const t = b.tgtIdx >= 0 ? world.enemies.items[b.tgtIdx] : undefined;
-    if (t !== undefined && t.alive && t.gen === b.tgtGen) {
-      tx = t.x;
-      if (b.tgtBoss) {
-        // 보스/중간보스: 아래에 서서 위로 쏜다(사격선 위로 안 올라감)
-        const rp = world.data.rules.player;
-        const stand = rp.hitboxRadius + t.radius + b.margin;
-        ty = t.y + stand;
-      } else {
-        ty = bounds.maxY - MOB_LINE_OFFSET;   // 모브: 하단 사격선 유지
-      }
-    } else {
-      tx = b.fallbackX; ty = bounds.maxY - MOB_LINE_OFFSET;
+  const rp = world.data.rules.player;
+  const dt = TICK_DT;
+  const vx = dirx * rp.moveSpeed * dt;
+  const vy = diry * rp.moveSpeed * dt;
+  const H = b.rollH;
+  let px = p.x;
+  let py = p.y;
+  for (let k = 1; k <= H; k += 1) {
+    px += vx; if (px < bounds.minX) px = bounds.minX; else if (px > bounds.maxX) px = bounds.maxX;
+    py += vy; if (py < bounds.minY) py = bounds.minY; else if (py > bounds.maxY) py = bounds.maxY;
+    const tk = b.snapElapsed + k * dt;
+    for (let i = 0; i < b.nBul; i += 1) {
+      const ex = px - (b.bx[i] + b.bvx[i] * tk);
+      const ey = py - (b.by[i] + b.bvy[i] * tk);
+      const r = b.br[i];
+      if (ex * ex + ey * ey < r * r) return k;
+    }
+    for (let i = 0; i < b.nCon; i += 1) {
+      const ex = px - (b.cx[i] + b.cvx[i] * tk);
+      const ey = py - (b.cy[i] + b.cvy[i] * tk);
+      const r = b.cr[i];
+      if (ex * ex + ey * ey < r * r) return k;
+    }
+    for (let i = 0; i < b.nLas; i += 1) {
+      const rx = px - b.lx[i];
+      const ry = py - b.ly[i];
+      const a = b.la[i];
+      const signed = -Math.sin(a) * rx + Math.cos(a) * ry;
+      const perp = signed < 0 ? -signed : signed;
+      if (perp < b.lr[i]) return k;
     }
   }
-  tx += b.aimJx; ty += b.aimJy;
+  return H;
+}
 
-  // 저체력이면 목적지를 하단 중앙으로 당긴다(후퇴)
-  if (b.lowHp && !b.hasPick) {
-    tx = tx * 0.45 + ((bounds.minX + bounds.maxX) * 0.5) * 0.55;
-    ty = bounds.maxY;
-  }
+/**
+ * ★ 매 틱 조향 — 9 후보를 전개 탐색. 생존(완주)이 지배, 그 안에서 사격 위치 정렬을 최대화.
+ *   결과 방향을 _steer(×100)에 쓴다(botInput 의 DEAD 임계로 4불리언 변환).
+ */
+function steer(world, b) {
+  firingIdeal(world, b);
+  const p = world.player;
+  const bounds = world.bounds;
+  const rp = world.data.rules.player;
+  const H = b.rollH;
+  const proj = rp.moveSpeed * TICK_DT * T.ALIGN_STEP;
+  const alignMul = (b.lowHp ? T.LOWHP_ALIGN_MUL : 1) * T.ALIGN_W;
 
-  const aMul = b.lowHp ? LOWHP_ATTRACT_MUL : 1;
-  // ★ 보스전 사격 uptime — 실측: 안 하면 봇이 탄을 피하느라 x정렬을 못 유지해 보스전 명중률 ≈1%.
-  //   보스/중간보스 표적에는 x인력을 강하게(높은 상한) 걸어 «열을 지킨다» — 위로 쏘는 무기의 전제.
-  const wax = b.tgtBoss ? BOSS_ATTRACT_X : W_ATTRACT_X;
-  const capx = b.tgtBoss ? BOSS_CAP_X : ATTRACT_CAP;
-  let adx = (tx - p.x) * wax * aMul;
-  let ady = (ty - p.y) * W_ATTRACT_Y * aMul;
-  if (adx > capx) adx = capx; else if (adx < -capx) adx = -capx;
-  if (ady > ATTRACT_CAP) ady = ATTRACT_CAP; else if (ady < -ATTRACT_CAP) ady = -ATTRACT_CAP;
-  let ax = adx;
-  let ay = ady;
-
-  // ── 반발: 적탄(외삽) ──
-  for (let i = 0; i < b.nBul; i += 1) {
-    const ex = b.bx[i] + b.bvx[i] * el;
-    const ey = b.by[i] + b.bvy[i] * el;
-    const cx = ex - p.x;
-    const cy = ey - p.y;
-    const danger = b.br[i];
-    const d2 = cx * cx + cy * cy;
-    if (d2 > danger * danger) continue;
-    const d = Math.sqrt(d2);
-    const w = ((danger - d) / danger) * W_BULLET * repMul;
-    if (d > 0.0001) { ax -= (cx / d) * danger * w; ay -= (cy / d) * danger * w; }
-    else ay += danger * w;
+  let bestScore = -Infinity;
+  let bestDir = 0;
+  for (let d = 0; d < 9; d += 1) {
+    const hk = firstHitTick(world, b, DIRX[d], DIRY[d]);
+    // 정렬: 이 방향으로 ALIGN_STEP 틱 뒤 위치가 ideal 에 얼마나 가까운가(x가중)
+    let ax = p.x + DIRX[d] * proj;
+    if (ax < bounds.minX) ax = bounds.minX; else if (ax > bounds.maxX) ax = bounds.maxX;
+    let ay = p.y + DIRY[d] * proj;
+    if (ay < bounds.minY) ay = bounds.minY; else if (ay > bounds.maxY) ay = bounds.maxY;
+    const dxi = (ax - _ideal.x) * T.ALIGN_XW;
+    const dyi = (ay - _ideal.y) * T.ALIGN_YW;
+    const alignPen = Math.sqrt(dxi * dxi + dyi * dyi) * alignMul;
+    const score = (hk >= H ? T.SURV_BASE : hk * T.HIT_W) - alignPen;
+    if (score > bestScore) { bestScore = score; bestDir = d; }
   }
-  // ── 반발: 몸통·장판(외삽) ──
-  for (let i = 0; i < b.nCon; i += 1) {
-    const ex = b.cx[i] + b.cvx[i] * el;
-    const ey = b.cy[i] + b.cvy[i] * el;
-    const cx = ex - p.x;
-    const cy = ey - p.y;
-    const danger = b.cr[i];
-    const d2 = cx * cx + cy * cy;
-    if (d2 > danger * danger) continue;
-    const d = Math.sqrt(d2);
-    // 몸통과 장판을 구분하지 않고 강한 가중(접촉사 회피). 장판은 vel 0 이라 외삽 안 됨.
-    const w = ((danger - d) / danger) * W_CONTACT * repMul;
-    if (d > 0.0001) { ax -= (cx / d) * danger * w; ay -= (cy / d) * danger * w; }
-    else ay += danger * w;
-  }
-  // ── 반발: 빔(선까지의 수직거리) ──
-  for (let i = 0; i < b.nLas; i += 1) {
-    const rx = p.x - b.lx[i];
-    const ry = p.y - b.ly[i];
-    const a = b.la[i];
-    const sn = -Math.sin(a);
-    const cs = Math.cos(a);
-    const signed = sn * rx + cs * ry;
-    const perp = signed < 0 ? -signed : signed;
-    const danger = b.lr[i];
-    if (perp > danger) continue;
-    const side = signed >= 0 ? 1 : -1;
-    const w = ((danger - perp) / danger) * W_LASER * repMul;
-    ax += sn * side * danger * w;
-    ay += cs * side * danger * w;
-  }
-
-  // ── 경계 반발(라이브 — 벽은 안 움직인다) ──
-  const wall = b.margin;
-  if (wall > 0) {
-    if (p.x - bounds.minX < wall) ax += ((wall - (p.x - bounds.minX)) / wall) * wall * W_WALL;
-    if (bounds.maxX - p.x < wall) ax -= ((wall - (bounds.maxX - p.x)) / wall) * wall * W_WALL;
-    if (p.y - bounds.minY < wall) ay += ((wall - (p.y - bounds.minY)) / wall) * wall * W_WALL;
-    if (bounds.maxY - p.y < wall) ay -= ((wall - (bounds.maxY - p.y)) / wall) * wall * W_WALL;
-  }
-
-  _steer.x = ax; _steer.y = ay;
+  _steer.x = DIRX[bestDir] * 100;
+  _steer.y = DIRY[bestDir] * 100;
 }
 
 /**
@@ -437,6 +431,7 @@ export function botInput(world, dt) {
     b.decideT = reactionSec(world);
     b.snapElapsed = 0;
     b.margin = rp.moveSpeed * (bt.reactionMs / 1000);
+    b.rollH = Math.round(bt.dodgeLookaheadSec * TICK_HZ);   // §10.4.1 dodgeLookaheadSec → 롤아웃 지평
     b.lowHp = p.hp < p.hpMax * rp.lowHpThreshold;
 
     const farm = b.policy.farm;
@@ -507,19 +502,29 @@ export function botDraftPick(world, draft) {
   if (cards.length === 0) return 0;
   if (b.policy.draft === 'random') return Math.floor(world.rng.bot.f() * cards.length);
 
-  // §9.5(v1.5) — 진화 준비: Lv≥6 무기의 «짝 패시브»가 부족하면 그 패시브 카드를 최우선으로 집는다.
-  //   진화가 후반 화력의 핵심이므로 어떤 정책이든(무투자 정책도) 이 콤보는 노린다 — 진화 게이트의 전제.
+  // ★ (1) 진화 카드(Lv7→Lv8)가 있으면 즉시 — 진화는 후반 화력의 «단일 최대 배수»(뱀서식). 놓치지 않는다.
+  //   ★ 정책 다양성 보존: 이건 어떤 정책이든 하는 «명백한 최선»이라 정책 색깔을 지우지 않는다(진화 카드는 희소).
+  for (let i = 0; i < cards.length; i += 1) {
+    if (cards[i].category === 'weaponLevel' && cards[i].isEvolution === true) return i;
+  }
+
+  // ★ (2) 캐리(가장 레벨 높은 무기)가 진화 임박(Lv≥6)인데 짝 패시브가 부족하면 그 패시브를 집는다(진화 게이트).
+  let carry = null;
   for (let si = 0; si < world.slots.length; si += 1) {
     const s = world.slots[si];
-    if (s.weaponId === null || s.level < 6) continue;
-    const req = world.weaponDefs[s.family].evolution.requiresPassive;
+    if (s.weaponId === null) continue;
+    if (carry === null || s.level > carry.level) carry = s;
+  }
+  if (carry !== null && carry.level >= 6) {
+    const req = world.weaponDefs[carry.family].evolution.requiresPassive;
     let lv = 0;
     for (let j = 0; j < world.passives.length; j += 1) {
       if (world.passives[j].id === req.id) { lv = world.passives[j].level; break; }
     }
-    if (lv >= req.level) continue;
-    for (let i = 0; i < cards.length; i += 1) {
-      if (cards[i].category === 'passive' && cards[i].passiveId === req.id) return i;
+    if (lv < req.level) {
+      for (let i = 0; i < cards.length; i += 1) {
+        if (cards[i].category === 'passive' && cards[i].passiveId === req.id) return i;
+      }
     }
   }
 
