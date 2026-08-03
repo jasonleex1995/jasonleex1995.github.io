@@ -2325,9 +2325,24 @@ function S27_eliteLegality() {
     });
   }
   EX('S27', n);
-  // §8.6: 웨이브당 엘리트 최대 1 (perWaveMax)
+  // §8.6: perWaveMax = 베이크된 스포트라이트(eliteIndex) 상한이다. eliteIndex 는 스칼라라
+  //   웨이브당 2기 이상을 표현할 수 없다 → 반드시 1. (v1.5: 「엘리트 재롤」이 이 위에 확률로 더 얹는다.)
   if (num(el.perWaveMax) && el.perWaveMax !== 1) {
-    C('S27', `rules.elite.perWaveMax = ${el.perWaveMax} ≠ 1 — waves[].eliteIndex 는 스칼라라 웨이브당 2기 이상을 표현할 수 없다 (§8.6/§9.9)`);
+    C('S27', `rules.elite.perWaveMax = ${el.perWaveMax} ≠ 1 — waves[].eliteIndex 는 스칼라라 웨이브당 2기 이상을 표현할 수 없다 (§8.6/§9.9). 재롤은 elitePerWaveChance 소관`);
+  }
+  // §8.6(v1.5) — elitePerWaveChance = 라이브 «엘리트 재롤» 확률(런 포지션별). enemies.spawnWave 가
+  //   자격 개체(band∈bandAllowed ∧ element∈elementAllowed)를 이 확률로 엘리트화한다(rng.elite, §10.2).
+  //   ∴ 확률이므로 ∈[0,1] 이고, 「초반 자유·후반 전면 엘리트」를 인쇄하려면 단조 비감소여야 한다.
+  const epc = D.stages.curve && D.stages.curve.elitePerWaveChance;
+  if (Array.isArray(epc)) {
+    for (let i = 0; i < epc.length; i += 1) {
+      if (num(epc[i]) && (epc[i] < 0 || epc[i] > 1)) {
+        V('S27', `stages.curve.elitePerWaveChance[${i}] = ${epc[i]} ∉ [0, 1] — 라이브 엘리트 재롤 확률이다 (§8.6/S27)`);
+      }
+      if (i > 0 && num(epc[i]) && num(epc[i - 1]) && epc[i] < epc[i - 1]) {
+        V('S27', `stages.curve.elitePerWaveChance[${i}] = ${epc[i]} < [${i - 1}]=${epc[i - 1]} — 「초반 자유·후반 전면 엘리트」는 단조 비감소를 요구한다 (§8.6/S27)`);
+      }
+    }
   }
 }
 

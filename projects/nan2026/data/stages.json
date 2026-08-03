@@ -15,7 +15,7 @@
     "firingPartsPerStage": [3, 3, 4, 5, 6, 7],
     "spawnDensityScale": [1.05, 1.30, 1.65, 2.00, 2.35, 2.75],
     "midBossCount": [1, 2, 2, 3, 4, 5],
-    "elitePerWaveChance": [0.10, 0.15, 0.25, 0.45, 0.65, 0.85],
+    "elitePerWaveChance": [0.0, 0.05, 0.15, 0.40, 0.70, 1.0],
     "swarmTotalScale": [0.55, 0.85, 1.0, 1.0, 1.0, 1.0],
     "rearSpawnAllowed": [false, false, true, true, true, true]
   },

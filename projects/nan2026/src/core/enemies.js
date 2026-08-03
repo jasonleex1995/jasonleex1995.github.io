@@ -185,8 +185,17 @@ function spawnWave(world, s) {
     // §8.7 초과 정책 = defer. 동시 오써링 상한을 넘으면 나머지는 이번 웨이브에서 놓는다(풀 캡이 B층 안전망).
     if (world.enemies.live >= concurrentMax) break;
     placement(world, wave, i, count, _pos);
-    // §8.6 — eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그. stage-1 해금 웨이브는 전부 null.
-    const elite = wave.eliteIndex !== null && i === wave.eliteIndex;
+    // §8.6 — 엘리트 = 두 경로의 OR:
+    //   (1) eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그(베이크된 스포트라이트, perWaveMax 1).
+    //   (2) 엘리트 재롤(§8.6, 이제 구현 — 예약된 rng.elite 스트림): 자격 개체(밴드∈bandAllowed ∧
+    //       속성∈elementAllowed)가 런 포지션 곡선 확률 elitePerWaveChance[curveIdx] 로 엘리트가 된다.
+    //       곡선은 포지션(초반 0 → 최종 1.0)으로 오른다 → 테마가 셔플돼도 «초반 헐거움·후반 전면 엘리트».
+    //       ★ 단락평가로 자격 개체만 rng.elite 를 뽑는다(결정성: 같은 시드 = 같은 엘리트열, §10.2).
+    const el = world.data.rules.elite;
+    const eligible = el.bandAllowed.indexOf(def.band) >= 0 && el.elementAllowed.indexOf(wave.element) >= 0;
+    const rerollElite = eligible
+      && world.rng.elite.f() < world.data.stages.curve.elitePerWaveChance[s.curveIdx];
+    const elite = (wave.eliteIndex !== null && i === wave.eliteIndex) || rerollElite;
     spawnEnemy(world, archetypeId, wave.element, _pos.x, _pos.y, hp, elite);
   }
 

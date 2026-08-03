@@ -590,7 +590,7 @@
     },
     {
       "id": "mantaThrusterP3",
-      "type": "straight",
+      "type": "ring",
       "bulletId": "accelDart",
       "from": "part",
       "telegraphSec": 1.5,
@@ -598,9 +598,9 @@
       "offsetSec": 0,
       "repeat": 2,
       "restSec": 3.6,
-      "count": 6,
-      "spreadDeg": 36,
-      "speed": 140
+      "count": 14,
+      "speed": 140,
+      "rotOffsetDeg": 12
     },
     {
       "id": "mantaFinLP1",
@@ -722,7 +722,7 @@
     },
     {
       "id": "frostCrownPylonP3",
-      "type": "wall",
+      "type": "spiral",
       "bulletId": "stunMark",
       "from": "part",
       "telegraphSec": 1.6,
@@ -730,10 +730,11 @@
       "offsetSec": 0,
       "repeat": 2,
       "restSec": 4,
-      "count": 18,
-      "gapCount": 1,
-      "gapWidthPx": 78,
-      "speed": 100
+      "count": 16,
+      "speed": 100,
+      "rotStepDeg": 30,
+      "durationSec": 3,
+      "rateSec": 0.22
     },
     {
       "id": "frostCrownCrownLP1",
@@ -811,19 +812,17 @@
     },
     {
       "id": "frostCrownCrownRP3",
-      "type": "spiral",
-      "bulletId": "pelletS",
+      "type": "fan",
+      "bulletId": "frostBrick",
       "from": "part",
       "telegraphSec": 1.5,
-      "everySec": 4,
+      "everySec": 3.8,
       "offsetSec": 0,
       "repeat": 2,
-      "restSec": 4,
-      "count": 16,
-      "speed": 150,
-      "rotStepDeg": 34,
-      "durationSec": 3.5,
-      "rateSec": 0.2
+      "restSec": 3.8,
+      "count": 12,
+      "arcDeg": 120,
+      "speed": 120
     },
     {
       "id": "kilnTurretP1",
@@ -1075,7 +1074,7 @@
     },
     {
       "id": "scarabLegsP3",
-      "type": "straight",
+      "type": "fan",
       "bulletId": "accelDart",
       "from": "part",
       "telegraphSec": 1.5,
@@ -1083,8 +1082,8 @@
       "offsetSec": 0,
       "repeat": 2,
       "restSec": 3.6,
-      "count": 6,
-      "spreadDeg": 24,
+      "count": 10,
+      "arcDeg": 100,
       "speed": 150
     },
     {
@@ -1205,18 +1204,17 @@
     },
     {
       "id": "thornKingBloomP3",
-      "type": "wall",
+      "type": "ring",
       "bulletId": "thornBrick",
       "from": "part",
       "telegraphSec": 1.5,
-      "everySec": 4,
+      "everySec": 3.8,
       "offsetSec": 0,
       "repeat": 2,
-      "restSec": 4,
+      "restSec": 3.8,
       "count": 16,
-      "gapCount": 1,
-      "gapWidthPx": 76,
-      "speed": 130
+      "speed": 130,
+      "rotOffsetDeg": 10
     },
     {
       "id": "mireShellP1",
@@ -1337,7 +1335,7 @@
     },
     {
       "id": "mireSacP3",
-      "type": "spiral",
+      "type": "ring",
       "bulletId": "stunMark",
       "from": "part",
       "telegraphSec": 1.6,
@@ -1345,11 +1343,9 @@
       "offsetSec": 0,
       "repeat": 2,
       "restSec": 4,
-      "count": 20,
+      "count": 16,
       "speed": 95,
-      "rotStepDeg": 34,
-      "durationSec": 3.6,
-      "rateSec": 0.2
+      "rotOffsetDeg": 11
     },
     {
       "id": "tetrarchCoffinWaterP1",

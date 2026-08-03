@@ -88,7 +88,7 @@
     "hpMult": 4.0,
     "sizeMult": 1.4,
     "contactDmgMul": 1.5,
-    "xpMult": 6.0,
+    "xpMult": 3.0,
     "bandAllowed": ["line", "turret", "bruiser"],
     "elementAllowed": ["fire", "water", "grass"]
   },
