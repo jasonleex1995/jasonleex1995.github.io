@@ -458,6 +458,12 @@ function hazards(world, dt) {
       if (t.track && t.age < trackUntil) t.a = Math.atan2(p.y - t.y, p.x - t.x);
       continue;
     }
+    // §8.5(v1.5) 소사 레이저 — aStart≠aEnd 면 활성 진행도에 따라 각을 aStart→aEnd 로 회전시킨다(아레나를 쓸고 간다).
+    if (t.aStart !== t.aEnd) {
+      const activeSec = t.durSec - t.warnSec;
+      const prog = activeSec > 0 ? Math.min(1, (t.age - t.warnSec) / activeSec) : 1;
+      t.a = t.aStart + (t.aEnd - t.aStart) * prog;
+    }
     // 활성 구간: 반직선(원점 x,y · 방향 a)까지의 수직거리. 빔 뒤쪽(투영<0)은 맞지 않는다.
     const ux = Math.cos(t.a);
     const uy = Math.sin(t.a);

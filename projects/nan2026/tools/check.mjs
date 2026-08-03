@@ -273,7 +273,7 @@ function census() {
 // 동결 어휘 (§13.4 S3)
 // ---------------------------------------------------------------------------
 const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'rearIn'];              // §8.4 (8)
-const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar'];         // §8.5 (9, v1.5 mortar)
+const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep']; // §8.5 (10, v1.5 mortar·sweep)
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];                                // §8.7 · §9.9.2 (6)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
@@ -347,7 +347,7 @@ const FAMILY_TARGET_MODES = {
 // §7.4 텔레그래프 하한 — 3축 (거동별 표 · 탄 상태 · 개체 클래스). ★ 겹치면 max
 const TELEGRAPH_FLOOR_BY_TYPE = {              // §7.4 · §8.5 거동별 표
   straight: 0.55, fan: 0.60, aimed: 0.60, ring: 0.60,
-  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60,
+  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60, sweep: 1.20,
 };
 const TELEGRAPH_FLOOR_SLOW_BULLET = 0.80;   // §7.4 "상태이상(slow) 탄"
 const TELEGRAPH_FLOOR_MIDBOSS = 1.20;       // §7.4 "중간보스 패턴" (개체 클래스)
@@ -702,6 +702,7 @@ function S2_files() {
     laser: ['widthPx', 'activeSec', 'angleDeg', 'trackDuringCharge'],
     zone: ['radius', 'activeSec', 'dmg'],
     mortar: ['radius', 'activeSec', 'dmg', 'fuseSec', 'leadSec'],
+    sweep: ['widthPx', 'activeSec', 'angleStartDeg', 'angleEndDeg'],
     wall: ['count', 'gapCount', 'gapWidthPx', 'speed'],
   };
   for (const e of rowsQuiet(D.enemies.emitters)) {

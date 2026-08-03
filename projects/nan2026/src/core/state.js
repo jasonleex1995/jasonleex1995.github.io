@@ -166,6 +166,8 @@ function makeTelegraph() {
   //   §13.1.1 srcArch — 「누가 쐈는가」(치사 지분). 플레이어 예고·출처불명은 '' (분모에서 제외).
   return {
     alive: false, idx: 0, gen: 0, kind: '', x: 0, y: 0, r: 0, a: 0,
+    // §8.5(v1.5) 소사 레이저 — aStart≠aEnd 이면 활성 구간에 각이 aStart→aEnd 로 회전한다. 같으면 고정 빔.
+    aStart: 0, aEnd: 0,
     age: 0, durSec: 0, warnSec: 0, track: false, dmg: 0, owner: -1, srcArch: '',
   };
 }
@@ -741,11 +743,12 @@ export function spawnTelegraph(world, kind, x, y, r, durSec, owner) {
  *   §7.4 — 2단: warnSec 동안 **충전(경고·무해)** → activeSec 동안 **활성(피해)**. durSec = 둘의 합.
  *   track 이면 충전 중 플레이어를 따라 조준하다가 활성 진입 시 각이 잠긴다.
  */
-export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner, srcArch, warnSec, track) {
+export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner, srcArch, warnSec, track, angleEndRad) {
   const t = world.telegraphs.alloc();
   if (t === null) { world.capHits.telegraph += 1; return null; }
   const warn = warnSec === undefined ? 0 : warnSec;
   t.kind = 'laser'; t.x = x; t.y = y; t.a = angleRad; t.r = widthPx;
+  t.aStart = angleRad; t.aEnd = angleEndRad === undefined ? angleRad : angleEndRad;   // aStart≠aEnd = 소사
   t.age = 0; t.warnSec = warn; t.durSec = warn + activeSec; t.dmg = dmg;
   t.track = track === true;
   t.owner = owner;

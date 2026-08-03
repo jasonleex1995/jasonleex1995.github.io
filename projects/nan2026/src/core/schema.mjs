@@ -36,7 +36,7 @@ const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCou
   'xpGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];
-const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar'];
+const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep'];
 const BOSS_TIERS = ['stage', 'mid', 'final'];
 
 /** §9.5 — 패밀리별 base 필수 키 집합 12행 (공통 ✔ + 고유 non-evo). 동결 */
@@ -98,12 +98,13 @@ const EMIT_OWN = {
   zone: ['radius', 'activeSec', 'dmg'],
   wall: ['count', 'gapCount', 'gapWidthPx', 'speed'],
   mortar: ['radius', 'activeSec', 'dmg', 'fuseSec', 'leadSec'],
+  sweep: ['widthPx', 'activeSec', 'angleStartDeg', 'angleEndDeg'],
 };
 
 /** §7.4 — 텔레그래프 하한 3축. 겹치면 max */
 const TELEGRAPH_FLOOR_BY_TYPE = {
   straight: 0.55, fan: 0.60, aimed: 0.60, ring: 0.60,
-  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60,
+  spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60, sweep: 1.20,
 };
 
 /** §9.4 — rules.json 루트 = schemaVersion + 정확히 16 블록 (v1.5: bomb 제거 = 경제·소비아이템 폐지) */

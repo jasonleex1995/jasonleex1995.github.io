@@ -211,6 +211,17 @@ function fireLaser(world, e, em, p, look) {
     em.telegraphSec, em.trackDuringCharge === true);
 }
 
+// §8.5(v1.5) 소사 레이저 — 활성 구간 동안 각이 angleStartDeg→angleEndDeg 로 «회전»(아레나를 쓸고 지나간다).
+//   보스 시그니처. 충전(경고)엔 시작각 고정선을 보여주고, 활성엔 그 각이 끝각까지 스윕한다(플레이어는 앞서 달려 피함).
+function fireSweep(world, e, em, look) {
+  const aStart = em.angleStartDeg * DEG2RAD;
+  const aEnd = em.angleEndDeg * DEG2RAD;
+  const bul = look.bulletById[em.bulletId];
+  if (bul === undefined) throw new Error(`emitters: sweep "${em.id}" 의 미지 탄 "${em.bulletId}" (§9.7)`);
+  spawnBeam(world, e.x, e.y, aStart, em.widthPx, bul.dmg, em.activeSec, e.idx, srcArchOf(e),
+    em.telegraphSec, false, aEnd);            // track=false · aEnd = 소사 끝각
+}
+
 /** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */
 // §17 — 보스 발사체 밀도는 스테이지가 갈수록 는다(bossBulletScale). 잡몹·중간보스는 1(불변).
 //   발사 시점 count 만 곱한다(이미터 데이터·66슬롯 명명법 불변). laser·zone 은 count 가 없어 제외.
@@ -232,6 +243,7 @@ function fireVolley(world, e, em, volleyIdx, p, look) {
   else if (t === 'zone') fireZone(world, e, em);
   else if (t === 'mortar') fireMortar(world, e, em, p);
   else if (t === 'laser') fireLaser(world, e, em, p, look);
+  else if (t === 'sweep') fireSweep(world, e, em, look);
   else throw new Error(`emitters: 미지의 이미터 타입 "${t}" (${em.id}, §8.5 — 폴백 금지)`);
 }
 

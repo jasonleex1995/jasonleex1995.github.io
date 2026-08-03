@@ -532,7 +532,7 @@
     },
     {
       "id": "lancerLaser",
-      "type": "laser",
+      "type": "sweep",
       "bulletId": "beamCore",
       "from": "self",
       "telegraphSec": 1.7,
@@ -541,9 +541,9 @@
       "repeat": 2,
       "restSec": 5.0,
       "widthPx": 16,
-      "activeSec": 0.6,
-      "angleDeg": 90,
-      "trackDuringCharge": true
+      "activeSec": 2.2,
+      "angleStartDeg": 60,
+      "angleEndDeg": 120
     },
     {
       "id": "nestAimed",
