@@ -66,8 +66,6 @@
     "lowHpThreshold": 0.30,
     "lowHpCriticalThreshold": 0.15,
     "magnetRadius": 90,
-    "healPickupPct": 0.35,
-    "levelUpHeal": 2,
     "startWeaponId": "forward",
     "startStance": "normal",
     "stanceSwitchCooldown": 0.0,
@@ -91,7 +89,6 @@
     "sizeMult": 1.4,
     "contactDmgMul": 1.5,
     "xpMult": 6.0,
-    "healDropChance": 0.12,
     "bandAllowed": ["line", "turret", "bruiser"],
     "elementAllowed": ["fire", "water", "grass"]
   },

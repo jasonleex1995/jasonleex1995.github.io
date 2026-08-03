@@ -490,7 +490,7 @@ function S2_schema() {
   //   (누락=에러, §9.3 폴백 금지)로 잠근다 — 향후 실수로 빠지면 게이트가 짖는다.
   closedKeys('S2', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'levelUpHeal', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
   if (has(r.player, 'hpSegment')) {
@@ -499,7 +499,7 @@ function S2_schema() {
 
   closedKeys('S2', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects'], 'rules.status');
   closedKeys('S2', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
-    'healDropChance', 'bandAllowed', 'elementAllowed'], 'rules.elite');
+    'bandAllowed', 'elementAllowed'], 'rules.elite');
 
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
   closedKeys('S2', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
@@ -758,7 +758,7 @@ function S2_files() {
       // §9.8.2 — 중간보스 팔 (v1.3 신설). hp·element 는 루트 필드다 (core 가 없다)
       closedKeys('S2', b, ['id', 'name', 'tier', 'themeId', 'hp', 'element', 'radius', 'contactDmg',
         'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts',
-        'xp', 'healDropChance', 'score'], `bosses[${b.id}]`);
+        'xp', 'score'], `bosses[${b.id}]`);
       if (has(b, 'core')) {
         V('S2', `bosses[${b.id}].core: 중간보스에는 core 가 없다 (§9.8.2-ⓐ) — parts: [] 이므로 "부위와 구별되는 몸통"이 정의되지 않는다`);
       }
@@ -1106,7 +1106,7 @@ function S3_vocab() {
       ['movePattern 부재', !has(b, 'movePattern')],
       ['parts == []', Array.isArray(b.parts) && b.parts.length === 0],
       ['armorCoreRatio 부재', !has(b, 'armorCoreRatio')],
-      ['보상 3필드 보유', ['xp', 'healDropChance', 'score'].every((k) => has(b, k))],
+      ['보상 2필드 보유', ['xp', 'score'].every((k) => has(b, k))],
     ];
     for (const [label, val] of eq) {
       if (val !== isMid) {

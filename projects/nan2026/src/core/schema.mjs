@@ -193,12 +193,12 @@ function checkRules(c, r) {
   // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'levelUpHeal', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
   c.closed('rules.elite', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
-    'healDropChance', 'bandAllowed', 'elementAllowed']);
+    'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
@@ -445,8 +445,7 @@ function checkBosses(c, b) {
     if (it.tier === 'mid') {
       // §9.8.2 — 중간보스에는 core 가 없다. hp·element 가 루트 필드다
       c.closed(p, it, ['id', 'name', 'tier', 'themeId', 'hp', 'element', 'radius', 'contactDmg',
-        'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts', 'xp',
-        'healDropChance', 'score']);
+        'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts', 'xp', 'score']);
     } else {
       // §9.8 — 스테이지·최종 보스
       c.closed(p, it, ['id', 'name', 'tier', 'themeId', 'armorCoreRatio', 'core', 'parts',

@@ -528,16 +528,11 @@ function drawPickups(ctx, world, pal, interp, alpha) {
     if (!q.alive) continue;
     const x = lerpX(interp, interp.pickups, q, alpha);
     const y = lerpY(interp, interp.pickups, q, alpha);
-    if (q.kind === 'xp') {                                   // 마름모 — 값이 클수록 크게 (플레이테스트 #5b)
-      ctx.fillStyle = pal.pickup.xp;
-      const s = 2.2 + Math.min(q.value, 24) * 0.09;          // 1→2.3 · 6→2.7 · 12→3.3 · 병합24+→4.4
-      glyphPath(ctx, 'water', x, y, s);
-      ctx.fill();
-    } else {                                                 // heal — §7.12.4 목록 밖이므로 호박 금지
-      ctx.fillStyle = pal.hud.hpFill;
-      glyphPath(ctx, 'grass', x, y, 3);
-      ctx.fill();
-    }
+    // v1.5 — 픽업 kind 는 xp 뿐 (회복 픽업 폐지). 마름모, 값이 클수록 크게 (플레이테스트 #5b)
+    ctx.fillStyle = pal.pickup.xp;
+    const s = 2.2 + Math.min(q.value, 24) * 0.09;            // 1→2.3 · 6→2.7 · 12→3.3 · 병합24+→4.4
+    glyphPath(ctx, 'water', x, y, s);
+    ctx.fill();
   }
 }
 

@@ -24,7 +24,7 @@
     "guaranteeElementCardOnFirstDraft": true,
     "guaranteeNewWeaponUntilSlots": 2,
     "elementCardPity": 6,
-    "fallback": { "id": "resupply", "name": "보급", "healPct": 0.25 },
+    "fallback": { "id": "resupply", "name": "보급", "healPct": 0.05 },
     "pauseGame": true
   },
 
@@ -47,7 +47,7 @@
     "themeBannerSec": 2.5,
     "stageClearSec": 2.0,
     "healSec": 1.5,
-    "stageClearHealPct": 0.25,
+    "stageClearHealPct": 0.10,
     "pauseResumeCountdownSec": 1.5,
     "attractIdleSec": 20,
     "menuSpeed": 1.0,

@@ -540,30 +540,18 @@ export function killEnemy(world, e) {
   if (e.midBossId !== '') { killMidBoss(world, e); return; }       // §8.9 — 중간보스는 개체 필드가 보상을 소유
   addKill(world, e);                                                // §11.3 처치 점수(초효과 지분 보너스 포함)
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  const el = world.data.rules.elite;
-  // §2.1(v1.4) — 회복 픽업의 회복량 = healPickupPct × 드랍 순간 hpMax. 절대량을 value 로 싣는다.
-  //   v1.5: 코인 드랍 폐지 = 경제 제거. 엘리트만 확률 회복 드랍(잡몹 드랍원은 xp + 회복뿐).
-  const healValue = world.data.rules.player.healPickupPct * world.player.hpMax;
-  if (e.elite && world.rng.drop.f() < el.healDropChance) {
-    spawnPickup(world, 'heal', healValue, e.x, e.y);
-  }
+  // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }
 
 /**
- * §8.9 — 중간보스 처치. 보상 필드의 거처가 **`bosses[]` 개체**다(04-R10):
- *   xp 50(= bands.chaff.xpRef × 25) · healDropChance 0.35(회복 3채널 중 "드랍"의 주 수도꼭지)
- *   · score. ★ 이탈(midboss.js 의 leave)은 이 경로를 타지 않는다 = 보상 0.
+ * §8.9 — 중간보스 처치. 보상: xp + 중간보스 격파 점수 (v1.5: 코인·회복 드랍 폐지).
+ *   ★ 이탈(midboss.js 의 leave)은 이 경로를 타지 않는다 = 보상 0.
  */
 function killMidBoss(world, e) {
   addKill(world, e);                                     // §11.3 개체 점수(초효과 지분 보너스 포함)
   addMidBossClear(world);                                // §11.3 중간보스 격파 보너스
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  const defs = world.data.bosses.bosses;
-  let chance = 0;
-  for (let i = 0; i < defs.length; i += 1) if (defs[i].id === e.midBossId) { chance = defs[i].healDropChance; break; }
-  const healValue = world.data.rules.player.healPickupPct * world.player.hpMax;
-  if (world.rng.drop.f() < chance) spawnPickup(world, 'heal', healValue, e.x, e.y);
   world.enemies.release(e);
 }
 
@@ -643,13 +631,7 @@ function collect(world, q) {
     if (world.tele !== undefined) world.tele.xpGained += gain;                         // §13.1.1 farmXpRatio
     return;
   }
-  if (q.kind === 'heal') {
-    // §2.1(v1.4) — value 는 이미 절대 회복량(killEnemy 가 healPickupPct×hpMax 로 실었다).
-    //   다른 픽업 value 와 같은 의미(절대량) → hp += value. 상점 결속·죽은 인자 없음.
-    p.hp += q.value;
-    if (p.hp > p.hpMax) p.hp = p.hpMax;
-    return;
-  }
+  // v1.5 — 회복 픽업 폐지: 픽업 kind 는 xp 뿐. 회복 = 스테이지클리어·보급카드가 직접 hp 를 올린다.
   throw new Error(`step: 미지의 픽업 "${q.kind}"`);
 }
 
@@ -664,7 +646,5 @@ function levelUps(world) {
     p.level += 1;
     p.xpToNext = xpToNext(world, p.level);
     world.draftQueue += 1;
-    // §2.1(v1.5) — 레벨업 회복: 상점 폐지·원데스의 스테이지 내 지속 수단. hpMax 초과 없이 flat 회복.
-    p.hp = Math.min(p.hpMax, p.hp + world.data.rules.player.levelUpHeal);
   }
 }
