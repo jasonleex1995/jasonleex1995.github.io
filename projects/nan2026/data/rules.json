@@ -67,6 +67,7 @@
     "lowHpCriticalThreshold": 0.15,
     "magnetRadius": 90,
     "healPickupPct": 0.35,
+    "levelUpHeal": 2,
     "startWeaponId": "forward",
     "startStance": "normal",
     "stanceSwitchCooldown": 0.0,
@@ -178,10 +179,8 @@
     "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["beamWidthPx", "rangePx"] },
     "orbit":     { "rateKey": "hitCooldownSec",   "countKey": "bodyCount",        "pierceApplies": false, "areaKeys": ["orbitRadius", "projRadius"] },
     "aura":      { "rateKey": "tickIntervalSec",  "countKey": null,               "pierceApplies": false, "areaKeys": ["radius"] },
-    "mine":      { "rateKey": "placeIntervalSec", "countKey": "maxAlive",         "pierceApplies": false, "areaKeys": ["blastRadius", "triggerRadius", "evoClusterRadius"] },
     "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": ["outRangePx", "projRadius"] },
     "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierceApplies": false, "areaKeys": ["blastRadius"] },
-    "omni":      { "rateKey": "cooldownSec",      "countKey": "dirCount",         "pierceApplies": true,  "areaKeys": ["projRadius"] },
     "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": ["droneRangePx", "projRadius"] },
     "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierceApplies": false, "areaKeys": ["radius", "evoRing2Radius"] }
   },

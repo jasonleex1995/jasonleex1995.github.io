@@ -1,5 +1,5 @@
 /**
- * tests/weapons2.test.mjs — orbit · mine · barrage · drone 의 정본(§9.5) 계약 단위 테스트.
+ * tests/weapons2.test.mjs — orbit · barrage · drone 의 정본(§9.5) 계약 단위 테스트.
  *
  * 원칙(MEMORY ★★): 값은 데이터/정본에서 유도한다(하드코딩 매직넘버 지양).
  *
@@ -7,7 +7,6 @@
  *   orbit   — bodyCount 개가 orbitRadius 원주에 «균등» 배치 / 수명으로 사라지지 않는다(회귀:
  *             lifetimeSec=hitCooldownSec 인데 age 를 매 틱 0 으로 되돌린다) / 각속도 = angularSpeedDegSec
  *             / 이지스는 evolved 에서만 적 탄을 지운다
- *   mine    — placeIntervalSec 마다 1개·maxAlive 상한 / armSec 전엔 기폭 안 함 / 기폭 후 반납
  *             / 클러스터는 evolved 에서만 (blastRadius 밖 · evoClusterRadius+blastRadius 안)
  *   barrage — cooldownSec 마다 예고 / 예고 반경은 evolved 에서 evoRadiusMul 배 / telegraphSec 전엔
  *             무피해·후엔 폭발+반납 / targetMode 'densest'(Lv8)는 «가장 밀집한 적» 위에 떨어진다
@@ -141,88 +140,6 @@ suite('weapons/orbit — 공전체 (§9.5)', () => {
       s.a1 = 0;                                     // 방패 재사용 대기 해제
       tickWeapon(w, 'orbit', s, 1);
       assert.eq(w.enemyBullets.live, evolved ? 0 : 1, `evolved=${evolved} 일 때 제거 여부`);
-    }
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════
-suite('weapons/mine — 마인필드 (§9.5)', () => {
-  test('placeIntervalSec 마다 1개, maxAlive 에서 멈춘다', () => {
-    const w = mkWorld();
-    const [s, eff] = setup(w, 'mine', 1, false);
-    const per = Math.ceil(eff.placeIntervalSec / dt);
-    tickWeapon(w, 'mine', s, 1);
-    assert.eq(liveZones(w).length, 1, '첫 설치');
-    tickWeapon(w, 'mine', s, per);
-    assert.eq(liveZones(w).length, 2, '한 주기 뒤 2개');
-    tickWeapon(w, 'mine', s, per * (eff.maxAlive + 3));
-    assert.eq(liveZones(w).length, eff.maxAlive, 'maxAlive 상한');
-  });
-
-  test('armSec 전엔 기폭하지 않고, 무장 후 접촉하면 터지고 반납된다', () => {
-    const w = mkWorld();
-    const [s, eff] = setup(w, 'mine', 1, false);
-    tickWeapon(w, 'mine', s, 1);
-    const z = liveZones(w)[0];
-    const e = fatEnemy(w, z.x, z.y);               // 처음부터 겹쳐 둔다
-    const hp0 = e.hp;
-
-    const armTicks = Math.floor(eff.armSec / dt) - 1;
-    assert.gt(armTicks, 0, '무장 시간이 여러 틱이다 (vacuous 아님)');
-    tickWeapon(w, 'mine', s, armTicks);
-    assert.eq(e.hp, hp0, '무장 전엔 무피해');
-
-    tickWeapon(w, 'mine', s, 2);
-    assert.lt(e.hp, hp0, '무장 후 기폭');
-    assert.eq(z.alive, false, '터진 기뢰는 소유자가 반납한다');
-  });
-
-  test('§9.5(v1.5) 마인 = 탄을 막고 hp 가 닳으면 «소멸»(폭발 아님)', () => {
-    const w = mkWorld();
-    const [s, eff] = setup(w, 'mine', 1, false);
-    tickWeapon(w, 'mine', s, 1);
-    const z = liveZones(w)[0];
-    assert.eq(z.hp, eff.blockHp, '설치 시 blockHp 세팅');
-    const bId = w.data.bullets.bullets[0].id;
-    const bullets = [];
-    for (let i = 0; i < eff.blockHp; i += 1) bullets.push(spawnEnemyBullet(w, bId, z.x, z.y, 0, 0));  // 반경 안 blockHp 발
-    const outB = spawnEnemyBullet(w, bId, z.x + eff.blastRadius * 3, z.y, 0, 0);                       // 밖
-    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 막기
-    for (const b of bullets) assert.eq(b.alive, false, '반경 안 탄 = 막힘(소거)');
-    assert.eq(outB.alive, true, '반경 밖 탄 = 유지');
-    assert.eq(z.alive, false, 'hp 소진 → 마인 소멸(폭발 아님)');
-  });
-
-  test('§9.5(v1.5) 마인 = 적 기체가 닿으면 폭발(광역 피해)', () => {
-    const w = mkWorld();
-    const [s, eff] = setup(w, 'mine', 1, false);
-    tickWeapon(w, 'mine', s, 1);
-    const z = liveZones(w)[0];
-    fatEnemy(w, z.x, z.y);                                          // 접촉 = 폭발 유발
-    const victim = fatEnemy(w, z.x + eff.blastRadius * 0.5, z.y);   // 폭발 피해 관측
-    const h0 = victim.hp;
-    tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);       // 무장 후 접촉 폭발
-    assert.lt(victim.hp, h0, '접촉 폭발 = 반경 안 적 피해');
-    assert.eq(z.alive, false, '폭발 후 반납');
-  });
-
-  test('클러스터 2차 폭발은 evolved 에서만 blastRadius 밖을 때린다', () => {
-    // 1차 폭발 밖 · 2차(클러스터) 안이 되는 거리를 «진화 eff» 에서 유도한다
-    const probe = mkWorld();
-    const pe = setup(probe, 'mine', 8, true)[1];
-    const far = pe.blastRadius + pe.evoClusterRadius * 0.5;
-    for (const evolved of [false, true]) {
-      const w = mkWorld();
-      const [s, eff] = setup(w, 'mine', 8, evolved);
-      tickWeapon(w, 'mine', s, 1);
-      const z = liveZones(w)[0];
-      const trigger = fatEnemy(w, z.x, z.y);                       // 기폭용
-      const outer = fatEnemy(w, z.x + far, z.y);                   // 관측용
-      assert.gt(far, eff.blastRadius, '관측용은 1차 폭발 반경 밖이다');
-      const hp0 = outer.hp;
-      tickWeapon(w, 'mine', s, Math.ceil(eff.armSec / dt) + 2);
-      assert.lt(trigger.hp, 1e9, '기폭은 실제로 일어났다');
-      assert.eq(outer.hp < hp0, evolved, `evolved=${evolved} 일 때 2차 피해 여부`);
     }
   });
 });

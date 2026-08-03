@@ -248,7 +248,7 @@ function census() {
     ['enemies.emitters', D.enemies && D.enemies.emitters, 1, '§9.7 · §9.8.1(보스 부위 이미터 66개도 여기 산다)'],
     ['bullets.bullets', D.bullets && D.bullets.bullets, 1, '§9.7'],
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
-    ['weapons.weapons', D.weapons && D.weapons.weapons, 12, '§9.5 — 12 패밀리 1:1'],
+    ['weapons.weapons', D.weapons && D.weapons.weapons, 10, '§9.5 — 10 패밀리 1:1 (v1.5: omni·mine 삭제)'],
     ['passives.passives', D.passives && D.passives.passives, 11, '§9.6 — 11종 (v1.5 salvage 제거)'],
     ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 12, '§9.9 — 12행'],
   ];
@@ -278,7 +278,7 @@ const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter']
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena'];                             // §9.5 (5)
-const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'mine', 'boomerang', 'barrage', 'omni', 'drone', 'nova']; // §9.5 (12)
+const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova']; // §9.5 (10 — v1.5: omni·mine 삭제)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
   'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul', 'xpGainMul'];                             // §9.6 (11 — v1.5 salvage 제거)
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
@@ -305,10 +305,8 @@ const FAMILY_COMMON_CHECK = {
   lance:     ['dmg', 'cooldownSec', 'count', 'pierce', 'hitCooldownSec', 'targetMode'],
   orbit:     ['dmg', 'projRadius', 'hitCooldownSec'],
   aura:      ['dmg'],
-  mine:      ['dmg'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
   barrage:   ['dmg', 'cooldownSec', 'targetMode'],
-  omni:      ['dmg', 'cooldownSec', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec'],
   drone:     ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
   nova:      ['dmg'],
 };
@@ -320,10 +318,8 @@ const FAMILY_OWN_BASE = {
   lance:     ['beamWidthPx', 'chargeSec', 'rangePx'],
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
-  mine:      ['placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive', 'blockHp'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec'],
-  omni:      ['dirCount', 'dirOffsetDeg', 'rearBias'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec'],
 };
@@ -335,19 +331,17 @@ const FAMILY_OWN_EVO = {
   lance:     ['evoFullHeight'],
   orbit:     ['evoBulletClearCooldownSec'],
   aura:      ['evoPullForce'],
-  mine:      ['evoClusterCount', 'evoClusterRadius', 'evoSecondaryDmgMul'],
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
-  omni:      ['evoRingRotDeg'],
   drone:     ['evoTrailDelaySec'],
   nova:      ['evoRing2Radius', 'evoClearBullets', 'evoSecondaryDmgMul'],
 };
 // §9.5 허용 targetMode (패밀리별). null = targetMode 키 자체가 없다
 const FAMILY_TARGET_MODES = {
   forward: ['forward'], fan: ['forward'], seeker: ['nearest', 'lowestHp', 'randomInArena'],
-  lance: ['forward', 'nearest'], orbit: null, aura: null, mine: null,
+  lance: ['forward', 'nearest'], orbit: null, aura: null,
   boomerang: ['forward', 'nearest'], barrage: ['randomInArena', 'densest'],
-  omni: null, drone: ['nearest', 'lowestHp', 'forward'], nova: null,
+  drone: ['nearest', 'lowestHp', 'forward'], nova: null,
 };
 
 // §7.4 텔레그래프 하한 — 3축 (거동별 표 · 탄 상태 · 개체 클래스). ★ 겹치면 max
@@ -496,7 +490,7 @@ function S2_schema() {
   //   (누락=에러, §9.3 폴백 금지)로 잠근다 — 향후 실수로 빠지면 게이트가 짖는다.
   closedKeys('S2', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'levelUpHeal', 'startWeaponId',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
   if (has(r.player, 'hpSegment')) {
@@ -2705,7 +2699,7 @@ function S39_waveUnlockCoherence() {
   EX('S39', n);
 }
 
-// §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 12 무기 전부 requiresPassive{id,level} 를 갖고,
+// §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 10 무기 전부 requiresPassive{id,level} 를 갖고,
 //   짝은 실재 패시브 · level∈[1,maxLevel] · 그 무기에 기계적으로 유효(무효 패시브 아님).
 function S41_evolutionPairing() {
   const byId = {};

@@ -907,6 +907,14 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - 검증: **check0 · loader0 · 385테스트 · 무적16런 crash0(보스 17격파) · 브라우저 로드 콘솔에러0(캔버스 1280×720 라이브)** · src/tools 잔여 기능참조 0 · 적대적 검증 워크플로(4차원).
 - 순효과: **27파일 −659줄.** 힘은 오직 런 내 드래프트(무기·패시브·속성)에서만 = 순수 «비행슈팅 + 뱀서 드래프트».
 
+### 2026-08-03 — omni·마인 완전 삭제 + 레벨업 회복 + XP 하향 (사용자 배치)
+
+- **A. omni·mine 완전 폐지 (무기 12→10)**: 「탄막 대응이 게임을 쉽게 함」 → 두 무기 삭제. weapons.json 10개 · rules.passiveHooks 12→10 · schema/check `FAMILIES`·`FAMILY_BASE/EVO/TARGET` 10행 · weapons/{omni,mine}.js 삭제 · index.js · step.collide 요격 섹션·state zone.hp(마인 blockHp) 삭제 · weapons/weapons2 테스트 omni/mine 스위트 삭제.
+- **B. 레벨업 회복 신설** (`rules.player.levelUpHeal`=2): 상점·물약 폐지 + 원데스라 스테이지 내 지속 수단이 없어 — 레벨업마다 flat +2 HP(hpMax 상한). 보스 회복은 기존 stageClearHealPct(25%)가 담당(사용자의 「보스 잡으면 회복」 아이디어 = 이미 존재).
+- **C. XP ~10% 하향** (`xpScale` [4.6..18]→[4.1..16.2]): 무기 10종에 맞춰 과성장 억제(사용자 지시).
+- 검증: check0 · **372테스트**(omni/mine 스위트 −13) · 로더0 · 레벨업 회복 유닛 확인(hp50→52) · 무적16런 crash0.
+- **다음(사용자 요청, 설계 제안 필요)**: D. 잡몹 공격 다양화 · E. 보스 시그니처 패턴 → 구체안 제안.
+
 ---
 
 ## 다음 할 일

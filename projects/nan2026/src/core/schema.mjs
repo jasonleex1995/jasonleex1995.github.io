@@ -29,8 +29,8 @@ export const SCHEMA_VERSION = 1;
 // 동결 어휘 (§13.4-S3 · C-3)
 // ---------------------------------------------------------------------------
 const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
-const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'mine',
-  'boomerang', 'barrage', 'omni', 'drone', 'nova'];
+const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
+  'boomerang', 'barrage', 'drone', 'nova'];
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
   'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul',
   'xpGainMul'];
@@ -51,13 +51,10 @@ const FAMILY_BASE_KEYS = {
     'beamWidthPx', 'chargeSec', 'rangePx'],
   orbit: ['dmg', 'projRadius', 'hitCooldownSec', 'orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura: ['dmg', 'radius', 'tickIntervalSec', 'falloff'],
-  mine: ['dmg', 'placeIntervalSec', 'armSec', 'triggerRadius', 'blastRadius', 'maxAlive', 'blockHp'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
     'blastRadius', 'telegraphSec'],
-  omni: ['dmg', 'cooldownSec', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec',
-    'dirCount', 'dirOffsetDeg', 'rearBias'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
     'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec'],
@@ -71,10 +68,8 @@ const FAMILY_EVO_KEYS = {
   lance: ['evoFullHeight'],
   orbit: ['evoBulletClearCooldownSec'],
   aura: ['evoPullForce'],
-  mine: ['evoClusterCount', 'evoClusterRadius', 'evoSecondaryDmgMul'],
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
-  omni: ['evoRingRotDeg'],
   drone: ['evoTrailDelaySec'],
   nova: ['evoRing2Radius', 'evoClearBullets', 'evoSecondaryDmgMul'],
 };
@@ -82,9 +77,9 @@ const FAMILY_EVO_KEYS = {
 /** §9.5 — 허용 targetMode. null = 그 패밀리 계약에 targetMode 키가 없다 */
 const FAMILY_TARGET_MODES = {
   forward: ['forward'], fan: ['forward'], seeker: ['nearest', 'lowestHp', 'randomInArena'],
-  lance: ['forward', 'nearest'], orbit: null, aura: null, mine: null,
+  lance: ['forward', 'nearest'], orbit: null, aura: null,
   boomerang: ['forward', 'nearest'], barrage: ['randomInArena', 'densest'],
-  omni: null, drone: ['nearest', 'lowestHp', 'forward'], nova: null,
+  drone: ['nearest', 'lowestHp', 'forward'], nova: null,
 };
 
 /** §4.4 — elementStampMode. 구조 결정 = 잠금 키 */
@@ -198,7 +193,7 @@ function checkRules(c, r) {
   // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'healPickupPct', 'levelUpHeal', 'startWeaponId',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
@@ -320,7 +315,7 @@ function checkElements(c, e) {
 
 function checkWeapons(c, w) {
   c.closed('weapons', w, ['schemaVersion', 'weapons']);
-  if (!c.arr('weapons.weapons', w.weapons, 12)) return;
+  if (!c.arr('weapons.weapons', w.weapons, 10)) return;
   for (let i = 0; i < w.weapons.length; i += 1) {
     const it = w.weapons[i];
     const p = `weapons[${it && it.id}]`;
@@ -385,7 +380,7 @@ function checkPassives(c, ps) {
     const it = ps.passives[i];
     const p = `passives[${it && it.id}]`;
     if (!c.closed(p, it, ['id', 'name', 'desc', 'stat', 'values'])) continue;
-    // §9.6 — 각 패시브 = 엔진 훅 정확히 1개. 12훅 = 12 패시브 1:1
+    // §9.6 — 각 패시브 = 엔진 훅 정확히 1개. 11훅 = 11 패시브 1:1 (v1.5: salvage 제거)
     if (!c.vocab(`${p}.stat`, it.stat, PASSIVE_STATS)) continue;
     if (seen.indexOf(it.stat) >= 0) c.fail(p, `stat "${it.stat}" 중복 — §9.6 "11훅 = 11 패시브 1:1"`);
     seen.push(it.stat);

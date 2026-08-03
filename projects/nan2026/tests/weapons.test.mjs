@@ -12,7 +12,6 @@
  *             / onExpire 정확히 1회(회귀 ④: release 경로 LIFO 재사용에도 탄당 1회)
  *   seeker  — 유도(각 오차 감소) / turnRate 클램프(정확히 turnRateDegSec·dt) / retarget
  *             (evolved=온-킬 즉시 / 비evolved=주기 전 직진) / distinct 타겟(evolved)
- *   omni    — 링 주기 = cooldownSec / dirCount 360° 균등 / rearBias(뒤 탄만) / 링 버스트 회전 격리
  *   boomerang — 투척 주기 / pierce -1·hitCooldownSec(두 번 벤다) / OUT→RETURN 전환 / 회수(age→lifetime)
  *             / 체인 리턴 경유 격리(evolved)
  *   ★ 리터럴 계약 — 다섯 파일 소스 파싱: 주석·문자열 제거 후 숫자 리터럴 ⊆ {0,1,-1,0.5,2}
@@ -31,7 +30,6 @@ import { weapons } from '../src/core/weapons/index.js';
 import forward from '../src/core/weapons/forward.js';
 import fan from '../src/core/weapons/fan.js';
 import seeker from '../src/core/weapons/seeker.js';
-import omni from '../src/core/weapons/omni.js';
 import boomerang from '../src/core/weapons/boomerang.js';
 import aura from '../src/core/weapons/aura.js';
 import nova from '../src/core/weapons/nova.js';
@@ -384,96 +382,6 @@ suite('weapons/seeker', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-// omni (리어가드) — 360° 방사 · rearBias · 링 버스트(회전)
-// ══════════════════════════════════════════════════════════════════════════
-suite('weapons/omni', () => {
-  test('링 주기 = cooldownSec (첫 링 즉시)', () => {
-    const w = mkWorld();
-    const { s, eff } = setup(w, 'omni', 1, false);
-    const ev = volleyTicks(omni, w, s, eff, 120);
-    assert.eq(ev[0], 0, '첫 링은 첫 틱에 즉시');
-    assert.gte(ev.length, 2, '2초 안에 최소 2링');
-    assert.near((ev[1] - ev[0]) * dt, eff.cooldownSec, dt * 2, '링 간격 = cooldownSec');
-  });
-
-  test('링 = dirCount 발이 360°에 균등 (원형 간격 = 360/dirCount)', () => {
-    const w = mkWorld();
-    const { s, eff } = setup(w, 'omni', 1, false);       // dirCount 3
-    assert.gte(eff.dirCount, 3, 'omni 는 방사');
-    omni.update(w, s, eff, dt);
-    const b = liveBullets(w);
-    assert.eq(b.length, eff.dirCount, 'dirCount 만큼 스폰');
-    const hs = b.map((x) => ((headingDeg(x) % 360) + 360) % 360).sort((p, q) => p - q);
-    const gap = 360 / eff.dirCount;
-    for (let i = 1; i < hs.length; i += 1) assert.near(hs[i] - hs[i - 1], gap, 1e-6, `간격 균일 @${i}`);
-    assert.near(360 - hs[hs.length - 1] + hs[0], gap, 1e-6, '랩어라운드 간격도 = 360/dirCount');
-  });
-
-  test('rearBias: 뒤(vy>0)로 나가는 탄만 localMul=rearBias, 앞은 1 (Lv5 = 수평 경계 없음)', () => {
-    const w = mkWorld();
-    const { s, eff } = setup(w, 'omni', 5, false);       // dirCount 5 · rearBias 1.3 (정확 수평 탄 없음)
-    assert.gt(eff.rearBias, 1, 'Lv5 rearBias > 1 (양성 경로)');
-    omni.update(w, s, eff, dt);
-    let rear = 0; let front = 0;
-    for (const x of liveBullets(w)) {
-      if (x.vy > 0) { assert.near(x.localMul, eff.rearBias, 1e-9, '뒤 탄 = rearBias'); rear += 1; }
-      else { assert.near(x.localMul, 1, 1e-9, '앞·옆 탄 = 1'); front += 1; }
-    }
-    assert.gt(rear, 0, '뒤로 나가는 탄이 실제로 있다');
-    assert.gt(front, 0, '앞으로 나가는 탄도 있다');
-  });
-
-  test('rearBias 좌우 대칭(Lv4 짝수 dirCount·수평 경계): 수평 탄은 둘 다 front, 정확히 아래 탄만 rear', () => {
-    // 회귀 — vy>0 부동소수 판정은 수평 탄(a=±90°)을 좌우 비대칭으로 갈랐다. 각도 판정으로 대칭 고정.
-    const w = mkWorld();
-    const { s, eff } = setup(w, 'omni', 4, false);       // dirCount 4 → 정확 수평 탄 2발 · rearBias 1.3
-    assert.eq(eff.dirCount, 4, 'Lv4 dirCount 4 (짝수)');
-    assert.gt(eff.rearBias, 1, 'Lv4 rearBias > 1 (양성 경로)');
-    omni.update(w, s, eff, dt);
-    const b = liveBullets(w);
-    const horiz = b.filter((x) => Math.abs(x.vy) < eff.projSpeed * 0.5);  // 수평 ≈ 2발
-    const rear = b.filter((x) => x.vy > eff.projSpeed * 0.5);             // 분명히 아래 = 1발
-    assert.eq(horiz.length, 2, '수평 탄 2발(좌·우)');
-    for (const x of horiz) assert.near(x.localMul, 1, 1e-9, '수평 탄은 front(=1) — 좌우 대칭');
-    assert.eq(rear.length, 1, '분명히 아래로 가는 탄 1발');
-    assert.near(rear[0].localMul, eff.rearBias, 1e-9, '아래 탄만 rearBias');
-  });
-
-  test('진화 격리(링 버스트): evolved 는 볼리마다 a0 회전 누적, 비evolved 는 a0 불변(=0)', () => {
-    const wn = mkWorld();
-    const n = setup(wn, 'omni', 1, false);
-    for (let t = 0; t < 200; t += 1) omni.update(wn, n.s, n.eff, dt);
-    assert.eq(n.s.a0, 0, '비evolved 는 a0(링 회전)을 건드리지 않는다');
-
-    const we = mkWorld();
-    const e = setup(we, 'omni', 1, true);
-    omni.update(we, e.s, e.eff, dt);                      // 첫 링 + a0 += evoRingRotDeg
-    assert.near(e.s.a0, e.eff.evoRingRotDeg * DEG2RAD, 1e-9, 'evolved: 한 볼리 = a0 += evoRingRotDeg(rad)');
-    assert.gt(e.s.a0, 0, 'evolved 는 링이 회전한다');
-  });
-
-  test('§9.5(v1.5) 인터셉터 — omni 탄이 적 탄과 부딪히면 «상쇄»(둘 다 소멸)', () => {
-    const w = mkWorld();
-    const { s, eff } = setup(w, 'omni', 1, false);
-    const p = w.player;
-    p.iframeSec = 99999;                                            // 적 탄이 플레이어에 안 맞게(요격만 관측)
-    spawnPlayerBullet(w, s, eff, p.x, p.y - 50, 0, -300, 1);        // omni 탄
-    const eb = spawnEnemyBullet(w, 'pelletS', p.x, p.y - 50, 0, 0); // 같은 자리 적 탄
-    assert.eq(eb.alive, true, '적 탄 놓임');
-    step(w, makeInput(), dt);
-    assert.eq(eb.alive, false, 'omni 탄에 요격(상쇄)되어 소멸');
-    // 대조: forward 탄은 적 탄을 요격하지 않는다
-    const w2 = mkWorld();
-    const f = setup(w2, 'forward', 1, false);
-    w2.player.iframeSec = 99999;
-    spawnPlayerBullet(w2, f.s, f.eff, w2.player.x, w2.player.y - 50, 0, -300, 1);
-    const eb2 = spawnEnemyBullet(w2, 'pelletS', w2.player.x, w2.player.y - 50, 0, 0);
-    step(w2, makeInput(), dt);
-    assert.eq(eb2.alive, true, 'forward 탄은 적 탄을 요격하지 않는다(omni 전용)');
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════
 // boomerang (리턴) — 나갔다 돌아온다 · 두 번 벤다(pierce -1·hitCooldownSec) · 체인 리턴
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/boomerang', () => {
@@ -721,8 +629,8 @@ suite('weapons/리터럴 계약 §9.1', () => {
     return out;
   }
 
-  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'omni.js', 'boomerang.js', 'aura.js', 'nova.js',
-    'lance.js', 'orbit.js', 'mine.js', 'barrage.js', 'drone.js']) {
+  for (const file of ['forward.js', 'fan.js', 'seeker.js', 'boomerang.js', 'aura.js', 'nova.js',
+    'lance.js', 'orbit.js', 'barrage.js', 'drone.js']) {
     test(`${file}: 숫자 리터럴 ⊆ {0,1,-1,0.5,2}`, () => {
       const lits = literals(file);
       assert.gt(lits.length, 0, '스캐너가 실제로 리터럴을 봤다 (vacuous 아님)');

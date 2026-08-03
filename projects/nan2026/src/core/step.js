@@ -405,27 +405,7 @@ function collide(world, dt) {
     applyHit(world, e.contactDmg, e.archetypeId);
     break;
   }
-
-  // (d) §9.5(v1.5) 요격(omni 재설계) — omni 플레이어 탄이 적 탄과 부딪히면 «상쇄»(둘 다 소멸).
-  //   omni 는 전방위로 쏘므로 사방에서 오는 탄을 요격한다. 적을 맞히면 (a)에서 이미 피해·소진.
-  for (let i = 0; i < pb.length; i += 1) {
-    const b = pb[i];
-    if (!b.alive || b.family !== 'omni') continue;
-    for (let j = 0; j < eb.length; j += 1) {
-      const ebul = eb[j];
-      if (!ebul.alive) continue;
-      // §9.5(v1.5.1) — 요격 대상은 «잡몹 탄»뿐. 보스('boss')·중간보스('mb…') 탄은 상쇄 불가.
-      //   보스/중간보스 탄막을 통째로 지우면 위엄·긴장이 사라진다 = 무력화 방지(사용자 지시).
-      if (ebul.srcArch === 'boss' || ebul.srcArch.startsWith('mb')) continue;
-      const dx = ebul.x - b.x;
-      const dy = ebul.y - b.y;
-      const rr = ebul.hitRadius + b.radius;
-      if (dx * dx + dy * dy > rr * rr) continue;
-      world.enemyBullets.release(ebul);       // 적 탄 상쇄
-      releasePlayerBullet(world, b);          // omni 탄도 소멸(1:1 상쇄)
-      break;
-    }
-  }
+  // ★ v1.5 — (d) omni 요격 섹션은 폐지됐다: omni 무기 삭제.
 }
 
 /**
@@ -673,5 +653,7 @@ function levelUps(world) {
     p.level += 1;
     p.xpToNext = xpToNext(world, p.level);
     world.draftQueue += 1;
+    // §2.1(v1.5) — 레벨업 회복: 상점 폐지·원데스의 스테이지 내 지속 수단. hpMax 초과 없이 flat 회복.
+    p.hp = Math.min(p.hpMax, p.hp + world.data.rules.player.levelUpHeal);
   }
 }
