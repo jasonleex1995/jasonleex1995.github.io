@@ -219,18 +219,26 @@ function makeAudio(rules) {
   if (!AC) return null;                       // 오디오 인프라 없음 → 시각만 (호출부 null 가드)
   let ctx = null;
   let master = null;
+  let bgmBus = null;
   const sfxGain = rules.audio.busGain.sfx;                       // §7.10 busGain.sfx = 0.8
+  const bgmGain = rules.audio.busGain.bgm;                       // §7.10 v1.5 busGain.bgm
   const minInterval = 1 / rules.audio.cueRateLimitPerSec;        // §7.10 동일 큐 초당 상한
-  const lastAt = { super: -1, neutral: -1, resist: -1, levelup: -1, hurt: -1, stance: -1 };
-  let muted = false;                          // §5.5 OPTIONS — SFX 버스 뮤트/볼륨
+  const lastAt = { super: -1, neutral: -1, resist: -1, levelup: -1, hurt: -1, stance: -1, kill: -1, boss: -1 };
+  let muted = false;                          // §5.5 OPTIONS — 버스 뮤트/볼륨(SFX+BGM 공유)
   let vol = 1;
-  function applyGain() { if (master !== null) master.gain.value = muted ? 0 : sfxGain * vol; }
+  function applyGain() {
+    if (master !== null) master.gain.value = muted ? 0 : sfxGain * vol;
+    if (bgmBus !== null) bgmBus.gain.value = muted ? 0 : bgmGain * vol;
+  }
   function ensure() {
     if (ctx === null) {
       ctx = new AC();
       master = ctx.createGain();
       master.gain.value = muted ? 0 : sfxGain * vol;
       master.connect(ctx.destination);
+      bgmBus = ctx.createGain();
+      bgmBus.gain.value = muted ? 0 : bgmGain * vol;
+      bgmBus.connect(ctx.destination);
     }
     return ctx;
   }
@@ -287,6 +295,61 @@ function makeAudio(rules) {
     o.frequency.setValueAtTime(880, t0);
     env(o, ctx.createGain(), t0, 0.12, 0.03);
   }
+  function killPop(t0) {                                         // 처치 — 짧은 하강 팝
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(430, t0);
+    o.frequency.exponentialRampToValueAtTime(170, t0 + 0.05);
+    env(o, ctx.createGain(), t0, 0.13, 0.06);
+  }
+  function bossHorn(t0) {                                        // 보스 등장·페이즈 전환 — 낮고 웅장한 2음
+    const freqs = [110, 164.81];
+    for (let i = 0; i < freqs.length; i += 1) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freqs[i], t0);
+      env(o, ctx.createGain(), t0, 0.42, 0.55);
+    }
+  }
+  // §7.10(v1.5) — 절차적 칩튠 BGM (오리지널·무저작권). A단조 구동 루프, look-ahead 스케줄.
+  const BSTEP = 0.1852;                                          // 8분음(초) ≈ 162 BPM
+  const NF = { _: 0,
+    A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+    A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+    A4: 440.00, B4: 493.88, C5: 523.25 };
+  const BLEAD = ['A4', '_', 'C5', 'B4', 'A4', 'E4', 'A4', 'C5', 'F4', '_', 'A4', 'G4', 'F4', 'E4', 'C4', 'E4',
+    'C4', '_', 'E4', 'G4', 'C5', 'G4', 'E4', 'C4', 'E4', '_', 'G4', 'F4', 'E4', '_', 'B3', 'E4'];
+  const BBASS = ['A2', 'A2', 'A3', 'A2', 'A2', 'A2', 'A3', 'A2', 'F3', 'F3', 'F3', 'F3', 'F3', 'F3', 'F3', 'F3',
+    'C3', 'C3', 'C3', 'C3', 'C3', 'C3', 'C3', 'C3', 'E3', 'E3', 'E3', 'E3', 'E3', 'E3', 'B2', 'E3'];
+  let bgmOn = false;
+  let bgmStep = 0;
+  let bgmNextT = 0;
+  function bgmNote(freq, t0, dur, type, peak) {
+    if (freq <= 0) return;
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(bgmBus);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function bgmSchedule() {                                       // 매 프레임 호출 — ~0.35s 앞을 채운다
+    if (!bgmOn || ctx === null || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    if (bgmNextT < now) bgmNextT = now + 0.05;
+    while (bgmNextT < now + 0.35) {
+      const li = NF[BLEAD[bgmStep % BLEAD.length]];
+      const bi = NF[BBASS[bgmStep % BBASS.length]];
+      bgmNote(li, bgmNextT, BSTEP * 0.92, 'square', 0.14);       // 리드
+      bgmNote(bi, bgmNextT, BSTEP * 0.98, 'triangle', 0.30);     // 베이스
+      if (bgmStep % 4 === 0 && li > 0) bgmNote(li * 2, bgmNextT, BSTEP * 0.35, 'square', 0.035);  // 옥타브 반짝
+      bgmStep += 1;
+      bgmNextT += BSTEP;
+    }
+  }
   return {
     resume() { try { ensure(); if (ctx.state === 'suspended') ctx.resume(); } catch (e) { /* 무음 폴백 */ } },
     setMuted(m) { muted = m; applyGain(); },
@@ -307,9 +370,22 @@ function makeAudio(rules) {
         else if (tier === 'levelup') chime(now);
         else if (tier === 'hurt') thud(now);
         else if (tier === 'stance') clickS(now);
+        else if (tier === 'kill') killPop(now);
+        else if (tier === 'boss') bossHorn(now);
         else tick(now);
       } catch (e) { /* 오디오 실패는 게임을 막지 않는다 */ }
     },
+    // §7.10(v1.5) BGM — 절차적 루프. 사용자 제스처(resume) 뒤 켜지고, 매 프레임 bgmTick 으로 앞을 채운다.
+    bgmStart() {
+      try {
+        ensure();
+        if (ctx.state !== 'running') return;
+        bgmOn = true;
+        if (bgmNextT === 0) bgmNextT = ctx.currentTime + 0.05;
+      } catch (e) { /* 무음 폴백 */ }
+    },
+    bgmStop() { bgmOn = false; },
+    bgmTick() { try { if (bgmOn) bgmSchedule(); } catch (e) { /* */ } },
   };
 }
 
@@ -317,14 +393,16 @@ function makeAudio(rules) {
 function playHitCues(audio, world) {
   if (audio === null) return;
   const h = world.hitFx;
-  let sup = false; let neu = false; let res = false;
+  let sup = false; let neu = false; let res = false; let killed = false;
   for (let i = 0; i < h.count; i += 1) {
     const t = h.buf[i].tier;
     if (t === 'super') sup = true; else if (t === 'resist') res = true; else neu = true;
+    if (h.buf[i].killed) killed = true;
   }
   if (sup) audio.cue('super');
   if (res) audio.cue('resist');
   if (neu) audio.cue('neutral');
+  if (killed) audio.cue('kill');                 // §7.10 v1.5 — 처치 팝(rate-limited)
 }
 
 /** §7.10 — 플레이어 상태 변화를 SFX 로: 레벨업·피격·스탠스 전환. prev 는 프레임 간 유지. (v1.5: 코인 폐지) */
@@ -334,9 +412,11 @@ function playEventCues(audio, world, prev) {
   if (p.level > prev.level) audio.cue('levelup');
   if (p.hp < prev.hp) audio.cue('hurt');
   if (p.stance !== prev.stance) audio.cue('stance');
-  prev.level = p.level; prev.hp = p.hp; prev.stance = p.stance;
+  const bp = world.run !== undefined ? world.run.bossPhase : 0;
+  if (bp > prev.bossPhase) audio.cue('boss');    // §7.10 v1.5 — 보스 페이즈 전환(발악 등) 웅장 큐
+  prev.level = p.level; prev.hp = p.hp; prev.stance = p.stance; prev.bossPhase = bp;
 }
-const audioPrev = { level: 1, hp: 0, stance: '' };
+const audioPrev = { level: 1, hp: 0, stance: '', bossPhase: 0 };
 
 // ---------------------------------------------------------------------------
 // 부트
@@ -354,7 +434,7 @@ async function boot() {
   const input = makeInput();
   // §7.10 — SFX. AudioContext 는 사용자 제스처 후에만 소리를 낸다 → 첫 키 입력에서 resume.
   const audio = makeAudio(rules);
-  if (audio !== null) window.addEventListener('keydown', () => audio.resume());
+  if (audio !== null) window.addEventListener('keydown', () => { audio.resume(); audio.bgmStart(); });
   const baseTitle = document.title;
 
   // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
@@ -450,6 +530,7 @@ async function boot() {
 
   function frame(now) {
     requestAnimationFrame(frame);
+    if (audio !== null) audio.bgmTick();          // §7.10 v1.5 — BGM look-ahead 스케줄(매 프레임)
 
     if (viewportTooSmall(view)) {
       if (state !== 'TOO_SMALL') { tooSmallReturn = state; state = 'TOO_SMALL'; }

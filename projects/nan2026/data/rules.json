@@ -328,7 +328,7 @@
   },
 
   "audio": {
-    "busGain": { "sfx": 0.8 },
+    "busGain": { "sfx": 0.8, "bgm": 0.32 },
     "cueRateLimitPerSec": 12
   }
 }

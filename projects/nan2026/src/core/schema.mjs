@@ -283,7 +283,7 @@ function checkRules(c, r) {
     'playerBulletMaxAlpha', 'playerBulletMaxRadiusPx', 'particleMaxAlpha', 'particleMaxLifeSec',
     'fxMinRealMs', 'targetFps', 'degradeOnFrameMs', 'degradeRecoverFrames']);
   c.closed('rules.audio', r.audio, ['busGain', 'cueRateLimitPerSec']);
-  if (isObj(r.audio)) c.closed('rules.audio.busGain', r.audio.busGain, ['sfx']);
+  if (isObj(r.audio)) c.closed('rules.audio.busGain', r.audio.busGain, ['sfx', 'bgm']);
 
   // §4.3 · §2.6 — 어휘 검사
   if (isObj(r.player)) {

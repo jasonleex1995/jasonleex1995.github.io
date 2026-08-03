@@ -610,14 +610,14 @@ function S2_schema() {
     'playerBulletMaxRadiusPx', 'particleMaxAlpha', 'particleMaxLifeSec', 'fxMinRealMs', 'targetFps',
     'degradeOnFrameMs', 'degradeRecoverFrames'], 'rules.render');
 
-  // ★ v1.3: audio.bgm · busGain.bgm 삭제 (§7.10 BGM 스코프 아웃 — C-10의 마지막 위반)
+  // ★ v1.5: busGain.bgm 부활 (§7.10 BGM — 절차적 신스로 재도입). audio.bgm(데이터 40값 스펙)은
+  //   여전히 스코프아웃: BGM 은 코드 신스(SFX 신스와 동류)라 데이터 표가 불필요하고, 게인만 busGain.bgm.
   closedKeys('S2', r.audio, ['busGain', 'cueRateLimitPerSec'], 'rules.audio');
   if (has(r.audio, 'bgm')) {
-    V('S2', 'rules.audio.bgm: 삭제된 키 (§9.4/§23.3) — BGM 스코프 아웃(무음). 40개 값이 전 코퍼스에 0개였다');
+    V('S2', 'rules.audio.bgm: 데이터 40값 스펙은 스코프아웃 — BGM 은 코드 신스다(§7.10 v1.5). 게인만 busGain.bgm');
   }
   if (isObj(r.audio)) {
-    closedKeys('S2', r.audio.busGain, ['sfx'], 'rules.audio.busGain');
-    if (has(r.audio.busGain, 'bgm')) V('S2', 'rules.audio.busGain.bgm: 삭제된 키 (§23.3)');
+    closedKeys('S2', r.audio.busGain, ['sfx', 'bgm'], 'rules.audio.busGain');
   }
 
   // --- elements.json (§9.4.4) ---------------------------------------------
