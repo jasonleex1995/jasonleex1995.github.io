@@ -916,6 +916,18 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - **D 완성 (잡몹 공격 다양화)**: 가속탄(accel 필드 활용, columnAnt) · 유도 확대(rearDart→driftHoming) · **파동탄 신규**(bullets waveAmp/waveHz + moveBullets 사인진동, swarmLancer→weaveBolt). 신규 탄 accelDart·weaveBolt. check0·374테스트(가속/파동 2건 신설)·파동 궤적/가속 속도 유닛확인·무적16런 crash0.
 - **다음: E** — 소사 레이저(신규 이미터) + 보스별 페이즈3 시그니처.
 
+### 2026-08-03 — 회복 재설계 + E-1 소사레이저 + 유령몹 + «전면 엘리트·긴박» 배치 (사용자 대량 요청)
+
+사용자 배치 요청: ① 회복 = 「스클 +10% / 레벨업 X / 픽업 X / 보급 +5%」 ② 「스테이지 갈수록 잡몹 강해지나? 어려우면 차라리 후반 다 엘리트」 ③ 엘리트·중간보스 공격 다양 ④ 경험치 안주는 «유령 군대» 보스/중간보스 모듈 ⑤ 위기가 진짜 끊임없이 몰려오는 느낌. 5건을 순차 구현.
+
+- **① 회복 희소화 (`edc5e64`, 원데스 긴박감)**: `stageClearHealPct` 25%→**10%** · 드래프트 보급 폴백 `healPct` **5%** 신설 · **레벨업 회복 폐지**(`levelUpHeal` 제거, step 회복분기 삭제) · **회복 픽업 폐지**(`healPickupPct`·`elite.healDropChance`·pickup 'heal' kind·수집핸들러·렌더·보스/엘리트 드랍 전부 제거). = 런 내 회복은 **스클 10% + 보급카드 5%** 둘뿐. draft.js 보급 카드가 healPct 적용, hud 보급카드 회복% 표기.
+- **② 후반 전면 엘리트 + ③ 잡몹 강화 확인**: `spawnDensityScale`(적 HP/밀도 스테이지 곱)은 이미 존재·작동(1.05→2.75) → 강화는 되고 있음. 여기에 **`elitePerWaveChance` 후반 급상승**([.10 .15 .20 .25 .30 .35]→**[.10 .15 .25 .45 .65 .85]**) = 5~6스테이지는 사실상 «전원 엘리트». 엘리트·중간보스 공격 다양성 = D의 archetype 다양화(가속·유도·파동)를 상속 + 중간보스 3종 개별화(mbHammer 박격포·mbLancer 소사·mbNest 유령소환).
+- **③ E-1 소사 레이저 신설 (`4bb5be6`)**: 이미터 9→**10종** `sweep`(회전 빔). telegraph `aStart`/`aEnd` 신설 → 차지 후 활성구간 동안 `t.a`가 aStart→aEnd 보간(회전). spawnBeam 각도끝 인자·fireSweep·EMIT_OWN.sweep(widthPx·activeSec·angleStartDeg·angleEndDeg)·TELEGRAPH_FLOOR 1.20. **mbLancer** 시그니처화(laser→sweep, 60°→120° 훑기, activeSec 0.6→2.2).
+- **④ 유령몹 소환 (`236e0d7`, §8.9)**: 적 `ghost` 필드 — xp=0·score=0, killEnemy가 픽업 스킵, 반투명(α0.4) 렌더. spawnEnemy 7번째 인자·makeEnemy·midboss 소환 경로·summon.ghost 옵션키. **mbNest** = drifter 5마리 4초마다 유령 소환 = 「공격하면 사라지지만 경험치 0인 유령 군대».
+- **⑤ 위기 긴박 (본 커밋)**: 위기 총량은 이미 설계 천장(crisisTotal 84 ≈ swarmConcurrentMax 85)이라 **더 못 늘림**(S22 새떼XP지분 0.3·S26 동시 85 캡). 대신 «끊임없음»을 **웨이브 간격 9.0→7.0초**로 구현 = 위기 외 평상시에도 쉴 틈 축소. (crisisTotal·swarmTotalScale·chaff는 캡 초과 시도 후 원복.)
+- 검증: **check0 · 373테스트 · 인증시뮬 100런 crash0**(수용-red: 봇 약함 설계) · 로더0. 순효과 회복↓·후반 엘리트化·소사/유령 신설·간격 단축.
+- **남음(Unit 3)**: 보스별 **페이즈3 «발악» 시그니처**(코어 HP<30% patternSet[2], 일부 sweep 활용) — §8.9.1 이미터 명명법·129슬롯·telegraph 1.50·S36/S37. 최대 저작 작업.
+
 ---
 
 ## 다음 할 일
