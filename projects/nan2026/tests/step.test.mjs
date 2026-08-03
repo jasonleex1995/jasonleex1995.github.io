@@ -363,32 +363,6 @@ suite('step · 적 탄 피격 피해 (§3.2)', () => {
   });
 });
 
-// ── 2. heal (§2.1) ────────────────────────────────────────────────────────
-suite('step · heal 픽업 (§2.1)', () => {
-  test('heal 수집 → hp += value (절대 회복량 = healPickupPct×hpMax)', () => {
-    const w = mk();
-    silence(w);
-    const healPct = w.data.rules.player.healPickupPct;
-    w.player.hp = 50;
-    const value = healPct * w.player.hpMax;         // §2.1 killEnemy 가 싣는 절대량 (0.35×100 = 35)
-    spawnPickup(w, 'heal', value, w.player.x, w.player.y);   // 접촉 반경 안에 배치
-    assert.eq(w.pickups.live, 1, 'heal 픽업 1개');
-    step(w, makeInput(), TICK_DT);
-    assert.near(w.player.hp, 50 + value, 1e-9, 'hp += value');
-    assert.eq(w.pickups.live, 0, '픽업 소비됨');
-  });
-
-  test('회복은 hpMax 로 클램프 — 초과 회복 없음 (경계)', () => {
-    const w = mk();
-    silence(w);
-    const hpMax = w.player.hpMax;
-    w.player.hp = hpMax - 5;                         // 5만 부족한데 hpMax 만큼 회복 시도
-    spawnPickup(w, 'heal', hpMax, w.player.x, w.player.y);
-    step(w, makeInput(), TICK_DT);
-    assert.eq(w.player.hp, hpMax, 'hp 클램프 = hpMax (초과분 버림)');
-  });
-});
-
 // ── 3. slow 둔화 (§2.7) ───────────────────────────────────────────────────
 suite('step · slow 둔화 (§2.7)', () => {
   test('slow 탄 피격 → slowSec 부여 · 이동 ×slowMoveSpeedMul · 1틱 감쇠', () => {
@@ -637,5 +611,27 @@ suite('step · 탄 거동 v1.5 (가속·파동, §9.7)', () => {
     const s = spawnEnemyBullet(w, 'pelletS', 150, 30, 0, 120);
     for (let t = 0; t < 50; t += 1) step(w, makeInput(), TICK_DT);
     assert.near(s.x, 150, 1e-6, '직진탄은 x 불변 (물결 아님)');
+  });
+});
+
+// ── 유령몹 (§8.9 v1.5) ──────────────────────────────────────────────────────
+suite('step · 유령몹 (§8.9 v1.5)', () => {
+  test('유령몹 = xp·score 0, 처치해도 XP 픽업 없음 (파밍 불가)', () => {
+    const w = mk(); silence(w);
+    const def = w.data.enemies.archetypes.find((a) => a.id === 'drifter');
+    // 일반 잡몹: xp>0, 처치 시 xp 픽업 1
+    const normal = spawnEnemy(w, 'drifter', 'normal', 200, 200, def.hp, false, false);
+    assert.gt(normal.xp, 0, '일반 잡몹 xp>0');
+    const before = w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length;
+    killEnemy(w, normal);
+    assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - before, 1, '일반 잡몹 = xp 픽업 1');
+    // 유령몹: xp=0·score=0, 처치 시 xp 픽업 0
+    const ghost = spawnEnemy(w, 'drifter', 'normal', 300, 200, def.hp, false, true);
+    assert.eq(ghost.ghost, true, 'ghost 플래그');
+    assert.eq(ghost.xp, 0, '유령 xp 0');
+    assert.eq(ghost.score, 0, '유령 score 0');
+    const g0 = w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length;
+    killEnemy(w, ghost);
+    assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - g0, 0, '유령 처치 = xp 픽업 0 (파밍 불가)');
   });
 });

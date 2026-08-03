@@ -466,7 +466,7 @@ function checkBosses(c, b) {
       }
     }
     if (isObj(it.summon)) {
-      c.closed(`${p}.summon`, it.summon, ['archetypeId', 'count', 'everySec', 'formationId']);
+      c.closed(`${p}.summon`, it.summon, ['archetypeId', 'count', 'everySec', 'formationId', 'ghost'], ['ghost']);
     }
   }
 }

@@ -176,7 +176,8 @@ function summon(world, e, def, dt) {
   const hp = a.hp * curve.enemyHpScale[idx];
   for (let i = 0; i < sm.count; i += 1) {
     formationPos(world, sm.formationId, i, sm.count, e.x, e.y, _pos);
-    spawnEnemy(world, sm.archetypeId, e.element, _pos.x, _pos.y, hp, false);
+    spawnEnemy(world, sm.archetypeId, e.element, _pos.x, _pos.y, hp, false, sm.ghost === true);   // §8.9 유령 소환
+
   }
 }
 

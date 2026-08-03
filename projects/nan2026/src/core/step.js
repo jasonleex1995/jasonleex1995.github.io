@@ -544,8 +544,9 @@ export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
   if (e.midBossId !== '') { killMidBoss(world, e); return; }       // §8.9 — 중간보스는 개체 필드가 보상을 소유
-  addKill(world, e);                                                // §11.3 처치 점수(초효과 지분 보너스 포함)
-  spawnPickup(world, 'xp', e.xp, e.x, e.y);
+  addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
+  // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
+  if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }

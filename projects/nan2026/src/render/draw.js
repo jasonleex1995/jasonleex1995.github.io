@@ -582,6 +582,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     // ★ 모양은 개체가 들고 있다 — 보스 코어·파트는 archetypes 에 없다(archetypeId ''). 스캔도 사라진다
     if (e.shapeId === '') throw new Error(`draw: shapeId 없는 개체 (archetypeId "${e.archetypeId}", §9.7)`);
     const color = pal.element[e.element];
+    ctx.globalAlpha = e.ghost ? 0.4 : 1;   // §8.9(v1.5) 유령몹 = 반투명(실체가 옅다). 루프 끝에서 1 복원.
 
     // §7.7 — ×2 히트의 0.04초 임팩트 프리즈: 개체(idx,gen)가 프리즈 중이면 본체를 ×superFreezeScale.
     //   ★ 게임 클럭·판정과 무관한 개체 단위 렌더 연출이다(§7.7 note). e.radius 는 원본 유지, r 만 스케일.
@@ -679,6 +680,7 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.fill();
     }
   }
+  ctx.globalAlpha = 1;   // §8.9(v1.5) 유령몹 반투명 뒤 복원 (이후 레이어에 알파 누수 방지)
 }
 
 // ---------------------------------------------------------------------------

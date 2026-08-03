@@ -799,7 +799,8 @@ function S2_files() {
       }
     }
     if (isObj(b.summon)) {
-      closedKeys('S2', b.summon, ['archetypeId', 'count', 'everySec', 'formationId'], `bosses[${b.id}].summon`);
+      closedKeys('S2', b.summon, ['archetypeId', 'count', 'everySec', 'formationId', 'ghost'],
+        `bosses[${b.id}].summon`, { optional: ['ghost'] });
     }
     for (const ps of rowsQuiet(b.patternSet)) {
       closedKeys('S2', ps, ['emitterIds'], `bosses[${b.id}].patternSet[]`);

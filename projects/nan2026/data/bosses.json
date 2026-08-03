@@ -228,7 +228,7 @@
       "moveId": "anchor",
       "moveParams": { "enterSpeed": 40, "yHoldPx": 210, "swayAmpPx": 60 },
       "patternSet": [ { "emitterIds": ["nestAimed"] } ],
-      "summon": { "archetypeId": "drifter", "count": 3, "everySec": 6.0, "formationId": "scatter" },
+      "summon": { "archetypeId": "drifter", "count": 5, "everySec": 4.0, "formationId": "scatter", "ghost": true },
       "parts": [],
       "xp": 50,
       "score": 900
