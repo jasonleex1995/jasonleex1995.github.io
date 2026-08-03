@@ -897,6 +897,16 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - 검증: check0 · **412테스트**(봉인 게이트·해제·불사방지 2건 신설) · 직접 harness 3보스 봉인 engage/해제/격파 확인 · **무적 16런 crash0, 보스 15회 격파**(봉인 보스전 정상).
 - **#6 경제 제거 = 대규모 게이트 결합 리팩터**(S23/S33/S40 + schema + SHOP 플로우 화면 + 컨티뉴 + salvage 패시브 + ~10 테스트)로 진단 → 「check exit0 = 기획완료」 불변식 안 깨게 **전용 패스로 다음 진행**.
 
+### 2026-08-03 — #6 «경제·소비아이템 전면 폐지» (사용자: 전부 제거)
+
+사용자 결정: 경제 완전 제거 + 컨티뉴 없앰(원데스) + 소비아이템 «전부 제거»(폭탄·시간토큰·리롤·실드). 먼저 **6레이어 병렬 discovery 워크플로**(52파일·384편집지점 매핑)로 결합점 전수 파악 → 그 지도로 순차 구현.
+
+- **제거**: 코인(픽업kind·모든 드랍·coinGainMul·palette.pickup.coin) · 상점(shop.js 삭제·meta.shop·SHOP 화면·botShop*·게이트 S33/S40) · 컨티뉴(canContinue·reviveContinue·noteContinue·meta.flow.continue*) · 소비아이템(bomb=rules.bomb·p.bombs / shield=p.shields·흡수로직·statusResist / timeToken / reroll=rerollDraft·meta.draft.reroll) · salvage 패시브(12→11) · 스탯구매 · shopHpAdd/MoveSpeedPct/MagnetPct·purchaseCounts · 키바인드 Space(폭탄)·Shift·F.
+- **재배선**: 사망=즉시 RESULTS(원데스) · STAGE_CLEAR→회복→advanceStage→배너(상점 스킵) · 드래프트 resupply 폴백 코인→회복(healPct) · S23 「코인균질성」→「roster 편성」 재정의(편성 불변식 보존) · hud.icons 14→3 · palette.pickup.coin→hud.accent · rules root 17→16 · noteHit(world)·addBossClear(world,timerLeft) 시그니처.
+- **레이어별**: data(5) → schema.mjs → check.mjs(S33/S40 삭제·카운트 12→11·14→3·16) → core(state·step·score·stage·draft·bot·boss, shop.js 삭제) → render(hud·draw·main 플로우) → sim.mjs(경제계측·컨티뉴 제거) → tests(shop.test 삭제 + 6파일 수술, **약화 금지**: single-floor·피격·상태이상·xp드랍 계약 유지) → CANON(v1.5 개정로그 + §5.4/§11.2/§11.4 스코프아웃).
+- 검증: **check0 · loader0 · 385테스트 · 무적16런 crash0(보스 17격파) · 브라우저 로드 콘솔에러0(캔버스 1280×720 라이브)** · src/tools 잔여 기능참조 0 · 적대적 검증 워크플로(4차원).
+- 순효과: **27파일 −659줄.** 힘은 오직 런 내 드래프트(무기·패시브·속성)에서만 = 순수 «비행슈팅 + 뱀서 드래프트».
+
 ---
 
 ## 다음 할 일

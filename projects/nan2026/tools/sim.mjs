@@ -6,12 +6,12 @@
  *   — rAF 도 시계도 없이 게임시간만 흐른다. 그래서 «시뮬이 인증한 것 = 출시되는 것»이 성립한다.
  *
  * 두 모드 (§10.4.1 — 이 분리가 없으면 "보스당 격파율"과 "런 클리어율"이 같은 지표로 오인된다):
- *   run       — 런 클리어율. 봇은 정상(죽는다). 4 정책축(draft × farm × stance × shop) 직교.
+ *   run       — 런 클리어율. 봇은 정상(죽는다). 3 정책축(draft × farm × stance) 직교 (v1.5: shop 축 폐지).
  *   dpsProbe  — 보스 i 를 3분 안에 격파할 **화력이 있는가**. 봇 무적, 회피 로직은 그대로.
  *               셀 = (보스, 스테이지) 쌍 = 3 + 24 + 1 = 28 셀 (§10.4.2).
  *
  * 산출물 (`tools/report/`, 공모전 기술문서의 근거물 — §10.4.3):
- *   summary.json · weapons.csv · elements.csv · bosses.csv · stages.csv · economy.csv · deaths.csv
+ *   summary.json · weapons.csv · elements.csv · bosses.csv · stages.csv · deaths.csv
  *
  * 사용:
  *   node tools/sim.mjs --runs 200                 # run 모드, 텔레메트리 출력
@@ -36,11 +36,10 @@ import { emitters } from '../src/core/emitters.js';
 import { bossHook } from '../src/core/boss.js';
 import { spawnBoss } from '../src/core/boss.js';
 import {
-  initRun, tickRun, advanceStage, applyStageClearHeal, canContinue, reviveContinue, PHASE,
+  initRun, tickRun, advanceStage, applyStageClearHeal, PHASE,
 } from '../src/core/stage.js';
 import { buildDraft, applyCard } from '../src/core/draft.js';
-import { setBotPolicy, botInput, botDraftPick, botShopPlan, botShopReserve } from '../src/core/bot.js';
-import { price, buyBlockedBy, buy } from '../src/core/shop.js';
+import { setBotPolicy, botInput, botDraftPick } from '../src/core/bot.js';
 import { tally } from '../src/core/score.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -109,7 +108,6 @@ export function driveRun(data, seed, opts) {
   if (o.policy !== undefined) setBotPolicy(world, o.policy);
 
   const invincible = o.invincible === true;
-  const allowContinue = o.allowContinue !== false;
 
   const r = {
     seed,
@@ -124,10 +122,6 @@ export function driveRun(data, seed, opts) {
     bossKillSec: [],          // 스테이지별 보스 격파 소요(초)
     bossTimerLeft: [],        // §10.4.3 stagePar — 격파 시점의 타이머 잔여
     bossUptime: [],           // 보스전 중 실제로 피해를 넣은 시간 비율(uptimeRef 실측)
-    shopVisits: 0,
-    purchases: 0,
-    coinsEnd: 0,
-    coinsEarned: 0,
     themeOrder: null,
     score: 0,
     tele: world.tele,
@@ -140,7 +134,6 @@ export function driveRun(data, seed, opts) {
   let bossTicks = 0;
   let lastDmgTotal = 0;
   let prevPhase = world.run.phase;
-  let coinsPrev = world.player.coins;
 
   for (let t = 0; t < maxTicks; t += 1) {
     // ── 결정 지점 1: 드래프트(게임 클럭 정지) ────────────────────────────
@@ -159,11 +152,10 @@ export function driveRun(data, seed, opts) {
       r.levelUps += 1;
     }
 
-    // ── 결정 지점 2: 스테이지 클리어 → 회복 → 상점 → 다음 스테이지 ────────
+    // ── 결정 지점 2: 스테이지 클리어 → 회복 → 다음 스테이지 (v1.5: 상점 폐지) ────
     if (world.run.phase === PHASE.STAGE_CLEAR) {
       applyStageClearHeal(world);
       r.stagesCleared += 1;
-      doShop(world, r);
       advanceStage(world);
       prevPhase = world.run.phase;
       continue;
@@ -186,8 +178,6 @@ export function driveRun(data, seed, opts) {
       if (now > lastDmgTotal) bossDmgTicks += 1;
       lastDmgTotal = now;
     }
-    if (world.player.coins > coinsPrev) r.coinsEarned += world.player.coins - coinsPrev;
-    coinsPrev = world.player.coins;
 
     // 보스 격파 순간(= run.cleared 소화 직후 STAGE_CLEAR 로 넘어가기 전에 잔여 타이머를 읽는다)
     if (world.run.phase === PHASE.STAGE_CLEAR && r.bossKillSec.length === r.stagesCleared) {
@@ -197,7 +187,7 @@ export function driveRun(data, seed, opts) {
     }
 
     if (world.over) {
-      if (!world.run.won && allowContinue && canContinue(world)) { reviveContinue(world); continue; }
+      // v1.5 — 컨티뉴 폐지: 사망 = 즉시 종료(원데스).
       // ★ 최종(finale) 격파는 STAGE_CLEAR 로 안 가고 곧장 won+over → 6번째 보스가 STAGE_CLEAR-게이트
       //   텔레메트리에서 누락되고 stagesCleared 도 5 에 멈춘다. 여기서 최종 스테이지를 집계한다.
       if (world.run.won && r.bossKillSec.length === r.stagesCleared) {
@@ -212,7 +202,6 @@ export function driveRun(data, seed, opts) {
 
   r.won = world.run.won;
   r.deathCause = world.run.deathCause;
-  r.coinsEnd = world.player.coins;
   r.themeOrder = world.run.order.slice();
   r.capHits = { ...world.capHits };
   r.score = tally(world).total;
@@ -220,25 +209,7 @@ export function driveRun(data, seed, opts) {
   return r;
 }
 
-/** §5.4 — 상점. 봇의 우선순위대로, 예비금을 남기고 산다. */
-function doShop(world, r) {
-  r.shopVisits += 1;
-  const plan = botShopPlan(world);
-  const reserve = botShopReserve(world);
-  let guard = 0;
-  let bought = true;
-  while (bought && guard < 64) {
-    bought = false;
-    guard += 1;
-    for (const id of plan) {
-      if (buyBlockedBy(world, id) !== null) continue;
-      if (world.player.coins - price(world, id) < reserve) continue;
-      buy(world, id);
-      r.purchases += 1;
-      bought = true;
-    }
-  }
-}
+// ★ v1.5 — 상점 시뮬(doShop)은 폐지됐다: 경제 제거.
 
 // ---------------------------------------------------------------------------
 // dpsProbe — (보스, 스테이지) 셀의 «화력이 되는가»
@@ -377,7 +348,6 @@ function aggregate(data, runs, meta) {
 
   const timeouts = runs.filter((r) => r.deathCause === 'timeout').length;
   const hpDeaths = runs.filter((r) => r.deathCause === 'hp').length;
-  const purchasesPerVisit = runs.filter((r) => r.shopVisits > 0).map((r) => r.purchases / r.shopVisits);
   const startFamily = data.rules.player.startWeaponId;   // §2.6 — 시작 무기(= forward). id == family (1:1)
 
   return {
@@ -391,9 +361,6 @@ function aggregate(data, runs, meta) {
     medianLevelUps: median(runs.map((r) => r.levelUps)),
     maxLevelUps: Math.max(...runs.map((r) => r.levelUps)),
     medianXpGained: median(runs.map((r) => r.tele.xpGained)),
-    medianEndCoins: median(runs.map((r) => r.coinsEnd)),
-    p90EndCoins: quantile(runs.map((r) => r.coinsEnd), 0.9),
-    medianPurchasesPerVisit: median(purchasesPerVisit),
     medianScore: median(runs.map((r) => r.score)),
     bossKillSecMedian: median(runs.flatMap((r) => r.bossKillSec)),
     stageParMedian: median(runs.flatMap((r) => r.bossTimerLeft)),
@@ -441,13 +408,9 @@ function writeReports(outDir, summary, runs, probe) {
   dRows.push(['won', runs.filter((r) => r.won).length]);
   writeFileSync(join(outDir, 'deaths.csv'), csv(dRows));
 
-  const sRows = [['runSeed', 'stagesCleared', 'levelUps', 'endCoins', 'score', 'deathCause']];
-  for (const r of runs) sRows.push([r.seed, r.stagesCleared, r.levelUps, Math.round(r.coinsEnd), r.score, r.deathCause || (r.won ? 'won' : 'incomplete')]);
+  const sRows = [['runSeed', 'stagesCleared', 'levelUps', 'score', 'deathCause']];
+  for (const r of runs) sRows.push([r.seed, r.stagesCleared, r.levelUps, r.score, r.deathCause || (r.won ? 'won' : 'incomplete')]);
   writeFileSync(join(outDir, 'stages.csv'), csv(sRows));
-
-  const ecoRows = [['runSeed', 'coinsEarned', 'coinsEnd', 'shopVisits', 'purchases']];
-  for (const r of runs) ecoRows.push([r.seed, Math.round(r.coinsEarned), Math.round(r.coinsEnd), r.shopVisits, r.purchases]);
-  writeFileSync(join(outDir, 'economy.csv'), csv(ecoRows));
 
   const bRows = [['bossId', 'stage', 'passRate', 'killSecMedian', 'uptimeMedian']];
   if (probe !== null) for (const c of probe.cells) bRows.push([c.bossId, c.stage, c.passRate.toFixed(4), c.killSecMedian === null ? '' : c.killSecMedian.toFixed(2), c.uptime.toFixed(4)]);
@@ -471,10 +434,6 @@ function grade(data, summary) {
   band('bossTimeoutRate', r.bossTimeoutRate, rm.bossTimeoutRate.min, rm.bossTimeoutRate.max);
   band('difficultySpread.disaster', summary.disasterRunClearRate,
     rm.difficultySpread.disasterRunClearRate.min, rm.difficultySpread.disasterRunClearRate.max);
-  band('coinScarcity.medianEndCoins', r.medianEndCoins, rm.coinScarcity.medianEndCoins.min, rm.coinScarcity.medianEndCoins.max);
-  band('coinScarcity.p90EndCoins', r.p90EndCoins, undefined, rm.coinScarcity.p90EndCoins.max);
-  band('coinScarcity.medianPurchasesPerVisit', r.medianPurchasesPerVisit,
-    rm.coinScarcity.medianPurchasesPerVisit.min, rm.coinScarcity.medianPurchasesPerVisit.max);
   band('static.growthBudget.maxLevelUps', r.maxLevelUps, undefined, c.static.growthBudget.maxLevelUps);
   band('static.capHits', r.capHitsB, undefined, c.static.capHits.max);
   band('dominance.maxThemeClearStddev', r.themeClearStddev, undefined, rm.dominance.maxThemeClearStddev);
@@ -639,13 +598,13 @@ export function main(argv) {
   }
 
   writeReports(a.out, summary, baseline, probe);
-  log(`\n산출: ${a.out}/summary.json · weapons.csv · elements.csv · bosses.csv · stages.csv · economy.csv · deaths.csv`);
+  log(`\n산출: ${a.out}/summary.json · weapons.csv · elements.csv · bosses.csv · stages.csv · deaths.csv`);
 
   const r = summary.run;
   log(`\n${bar}`);
   log(`클리어율 ${(r.runClearRate * 100).toFixed(1)}%  ·  타임아웃 ${(r.bossTimeoutRate * 100).toFixed(1)}%  ·  `
     + `평균 스테이지 ${r.meanStagesCleared.toFixed(2)}  ·  레벨업 중앙값 ${r.medianLevelUps}`);
-  log(`코인 중앙값 ${r.medianEndCoins}  ·  상점 방문당 구매 ${r.medianPurchasesPerVisit === null ? '-' : r.medianPurchasesPerVisit.toFixed(2)}  ·  점수 중앙값 ${r.medianScore}`);
+  log(`점수 중앙값 ${r.medianScore}`);
   log(bar);
 
   if (!a.certify) return 0;

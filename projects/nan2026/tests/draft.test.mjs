@@ -17,7 +17,7 @@ import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, giveWeapon, levelUpWeapon, givePassive } from '../src/core/state.js';
 import { investElement } from '../src/core/stance.js';
 import {
-  candidates, buildDraft, rerollDraft, applyCard,
+  candidates, buildDraft, applyCard,
 } from '../src/core/draft.js';
 
 const SEED = 0x5EED1234;
@@ -175,51 +175,6 @@ suite('draft/pity', () => {
   });
 });
 
-suite('draft/reroll', () => {
-  test('리롤은 이전 3장을 그 드래프트 동안 제외한다 (§11.1)', () => {
-    const w = mkWorld();
-    w.player.rerolls = 2;
-    const dr = buildDraft(w);
-    const before = new Set(keysOf(dr.cards));
-    assert.eq(rerollDraft(w, dr), true, '리롤 성공');
-    for (const k of keysOf(dr.cards)) {
-      assert.eq(before.has(k), false, `이전 카드 ${k} 재등장 금지`);
-    }
-    assert.eq(dr.rerollsUsed, 1, 'rerollsUsed +1');
-    assert.eq(w.player.rerolls, 1, '스톡 -1');
-  });
-
-  test('스톡 0이면 리롤 불가 (false)', () => {
-    const w = mkWorld();
-    w.player.rerolls = 0;
-    const dr = buildDraft(w);
-    assert.eq(rerollDraft(w, dr), false, '스톡 없음 = false');
-  });
-
-  test('maxPerDraft 를 넘으면 리롤 불가 (§11.1)', () => {
-    const w = mkWorld();
-    const max = w.data.meta.draft.reroll.maxPerDraft;
-    w.player.rerolls = max + 5;      // 스톡은 충분
-    const dr = buildDraft(w);
-    let used = 0;
-    while (rerollDraft(w, dr)) used += 1;
-    assert.eq(used, max, `정확히 ${max}회만 허용`);
-    assert.eq(rerollDraft(w, dr), false, '상한 도달 후 = false');
-  });
-
-  test('리롤은 피티 카운터를 한 번만 움직인다 (pityBefore 고정)', () => {
-    const w = mkWorld();
-    const [FIRE, WATER, GRASS] = w.data.elements.investable;
-    investElement(w, FIRE); investElement(w, WATER); investElement(w, GRASS); // 속성 후보 0
-    w.draftsSeen = 1;
-    w.elementPity = 0;
-    w.player.rerolls = 2;
-    const dr = buildDraft(w);
-    assert.eq(w.elementPity, 1, '빌드 후 +1');
-    rerollDraft(w, dr);
-    assert.eq(w.elementPity, 1, '리롤해도 pityBefore 기준 → 여전히 1');
-  });
-});
 
 suite('draft/apply', () => {
   test('첫 속성 확정 = 투자 0→1 최초 전이에서 스탠스 자동 장착 (§9.9 onboarding)', () => {
@@ -251,7 +206,7 @@ suite('draft/apply', () => {
     const w = mkWorld();
     w.draftQueue = 2;
     const seen = w.draftsSeen;
-    applyCard(w, { category: 'resupply', coins: 40 });
+    applyCard(w, { category: 'resupply', healPct: 0.25 });
     assert.eq(w.draftsSeen, seen + 1, 'draftsSeen +1');
     assert.eq(w.draftQueue, 1, 'draftQueue -1');
   });

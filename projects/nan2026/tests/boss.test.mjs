@@ -132,16 +132,14 @@ suite('boss/처치 규칙 (killBossEntity)', () => {
     assert.eq(core.aliveArmorPartCount, before, '비-armor 처치 = 게이트 불변');
   });
 
-  test('코어 처치 → run.cleared + 모든 보스 개체 반납 + boss.coin 드랍', () => {
+  test('코어 처치 → run.cleared + 모든 보스 개체 반납 (v1.5: 코인 드랍 폐지)', () => {
     const w = mkRunWorld(5, 0);
     spawnBoss(w);
     const { core } = scanBoss(w);
-    const coinsBefore = livePickups(w, 'coin');
     killEnemy(w, core);
     assert.ok(w.run.cleared, 'stage clear 신호');
     let bossLeft = 0; for (const e of w.enemies.items) if (e.alive && e.isBoss) bossLeft += 1;
     assert.eq(bossLeft, 0, '코어+모든 파트 반납');
-    assert.gt(livePickups(w, 'coin'), coinsBefore, 'boss.coin 픽업 드랍');
   });
 
   test('보스 처치는 잡몹 드랍(xp) 경로를 타지 않는다', () => {

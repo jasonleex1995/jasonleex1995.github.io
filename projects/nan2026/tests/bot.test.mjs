@@ -17,7 +17,7 @@ import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { bossHook } from '../src/core/boss.js';
 import { initRun, tickRun } from '../src/core/stage.js';
-import { botInput, botDraftPick, botShopPlan, setBotPolicy } from '../src/core/bot.js';
+import { botInput, botDraftPick, setBotPolicy } from '../src/core/bot.js';
 
 function mkWorld(seed = 1, difficulty) {
   const w = createWorld({
@@ -108,14 +108,7 @@ suite('bot/정책', () => {
     const w2 = mkWorld(1); setBotPolicy(w2, { draft: 'elementRush' });
     assert.eq(cards[botDraftPick(w2, { cards })].category, 'elementLevel', 'elementRush = 속성 먼저');
   });
-
-  test('shop 정책이 구매 계획을 바꾼다', () => {
-    const w = mkWorld(1);
-    setBotPolicy(w, { shop: 'survivalFirst' });
-    assert.eq(botShopPlan(w)[0], 'potion', 'survivalFirst = 생존 우선');
-    setBotPolicy(w, { shop: 'spender' });
-    assert.gt(botShopPlan(w).length, 4, 'spender = 더 많이 산다');
-  });
+  // ★ v1.5 — shop 정책 테스트 폐지(경제 제거).
 });
 
 suite('bot/회피', () => {

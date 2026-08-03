@@ -5,7 +5,7 @@
  *   §11.1  드래프트 (meta.json > draft) — 카테고리를 먼저 뽑지 않는다.
  *          **유효 후보 아이템 전체를 가중치 목록으로 만들고 비복원 3장 추첨.**
  *              weight(item) = categoryWeights[item.category] × modifier(item)
- *          유효성 필터 · 보장(≤ optionCount−1) · 피티 · 리롤 · 폴백(resupply)
+ *          유효성 필터 · 보장(≤ optionCount−1) · 피티 · 폴백(resupply=회복)  ★ v1.5: 리롤 폐지
  *   §11.1  슬롯 상한(무기 4칸 만석 → newWeapon 카테고리 전체 제외, 교체 제안 없음)
  *   §4.2   속성 상한 — elementCapPerElement 4 · elementCapTotal 6
  *   §9.9   onboarding.autoEquipFirstElement — 투자 0 → 1의 **최초 전이에서만** 자동 장착
@@ -190,33 +190,16 @@ function guarantees(world, pityBefore) {
 
 /**
  * ★ 레벨업 드래프트 1회를 생성한다. 게임 클럭은 이미 멈춰 있다 (§6.4 · draft.pauseGame).
- * @returns { cards, rerollsUsed, excluded }
+ * @returns { cards, excluded, pityBefore }  (v1.5: 리롤 폐지)
  */
 export function buildDraft(world) {
-  // pityBefore 를 고정해 둔다 → 리롤을 몇 번 하든 피티 카운터가 한 번만 움직인다
-  const draft = { cards: [], rerollsUsed: 0, excluded: [], pityBefore: world.elementPity };
+  const draft = { cards: [], excluded: [], pityBefore: world.elementPity };
   fill(world, draft);
   return draft;
 }
 
-/**
- * §11.1 리롤 — 3장 **전체** 재추첨. 이전 3장은 그 드래프트 동안 풀에서 제외.
- *   ★ 리롤이 재도박이면 운 완화가 아니다. 제외해야 리롤이 **확정적인 개선**이 된다.
- * @returns 리롤이 실제로 일어났는가
- */
-export function rerollDraft(world, draft) {
-  const d = world.data.meta.draft;
-  if (draft.rerollsUsed >= d.reroll.maxPerDraft) return false;
-  if (world.player.rerolls <= 0) return false;              // 스톡은 상점에서 산다
-  world.player.rerolls -= 1;
-  draft.rerollsUsed += 1;
-  if (!d.reroll.canRepeatPrevious) {
-    for (let i = 0; i < draft.cards.length; i += 1) draft.excluded.push(draft.cards[i].key);
-  }
-  draft.cards.length = 0;
-  fill(world, draft);
-  return true;
-}
+// ★ v1.5 — 리롤(rerollDraft)은 폐지됐다: 경제·소비아이템 제거(리롤 스톡의 유일 공급원 = 상점).
+//   드래프트는 3장 고정, 재추첨 없음.
 
 function fill(world, draft) {
   const d = world.data.meta.draft;
@@ -243,11 +226,11 @@ function fill(world, draft) {
     draft.cards.push(c);
   }
 
-  // ③ 폴백 — 유효 후보가 optionCount 미만이면 부족분을 코인 카드로 채운다.
-  //    빈 드래프트 화면이 **물리적으로 불가능**해진다 (§11.1)
+  // ③ 폴백 — 유효 후보가 optionCount 미만이면 부족분을 «보급(회복)» 카드로 채운다.
+  //    빈 드래프트 화면이 **물리적으로 불가능**해진다 (§11.1). v1.5: 코인 폐지 → 회복 지급.
   while (draft.cards.length < d.optionCount) {
     draft.cards.push({ category: CAT_RESUPPLY, key: `${CAT_RESUPPLY}:${draft.cards.length}`,
-      id: d.fallback.id, name: d.fallback.name, coins: d.fallback.coins, weight: 0 });
+      id: d.fallback.id, name: d.fallback.name, healPct: d.fallback.healPct, weight: 0 });
   }
 
   // §11.1 피티 — 이번 드래프트에 속성 카드가 **등장**했는가로 카운터가 갈린다
@@ -287,7 +270,9 @@ export function applyCard(world, card) {
   } else if (card.category === CAT_PASSIVE) {
     givePassive(world, card.passiveId);
   } else if (card.category === CAT_RESUPPLY) {
-    world.player.coins += card.coins;
+    // v1.5 — 보급 폴백 = 회복(코인 폐지). healPct × hpMax 만큼 즉시 회복.
+    const p = world.player;
+    p.hp = Math.min(p.hpMax, p.hp + card.healPct * p.hpMax);
   } else {
     throw new Error(`draft: 미지의 카테고리 "${card.category}" (§11.1)`);
   }

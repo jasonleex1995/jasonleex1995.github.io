@@ -91,7 +91,7 @@ const EX = (check, n) => { examined[check] = (examined[check] || 0) + n; };
 const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
-  'S30', 'S31', 'S32', 'S33', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S40', 'S41',
+  'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
   'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
@@ -249,7 +249,7 @@ function census() {
     ['bullets.bullets', D.bullets && D.bullets.bullets, 1, '§9.7'],
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
     ['weapons.weapons', D.weapons && D.weapons.weapons, 12, '§9.5 — 12 패밀리 1:1'],
-    ['passives.passives', D.passives && D.passives.passives, 12, '§9.6 — 12종'],
+    ['passives.passives', D.passives && D.passives.passives, 11, '§9.6 — 11종 (v1.5 salvage 제거)'],
     ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 12, '§9.9 — 12행'],
   ];
   for (const [path, arr, minRows, why] of need) {
@@ -280,7 +280,7 @@ const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena'];                             // §9.5 (5)
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'mine', 'boomerang', 'barrage', 'omni', 'drone', 'nova']; // §9.5 (12)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
-  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul', 'xpGainMul', 'coinGainMul'];              // §9.6 (12)
+  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul', 'xpGainMul'];                             // §9.6 (11 — v1.5 salvage 제거)
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
 const BULLET_SHAPES = ['circle', 'hex'];                                                                         // §9.7 (2)
 const BULLET_STATUS = [null, 'slow', 'stun'];                                                                    // §9.7
@@ -457,17 +457,17 @@ function S1_corePurity() {
 // ===========================================================================
 //  S2 — 스키마 (§9.3 · §9.4~§9.9)
 //  타입 · 필수 키 · 미지 키 거부 · 참조 무결성
-//  ★ rules.json 루트 키 = 17개 목록 (§9.4 — v1.3에서 render 가 편입돼 17로 정합)
+//  ★ rules.json 루트 키 = 16개 목록 (§9.4 — v1.5에서 bomb 제거 = 경제·소비아이템 폐지)
 // ===========================================================================
-const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'bomb', 'elite',
+const RULES_ROOT_16 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];
 
 function S2_schema() {
   const r = D.rules;
 
-  // --- rules.json 루트 = schemaVersion + 정확히 17 블록 (§9.4) --------------
-  closedKeys('S2', r, ['schemaVersion', ...RULES_ROOT_17], 'rules');
-  if (RULES_ROOT_17.length !== 17) C('S2', `내부 오류: 루트 목록이 ${RULES_ROOT_17.length}개 (정본은 17)`);
+  // --- rules.json 루트 = schemaVersion + 정확히 16 블록 (§9.4) --------------
+  closedKeys('S2', r, ['schemaVersion', ...RULES_ROOT_16], 'rules');
+  if (RULES_ROOT_16.length !== 16) C('S2', `내부 오류: 루트 목록이 ${RULES_ROOT_16.length}개 (정본은 16)`);
 
   closedKeys('S2', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate'], 'rules.loop');
   closedKeys('S2', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW', 'bandTopH',
@@ -504,10 +504,7 @@ function S2_schema() {
   }
 
   closedKeys('S2', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects'], 'rules.status');
-  // §9.4: bomb.stockMax 는 rules.bomb 소유 (상한은 그것이 제한하는 상태와 함께 산다)
-  closedKeys('S2', r.bomb, ['stockStart', 'stockMax', 'iframeSec', 'mobDmg', 'clearsEnemyBullets',
-    'clearsDuringBoss', 'bossDmgRatio', 'bossDmgCap'], 'rules.bomb');
-  closedKeys('S2', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult', 'coin',
+  closedKeys('S2', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
     'healDropChance', 'bandAllowed', 'elementAllowed'], 'rules.elite');
 
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
@@ -515,7 +512,7 @@ function S2_schema() {
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'coin', 'partCoin', 'optionalPartArmorRatio',
+    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio',
     'midBossSummonsAllowed', 'finale'], 'rules.boss');
   if (isObj(r.boss)) {
     // ★ v1.3: finale.armorCoreRatio 삭제 — 유일 소유자 = bosses[].armorCoreRatio (§23.3)
@@ -532,14 +529,14 @@ function S2_schema() {
     'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');
 
-  // ★ v1.3: hud.icons 9 → 14 (§9.4.1 — 상점 10항목을 전부 그릴 수 있어야 한다)
+  // ★ v1.5: hud.icons 14 → 3 (§9.4.1 — 상점·소비아이템 폐지로 살아있는 어휘 = xp + 상태이상 2종)
   closedKeys('S2', r.hud, ['hitboxAlwaysVisible', 'showElementBudget', 'fontHeroPx', 'fontLargePx',
     'fontMediumPx', 'fontBodyPx', 'fontSmallPx', 'panelPadPx', 'keycapBoxPx', 'bossHpBarH',
     'hpBarSegGapPx', 'xpBarH', 'hpBarSegCount', 'panelCacheDirtyOnly', 'parGhostEnabled',
-    'elementMatrixInPanel', 'coinShowsScoreValue', 'noHitIndicator', 'tokenKeycapGatedDisplay',
+    'elementMatrixInPanel', 'noHitIndicator',
     'stanceHintTargetsMajorityElement', 'icons'], 'rules.hud');
-  if (isObj(r.hud) && Array.isArray(r.hud.icons) && r.hud.icons.length !== 14) {
-    V('S2', `rules.hud.icons: ${r.hud.icons.length}종 ≠ 14 (§9.4.1 — v1.3에서 9 → 14. 상점 5항목의 아이콘이 어휘에 없었다)`);
+  if (isObj(r.hud) && Array.isArray(r.hud.icons) && r.hud.icons.length !== 3) {
+    V('S2', `rules.hud.icons: ${r.hud.icons.length}종 ≠ 3 (§9.4.1 — v1.5 경제 폐지 후 xpDiamond + statusSlow + statusStun)`);
   }
   // §9.4.1: 전 폰트 크기 ≥ visual.text.minPx(14)
   if (isObj(r.hud) && isObj(r.visual) && isObj(r.visual.text) && num(r.visual.text.minPx)) {
@@ -565,7 +562,7 @@ function S2_schema() {
   closedKeys('S2', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings'], 'rules.input');
   if (isObj(r.input)) {
     closedKeys('S2', r.input.bindings, ['move', 'stanceNormal', 'stanceFire', 'stanceWater', 'stanceGrass',
-      'bomb', 'timeToken', 'pause', 'options', 'draftPick', 'reroll', 'reorderToggle', 'grab',
+      'pause', 'options', 'draftPick', 'reorderToggle', 'grab',
       'confirm', 'cursor'], 'rules.input.bindings');
   }
 
@@ -576,8 +573,8 @@ function S2_schema() {
     closedKeys('S2', r.palette.elementCvd, ELEMENTS4, 'rules.palette.elementCvd');
     closedKeys('S2', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline'], 'rules.palette.threat');
     closedKeys('S2', r.palette.status, ['band'], 'rules.palette.status');
-    closedKeys('S2', r.palette.pickup, ['coin', 'xp'], 'rules.palette.pickup');
-    closedKeys('S2', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill'], 'rules.palette.hud');
+    closedKeys('S2', r.palette.pickup, ['xp'], 'rules.palette.pickup');
+    closedKeys('S2', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent'], 'rules.palette.hud');
     closedKeys('S2', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed'], 'rules.palette.bg');
   }
@@ -643,10 +640,10 @@ function S2_files() {
     closedKeys('S2', p, ['id', 'name', 'desc', 'stat', 'values'], `passives[${p && p.id}]`);
   }
   if (Array.isArray(D.passives.passives)) {
-    // §9.6 "폐쇄 스탯 어휘 12종, 12 패시브와 1:1"
+    // §9.6 "폐쇄 스탯 어휘 11종, 11 패시브와 1:1" (v1.5 salvage 제거)
     const stats = D.passives.passives.map((p) => p && p.stat);
-    if (new Set(stats).size !== stats.length) V('S2', 'passives: stat 중복 — §9.6 "12훅 = 12 패시브 1:1"');
-    if (D.passives.passives.length !== 12) V('S2', `passives: ${D.passives.passives.length}종 ≠ 12 (§9.6)`);
+    if (new Set(stats).size !== stats.length) V('S2', 'passives: stat 중복 — §9.6 "11훅 = 11 패시브 1:1"');
+    if (D.passives.passives.length !== 11) V('S2', `passives: ${D.passives.passives.length}종 ≠ 11 (§9.6)`);
   }
 
   // --- bullets.json (§9.7) — ★ v1.3: speed 삭제 (탄 속도는 이미터가 소유) ---
@@ -673,8 +670,8 @@ function S2_files() {
     for (const [bn, bv] of Object.entries(D.enemies.bands)) {
       // §9.7: xpRef 는 chaff 밴드 전용 필드다 (v1.3)
       const allowed = bn === 'chaff'
-        ? ['hpMult', 'coinDropChance', 'coin', 'xpRef']
-        : ['hpMult', 'coinDropChance', 'coin'];
+        ? ['hpMult', 'xpRef']
+        : ['hpMult'];
       closedKeys('S2', bv, allowed, `enemies.bands.${bn}`);
       if (bn !== 'chaff' && has(bv, 'xpRef')) {
         V('S2', `enemies.bands.${bn}.xpRef: chaff 전용 필드다 (§9.7/§23.3) — 두 파생식(swarmXp · 중간보스 xp)이 chaff만 참조한다`);
@@ -767,7 +764,7 @@ function S2_files() {
       // §9.8.2 — 중간보스 팔 (v1.3 신설). hp·element 는 루트 필드다 (core 가 없다)
       closedKeys('S2', b, ['id', 'name', 'tier', 'themeId', 'hp', 'element', 'radius', 'contactDmg',
         'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts',
-        'xp', 'coin', 'healDropChance', 'score'], `bosses[${b.id}]`);
+        'xp', 'healDropChance', 'score'], `bosses[${b.id}]`);
       if (has(b, 'core')) {
         V('S2', `bosses[${b.id}].core: 중간보스에는 core 가 없다 (§9.8.2-ⓐ) — parts: [] 이므로 "부위와 구별되는 몸통"이 정의되지 않는다`);
       }
@@ -781,7 +778,7 @@ function S2_files() {
         'movePattern', 'movePatternParams', 'summon'], `bosses[${b.id}]`);
       // §9.8: xp 는 tier == "mid" 전용 필드다 (v1.3)
       if (has(b, 'xp')) {
-        V('S2', `bosses[${b.id}].xp: tier=="mid" 전용 필드다 (§9.8/§23.3) — 스테이지·최종 보스의 보상은 rules.boss.coin/partCoin + core.score/parts[].score 가 소유한다`);
+        V('S2', `bosses[${b.id}].xp: tier=="mid" 전용 필드다 (§9.8/§23.3) — 스테이지·최종 보스의 보상은 core.score/parts[].score 가 소유한다 (v1.5: 코인 폐지)`);
       }
       if (isObj(b.core)) {
         closedKeys('S2', b.core, ['element', 'hp', 'radius', 'contactDmg', 'shapeId', 'score'], `bosses[${b.id}].core`);
@@ -881,32 +878,29 @@ function S2_files() {
   }
 
   // --- meta.json (§9.9 · §11 · §10.4 · §13.1) -----------------------------
-  closedKeys('S2', D.meta, ['schemaVersion', 'xp', 'draft', 'shop', 'score', 'flow', 'onboarding',
+  closedKeys('S2', D.meta, ['schemaVersion', 'xp', 'draft', 'score', 'flow', 'onboarding',
     'difficulty', 'bot', 'certify'], 'meta');
   closedKeys('S2', D.meta.xp, ['curve', 'base', 'exp', 'levelUpsPerRunTarget', 'levelUpQueueMode'], 'meta.xp');
   if (isObj(D.meta.draft)) {
     closedKeys('S2', D.meta.draft, ['optionCount', 'slotAssign', 'categoryWeights', 'newWeaponSlotScale',
       'weaponLevelEvolutionBonus', 'elementFirstLevelBonus', 'passiveNewBonus', 'distinctItemsPerDraft',
       'filterInvalid', 'newWeaponWhenSlotsFull', 'elementLevelOfferRequiresWeaponCount',
-      'guaranteeElementCardOnFirstDraft', 'guaranteeNewWeaponUntilSlots', 'elementCardPity', 'reroll',
+      'guaranteeElementCardOnFirstDraft', 'guaranteeNewWeaponUntilSlots', 'elementCardPity',
       'fallback', 'pauseGame'], 'meta.draft');
     closedKeys('S2', D.meta.draft.categoryWeights, ['newWeapon', 'weaponLevel', 'elementLevel', 'passive'], 'meta.draft.categoryWeights');
-    closedKeys('S2', D.meta.draft.reroll, ['granularity', 'canRepeatPrevious', 'maxPerDraft'], 'meta.draft.reroll');
-    closedKeys('S2', D.meta.draft.fallback, ['id', 'name', 'coins'], 'meta.draft.fallback');
+    closedKeys('S2', D.meta.draft.fallback, ['id', 'name', 'healPct'], 'meta.draft.fallback');
   }
   // §11.3 — 점수. ★ v1.3: difficultyMul → difficulty[].scoreMul (거처는 meta.difficulty)
   closedKeys('S2', D.meta.score, ['superEffectiveDamageShare', 'superEffectiveKillBonusRatio', 'attribution',
     'timeBonusPerGameSec', 'bossClearBonus', 'midBossClearBonus', 'runClearBonus', 'noHitScope',
-    'stageNoHitBonus', 'perfectScope', 'perfectBonus', 'shieldPreservesNoHit',
-    'timeTokenForfeitsTimeBonus', 'coinToScore', 'roundMode'], 'meta.score');
+    'stageNoHitBonus', 'perfectScope', 'perfectBonus', 'roundMode'], 'meta.score');
   if (has(D.meta.score, 'difficultyMul')) {
     V('S2', 'meta.score.difficultyMul: 개명된 키 → meta.difficulty[].scoreMul (§23.5-05)');
   }
   closedKeys('S2', D.meta.onboarding, ['autoEquipFirstElement', 'stanceHintPulse', 'stanceHintPulseStageMax'], 'meta.onboarding');
   if (isObj(D.meta.flow)) {
     closedKeys('S2', D.meta.flow, ['themeBannerSec', 'stageClearSec', 'healSec', 'stageClearHealPct',
-      'pauseResumeCountdownSec', 'attractIdleSec', 'continueCost', 'continueTimerRestoreSec',
-      'continueIframeSec', 'continueHealToFull', 'continueMaxPerRun', 'menuSpeed', 'deathAnimSec',
+      'pauseResumeCountdownSec', 'attractIdleSec', 'menuSpeed', 'deathAnimSec',
       'edgeTriggerOnStateEnter', 'pauseAllowsAbandon', 'attract', 'stagePar'], 'meta.flow');
     closedKeys('S2', D.meta.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase'], 'meta.flow.attract');
   }
@@ -920,8 +914,8 @@ function S2_files() {
   if (isObj(D.meta.bot)) {
     closedKeys('S2', D.meta.bot, ['reactionMs', 'reactionJitterMs', 'stanceSwitchMs', 'dodgeLookaheadSec',
       'aimErrorPx', 'slotOrder', 'policies', 'baseline', 'probes'], 'meta.bot');
-    closedKeys('S2', D.meta.bot.policies, ['draft', 'farm', 'stance', 'shop'], 'meta.bot.policies');
-    closedKeys('S2', D.meta.bot.baseline, ['draft', 'farm', 'stance', 'shop'], 'meta.bot.baseline');
+    closedKeys('S2', D.meta.bot.policies, ['draft', 'farm', 'stance'], 'meta.bot.policies');
+    closedKeys('S2', D.meta.bot.baseline, ['draft', 'farm', 'stance'], 'meta.bot.baseline');
     closedKeys('S2', D.meta.bot.probes, ['dpsProbe', 'forceNoElement'], 'meta.bot.probes');
     if (has(D.meta.bot, 'grazeTolerancePx')) {
       V('S2', 'meta.bot.grazeTolerancePx: 삭제된 키 (§10.4) — §2.3 "그레이즈 없음 (확정)"');
@@ -1118,7 +1112,7 @@ function S3_vocab() {
       ['movePattern 부재', !has(b, 'movePattern')],
       ['parts == []', Array.isArray(b.parts) && b.parts.length === 0],
       ['armorCoreRatio 부재', !has(b, 'armorCoreRatio')],
-      ['보상 4필드 보유', ['xp', 'coin', 'healDropChance', 'score'].every((k) => has(b, k))],
+      ['보상 3필드 보유', ['xp', 'healDropChance', 'score'].every((k) => has(b, k))],
     ];
     for (const [label, val] of eq) {
       if (val !== isMid) {
@@ -1144,7 +1138,7 @@ function S3_vocab() {
     vocab('S3', cw.formationId, FORMATION_IDS, 'stages.phase.crisisWaves[].formationId');
     vocab('S3', cw.spawnEdge, SPAWN_EDGES, 'stages.phase.crisisWaves[].spawnEdge');
   }
-  // §9.6 stats 어휘 = 12종 폐쇄
+  // §9.6 stats 어휘 = 11종 폐쇄 (v1.5 salvage 제거)
   for (const s of rowsQuiet(D.passives.stats)) vocab('S3', s, PASSIVE_STATS, 'passives.stats');
   EX('S3', n);
 }
@@ -2103,19 +2097,20 @@ function S22_swarmXpShare() {
 }
 
 // ===========================================================================
-//  S23 — 코인원 균질성 (§13.4)
-//  ★ v1.3: 정의역 = themeDraw.pool 에 속한 테마 (finale 은 15종이라 정의역 밖 — §13.2-⑪)
-//  roster 4종 중 turret + bruiser 밴드가 1~2종
+//  S23 — roster 편성 밸런스 (§8.6)
+//  ★ v1.5: 「코인원 균질성」 프레이밍 폐기(경제 제거). 편성 불변식만 유지 —
+//     테마당 정확히 4종 · turret+bruiser 밴드 1~2종(테마별 탱킹 적 확보).
+//  정의역 = themeDraw.pool 에 속한 테마 (finale 은 셔플 대상 밖 — §8.1)
 // ===========================================================================
-function S23_coinSourceHomogeneity() {
+function S23_rosterComposition() {
   const archById = new Map(ARCHETYPES().map((a) => [a && a.id, a]));
   const pool = new Set(rowsQuiet(D.stages.themeDraw && D.stages.themeDraw.pool));
   let n = 0;
 
   for (const t of rows('S23', D.stages.stages, 'stages.stages',
-    '§13.4-S23 — 코인원 균질성이 0행을 보면 셔플되는 테마 사이의 코인 수급 편차를 아무도 검사하지 않는다')) {
+    '§8.6 — roster 편성이 0행을 보면 테마별 적 구성 밸런스를 아무도 검사하지 않는다')) {
     if (!isObj(t)) continue;
-    if (!pool.has(t.id)) continue;    // ★ v1.3: finale 은 정의역 밖 (셔플 대상이 아니다, §8.1)
+    if (!pool.has(t.id)) continue;    // finale 은 정의역 밖 (셔플 대상이 아니다, §8.1)
     n += 1;
     const roster = rowsQuiet(t.roster);
     const bands = roster.map((r) => (archById.get(r && r.archetypeId) || {}).band).filter(Boolean);
@@ -2123,18 +2118,11 @@ function S23_coinSourceHomogeneity() {
     // §8.6 "테마당 정확히 4종 (공용 3 + 시그니처 1)"
     if (roster.length !== 4) V('S23', `stages.stages[${t.id}].roster: ${roster.length}종 ≠ 4 (§8.6)`);
     if (cnt < 1 || cnt > 2) {
-      V('S23', `stages.stages[${t.id}]: turret+bruiser 밴드 ${cnt}종 ∉ [1, 2] — 코인원 균질성 (§13.4-S23). `
+      V('S23', `stages.stages[${t.id}]: turret+bruiser 밴드 ${cnt}종 ∉ [1, 2] — 테마별 탱킹 적 밸런스 (§8.6). `
         + `roster 밴드 = [${bands.join(', ')}]`);
     }
   }
   EX('S23', n);
-  // 코인 드랍 주체 확정 (§8.6): chaff·line 은 coin 0 / coinDropChance 0
-  for (const [bn, bv] of Object.entries(D.enemies.bands || {})) {
-    if (!isObj(bv)) continue;
-    if ((bn === 'chaff' || bn === 'line') && (bv.coin !== 0 || bv.coinDropChance !== 0.0)) {
-      V('S23', `enemies.bands.${bn}: coin=${bv.coin}, coinDropChance=${bv.coinDropChance} — §8.6 "chaff·line 은 코인 0"`);
-    }
-  }
 }
 
 // ===========================================================================
@@ -2503,35 +2491,6 @@ function S32_themeIdLegality() {
 }
 
 // ===========================================================================
-//  S33 ★ — 아이콘 어휘의 충분성 (§9.4.1 · §13.4-S33, v1.3)
-//  shop 의 전 항목의 iconId ∈ hud.icons
-//  ★ 어휘를 닫는 것과 그 어휘가 충분한지는 다른 일이다
-// ===========================================================================
-function S33_iconSufficiency() {
-  const icons = rowsQuiet(D.rules.hud && D.rules.hud.icons);
-  if (!icons.length) {
-    V('S33', 'rules.hud.icons: 0종 — 상점 10항목의 아이콘을 하나도 그릴 수 없다 (§9.4.1)');
-    return;
-  }
-  const shop = D.meta.shop;
-  if (!isObj(shop)) {
-    V('S33', `meta.shop: 객체가 아니다 (${isAmb(shop) ? '__AMBIGUOUS__ — §11.2.1의 블록을 그대로 넣어라 (§23.1-D12)' : typeof shop})`);
-    return;
-  }
-  let n = 0;
-  for (const [id, item] of Object.entries(shop)) {
-    if (!isObj(item)) continue;
-    n += 1;
-    if (isAmb(item.iconId)) continue;
-    if (!icons.includes(item.iconId)) {
-      V('S33', `meta.shop.${id}.iconId = ${JSON.stringify(item.iconId)} ∉ hud.icons [${icons.join(', ')}] (§9.4.1/S33) `
-        + `— 선언하면 미지 값, 안 그리면 §11.2의 "표시 필수" 위반 = 양방향 실패`);
-    }
-  }
-  EX('S33', n);
-}
-
-// ===========================================================================
 //  S34 ★ — 패밀리별 base 필수 키 집합 (§9.5 12행 표 · §13.4-S34, v1.3)
 //  각 weapons[i].base 의 키 집합 == 그 family 의 §9.5 표가 ✔한 공통 키 ∪ 고유 파라미터
 //  ★ 이 표가 없으면 S2의 "필수 키"가 무엇인지 검증기가 알 수 없다
@@ -2746,66 +2705,6 @@ function S39_waveUnlockCoherence() {
   EX('S39', n);
 }
 
-// ===========================================================================
-//  S40 ★ — 상점 스키마 (§11.2.1 · §13.4-S40, v1.3)
-//  shop 의 키 집합 == §11.2 표의 id 10종
-//  ∧ (stockMax 보유 ⟺ id ∈ {reroll, shield, timeToken})
-//  ★ 폭탄의 상한은 rules.bomb.stockMax 가 소유한다 (상한은 그것이 제한하는 상태와 함께 산다)
-// ===========================================================================
-const SHOP_IDS = ['reroll', 'potion', 'bomb', 'shield', 'timeToken',
-  'defense', 'maxhp', 'movespeed', 'magnet', 'resist'];
-const SHOP_STOCKMAX_IDS = ['reroll', 'shield', 'timeToken'];
-// §11.2.1 — 항목별 효과 파라미터 (전부 기존 산문의 직역. 새 모델 0)
-const SHOP_EFFECT_KEYS = {
-  reroll: ['addStock'],
-  potion: ['healPct'],
-  bomb: ['addStock'],
-  shield: ['addStock'],
-  timeToken: ['addStock', 'addSec'],
-  defense: ['addDefense'],
-  maxhp: ['addHpMax', 'healsSameAmount'],
-  movespeed: ['addMoveSpeedPct'],
-  magnet: ['addMagnetPct'],
-  resist: ['statusDurationPct'],
-};
-
-function S40_shopSchema() {
-  const shop = D.meta.shop;
-  if (!isObj(shop)) {
-    V('S40', `meta.shop: 객체가 아니다 — §11.2.1의 인쇄 블록을 그대로 넣어라 (§23.1-D12: "shop": "__AMBIGUOUS__" 1칸이 ~50값으로 풀린다)`);
-    return;
-  }
-  closedKeys('S40', shop, SHOP_IDS, 'meta.shop');
-  let n = 0;
-  for (const id of SHOP_IDS) {
-    const item = shop[id];
-    if (!isObj(item)) continue;
-    n += 1;
-    const wantStock = SHOP_STOCKMAX_IDS.includes(id);
-    const allowed = ['basePrice', 'growth', 'maxPurchases', 'iconId',
-      ...(wantStock ? ['stockMax'] : []), ...(SHOP_EFFECT_KEYS[id] || [])];
-    closedKeys('S40', item, allowed, `meta.shop.${id}`);
-    // ★ stockMax 보유 ⟺ id ∈ {reroll, shield, timeToken}
-    const hasStock = has(item, 'stockMax');
-    if (hasStock !== wantStock) {
-      V('S40', `meta.shop.${id}: (stockMax 보유)=${hasStock} ≠ (id ∈ {${SHOP_STOCKMAX_IDS.join(', ')}})=${wantStock} (§11.2.1/S40)`
-        + (id === 'bomb' ? ' — ★ 폭탄의 상한은 rules.bomb.stockMax 가 소유한다 (§9.4 "상한은 그것이 제한하는 상태와 함께 산다")' : ''));
-    }
-    // §11.2: 모든 스탯 항목에 maxPurchases (무한 스택으로 코인이 빌드를 사는 것을 구조적으로 차단)
-    if (!num(item.maxPurchases) || item.maxPurchases < 1) {
-      V('S40', `meta.shop.${id}.maxPurchases = ${JSON.stringify(item.maxPurchases)} — 양의 정수여야 한다 (§11.2)`);
-    }
-    if (num(item.growth) && item.growth < 1.0) {
-      V('S40', `meta.shop.${id}.growth = ${item.growth} < 1.0 — 가격이 내려가면 희소성 설계가 뒤집힌다 (§11.2)`);
-    }
-  }
-  // §11.2.1: bombStockMax 는 rules.bomb.stockMax 의 인용으로 강등됐다
-  if (has(shop, 'bombStockMax')) {
-    V('S40', 'meta.shop.bombStockMax: 삭제된 이름 (§9.4/§23.3) — rules.bomb.stockMax 를 인용하라. 02는 전자를, 03·05는 후자를 쓰고 있었다');
-  }
-  EX('S40', n);
-}
-
 // §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 12 무기 전부 requiresPassive{id,level} 를 갖고,
 //   짝은 실재 패시브 · level∈[1,maxLevel] · 그 무기에 기계적으로 유효(무효 패시브 아님).
 function S41_evolutionPairing() {
@@ -2856,7 +2755,7 @@ function certifyStatic() {
   closedKeys('CERT', c, ['runs', 'dpsRef', 'runFarmDpsRatio', 'm', 'runMode', 'dpsProbe', 'static'], 'meta.certify');
   if (isObj(c.runMode)) {
     closedKeys('CERT', c.runMode, ['runClearRate', 'bossTimeoutRate', 'noDeadLuck', 'stanceValue',
-      'difficultySpread', 'dominance', 'coinScarcity', 'farmXpRatio', 'crisisKillShareWithoutCapstone'], 'meta.certify.runMode');
+      'difficultySpread', 'dominance', 'farmXpRatio', 'crisisKillShareWithoutCapstone'], 'meta.certify.runMode');
   }
   if (isObj(c.dpsProbe)) {
     closedKeys('CERT', c.dpsProbe, ['runsPerCell', 'difficulty', 'farm', 'uptimeRef', 'balancedPass',
@@ -2929,7 +2828,7 @@ function certifyStatic() {
       V('CERT', `certify.dpsProbe.farm = ${JSON.stringify(c.dpsProbe.farm)} 이 bot.policies.farm 에 없다 (§10.4.1)`);
     }
     const bl = D.meta.bot.baseline;
-    if (isObj(bl)) for (const ax of ['draft', 'farm', 'stance', 'shop']) {
+    if (isObj(bl)) for (const ax of ['draft', 'farm', 'stance']) {
       if (Array.isArray(pol[ax]) && !pol[ax].includes(bl[ax])) {
         V('CERT', `meta.bot.baseline.${ax} = ${JSON.stringify(bl[ax])} 이 policies.${ax} 에 없다 (§10.4.1)`);
       }
@@ -2962,13 +2861,7 @@ function certifyStatic() {
   if (isObj(stat.fairnessViolations) && stat.fairnessViolations.max !== 0) {
     V('CERT', `certify.static.fairnessViolations.max = ${stat.fairnessViolations.max} ≠ 0 — §9.3 "위반 → 로드 실패"`);
   }
-
-  // (6) §11.3/§11.4 상호 정합 — 컨티뉴 비용 vs coinScarcity p90
-  const p90 = c.runMode && c.runMode.coinScarcity && c.runMode.coinScarcity.p90EndCoins;
-  const cc = D.meta.flow && D.meta.flow.continueCost;
-  if (isObj(p90) && num(p90.max) && num(cc) && p90.max < cc) {
-    V('CERT', `coinScarcity.p90EndCoins.max(${p90.max}) < flow.continueCost(${cc}) — §13.1.1 "p90 ≤ 컨티뉴 1회(${cc}) + 여유"가 성립 불가`);
-  }
+  // ★ v1.5: 컨티뉴·코인 상호 정합 검사는 경제 폐지로 제거됐다
 }
 
 // ===========================================================================
@@ -2981,7 +2874,7 @@ function certifyStatic() {
  *
  *   runCertify({ runs, difficulty, policy }) -> {
  *     runClearRate, bossTimeoutRate, noDeadLuck: {...}, stanceValue, difficultySpread,
- *     dominance: {...}, coinScarcity: {...}, farmXpRatio, crisisKillShareWithoutCapstone,
+ *     dominance: {...}, farmXpRatio, crisisKillShareWithoutCapstone,
  *     m: [6],                                                     // ★ §13.1.0 교정 프로토콜
  *     capHits: { enemyConcurrentMax, swarmConcurrentMax, crisisWaveResidualMax,
  *                telegraphConcurrentMaxGlobal, capsOverflow },    // §13.1.1 — 4축 분리 출력
@@ -3006,7 +2899,6 @@ function dynamicGateStubs() {
     ['dominance.maxElementWinShare', '분모 = 클리어 런의 총 속성 투자 픽 수(런당 ≤ 6). 3종 재정규화 (§13.1.1)'],
     ['dominance.maxArchetypeLethalityShare', '분모 = 전 런에서 플레이어가 입은 총 피해(실드 흡수 제외). 대상 = 잡몹 15 + 새떼 2 = 17종. 엘리트는 원 아키타입 귀속, 중간보스·보스·부위는 분모에서도 제외 (§13.1.1)'],
     ['dominance.maxThemeClearStddev', '테마 t별 clearRate 6개 값의 표본 표준편차. finale 제외 (§13.1.1)'],
-    ['coinScarcity', 'medianEndCoins / medianPurchasesPerVisit(분모 = 상점 방문 수, 런당 5) / p90EndCoins (§13.1.1)'],
     ['farmXpRatio', '(maxFarm 스테이지 평균 XP) ÷ (passive 스테이지 평균 XP). 나머지 3축 baseline (§13.1.1)'],
     ['crisisKillShareWithoutCapstone', 'capstone = 보유 무기에 nova 또는 aura. 대상 = capstone 미보유 ∧ 그 세션 폭탄 미사용. killShare = 처치 새떼 수 ÷ (crisisTotal × swarmTotalScale[stage]) 의 중앙값 (§13.1.1)'],
   ];
@@ -3210,7 +3102,7 @@ function main() {
   S20_formationExclusivity();// §9.9.2
   S21_draftGuarantees();     // §11.1
   S22_swarmXpShare();        // §8.10
-  S23_coinSourceHomogeneity();// §13.4-S23
+  S23_rosterComposition();   // §8.6 roster 편성 밸런스
   S24_hpDistribution();      // §13.6.4
   S25_elementMatrix();       // §9.4.4
   S26_concurrentBudget();    // §12.1
@@ -3221,14 +3113,12 @@ function main() {
   S30_phraseExclusivity();   // §8.5
   S31_crisisComposition();   // §8.10
   S32_themeIdLegality();     // §9.8
-  S33_iconSufficiency();     // §9.4.1
   S34_familyBaseKeys();      // §9.5 12행 표
   S35_passiveValuesLen();    // §9.6
   S36_bossEmitterIdRule();   // §9.8.1
   S37_bossEmitterExists();   // §9.8.1
   S38_midBossLeave();        // §9.8.2
   S39_waveUnlockCoherence(); // §9.9
-  S40_shopSchema();          // §11.2.1
   S41_evolutionPairing();    // §9.5 v1.5 진화 짝 패시브
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

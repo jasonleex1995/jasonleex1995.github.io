@@ -10,7 +10,7 @@
  *   §3.1 · §3.2  데미지
  *   §4.3 · §4.4  스탠스 부여 · 각인
  *   §6.4   드래프트 발생 — core 는 큐에 세기만 한다. 소화는 상태 기계의 몫
- *   §8.6   밴드 코인 드랍 · 엘리트   §9.6 패시브 (reactive · afterimage · xpGain · coinGain)
+ *   §8.6   엘리트   §9.6 패시브 (reactive · afterimage · xpGain)  ★ v1.5: 코인·경제 폐지
  *   §10.3  L2 — 인덱스 오름차순 순회만 · 핫패스 0 alloc · Map/Set 순회 없음
  *   §12.1  캡 초과 정책
  *   §9.1   core 순수성
@@ -134,8 +134,8 @@ function movePlayer(world, dt) {
   let dy = p.dirY;
   if (p.stunSec > 0) { dx = 0; dy = 0; }          // §2.7 — 스턴 중 이동 입력 무시
 
-  // §2.2 파생 상한: moveSpeed × (1 + 상점 %) × (1 + 패시브 moveSpeedMul)
-  let v = rp.moveSpeed * (1 + world.shopMoveSpeedPct) * (1 + world.stats.moveSpeedMul);
+  // §2.2 파생 상한: moveSpeed × (1 + 패시브 moveSpeedMul)
+  let v = rp.moveSpeed * (1 + world.stats.moveSpeedMul);
   if (p.slowSec > 0) v *= world.data.rules.status.slowMoveSpeedMul;   // §2.7 — 강도는 불변
 
   if (rp.diagonalNormalize && dx !== 0 && dy !== 0) { dx *= DIAG; dy *= DIAG; }
@@ -498,21 +498,16 @@ export function applyHit(world, raw, srcArch) {
   p.hit = true;
   p.iframeSec = rp.iframeSec;
 
-  // §3.2 — 실드: taken 0 + 실드 −1 + i-frame 발동. 무피격 판정 유지 (§11.3)
-  if (p.shields > 0) {
-    p.shields -= 1;
-    noteHit(world, true);                         // §11.3 shieldPreservesNoHit — 무피격 유지
-  } else {
-    noteHit(world, false);
-    const taken = enemyToPlayer(rp, p, raw);
-    noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);   // §13.1.1 치사 지분
-    p.hp -= taken;
-    if (p.hp <= 0) {
-      p.hp = 0;
-      world.over = true;
-      // §11.4 — 사인을 명시한다(두 사인: 'hp' / 'timeout'). 시뮬의 bossTimeoutRate 가 이걸 센다.
-      if (world.run !== undefined) world.run.deathCause = 'hp';
-    }
+  // §3.2 — 피격: taken 계산 + i-frame 발동 (v1.5: 실드 폐지 = 원데스 긴박함, 방어막 없음)
+  noteHit(world);
+  const taken = enemyToPlayer(rp, p, raw);
+  noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);     // §13.1.1 치사 지분
+  p.hp -= taken;
+  if (p.hp <= 0) {
+    p.hp = 0;
+    world.over = true;
+    // §11.4 — 사인을 명시한다(두 사인: 'hp' / 'timeout'). 시뮬의 bossTimeoutRate 가 이걸 센다.
+    if (world.run !== undefined) world.run.deathCause = 'hp';
   }
 
   // §9.6 — afterimage: 피격 시 N초간 적의 조준·유도 대상에서 제외
@@ -532,10 +527,10 @@ export function applyHit(world, raw, srcArch) {
   return true;
 }
 
-/** §2.7 — stackMode "refresh": 중첩 금지. 잔여 = max(잔여, 신규 × (1 − statusResist)) */
+/** §2.7 — stackMode "refresh": 중첩 금지. 잔여 = max(잔여, 신규) (v1.5: 상점 resist 폐지) */
 function applyStatus(world, status, durSec) {
   const p = world.player;
-  const d = durSec * (1 - p.statusResist);        // resistAffects = "duration". 강도(0.55)는 불변
+  const d = durSec;                               // resistAffects = "duration". 강도(0.55)는 불변
   if (status === 'slow') { if (d > p.slowSec) p.slowSec = d; return; }
   if (status === 'stun') { if (d > p.stunSec) p.stunSec = d; return; }
   throw new Error(`step: 미지의 상태이상 "${status}" (§9.7)`);
@@ -554,30 +549,25 @@ export function killEnemy(world, e) {
   if (e.midBossId !== '') { killMidBoss(world, e); return; }       // §8.9 — 중간보스는 개체 필드가 보상을 소유
   addKill(world, e);                                                // §11.3 처치 점수(초효과 지분 보너스 포함)
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  const band = world.data.enemies.bands[e.band];
   const el = world.data.rules.elite;
-  // §2.1(v1.4) — 회복 픽업의 회복량 = healPickupPct × 드랍 순간 hpMax. 절대량을 value 로 싣는다
-  //   (상점 potion.healPct 결속 해제 · 죽은 인자 제거).
+  // §2.1(v1.4) — 회복 픽업의 회복량 = healPickupPct × 드랍 순간 hpMax. 절대량을 value 로 싣는다.
+  //   v1.5: 코인 드랍 폐지 = 경제 제거. 엘리트만 확률 회복 드랍(잡몹 드랍원은 xp + 회복뿐).
   const healValue = world.data.rules.player.healPickupPct * world.player.hpMax;
-  if (e.elite) {
-    spawnPickup(world, 'coin', el.coin, e.x, e.y);                   // 확정 드랍
-    if (world.rng.drop.f() < el.healDropChance) spawnPickup(world, 'heal', healValue, e.x, e.y);
-  } else if (band.coinDropChance > 0 && world.rng.drop.f() < band.coinDropChance) {
-    spawnPickup(world, 'coin', band.coin, e.x, e.y);
+  if (e.elite && world.rng.drop.f() < el.healDropChance) {
+    spawnPickup(world, 'heal', healValue, e.x, e.y);
   }
   world.enemies.release(e);
 }
 
 /**
  * §8.9 — 중간보스 처치. 보상 필드의 거처가 **`bosses[]` 개체**다(04-R10):
- *   xp 50(= bands.chaff.xpRef × 25) · coin 5 · healDropChance 0.35(회복 3채널 중 "드랍"의 주 수도꼭지)
+ *   xp 50(= bands.chaff.xpRef × 25) · healDropChance 0.35(회복 3채널 중 "드랍"의 주 수도꼭지)
  *   · score. ★ 이탈(midboss.js 의 leave)은 이 경로를 타지 않는다 = 보상 0.
  */
 function killMidBoss(world, e) {
   addKill(world, e);                                     // §11.3 개체 점수(초효과 지분 보너스 포함)
   addMidBossClear(world);                                // §11.3 중간보스 격파 보너스
   spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  spawnPickup(world, 'coin', e.coin, e.x, e.y);          // 확정 드랍
   const defs = world.data.bosses.bosses;
   let chance = 0;
   for (let i = 0; i < defs.length; i += 1) if (defs[i].id === e.midBossId) { chance = defs[i].healDropChance; break; }
@@ -588,21 +578,19 @@ function killMidBoss(world, e) {
 
 /**
  * §8.11/§8.12 — 보스 개체(코어·파트) 처치. killEnemy 가 e.isBoss 면 여기로 위임한다(멱등 가드는 상위).
- *   코어 격파 = 보스 사망 → boss.coin + run.cleared + 모든 보스 개체 반납(잡몹 드랍 없음, xp 0).
- *   주변 파트 파괴 = partCoin, armor 면 코어 aliveArmorPartCount −1(§3.1-4 소프트게이트 1단 해제).
- *   ★ 이동 페널티(mobility)·발사 정지(armament)는 B2. 여기선 코인·게이트·반납만.
+ *   코어 격파 = 보스 사망 → run.cleared + 모든 보스 개체 반납(잡몹 드랍 없음, xp 0).
+ *   주변 파트 파괴 = armor 면 코어 aliveArmorPartCount −1(§3.1-4 소프트게이트 1단 해제).
+ *   ★ 이동 페널티(mobility)·발사 격화(armament)는 B2. 여기선 게이트·반납만 (v1.5: 코인 폐지).
  */
 function killBossEntity(world, e) {
   const bcfg = world.data.rules.boss;
   const en = world.enemies.items;
   addKill(world, e);                                     // §11.3 — 코어·파트 모두 개체 점수를 준다
   if (e.isCore) {
-    spawnPickup(world, 'coin', bcfg.coin, e.x, e.y);
     if (world.run !== undefined) world.run.cleared = true;         // stage.tickRun 이 다음 틱에 소화
     for (let i = 0; i < en.length; i += 1) if (en[i].alive && en[i].isBoss) world.enemies.release(en[i]);
     return;
   }
-  spawnPickup(world, 'coin', bcfg.partCoin, e.x, e.y);
   // §8.12(v1.5) — 모듈 파괴 = «격화». 부위가 부서질수록 보스가 더 공격적으로(발사 빨라짐).
   //   ★ escalateFireRateMax 로 상한 — 부위 수(최대 7)가 늘어도 발사 밀도가 페어니스 상한(320)을 넘지 않게.
   if (world.run !== undefined) {
@@ -626,7 +614,7 @@ function killBossEntity(world, e) {
 function pickups(world, dt) {
   const p = world.player;
   const rp = world.data.rules.player;
-  const mag = rp.magnetRadius * (1 + world.shopMagnetPct);
+  const mag = rp.magnetRadius;
   // §2.6(v1.4) — 픽업 회수 2단계: magnetRadius 자석 → 획득 반경 = spriteRadius 접촉.
   //   둘 다 bounds/스프라이트에서 파생되는 구조 규칙(리터럴 아님) → 새 키 없음.
   const grab = rp.spriteRadius;
@@ -642,9 +630,9 @@ function pickups(world, dt) {
     if (q.magnet) {
       const d = Math.sqrt(d2);
       if (d > 0) {
-        // ★ 자석은 플레이어보다 느리면 안 된다 — movePlayer 와 같은 상한(상점%·패시브 배율 포함)을 쓴다.
+        // ★ 자석은 플레이어보다 느리면 안 된다 — movePlayer 와 같은 상한(패시브 배율 포함)을 쓴다.
         //   base moveSpeed 만 쓰면 이속 업그레이드 후 반대로 도망가는 픽업을 영영 못 잡는다(실측 버그).
-        const v = rp.moveSpeed * (1 + world.shopMoveSpeedPct) * (1 + world.stats.moveSpeedMul);
+        const v = rp.moveSpeed * (1 + world.stats.moveSpeedMul);
         q.x += (dx / d) * v * dt;
         q.y += (dy / d) * v * dt;
       }
@@ -664,7 +652,6 @@ function collect(world, q) {
     if (world.tele !== undefined) world.tele.xpGained += gain;                         // §13.1.1 farmXpRatio
     return;
   }
-  if (q.kind === 'coin') { p.coins += q.value * (1 + world.stats.coinGainMul); return; } // §9.6 salvage
   if (q.kind === 'heal') {
     // §2.1(v1.4) — value 는 이미 절대 회복량(killEnemy 가 healPickupPct×hpMax 로 실었다).
     //   다른 픽업 value 와 같은 의미(절대량) → hp += value. 상점 결속·죽은 인자 없음.

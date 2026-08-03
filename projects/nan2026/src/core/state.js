@@ -76,7 +76,7 @@ function makeEnemy() {
     shapeId: '',
     x: 0, y: 0, vx: 0, vy: 0,
     hp: 0, hpMax: 0, radius: 0,
-    contactDmg: 0, xp: 0, score: 0, coin: 0,
+    contactDmg: 0, xp: 0, score: 0,
     elite: false,
     // §3.1-4항 — 잡몹은 코어가 아니다. 보스 코어가 이 풀을 쓰게 되면 여기서 켠다
     isCore: false, aliveArmorPartCount: 0,
@@ -213,7 +213,7 @@ function makeStats() {
   return {
     dmgMul: 0, fireRateMul: 0, areaMul: 0, pierceAdd: 0, projCountAdd: 0,
     elementBonusMul: 1, ghostSecOnHit: 0, hitBulletClearRadius: 0,
-    maxHpAdd: 0, moveSpeedMul: 0, xpGainMul: 0, coinGainMul: 0,
+    maxHpAdd: 0, moveSpeedMul: 0, xpGainMul: 0,
   };
 }
 
@@ -234,11 +234,11 @@ export function recomputeStats(world) {
     if (def.stat === 'elementBonusMul') st.elementBonusMul = v;   // ★ k 는 대입이지 합산이 아니다
     else st[def.stat] += v;
   }
-  // §2.1(v1.4) — maxHpAdd(패시브 bulkhead)와 상점 maxhp 는 hpMax 를 직접 바꾸고,
+  // §2.1(v1.4) — maxHpAdd(패시브 bulkhead)가 hpMax 를 직접 바꾸고,
   //   **모든 hpMax 증가는 그 증가분만큼 hp 를 채운다**(단일 규칙 — 델타만 회복).
   const base = world.data.rules.player.hpMax;
   const prevMax = world.player.hpMax;
-  world.player.hpMax = base + world.shopHpAdd + st.maxHpAdd;
+  world.player.hpMax = base + st.maxHpAdd;
   if (world.player.hpMax > prevMax) world.player.hp += world.player.hpMax - prevMax;
   if (world.player.hp > world.player.hpMax) world.player.hp = world.player.hpMax;
   for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;
@@ -397,15 +397,11 @@ export function createWorld(opts) {
       vx: 0, vy: 0,
       hp: rp.hpMax, hpMax: rp.hpMax,
       defense: rp.defenseBase,
-      statusResist: 0,                      // §11.2 상점 resist 누적 (상한 0.60). §2.7 resistAffects="duration"
       iframeSec: 0,
       stance: rp.startStance,               // §2.6 — 노말
       stanceCooldown: 0,
       invest,                               // §2.6 — fire 0 / water 0 / grass 0 (§4.2 investable)
       level: 1, xp: 0, xpToNext: 0,
-      coins: 0,
-      bombs: rules.bomb.stockStart,
-      shields: 0, tokens: 0, rerolls: 0,
       slowSec: 0, stunSec: 0, ghostSec: 0,
       dirX: 0, dirY: 0,
       lastHorizontal: 0, lastVertical: 0,   // §2.2 SOCD = lastInput
@@ -414,16 +410,6 @@ export function createWorld(opts) {
     // §11.3 — 런 점수 누적기. §6.1 난이도는 배속(main)과 점수 배율(여기) 두 곳에서 쓰인다
     score: makeScore(data),
     difficultyId: opts.difficulty === undefined ? 'normal' : opts.difficulty,
-    // §11.2 — 항목별 **런 누적** 구매 수. 가격 ceil(basePrice × growth^n) 의 n 이며 스테이지 리셋 없음.
-    purchaseCounts: (() => {
-      const c = {};
-      const ids = Object.keys(data.meta.shop);
-      for (let i = 0; i < ids.length; i += 1) c[ids[i]] = 0;
-      return c;
-    })(),
-    shopHpAdd: 0,        // §11.2 maxhp 구매분. core 는 상점을 모르지만 hpMax 의 합에는 참여한다
-    shopMoveSpeedPct: 0,
-    shopMagnetPct: 0,
 
     // §5.7 — 직전 틱의 키 상태. SOCD(lastInput)와 상승 엣지 판정의 유일한 근거. 재사용(0 alloc)
     prevInput: { left: false, right: false, up: false, down: false,
@@ -595,7 +581,6 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite) {
   //   (누적 26,450 · 사다리 [12,19,26,34,43,54])이 성립하지 않는다 — 실측으로 발견된 누락이다.
   e.xp = (elite ? def.xp * el.xpMult : def.xp) * world.data.stages.curve.xpScale[curveIdxOf(world)];
   e.score = def.score;
-  e.coin = elite ? el.coin : band.coin;
   e.elite = elite;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
@@ -620,7 +605,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;           // 위치는 boss.js 가 직접 세팅(vx/vy=0)
   e.hp = hp; e.hpMax = hp;
   e.radius = core.radius; e.contactDmg = core.contactDmg;
-  e.xp = 0; e.score = core.score; e.coin = 0;
+  e.xp = 0; e.score = core.score;
   e.elite = false;
   e.isCore = true; e.aliveArmorPartCount = armorCount;
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
@@ -641,7 +626,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.x = cx + e.anchorX; e.y = cy + e.anchorY; e.vx = 0; e.vy = 0;
   e.hp = hp; e.hpMax = hp;
   e.radius = part.radius; e.contactDmg = part.contactDmg;
-  e.xp = 0; e.score = part.score; e.coin = 0;
+  e.xp = 0; e.score = part.score;
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
@@ -666,7 +651,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;
   e.hp = hp; e.hpMax = hp;
   e.radius = def.radius; e.contactDmg = def.contactDmg;
-  e.xp = def.xp; e.score = def.score; e.coin = def.coin;
+  e.xp = def.xp; e.score = def.score;
   e.elite = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;

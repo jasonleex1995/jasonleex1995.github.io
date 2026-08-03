@@ -54,7 +54,6 @@ function ensureBot(world) {
       draft: b.baseline.draft,
       farm: b.baseline.farm,
       stance: b.baseline.stance,
-      shop: b.baseline.shop,
       forceNoElement: false,
     },
     input: { left: false, right: false, up: false, down: false,
@@ -539,16 +538,4 @@ export function botDraftPick(world, draft) {
   return 0;
 }
 
-/** §10.4.1 shop — 정책대로 산다. */
-export function botShopPlan(world) {
-  const b = ensureBot(world);
-  if (b.policy.shop === 'survivalFirst') return ['potion', 'shield', 'defense', 'maxhp'];
-  if (b.policy.shop === 'thrifty') return ['defense', 'maxhp'];
-  return ['potion', 'shield', 'defense', 'maxhp', 'movespeed', 'magnet', 'resist', 'bomb', 'reroll', 'timeToken'];
-}
-
-/** thrifty 가 남겨야 하는 최소 잔액(컨티뉴 값). 다른 정책은 0. */
-export function botShopReserve(world) {
-  const b = ensureBot(world);
-  return b.policy.shop === 'thrifty' ? world.data.meta.flow.continueCost : 0;
-}
+// ★ v1.5 — 상점 봇 정책(botShopPlan·botShopReserve)은 폐지됐다: 경제 제거.

@@ -84,24 +84,12 @@
     "resistAffects": "duration"
   },
 
-  "bomb": {
-    "stockStart": 1,
-    "stockMax": 3,
-    "iframeSec": 1.5,
-    "mobDmg": 9999,
-    "clearsEnemyBullets": true,
-    "clearsDuringBoss": true,
-    "bossDmgRatio": 0.04,
-    "bossDmgCap": 220
-  },
-
   "elite": {
     "perWaveMax": 1,
     "hpMult": 4.0,
     "sizeMult": 1.4,
     "contactDmgMul": 1.5,
     "xpMult": 6.0,
-    "coin": 3,
     "healDropChance": 0.12,
     "bandAllowed": ["line", "turret", "bruiser"],
     "elementAllowed": ["fire", "water", "grass"]
@@ -130,8 +118,6 @@
     "armorElementNotTheme": false,
     "armorPartCountRange": [2, 2],
     "armorCoreRatioBandPct": [0.85, 1.0],
-    "coin": 12,
-    "partCoin": 2,
     "optionalPartArmorRatio": 0.20,
     "midBossSummonsAllowed": ["mbNest"],
     "finale": {
@@ -180,13 +166,9 @@
     "panelCacheDirtyOnly": true,
     "parGhostEnabled": true,
     "elementMatrixInPanel": true,
-    "coinShowsScoreValue": true,
     "noHitIndicator": true,
-    "tokenKeycapGatedDisplay": true,
     "stanceHintTargetsMajorityElement": true,
-    "icons": ["coinDisc", "xpDiamond", "bombRound", "shieldHex", "tokenClock",
-              "rerollArrows", "statusSlow", "statusStun", "resistShield",
-              "potionFlask", "defenseChevron", "hpCross", "bootWing", "magnetHorseshoe"]
+    "icons": ["xpDiamond", "statusSlow", "statusStun"]
   },
 
   "passiveHooks": {
@@ -214,12 +196,9 @@
       "stanceFire": "KeyW",
       "stanceWater": "KeyE",
       "stanceGrass": "KeyR",
-      "bomb": "Space",
-      "timeToken": "ShiftLeft",
       "pause": "Escape",
       "options": "KeyO",
       "draftPick": ["Digit1", "Digit2", "Digit3"],
-      "reroll": "KeyF",
       "reorderToggle": "Tab",
       "grab": "Space",
       "confirm": "Enter",
@@ -232,7 +211,7 @@
     "elementCvd": { "normal": "#F2F6FA", "fire": "#FFA83A", "water": "#2E86E0", "grass": "#1F6B3A" },
     "threat":     { "enemyBullet": "#FF2E88", "telegraph": "#FF2E88", "bulletCore": "#FFFFFF", "outline": "#0A0C10" },
     "status":     { "band": "#FFB000" },
-    "pickup":     { "coin": "#FFC93C", "xp": "#EAF2FF" },
+    "pickup":     { "xp": "#EAF2FF" },
     "enemyBody": "#20242C",
     "partDestroyed": "#3A3A3A",
     "neutralGray": "#7A8290",
@@ -241,7 +220,8 @@
       "panelRule": "#2A3038",
       "textPrimary": "#DCE6F0",
       "textDim": "#7A8290",
-      "hpFill": "#DCE6F0"
+      "hpFill": "#DCE6F0",
+      "accent": "#FFC93C"
     },
     "bg": {
       "maxSaturation": 0.25,

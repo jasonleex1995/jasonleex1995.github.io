@@ -148,13 +148,11 @@ suite('state · spawn* 필드 + 캡 정책 (§12.1)', () => {
   test('spawnEnemy — element 주입 + 엘리트 접두 배율 (§8.6)', () => {
     const w = mk();
     const def = w.data.enemies.archetypes.find((a) => a.id === 'columnAnt');
-    const band = w.data.enemies.bands[def.band];
     const el = w.data.rules.elite;
     const normal = spawnEnemy(w, 'columnAnt', 'fire', 100, 200, def.hp, false);
     assert.eq(normal.element, 'fire', 'element 는 편성이 주입한다 (아키타입 필드 아님)');
     assert.eq(normal.hp, def.hp, '비엘리트 hp = 전달값');
     assert.eq(normal.radius, def.radius, '비엘리트 radius');
-    assert.eq(normal.coin, band.coin, '비엘리트 coin = 밴드 coin (line = 0)');
     assert.ok(!normal.elite, '비엘리트 플래그');
     const elite = spawnEnemy(w, 'columnAnt', 'water', 100, 200, def.hp, true);
     assert.eq(elite.hp, def.hp * el.hpMult, '엘리트 hp ×hpMult');

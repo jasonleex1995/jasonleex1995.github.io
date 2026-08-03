@@ -24,32 +24,8 @@
     "guaranteeElementCardOnFirstDraft": true,
     "guaranteeNewWeaponUntilSlots": 2,
     "elementCardPity": 6,
-    "reroll": { "granularity": "all3", "canRepeatPrevious": false, "maxPerDraft": 2 },
-    "fallback": { "id": "resupply", "name": "보급", "coins": 40 },
+    "fallback": { "id": "resupply", "name": "보급", "healPct": 0.25 },
     "pauseGame": true
-  },
-
-  "shop": {
-    "reroll":    { "basePrice": 30, "growth": 1.60, "maxPurchases": 6, "iconId": "rerollArrows",
-                   "stockMax": 3, "addStock": 1 },
-    "potion":    { "basePrice": 40, "growth": 1.50, "maxPurchases": 8, "iconId": "potionFlask",
-                   "healPct": 0.35 },
-    "bomb":      { "basePrice": 50, "growth": 1.35, "maxPurchases": 5, "iconId": "bombRound",
-                   "addStock": 1 },
-    "shield":    { "basePrice": 60, "growth": 1.50, "maxPurchases": 4, "iconId": "shieldHex",
-                   "stockMax": 2, "addStock": 1 },
-    "timeToken": { "basePrice": 80, "growth": 1.80, "maxPurchases": 2, "iconId": "tokenClock",
-                   "stockMax": 2, "addStock": 1, "addSec": 30 },
-    "defense":   { "basePrice": 45, "growth": 1.45, "maxPurchases": 4, "iconId": "defenseChevron",
-                   "addDefense": 2 },
-    "maxhp":     { "basePrice": 55, "growth": 1.50, "maxPurchases": 4, "iconId": "hpCross",
-                   "addHpMax": 10, "healsSameAmount": true },
-    "movespeed": { "basePrice": 55, "growth": 1.50, "maxPurchases": 3, "iconId": "bootWing",
-                   "addMoveSpeedPct": 0.06 },
-    "magnet":    { "basePrice": 40, "growth": 1.40, "maxPurchases": 3, "iconId": "magnetHorseshoe",
-                   "addMagnetPct": 0.30 },
-    "resist":    { "basePrice": 40, "growth": 1.40, "maxPurchases": 3, "iconId": "resistShield",
-                   "statusDurationPct": -0.20 }
   },
 
   "score": {
@@ -64,9 +40,6 @@
     "stageNoHitBonus": 3000,
     "perfectScope": "perRun",
     "perfectBonus": 30000,
-    "shieldPreservesNoHit": true,
-    "timeTokenForfeitsTimeBonus": true,
-    "coinToScore": 20,
     "roundMode": "floor"
   },
 
@@ -77,11 +50,6 @@
     "stageClearHealPct": 0.25,
     "pauseResumeCountdownSec": 1.5,
     "attractIdleSec": 20,
-    "continueCost": 150,
-    "continueTimerRestoreSec": 60,
-    "continueIframeSec": 3.0,
-    "continueHealToFull": true,
-    "continueMaxPerRun": 1,
     "menuSpeed": 1.0,
     "deathAnimSec": 1.5,
     "edgeTriggerOnStateEnter": true,
@@ -114,10 +82,9 @@
     "policies": {
       "draft":  ["generalist", "specialist", "weaponRush", "elementRush", "greedyDps", "random"],
       "farm":   ["maxFarm", "balanced", "passive"],
-      "stance": ["greedyNearest", "majorityOnScreen", "static"],
-      "shop":   ["survivalFirst", "thrifty", "spender"]
+      "stance": ["greedyNearest", "majorityOnScreen", "static"]
     },
-    "baseline": { "draft": "generalist", "farm": "balanced", "stance": "greedyNearest", "shop": "survivalFirst" },
+    "baseline": { "draft": "generalist", "farm": "balanced", "stance": "greedyNearest" },
     "probes": { "dpsProbe": true, "forceNoElement": true }
   },
 
@@ -139,11 +106,6 @@
         "maxElementWinShare": 0.42,
         "maxArchetypeLethalityShare": 0.25,
         "maxThemeClearStddev": 0.06
-      },
-      "coinScarcity": {
-        "medianEndCoins": { "min": 0, "max": 120 },
-        "medianPurchasesPerVisit": { "min": 1.0, "max": 2.0 },
-        "p90EndCoins": { "max": 260 }
       },
       "farmXpRatio": { "min": 2.0 },
       "crisisKillShareWithoutCapstone": { "min": 0.80 }

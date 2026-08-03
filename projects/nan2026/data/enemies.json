@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "bands": {
-    "chaff": { "hpMult": 1.0, "coinDropChance": 0.0, "coin": 0, "xpRef": 2 },
-    "line": { "hpMult": 2.5, "coinDropChance": 0.0, "coin": 0 },
-    "turret": { "hpMult": 6.0, "coinDropChance": 0.30, "coin": 1 },
-    "bruiser": { "hpMult": 12.0, "coinDropChance": 0.40, "coin": 2 }
+    "chaff": { "hpMult": 1.0, "xpRef": 2 },
+    "line": { "hpMult": 2.5 },
+    "turret": { "hpMult": 6.0 },
+    "bruiser": { "hpMult": 12.0 }
   },
   "archetypes": [
     {

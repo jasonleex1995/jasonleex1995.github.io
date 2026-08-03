@@ -11,8 +11,8 @@
  *   이동   — anchor: yHoldPx 까지 하강 후 swayAmpPx 왕복
  *            charge: ★ 회귀 — 스폰 라인(아레나 밖 위쪽)에서 시작해도 실제로 돌진한다
  *   소환   — mbNest 만 summon 이 non-null(S17) / everySec 마다 count 마리 / 원점 = 소환자
- *   발사   — §8.9-R8 이미터 2개가 **각자의 스케줄**로 돈다(mbHammer = fan 탄 + zone 장판 둘 다)
- *   처치   — xp/coin 확정 드랍 + 중간보스 격파 점수 + 반납
+ *   발사   — §8.9-R8 이미터 2개가 **각자의 스케줄**로 돈다(mbHammer = fan 탄 + mortar 투척폭탄 둘 다)
+ *   처치   — xp 확정 드랍 + 중간보스 격파 점수 + 반납 (v1.5: 코인 폐지)
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
@@ -271,7 +271,7 @@ suite('midboss — 소환 · 발사 (§8.9-R8/R9)', () => {
 
 // ══════════════════════════════════════════════════════════════════════
 suite('midboss — 처치 보상 (§8.9, 거처 = bosses[] 개체 필드)', () => {
-  test('xp·coin 확정 드랍 + 격파 점수 + 반납', () => {
+  test('xp 확정 드랍 + 격파 점수 + 반납 (v1.5: 코인 드랍 폐지)', () => {
     const w = mkRun(1);
     const def = defOf(w, 'mbHammer');
     const e = spawnMidBoss(w, def, 'fire', 10, 300, 300);
@@ -279,9 +279,8 @@ suite('midboss — 처치 보상 (§8.9, 거처 = bosses[] 개체 필드)', () =
     killEnemy(w, e);
     const ps = livePickups(w);
     const xp = ps.filter((p) => p.kind === 'xp').reduce((s, p) => s + p.value, 0);
-    const coin = ps.filter((p) => p.kind === 'coin').reduce((s, p) => s + p.value, 0);
     assert.eq(xp, def.xp, 'xp 는 개체 필드가 소유');
-    assert.eq(coin, def.coin, 'coin 은 개체 필드가 소유');
+    assert.eq(ps.filter((p) => p.kind === 'coin').length, 0, '코인 픽업 없음 (경제 폐지)');
     assert.eq(w.score.midBossClear - before, w.data.meta.score.midBossClearBonus, '격파 보너스');
     assert.eq(e.alive, false, '반납');
   });

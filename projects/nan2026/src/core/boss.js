@@ -56,7 +56,6 @@ export function spawnBoss(world) {
   run.bossTransitionT = run.phase === PHASE.BOSS_INTRO ? world.data.rules.boss.introSec : 0;
   run.bossMoveSpeedMul = 1; run.bossMoveAmpMul = 1;  // 새 보스 = 1페이즈
   run.bossFireRateMul = 1;                                                                       // §8.12(v1.5) 격화 초기화
-  run.bossTokenUsed = false;
   const scale = def.tier === 'final' ? 1 : world.data.stages.curve.bossHpScale[world.run.stageIndex];
   const arena = world.data.rules.view.arena;
   const cx = arena.x + arena.w / 2;

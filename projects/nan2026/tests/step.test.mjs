@@ -343,26 +343,9 @@ suite('step · §7.7 히트 tier 전달 (world.hitFx)', () => {
 //   값은 전부 data/정본에서 유도한다. 각 경로 = 양성 + 경계/음성.
 // ═════════════════════════════════════════════════════════════════════════
 
-// ── 1. shield (§3.2) ──────────────────────────────────────────────────────
-suite('step · shield 흡수 (§3.2) — 회귀', () => {
-  test('실드 보유 중 적 탄 피격 → HP 무손실 + 실드 −1 + i-frame 발동 + 탄 소멸', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    w.player.shields = 1;                          // §2.6 실드 스택 (상점/드랍이 채우는 필드)
-    const iframeSec = w.data.rules.player.iframeSec;
-    spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);
-    const hp0 = w.player.hp;
-    assert.eq(w.enemyBullets.live, 1, '흡수 대상 탄 1개 배치');
-    step(w, makeInput(), TICK_DT);
-    assert.eq(w.player.hp, hp0, '실드 흡수 → HP 손실 0 (§3.2 taken 0)');
-    assert.eq(w.player.shields, 0, '실드 스택 −1');
-    assert.eq(w.player.iframeSec, iframeSec, 'i-frame 발동 = rules.player.iframeSec');
-    assert.ok(w.player.hit, '피격 판정 자체는 일어난다 (p.hit true)');
-    assert.eq(w.enemyBullets.live, 0, '피해 준 그 탄은 소멸 (실드 흡수 포함)');
-  });
-
-  test('실드 0이면 같은 탄이 HP 를 깎는다 = 흡수가 실드에 결속됨 (음성 대칭)', () => {
+// ── 1. 피격 피해 (§3.2) — v1.5: 실드 폐지, 모든 피격이 진짜 ──────────────────
+suite('step · 적 탄 피격 피해 (§3.2)', () => {
+  test('적 탄 피격 → HP −enemyToPlayer + i-frame 발동 + 탄 소멸', () => {
     const w = mk();
     silence(w);
     const px = w.player.x; const py = w.player.y;
@@ -371,9 +354,12 @@ suite('step · shield 흡수 (§3.2) — 회귀', () => {
     const expected = Math.ceil(Math.max(dmg - w.player.defense, dmg * rp.damageFloorRatio));  // §3.2
     spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);
     const hp0 = w.player.hp;
+    assert.eq(w.enemyBullets.live, 1, '피격 대상 탄 1개 배치');
     step(w, makeInput(), TICK_DT);
-    assert.eq(w.player.hp, hp0 - expected, '실드 없음 → HP −enemyToPlayer (§3.2)');
-    assert.lt(w.player.hp, hp0, 'HP 감소 = 흡수되지 않았다');
+    assert.eq(w.player.hp, hp0 - expected, 'HP −enemyToPlayer (§3.2)');
+    assert.eq(w.player.iframeSec, rp.iframeSec, 'i-frame 발동 = rules.player.iframeSec');
+    assert.ok(w.player.hit, '피격 판정 (p.hit true)');
+    assert.eq(w.enemyBullets.live, 0, '피해 준 그 탄은 소멸');
   });
 });
 
@@ -569,46 +555,31 @@ suite('step · enemyExitForfeitsReward (§8.7)', () => {
   });
 });
 
-// ── 8. statusResist 상태이상 저항 (§2.7 resistAffects="duration") ──────────
-suite('step · statusResist (§2.7)', () => {
-  test('저항 보유 시 slow 지속 = dur×(1−resist) · 강도(이동 배율)는 불변', () => {
+// ── 8. 상태이상 지속 (§2.7) — v1.5: 상점 resist 폐지, 항상 전체 지속 ──────────
+suite('step · 상태이상 지속 (§2.7)', () => {
+  test('slow 는 전체 지속 dur 로 적용 · 강도(이동 배율)는 불변', () => {
     const w = mk();
     silence(w);
     const px = w.player.x; const py = w.player.y;
     const dur = bulletDef(w, 'hexBolt').statusDurationSec;
     const mul = w.data.rules.status.slowMoveSpeedMul;
     const ms = w.data.rules.player.moveSpeed;
-    const resist = 0.5;
-    w.player.statusResist = resist;                 // §11.2 상점 resist 누적 필드
     spawnEnemyBullet(w, 'hexBolt', px, py, 0, 0);
     step(w, makeInput(), TICK_DT);
-    assert.near(w.player.slowSec, dur * (1 - resist), 1e-9, '지속 = dur×(1−resist)');
+    assert.near(w.player.slowSec, dur, 1e-9, '지속 = 전체 dur');
     const y0 = w.player.y;
     step(w, down('up'), TICK_DT);
-    assert.near(y0 - w.player.y, ms * mul * TICK_DT, 1e-6, '둔화 강도(×mul)는 resist 와 무관하게 불변');
+    assert.near(y0 - w.player.y, ms * mul * TICK_DT, 1e-6, '둔화 강도(×mul) 불변');
   });
 
-  test('저항 보유 시 stun 지속도 dur×(1−resist) 로 스케일', () => {
+  test('stun 도 전체 지속 dur 로 적용', () => {
     const w = mk();
     silence(w);
     const px = w.player.x; const py = w.player.y;
     const dur = bulletDef(w, 'stunMark').statusDurationSec;
-    const resist = 0.4;
-    w.player.statusResist = resist;
     spawnEnemyBullet(w, 'stunMark', px, py, 0, 0);
     step(w, makeInput(), TICK_DT);
-    assert.near(w.player.stunSec, dur * (1 - resist), 1e-9, 'stun 지속 = dur×(1−resist)');
-  });
-
-  test('저항 0이면 전체 지속 (음성 대칭)', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    const dur = bulletDef(w, 'hexBolt').statusDurationSec;
-    assert.eq(w.player.statusResist, 0, '기본 resist 0');
-    spawnEnemyBullet(w, 'hexBolt', px, py, 0, 0);
-    step(w, makeInput(), TICK_DT);
-    assert.near(w.player.slowSec, dur, 1e-9, 'resist 0 = 전체 지속');
+    assert.near(w.player.stunSec, dur, 1e-9, 'stun 지속 = 전체 dur');
   });
 });
 
@@ -618,16 +589,14 @@ suite('step · applyHit 격리 게이트 (§2.4)', () => {
   //   i-frame 조기반환(약 349행)은 그 계약의 본체이나, 현재 호출자(collide 의 탄·몸통 2경로)가
   //   각기 다른 목적으로 호출 **전에** iframeSec 를 이미 게이트하므로 step() 경유로는 도달-무효과 →
   //   그 라인의 뮤턴트가 살아남았다. 이 격리 테스트가 applyHit 를 직접 불러 조기반환을 고정한다.
-  test('i-frame 중 직접 호출 → false 반환 · HP/실드/i-frame 불변', () => {
+  test('i-frame 중 직접 호출 → false 반환 · HP/i-frame 불변', () => {
     const w = mk();
     silence(w);
     w.player.iframeSec = 0.5;                        // i-frame 활성
-    w.player.shields = 2;
     const hp0 = w.player.hp;
     const ret = applyHit(w, 50);
     assert.eq(ret, false, 'i-frame 중 = 게이트로 false');
     assert.eq(w.player.hp, hp0, 'HP 불변 (피해 미적용)');
-    assert.eq(w.player.shields, 2, '실드 불변 (흡수도 없음)');
     assert.eq(w.player.iframeSec, 0.5, 'i-frame 재설정 없음 (조기반환)');
   });
 

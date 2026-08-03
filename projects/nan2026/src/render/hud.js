@@ -22,7 +22,6 @@
 
 import { rgba, glyphPath } from './draw.js';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
-import { price, buyBlockedBy } from '../core/shop.js';   // 읽기 전용 질의(가격·구매 가능 여부)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
 // ★ §11.1 — 드래프트 카드는 키 문자(W/E/R)가 아니라 **속성 이름**을 말한다. 키 배정은 §5.1
@@ -480,7 +479,6 @@ function drawRightPanel(ctx, world, pal) {
 export function drawDraft(ctx, world, pal, draft, cursor) {
   const v = world.data.rules.view;
   const h = world.data.rules.hud;
-  const d = world.data.meta.draft;
 
   ctx.fillStyle = rgba(pal.threat.outline, 0.78);
   ctx.fillRect(0, 0, v.logicalW, v.logicalH);
@@ -536,11 +534,7 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
     wrap(ctx, world, pal, body.desc, cx, y0 + 300, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
   }
-
-  // §11.1 리롤 — 스톡은 상점에서 산다. 1주차엔 상점이 없으므로 스톡 0이 정상이다
-  const rr = `[F] 리롤  ${world.player.rerolls}회 보유 · 이 드래프트 ${draft.rerollsUsed}/${d.reroll.maxPerDraft}`;
-  text(ctx, world, pal, rr, v.logicalW / 2, y0 + ch + 34, h.fontSmallPx,
-    world.player.rerolls > 0 ? pal.hud.textPrimary : rgba(pal.hud.textDim, 0.5), 'center');
+  // ★ v1.5 — 리롤 표시 폐지(경제 제거). 드래프트는 3장 고정.
 }
 
 function categoryLabel(cat) {
@@ -555,7 +549,7 @@ function categoryLabel(cat) {
 function cardAccent(world, pal, c) {
   if (c.category === 'elementLevel') return pal.element[c.element];
   if (c.category === 'weaponLevel' && c.isEvolution) return pal.element.normal;
-  if (c.category === 'resupply') return pal.pickup.coin;
+  if (c.category === 'resupply') return pal.hud.accent;
   return pal.element.normal;
 }
 
@@ -602,7 +596,7 @@ function cardBody(world, c) {
     throw new Error(`hud: 미지의 패시브 "${c.passiveId}" (§9.6)`);
   }
   if (c.category === 'resupply') {
-    return { glyph: null, title: c.name, sub: `+${c.coins} 코인`, desc: '유효한 후보가 부족할 때의 폴백 카드.' };
+    return { glyph: null, title: c.name, sub: `HP +${Math.round(c.healPct * 100)}%`, desc: '유효한 후보가 부족할 때의 폴백 카드 — 회복.' };
   }
   throw new Error(`hud: 미지의 드래프트 카테고리 "${c.category}" (§11.1)`);
 }
@@ -631,67 +625,7 @@ function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH, align, weight) {
 }
 // hudText 별칭은 importer 0 이었다 → 제거(text 는 이 파일 안에서 직접 쓰인다, 모듈-프라이빗)
 
-// ---------------------------------------------------------------------------
-// 상점 화면 (§5.4 · §11.2) — 세로 목록, ↑↓ 선택 / Enter 구매 / Escape 나가기(1회 확인)
-//   ★ 표시 텍스트(이름·한 줄 설명)는 렌더의 소관이다 — meta.shop 은 값만 소유한다.
-// ---------------------------------------------------------------------------
-const SHOP_TEXT = {
-  reroll: ['리롤', '드래프트를 다시 뽑는다'],
-  potion: ['물약', '즉시 회복'],
-  bomb: ['폭탄', '화면을 쓸어버린다'],
-  shield: ['실드', '피해 1회를 무효로'],
-  timeToken: ['시간 토큰', '보스 타이머 연장'],
-  defense: ['방어력', '받는 피해 감소'],
-  maxhp: ['최대 체력', '최대 HP 증가'],
-  movespeed: ['이동 속도', '더 빠르게'],
-  magnet: ['자석', '획득 반경 확대'],
-  resist: ['저항', '상태이상 지속 감소'],
-};
-
-/** §5.4 — 상점. ids = 표시 순서(meta.shop 키 순). cursor = 선택 행. confirmExit = Escape 1회 확인 중 */
-export function drawShop(ctx, world, pal, ids, cursor, confirmExit) {
-  const v = world.data.rules.view;
-  const h = world.data.rules.hud;
-  const a = v.arena;
-
-  ctx.fillStyle = rgba(pal.hud.panelBg, 0.94);
-  ctx.fillRect(a.x, a.y, a.w, a.h);
-
-  text(ctx, world, pal, '상점', a.x + a.w / 2, a.y + 44, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
-  text(ctx, world, pal, `코인 ${Math.floor(world.player.coins)}`,
-    a.x + a.w / 2, a.y + 74, h.fontBodyPx, pal.pickup.coin, 'center', 600);
-
-  const top = a.y + 112;
-  const rowH = 36;
-  for (let i = 0; i < ids.length; i += 1) {
-    const id = ids[i];
-    const it = world.data.meta.shop[id];
-    const y = top + i * rowH;
-    const sel = i === cursor;
-    if (sel) {
-      ctx.fillStyle = rgba(pal.hud.panelRule, 0.5);
-      ctx.fillRect(a.x + 12, y - rowH / 2 + 3, a.w - 24, rowH - 6);
-    }
-    const blocked = buyBlockedBy(world, id);
-    const t = SHOP_TEXT[id];
-    const nameCol = blocked === null ? pal.hud.textPrimary : pal.hud.textDim;
-    text(ctx, world, pal, t === undefined ? id : t[0], a.x + 24, y, h.fontBodyPx, nameCol, 'left', sel ? 700 : 500);
-    if (t !== undefined) {
-      text(ctx, world, pal, t[1], a.x + 130, y, h.fontSmallPx, pal.hud.textDim, 'left', 400);
-    }
-    text(ctx, world, pal, `${world.purchaseCounts[id]}/${it.maxPurchases}`,
-      a.x + a.w - 104, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
-
-    const label = blocked === 'maxed' ? '완료' : blocked === 'stock' ? '가득' : `${price(world, id)}`;
-    const col = blocked === 'coins' ? pal.threat.enemyBullet
-      : blocked === null ? pal.pickup.coin : pal.hud.textDim;
-    text(ctx, world, pal, label, a.x + a.w - 24, y, h.fontBodyPx, col, 'right', 600);
-  }
-
-  const hint = confirmExit ? '한 번 더 [Escape] = 나가기' : '[↑↓] 선택   [Enter] 구매   [Escape] 나가기';
-  text(ctx, world, pal, hint, a.x + a.w / 2, a.y + a.h - 40, h.fontBodyPx,
-    confirmExit ? pal.threat.enemyBullet : pal.hud.textDim, 'center', 600);
-}
+// ★ v1.5 — 상점 화면(drawShop)은 폐지됐다: 경제·소비아이템 제거.
 
 // ---------------------------------------------------------------------------
 // 결과 화면 (§11.3) — 죽어도 집계된다. 내역을 한 줄씩 보여주고 총점을 크게.
@@ -721,7 +655,6 @@ export function drawResults(ctx, world, pal, t, seedText) {
     ['런 클리어', t.runClear],
     [`무피격 ${t.noHitCount}/${world.score.noHit.length}`, t.noHitBonus],
     ['퍼펙트', t.perfectBonus],
-    ['코인 환산', t.coinBonus],
   ];
   let y = a.y + 140;
   for (let i = 0; i < rows.length; i += 1) {
@@ -737,34 +670,10 @@ export function drawResults(ctx, world, pal, t, seedText) {
   text(ctx, world, pal, `난이도 ×${t.scoreMul}`, a.x + a.w - 40, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
   y += 40;
   text(ctx, world, pal, '총점', a.x + 40, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
-  text(ctx, world, pal, `${t.total}`, a.x + a.w - 40, y, h.fontHeroPx, pal.pickup.coin, 'right', 700);
+  text(ctx, world, pal, `${t.total}`, a.x + a.w - 40, y, h.fontHeroPx, pal.hud.accent, 'right', 700);
 
   text(ctx, world, pal, seedText, a.x + a.w / 2, a.y + a.h - 40, h.fontSmallPx, pal.hud.textDim, 'center', 400);
 }
 
-// ---------------------------------------------------------------------------
-// 사망 화면 (§11.4) — 컨티뉴 제안. 카운트다운 없음(무한 대기), 두 사인 모두에 제공.
-// ---------------------------------------------------------------------------
-export function drawDeath(ctx, world, pal, cost) {
-  const a = world.data.rules.view.arena;
-  const h = world.data.rules.hud;
-
-  ctx.fillStyle = rgba(pal.hud.panelBg, 0.94);
-  ctx.fillRect(a.x, a.y, a.w, a.h);
-
-  const timeout = world.run !== undefined && world.run.deathCause === 'timeout';
-  text(ctx, world, pal, timeout ? '시간 초과' : '격추', a.x + a.w / 2, a.y + a.h / 2 - 90,
-    h.fontHeroPx, pal.threat.enemyBullet, 'center', 700);
-
-  text(ctx, world, pal, `컨티뉴 — 코인 ${cost}`, a.x + a.w / 2, a.y + a.h / 2 - 20,
-    h.fontMediumPx, pal.pickup.coin, 'center', 700);
-  text(ctx, world, pal, `보유 ${Math.floor(world.player.coins)}`, a.x + a.w / 2, a.y + a.h / 2 + 8,
-    h.fontSmallPx, pal.hud.textDim, 'center', 400);
-
-  // ★ 대가를 **여기서** 말한다 — 결과 화면에서 처음 알게 되는 함정을 만들지 않는다(§11.4)
-  text(ctx, world, pal, '퍼펙트와 모든 스테이지 무피격 보너스를 잃습니다',
-    a.x + a.w / 2, a.y + a.h / 2 + 44, h.fontSmallPx, pal.hud.textDim, 'center', 400);
-
-  text(ctx, world, pal, '[Enter] 계속한다     [Escape] 포기', a.x + a.w / 2, a.y + a.h / 2 + 96,
-    h.fontBodyPx, pal.hud.textPrimary, 'center', 600);
-}
+// ★ v1.5 — 사망 화면(drawDeath)/컨티뉴는 폐지됐다: 경제 제거 + 원데스=게임오버.
+//   사망 = 즉시 결과 화면(main.js).

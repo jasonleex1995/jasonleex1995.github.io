@@ -153,7 +153,7 @@ function fuzz(seed, ticks, check) {
       fingerprints.push([
         t, Math.round(w.player.x), Math.round(w.player.y), Math.round(w.player.hp * 10),
         w.enemies.live, w.playerBullets.live, w.enemyBullets.live, w.pickups.live,
-        Math.round(w.player.coins), Math.round(w.player.xp * 10), w.player.level, w.over ? 1 : 0,
+        Math.round(w.player.xp * 10), w.player.level, w.over ? 1 : 0,
       ]);
     }
   }

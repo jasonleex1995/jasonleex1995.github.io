@@ -24,17 +24,16 @@
 import { validate, MANIFEST } from './core/schema.mjs';
 import { createWorld } from './core/state.js';
 import { step, makeInput, TICK_HZ } from './core/step.js';
-import { buildDraft, rerollDraft, applyCard, candidates } from './core/draft.js';
+import { buildDraft, applyCard, candidates } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
-import { initRun, tickRun, advanceStage, applyStageClearHeal, canContinue, reviveContinue, stageEntry, PHASE } from './core/stage.js';
-import { buy } from './core/shop.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, PHASE } from './core/stage.js';
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
-import { drawPanels, drawDraft, drawShop, drawResults, drawDeath } from './render/hud.js';
+import { drawPanels, drawDraft, drawResults } from './render/hud.js';
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -104,13 +103,13 @@ function dropUnimplementedWeapons(world, draft) {
     taken.add(pool[k].key);
   }
 
-  // 최후 폴백 — 빈 드래프트 화면이 물리적으로 불가능해진다 (§11.1)
+  // 최후 폴백 — 빈 드래프트 화면이 물리적으로 불가능해진다 (§11.1). v1.5: 코인 폐지 → 회복.
   while (draft.cards.length < d.optionCount) {
     draft.cards.push({ category: 'resupply', key: `resupply:${draft.cards.length}`,
-      id: d.fallback.id, name: d.fallback.name, coins: d.fallback.coins, weight: 0 });
+      id: d.fallback.id, name: d.fallback.name, healPct: d.fallback.healPct, weight: 0 });
   }
 
-  // ★ 피티 재계산 (§11.1 elementCardPity) — fill()/rerollDraft 는 시임 **전** 카드로 elementPity 를
+  // ★ 피티 재계산 (§11.1 elementCardPity) — fill() 은 시임 **전** 카드로 elementPity 를
   //   정했는데, 위 대체 추첨이 미구현 newWeapon 자리에 elementLevel 카드를 넣을 수 있다. 그러면 최종
   //   카드셋엔 속성 카드가 있는데 피티가 리셋되지 않아 과다 계상된다(속성 카드 강제 빈발). draft.js 와
   //   같은 규칙으로 **최종 카드셋** 기준 다시 판정한다. 이 시임(12패밀리 완성 시 삭제)의 결정성 이탈 봉합.
@@ -222,7 +221,7 @@ function makeAudio(rules) {
   let master = null;
   const sfxGain = rules.audio.busGain.sfx;                       // §7.10 busGain.sfx = 0.8
   const minInterval = 1 / rules.audio.cueRateLimitPerSec;        // §7.10 동일 큐 초당 상한
-  const lastAt = { super: -1, neutral: -1, resist: -1, levelup: -1, coin: -1, hurt: -1, stance: -1 };
+  const lastAt = { super: -1, neutral: -1, resist: -1, levelup: -1, hurt: -1, stance: -1 };
   let muted = false;                          // §5.5 OPTIONS — SFX 버스 뮤트/볼륨
   let vol = 1;
   function applyGain() { if (master !== null) master.gain.value = muted ? 0 : sfxGain * vol; }
@@ -275,13 +274,6 @@ function makeAudio(rules) {
       env(o, ctx.createGain(), t0 + i * 0.06, 0.3, 0.12);
     }
   }
-  function blip(t0) {                                            // 코인 — 짧고 밝은 한 음
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(1250, t0);
-    o.frequency.exponentialRampToValueAtTime(1650, t0 + 0.04);
-    env(o, ctx.createGain(), t0, 0.24, 0.07);
-  }
   function thud(t0) {                                            // 피격 — 낮고 둔탁한 경고
     const o = ctx.createOscillator();
     o.type = 'sine';
@@ -313,7 +305,6 @@ function makeAudio(rules) {
         if (tier === 'super') crunch(now);
         else if (tier === 'resist') tin(now);
         else if (tier === 'levelup') chime(now);
-        else if (tier === 'coin') blip(now);
         else if (tier === 'hurt') thud(now);
         else if (tier === 'stance') clickS(now);
         else tick(now);
@@ -336,17 +327,16 @@ function playHitCues(audio, world) {
   if (neu) audio.cue('neutral');
 }
 
-/** §7.10 — 플레이어 상태 변화를 SFX 로: 레벨업·코인 획득·피격·스탠스 전환. prev 는 프레임 간 유지. */
+/** §7.10 — 플레이어 상태 변화를 SFX 로: 레벨업·피격·스탠스 전환. prev 는 프레임 간 유지. (v1.5: 코인 폐지) */
 function playEventCues(audio, world, prev) {
   if (audio === null) return;
   const p = world.player;
   if (p.level > prev.level) audio.cue('levelup');
-  if (p.coins > prev.coins) audio.cue('coin');
   if (p.hp < prev.hp) audio.cue('hurt');
   if (p.stance !== prev.stance) audio.cue('stance');
-  prev.level = p.level; prev.coins = p.coins; prev.hp = p.hp; prev.stance = p.stance;
+  prev.level = p.level; prev.hp = p.hp; prev.stance = p.stance;
 }
-const audioPrev = { level: 1, coins: 0, hp: 0, stance: '' };
+const audioPrev = { level: 1, hp: 0, stance: '' };
 
 // ---------------------------------------------------------------------------
 // 부트
@@ -397,14 +387,11 @@ async function boot() {
     enterBanner();                           // 스테이지 1 테마 배너 → PLAY
   }
 
-  let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | SHOP | PAUSE | DEATH | RESULTS | TOO_SMALL
+  let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | PAUSE | RESULTS | TOO_SMALL  (v1.5: SHOP·DEATH 폐지)
   const DIFFS = Object.keys(data.meta.difficulty).filter((k) => data.meta.difficulty[k].speed !== undefined);
   let diffCursor = 0;
   let optionsFrom = 'TITLE';                 // OPTIONS 를 어디서 들어왔는가(나갈 때 복귀)
   let tooSmallReturn = 'TITLE';              // TOO_SMALL 에서 복귀할 상태
-  const shopIds = Object.keys(data.meta.shop);   // §11.2 표시 순서 = 데이터 키 순(런 1회)
-  let shopCursor = 0;
-  let shopConfirmExit = false;
   let draft = null;
   let cursor = 0;
   let acc = 0;
@@ -442,14 +429,7 @@ async function boot() {
     return true;
   }
 
-  /** §5.4 — 상점 입력. ↑↓ 선택 · Enter 구매 (Escape 나가기는 위의 엣지 토글이 처리).
-   *   ★ 엣지는 프레임 상단에서 이미 소비했다(upEdge/downEdge/confirmEdge) — 여기서 다시 폴링하면
-   *     stateful edge.pressed 가 prev 를 두 번 읽어 항상 false 가 된다(상점 먹통 회귀). 넘겨받아 쓴다. */
-  function tickShop(upE, downE, confirmE) {
-    if (upE) { shopCursor = (shopCursor + shopIds.length - 1) % shopIds.length; shopConfirmExit = false; }
-    if (downE) { shopCursor = (shopCursor + 1) % shopIds.length; shopConfirmExit = false; }
-    if (confirmE) { buy(world, shopIds[shopCursor]); shopConfirmExit = false; }
-  }
+  // ★ v1.5 — 상점 입력(tickShop)은 폐지됐다: 경제 제거.
 
   function tickDraft(confirmE) {
     const b = rules.input.bindings;
@@ -459,10 +439,7 @@ async function boot() {
     if (edge.pressed(b.cursor[0])) cursor = (cursor + draft.cards.length - 1) % draft.cards.length;
     if (edge.pressed(b.cursor[1])) cursor = (cursor + 1) % draft.cards.length;
     if (confirmE) { pick(cursor); return; }             // ★ 상단에서 소비한 Enter 를 넘겨받는다
-    if (edge.pressed(b.reroll)) {
-      if (rerollDraft(world, draft)) { dropUnimplementedWeapons(world, draft); cursor = 0; }
-    }
-    // §5.2 — Escape 는 무시한다 (드래프트는 스킵 불가). Q W E R · Space · Shift 도 죽은 키다
+    // §5.2 — Escape 는 무시한다 (드래프트는 스킵 불가, 리롤 폐지). Q W E R · Space 도 죽은 키다
   }
 
   function pick(i) {
@@ -487,13 +464,12 @@ async function boot() {
     const elapsed = now - last;
     last = now;
 
-    // ★ 엣지는 매 프레임 소비해 prev 를 갱신한다(상태가 어긋나지 않게). Space=시작/폭탄, Enter=확정,
+    // ★ 엣지는 매 프레임 소비해 prev 를 갱신한다(상태가 어긋나지 않게). Space=시작/스킵, Enter=확정,
     //   Escape=일시정지/뒤로, O=옵션.
     const pauseEdge = edge.pressed(rules.input.bindings.pause);
     const startEdge = edge.pressed(rules.input.bindings.grab);       // Space
     const confirmEdge = edge.pressed(rules.input.bindings.confirm);  // Enter
     const optionsEdge = edge.pressed(rules.input.bindings.options);  // O
-    const tokenEdge = edge.pressed(rules.input.bindings.timeToken);
     const upEdge = edge.pressed(rules.input.bindings.cursor[2]);
     const downEdge = edge.pressed(rules.input.bindings.cursor[3]);
 
@@ -534,24 +510,11 @@ async function boot() {
     // §5.7 — Escape = 일시정지 토글 (PLAY ↔ PAUSE).
     if (pauseEdge && state === 'PLAY') { enter('PAUSE'); acc = 0; }
     else if (pauseEdge && state === 'PAUSE') { enter('PLAY'); acc = 0; }
-    else if (pauseEdge && state === 'DEATH') { enter('RESULTS'); }
     else if (pauseEdge && state === 'RESULTS') { enter('TITLE'); }
-    else if (pauseEdge && state === 'SHOP') {
-      // §5.4 — Escape 는 확인 1회를 거쳐 나간다. 나가면 다음 스테이지 배너가 뜬다
-      if (shopConfirmExit) { advanceStage(world); shopConfirmExit = false; enterBanner(); }
-      else shopConfirmExit = true;
-    }
     // §5.5 — PAUSE 에서 O = OPTIONS
     else if (optionsEdge && state === 'PAUSE') { optionsFrom = 'PAUSE'; enter('OPTIONS'); }
     // §6.5 — RESULTS 에서 Space = 같은 난이도 즉시 재시작
     if (startEdge && state === 'RESULTS') { startRun(difficultyId); }
-
-    // §11.2 timeToken — 보스전에서만, 보유분을 써서 타이머를 addSec 만큼 늘린다.
-    if (tokenEdge && state === 'PLAY' && world.run.phase === PHASE.BOSS && world.player.tokens > 0) {
-      world.player.tokens -= 1;
-      world.run.bossTimer += data.meta.shop.timeToken.addSec;
-      world.run.bossTokenUsed = true;
-    }
 
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
@@ -562,16 +525,16 @@ async function boot() {
         step(world, pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다
         updateFx(fx, world, 1 / TICK_HZ);
         playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
-        playEventCues(audio, world, audioPrev); // §7.10 — 레벨업·코인·피격·스탠스 SFX
+        playEventCues(audio, world, audioPrev); // §7.10 — 레벨업·피격·스탠스 SFX
         acc -= tickDur;
         steps += 1;
-        // §11.4 — 사망이면 컨티뉴를 제안(가능할 때만). 승리·제안 불가면 바로 결과로.
-        if (world.over) { enter(!world.run.won && canContinue(world) ? 'DEATH' : 'RESULTS'); break; }
-        // §6.5 STAGE_CLEAR → 회복 → 상점(1~5차). 상점을 나가면 advanceStage 로 다음 스테이지.
+        // §11.4(v1.5) — 사망 = 즉시 결과. 컨티뉴 폐지 = 원데스=게임오버.
+        if (world.over) { enter('RESULTS'); break; }
+        // §6.5(v1.5) STAGE_CLEAR → 회복 → 바로 다음 스테이지 배너 (상점 폐지).
         if (world.run.phase === PHASE.STAGE_CLEAR) {
           applyStageClearHeal(world);
-          shopCursor = 0; shopConfirmExit = false;
-          enter('SHOP');
+          advanceStage(world);
+          enterBanner();
           break;
         }
         if (world.draftQueue > 0 && openDraftIfQueued()) break;
@@ -581,11 +544,6 @@ async function boot() {
     } else {
       acc = 0;
       if (state === 'DRAFT') tickDraft(confirmEdge);
-      else if (state === 'SHOP') tickShop(upEdge, downEdge, confirmEdge);
-      else if (state === 'DEATH') {
-        // §11.4 — 카운트다운 없음. Enter = 부활 / Escape 는 아래 엣지 토글이 결과로 보낸다
-        if (confirmEdge && reviveContinue(world)) { enter('PLAY'); acc = 0; }
-      }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
@@ -614,11 +572,9 @@ async function boot() {
     drawPanels(ctx, world, pal);
     if (state === 'THEME_BANNER') drawThemeBanner();
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
-    if (state === 'SHOP') drawShop(ctx, world, pal, shopIds, shopCursor, shopConfirmExit);
     if (state === 'PAUSE') banner(ctx, data, pal, '일시정지', '[Esc] 재개   ·   [O] 옵션');
     if (state === 'OPTIONS') drawOptionsScreen();          // PAUSE→OPTIONS 는 world 위에 겹친다
     // §11.3 — 결과 화면(죽어도 집계된다). 내역 + 총점.
-    if (state === 'DEATH') drawDeath(ctx, world, pal, data.meta.flow.continueCost);
     if (state === 'RESULTS') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
   }
 

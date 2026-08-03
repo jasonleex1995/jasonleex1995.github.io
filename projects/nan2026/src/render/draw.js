@@ -146,13 +146,14 @@ export function resolvePalette(rules) {
       outline: f(p.threat.outline),
     },
     status: { band: f(p.status.band) },
-    pickup: { coin: f(p.pickup.coin), xp: f(p.pickup.xp) },
+    pickup: { xp: f(p.pickup.xp) },
     enemyBody: f(p.enemyBody),
     partDestroyed: f(p.partDestroyed),
     neutralGray: f(p.neutralGray),
     hud: {
       panelBg: f(p.hud.panelBg), panelRule: f(p.hud.panelRule),
       textPrimary: f(p.hud.textPrimary), textDim: f(p.hud.textDim), hpFill: f(p.hud.hpFill),
+      accent: f(p.hud.accent),
     },
     bg: p.bg,
     /** §7.3 — 배경 명도 상한은 cvd/mono 에서 0.22 로 내려간다 */
@@ -527,13 +528,7 @@ function drawPickups(ctx, world, pal, interp, alpha) {
     if (!q.alive) continue;
     const x = lerpX(interp, interp.pickups, q, alpha);
     const y = lerpY(interp, interp.pickups, q, alpha);
-    if (q.kind === 'coin') {                                 // 원반(중앙 구멍)
-      ctx.fillStyle = pal.pickup.coin;
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
-      ctx.arc(x, y, 1.8, 0, Math.PI * 2, true);
-      ctx.fill('evenodd');
-    } else if (q.kind === 'xp') {                            // 마름모 — 값이 클수록 크게 (플레이테스트 #5b)
+    if (q.kind === 'xp') {                                   // 마름모 — 값이 클수록 크게 (플레이테스트 #5b)
       ctx.fillStyle = pal.pickup.xp;
       const s = 2.2 + Math.min(q.value, 24) * 0.09;          // 1→2.3 · 6→2.7 · 12→3.3 · 병합24+→4.4
       glyphPath(ctx, 'water', x, y, s);
@@ -1047,7 +1042,7 @@ function drawHitboxDot(ctx, world, pal, px, py) {
   ctx.lineWidth = 1;
   ctx.strokeStyle = rgba(pal.element.normal, 0.12);
   ctx.beginPath();
-  ctx.arc(px, py, rp.magnetRadius * (1 + world.shopMagnetPct), 0, Math.PI * 2);
+  ctx.arc(px, py, rp.magnetRadius, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 

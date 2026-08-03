@@ -21,7 +21,7 @@ import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx } from '../src/render/draw.js';
-import { drawPanels, drawShop, drawResults, drawDeath, drawDraft } from '../src/render/hud.js';
+import { drawPanels, drawResults, drawDraft } from '../src/render/hud.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
 
@@ -79,18 +79,13 @@ suite('render — 한 판 전 프레임이 던지지 않는다 (회귀망)', () 
     assert.gt(bossFrames, 0, '보스가 실제로 화면에 있었다 (vacuous 아님)');
   });
 
-  test('결정 화면(드래프트·상점·결과·사망)도 던지지 않는다', () => {
+  test('결정 화면(드래프트·결과)도 던지지 않는다 (v1.5: 상점·사망 화면 폐지)', () => {
     const w = mkRun(3);
     const pal = resolvePalette(w.data.rules);
     const ctx = stubCtx();
     const draft = buildDraft(w);
     drawDraft(ctx, w, pal, draft, 0);
-    const ids = Object.keys(w.data.meta.shop);
-    assert.gt(ids.length, 0, '상점 품목이 실제로 있다 (vacuous 아님)');
-    drawShop(ctx, w, pal, ids, 0, false);
-    drawShop(ctx, w, pal, ids, ids.length - 1, true);   // 나가기 확인 상태
     drawResults(ctx, w, pal, tally(w), 'seed-3');
-    drawDeath(ctx, w, pal, w.data.meta.flow.continueCost);
-    assert.ok(true, '네 화면 모두 예외 없이 통과');
+    assert.ok(true, '두 화면 모두 예외 없이 통과');
   });
 });

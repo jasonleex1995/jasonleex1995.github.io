@@ -33,7 +33,7 @@ const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'mine',
   'boomerang', 'barrage', 'omni', 'drone', 'nova'];
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
   'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul',
-  'xpGainMul', 'coinGainMul'];
+  'xpGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar'];
@@ -111,8 +111,8 @@ const TELEGRAPH_FLOOR_BY_TYPE = {
   spiral: 0.60, wall: 0.80, zone: 0.90, laser: 1.20, mortar: 0.60,
 };
 
-/** §9.4 — rules.json 루트 = schemaVersion + 정확히 17 블록 */
-const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'bomb', 'elite',
+/** §9.4 — rules.json 루트 = schemaVersion + 정확히 16 블록 (v1.5: bomb 제거 = 경제·소비아이템 폐지) */
+const RULES_ROOT_16 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];
 
 // ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ function collector() {
 // 파일별 검증
 // ---------------------------------------------------------------------------
 function checkRules(c, r) {
-  c.closed('rules', r, ['schemaVersion', ...RULES_ROOT_17]);
+  c.closed('rules', r, ['schemaVersion', ...RULES_ROOT_16]);
   c.closed('rules.loop', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate']);
   c.closed('rules.view', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW',
     'bandTopH', 'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'minViewportW',
@@ -202,15 +202,13 @@ function checkRules(c, r) {
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
-  c.closed('rules.bomb', r.bomb, ['stockStart', 'stockMax', 'iframeSec', 'mobDmg',
-    'clearsEnemyBullets', 'clearsDuringBoss', 'bossDmgRatio', 'bossDmgCap']);
   c.closed('rules.elite', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
-    'coin', 'healDropChance', 'bandAllowed', 'elementAllowed']);
+    'healDropChance', 'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'coin', 'partCoin', 'optionalPartArmorRatio',
+    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio',
     'midBossSummonsAllowed', 'finale']);
   if (isObj(r.boss)) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',
@@ -224,8 +222,8 @@ function checkRules(c, r) {
   c.closed('rules.hud', r.hud, ['hitboxAlwaysVisible', 'showElementBudget', 'fontHeroPx',
     'fontLargePx', 'fontMediumPx', 'fontBodyPx', 'fontSmallPx', 'panelPadPx', 'keycapBoxPx',
     'bossHpBarH', 'hpBarSegGapPx', 'xpBarH', 'hpBarSegCount', 'panelCacheDirtyOnly',
-    'parGhostEnabled', 'elementMatrixInPanel', 'coinShowsScoreValue', 'noHitIndicator',
-    'tokenKeycapGatedDisplay', 'stanceHintTargetsMajorityElement', 'icons']);
+    'parGhostEnabled', 'elementMatrixInPanel', 'noHitIndicator',
+    'stanceHintTargetsMajorityElement', 'icons']);
 
   // §9.6.1 — family 를 키로 하는 중첩 맵. 12행 동결
   c.closed('rules.passiveHooks', r.passiveHooks, FAMILIES);
@@ -241,7 +239,7 @@ function checkRules(c, r) {
   c.closed('rules.input', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings']);
   if (isObj(r.input)) {
     c.closed('rules.input.bindings', r.input.bindings, ['move', 'stanceNormal', 'stanceFire',
-      'stanceWater', 'stanceGrass', 'bomb', 'timeToken', 'pause', 'options', 'draftPick', 'reroll',
+      'stanceWater', 'stanceGrass', 'pause', 'options', 'draftPick',
       'reorderToggle', 'grab', 'confirm', 'cursor']);
   }
 
@@ -252,8 +250,8 @@ function checkRules(c, r) {
     c.closed('rules.palette.elementCvd', r.palette.elementCvd, ELEMENTS4);
     c.closed('rules.palette.threat', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline']);
     c.closed('rules.palette.status', r.palette.status, ['band']);
-    c.closed('rules.palette.pickup', r.palette.pickup, ['coin', 'xp']);
-    c.closed('rules.palette.hud', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill']);
+    c.closed('rules.palette.pickup', r.palette.pickup, ['xp']);
+    c.closed('rules.palette.hud', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent']);
     c.closed('rules.palette.bg', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed']);
   }
@@ -371,16 +369,17 @@ function checkWeapons(c, w) {
 
 function checkPassives(c, ps) {
   c.closed('passives', ps, ['schemaVersion', 'maxLevel', 'stats', 'passives']);
-  // §9.6 — 폐쇄 스탯 어휘 12종. 전수 일치 (순서는 정본의 인쇄 순서를 따르지 않아도 된다)
-  if (c.arr('passives.stats', ps.stats, 12)) {
+  // §9.6 — 폐쇄 스탯 어휘 11종. 전수 일치 (순서는 정본의 인쇄 순서를 따르지 않아도 된다)
+  //   v1.5: salvage(coinGainMul) 제거 = 경제 폐지 → 12→11
+  if (c.arr('passives.stats', ps.stats, 11)) {
     for (let i = 0; i < ps.stats.length; i += 1) c.vocab(`passives.stats[${i}]`, ps.stats[i], PASSIVE_STATS);
     for (let i = 0; i < PASSIVE_STATS.length; i += 1) {
       if (ps.stats.indexOf(PASSIVE_STATS[i]) < 0) {
-        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 12종`);
+        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 11종`);
       }
     }
   }
-  if (!c.arr('passives.passives', ps.passives, 12)) return;
+  if (!c.arr('passives.passives', ps.passives, 11)) return;
   const seen = [];
   for (let i = 0; i < ps.passives.length; i += 1) {
     const it = ps.passives[i];
@@ -388,7 +387,7 @@ function checkPassives(c, ps) {
     if (!c.closed(p, it, ['id', 'name', 'desc', 'stat', 'values'])) continue;
     // §9.6 — 각 패시브 = 엔진 훅 정확히 1개. 12훅 = 12 패시브 1:1
     if (!c.vocab(`${p}.stat`, it.stat, PASSIVE_STATS)) continue;
-    if (seen.indexOf(it.stat) >= 0) c.fail(p, `stat "${it.stat}" 중복 — §9.6 "12훅 = 12 패시브 1:1"`);
+    if (seen.indexOf(it.stat) >= 0) c.fail(p, `stat "${it.stat}" 중복 — §9.6 "11훅 = 11 패시브 1:1"`);
     seen.push(it.stat);
     // §9.6 — values 는 정확히 maxLevel 행. 각 레벨의 **절대 총량**이지 증분이 아니다
     c.arr(`${p}.values`, it.values, ps.maxLevel);
@@ -415,7 +414,7 @@ function checkEnemies(c, e) {
       if (!own(e.bands, bn)) continue;
       // §9.7 — xpRef 는 chaff 밴드 전용 필드다
       c.closed(`enemies.bands.${bn}`, e.bands[bn],
-        bn === 'chaff' ? ['hpMult', 'coinDropChance', 'coin', 'xpRef'] : ['hpMult', 'coinDropChance', 'coin']);
+        bn === 'chaff' ? ['hpMult', 'xpRef'] : ['hpMult']);
     }
   }
   if (c.arr('enemies.archetypes', e.archetypes)) {
@@ -451,7 +450,7 @@ function checkBosses(c, b) {
     if (it.tier === 'mid') {
       // §9.8.2 — 중간보스에는 core 가 없다. hp·element 가 루트 필드다
       c.closed(p, it, ['id', 'name', 'tier', 'themeId', 'hp', 'element', 'radius', 'contactDmg',
-        'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts', 'xp', 'coin',
+        'shapeId', 'moveId', 'moveParams', 'patternSet', 'summon', 'parts', 'xp',
         'healDropChance', 'score']);
     } else {
       // §9.8 — 스테이지·최종 보스
@@ -528,7 +527,7 @@ function checkStages(c, s) {
 }
 
 function checkMeta(c, m) {
-  c.closed('meta', m, ['schemaVersion', 'xp', 'draft', 'shop', 'score', 'flow', 'onboarding',
+  c.closed('meta', m, ['schemaVersion', 'xp', 'draft', 'score', 'flow', 'onboarding',
     'difficulty', 'bot', 'certify']);
   c.closed('meta.xp', m.xp, ['curve', 'base', 'exp', 'levelUpsPerRunTarget', 'levelUpQueueMode']);
   if (isObj(m.draft)) {
@@ -536,21 +535,18 @@ function checkMeta(c, m) {
       'newWeaponSlotScale', 'weaponLevelEvolutionBonus', 'elementFirstLevelBonus', 'passiveNewBonus',
       'distinctItemsPerDraft', 'filterInvalid', 'newWeaponWhenSlotsFull',
       'elementLevelOfferRequiresWeaponCount', 'guaranteeElementCardOnFirstDraft',
-      'guaranteeNewWeaponUntilSlots', 'elementCardPity', 'reroll', 'fallback', 'pauseGame']);
+      'guaranteeNewWeaponUntilSlots', 'elementCardPity', 'fallback', 'pauseGame']);
     c.closed('meta.draft.categoryWeights', m.draft.categoryWeights,
       ['newWeapon', 'weaponLevel', 'elementLevel', 'passive']);
-    c.closed('meta.draft.reroll', m.draft.reroll, ['granularity', 'canRepeatPrevious', 'maxPerDraft']);
-    c.closed('meta.draft.fallback', m.draft.fallback, ['id', 'name', 'coins']);
+    c.closed('meta.draft.fallback', m.draft.fallback, ['id', 'name', 'healPct']);
   }
   c.closed('meta.score', m.score, ['superEffectiveDamageShare', 'superEffectiveKillBonusRatio',
     'attribution', 'timeBonusPerGameSec', 'bossClearBonus', 'midBossClearBonus', 'runClearBonus',
-    'noHitScope', 'stageNoHitBonus', 'perfectScope', 'perfectBonus', 'shieldPreservesNoHit',
-    'timeTokenForfeitsTimeBonus', 'coinToScore', 'roundMode']);
+    'noHitScope', 'stageNoHitBonus', 'perfectScope', 'perfectBonus', 'roundMode']);
   c.closed('meta.onboarding', m.onboarding, ['autoEquipFirstElement', 'stanceHintPulse', 'stanceHintPulseStageMax']);
   if (isObj(m.flow)) {
     c.closed('meta.flow', m.flow, ['themeBannerSec', 'stageClearSec', 'healSec', 'stageClearHealPct',
-      'pauseResumeCountdownSec', 'attractIdleSec', 'continueCost', 'continueTimerRestoreSec',
-      'continueIframeSec', 'continueHealToFull', 'continueMaxPerRun', 'menuSpeed', 'deathAnimSec',
+      'pauseResumeCountdownSec', 'attractIdleSec', 'menuSpeed', 'deathAnimSec',
       'edgeTriggerOnStateEnter', 'pauseAllowsAbandon', 'attract', 'stagePar']);
     c.closed('meta.flow.attract', m.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase']);
   }
@@ -565,8 +561,8 @@ function checkMeta(c, m) {
     // §10.4 — grazeTolerancePx 는 삭제됐다 (§2.3 "그레이즈 없음")
     c.closed('meta.bot', m.bot, ['reactionMs', 'reactionJitterMs', 'stanceSwitchMs',
       'dodgeLookaheadSec', 'aimErrorPx', 'slotOrder', 'policies', 'baseline', 'probes']);
-    c.closed('meta.bot.policies', m.bot.policies, ['draft', 'farm', 'stance', 'shop']);
-    c.closed('meta.bot.baseline', m.bot.baseline, ['draft', 'farm', 'stance', 'shop']);
+    c.closed('meta.bot.policies', m.bot.policies, ['draft', 'farm', 'stance']);
+    c.closed('meta.bot.baseline', m.bot.baseline, ['draft', 'farm', 'stance']);
     c.closed('meta.bot.probes', m.bot.probes, ['dpsProbe', 'forceNoElement']);
   }
   // certify 의 하위 트리는 tools/sim.mjs 의 소유다 (§13.1). 로더는 존재만 요구한다.

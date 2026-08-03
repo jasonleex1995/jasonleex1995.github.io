@@ -3,12 +3,11 @@
  *
  * 정본 v1.4 구현 절:
  *   §11.3  처치 점수(초효과 보너스) · 시간 보너스 · 보스/중간보스/런 클리어 · 스테이지 무피격 ·
- *          퍼펙트 · 남은 코인 환산 · 난이도 배율 · **floor 는 마지막에 딱 한 번**(roundMode).
+ *          퍼펙트 · 난이도 배율 · **floor 는 마지막에 딱 한 번**(roundMode).
  *   §11.3  attribution "damageShare" — 처치의 초효과 보너스는 **막타가 아니라 누적 피해 지분**이다:
  *          그 개체에 넣은 ×2 피해 / 총 피해 ≥ superEffectiveDamageShare(0.5) 면 보너스.
- *   §11.3  shieldPreservesNoHit — 실드가 막은 피격은 무피격을 깨지 않는다.
- *          timeTokenForfeitsTimeBonus — 토큰을 쓴 보스전은 그 시간 보너스가 0.
- *   §11.4  컨티뉴는 퍼펙트와 **모든** 스테이지 무피격을 소급 무효로 만든다.
+ *   ★ v1.5 — 경제·소비아이템 폐지: 코인 환산·실드 무피격 유지·시간토큰·컨티뉴 소급무효 전부 제거.
+ *          퍼펙트 = 승리 + 전 스테이지 무피격 (원데스라 컨티뉴 항이 없다).
  *   §9.1   순수성 — window/Date/Math.random 0. import 0 (world 만 만진다).
  *
  * ★ 값은 전부 meta.score 에 산다. 이 파일에 점수 수치가 없다.
@@ -26,7 +25,6 @@ export function makeScore(data) {
     time: 0,           // 시간 보너스(보스전 잔여 초 × timeBonusPerGameSec)
     runClear: 0,       // 최종 클리어 보너스
     noHit,             // 스테이지별 무피격 유지 여부
-    continues: 0,      // 사용한 컨티뉴 수(퍼펙트·무피격을 소급 무효)
   };
 }
 
@@ -51,22 +49,22 @@ export function addKill(world, e) {
 }
 
 /**
- * §11.3 — 피격. 실드가 막았으면(absorbed) 무피격을 유지한다(shieldPreservesNoHit).
+ * §11.3 — 피격 = 그 스테이지 무피격 깨짐 (v1.5: 실드 폐지 = 모든 피격이 진짜다).
  *   런이 아직 없으면(테스트 월드) 아무것도 하지 않는다.
  */
-export function noteHit(world, absorbed) {
-  if (absorbed || world.run === undefined) return;
+export function noteHit(world) {
+  if (world.run === undefined) return;
   const i = world.run.stageIndex;
   if (i >= 0 && i < world.score.noHit.length) world.score.noHit[i] = false;
 }
 
 /**
- * §11.3 — 보스 격파. 잔여 타이머가 시간 보너스가 되며, 그 보스전에 시간 토큰을 썼으면 0 이다.
+ * §11.3 — 보스 격파. 잔여 타이머가 시간 보너스가 된다 (v1.5: 시간토큰 폐지 = 항상 잔여 반영).
  */
-export function addBossClear(world, timerLeftSec, tokenUsed) {
+export function addBossClear(world, timerLeftSec) {
   const s = world.data.meta.score;
   world.score.bossClear += s.bossClearBonus;
-  if (!tokenUsed && timerLeftSec > 0) world.score.time += timerLeftSec * s.timeBonusPerGameSec;
+  if (timerLeftSec > 0) world.score.time += timerLeftSec * s.timeBonusPerGameSec;
 }
 
 /** §11.3 — 중간보스 격파 보너스. */
@@ -77,12 +75,6 @@ export function addMidBossClear(world) {
 /** §6.5 — 최종 스테이지 격파 = 런 클리어 보너스. */
 export function addRunClear(world) {
   world.score.runClear += world.data.meta.score.runClearBonus;
-}
-
-/** §11.4 — 컨티뉴: 퍼펙트 + **모든** 스테이지 무피격을 소급 무효로 만든다. */
-export function noteContinue(world) {
-  world.score.continues += 1;
-  for (let i = 0; i < world.score.noHit.length; i += 1) world.score.noHit[i] = false;
 }
 
 /**
@@ -101,16 +93,13 @@ export function tally(world) {
   let noHitCount = 0;
   for (let i = 0; i < cleared; i += 1) if (sc.noHit[i]) noHitCount += 1;
   const noHitBonus = noHitCount * s.stageNoHitBonus;
-  // 퍼펙트 = **승리** + 무컨티뉴 + 전 스테이지 무피격 (미승리 런은 퍼펙트가 될 수 없다)
+  // 퍼펙트 = **승리** + 전 스테이지 무피격 (미승리 런은 퍼펙트가 될 수 없다). v1.5: 컨티뉴 폐지 = 원데스.
   const perfect = (world.run !== undefined && world.run.won)
-    && sc.continues === 0 && noHitCount === sc.noHit.length;
+    && noHitCount === sc.noHit.length;
   const perfectBonus = perfect ? s.perfectBonus : 0;
-  // §11.3-6항 — floor 는 **마지막에 한 번뿐**. 코인을 여기서 미리 floor 하면 그 규약이 깨진다(정수 코인엔
-  //   무해하나 규약을 지킨다). 최종 floor(raw × scoreMul)가 전체를 정수로 만든다.
-  const coinBonus = world.player.coins * s.coinToScore;
-
+  // §11.3-6항 — floor 는 **마지막에 한 번뿐**. 최종 floor(raw × scoreMul)가 전체를 정수로 만든다.
   const raw = sc.kills + sc.bossClear + sc.midBossClear + sc.time
-    + sc.runClear + noHitBonus + perfectBonus + coinBonus;
+    + sc.runClear + noHitBonus + perfectBonus;
 
   const diff = world.data.meta.difficulty[world.difficultyId];
   if (diff === undefined) throw new Error(`score: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
@@ -125,7 +114,6 @@ export function tally(world) {
     noHitBonus,
     perfect,
     perfectBonus,
-    coinBonus,
     scoreMul: diff.scoreMul,
     total: Math.floor(raw * diff.scoreMul),      // ★ floor 는 여기 한 번뿐
   };

@@ -195,7 +195,6 @@
       "summon": null,
       "parts": [],
       "xp": 50,
-      "coin": 5,
       "healDropChance": 0.35,
       "score": 800
     },
@@ -215,7 +214,6 @@
       "summon": null,
       "parts": [],
       "xp": 50,
-      "coin": 5,
       "healDropChance": 0.35,
       "score": 700
     },
@@ -235,7 +233,6 @@
       "summon": { "archetypeId": "drifter", "count": 3, "everySec": 6.0, "formationId": "scatter" },
       "parts": [],
       "xp": 50,
-      "coin": 5,
       "healDropChance": 0.35,
       "score": 900
     }

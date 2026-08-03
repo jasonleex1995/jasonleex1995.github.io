@@ -7,7 +7,7 @@
  *   §6.3   페이즈 길이(전부 stages.phase / rules.boss 의 게임초). mobPhaseSec 120 · crisisStartSec 95
  *          · introSec 3 · bossTimerSec 180.
  *   §6.5   전역 상태 기계의 **전투/진행 절반** — MOB→BOSS_INTRO→BOSS→STAGE_CLEAR→(다음/승리).
- *          ★ 메뉴·전환 화면(TITLE/DIFFICULTY/THEME_BANNER/HEAL/SHOP/RESULTS)과 DRAFT/SHOP 결정,
+ *          ★ 메뉴·전환 화면(TITLE/DIFFICULTY/THEME_BANNER/HEAL/RESULTS)과 DRAFT 결정,   (v1.5: SHOP 폐지)
  *            그리고 **STAGE_CLEAR→advanceStage** 는 **드라이버(main.js 사람 UI / sim 봇)의 몫**이다.
  *            이 파일은 게임클럭이 흐르는 전투 페이즈만 tickRun 으로 진행한다. 즉 헤드리스 루프는
  *            `while(!over){ if(결정 대기) 드라이버가 해소; else step(); }` 이며 — main.js 와 sim 이
@@ -23,13 +23,13 @@
  */
 
 import { midBoss, clearMidBoss } from './midboss.js';
-import { addBossClear, addRunClear, noteContinue } from './score.js';
+import { addBossClear, addRunClear } from './score.js';
 
 export const PHASE = {
   MOB: 'MOB',                 // 잡몹 페이즈 (내부 마지막 25초 = 위기 서브구간)
   BOSS_INTRO: 'BOSS_INTRO',   // 보스 등장 연출 (무적·무발사·타이머 정지)
   BOSS: 'BOSS',               // 보스전 (180s 타이머)
-  STAGE_CLEAR: 'STAGE_CLEAR', // 보스 격파 — 드라이버가 드래프트/회복/상점 후 advanceStage 호출
+  STAGE_CLEAR: 'STAGE_CLEAR', // 보스 격파 — 드라이버가 드래프트/회복 후 advanceStage 호출 (v1.5: 상점 폐지)
 };
 
 /**
@@ -86,7 +86,6 @@ export function initRun(world) {
     bossMoveSpeedMul: 1,            // §8.12(v1.5) mobility 파괴 = 폭주(×1.5, 정지 아님)
     bossMoveAmpMul: 1,              //   스웨이 유지(격렬하게 움직인다)
     bossFireRateMul: 1,             // §8.12(v1.5) 부위 파괴마다 상승 = 보스 격화(발사 빨라짐)
-    bossTokenUsed: false,           // §11.3 timeTokenForfeitsTimeBonus — 이 보스전에 토큰을 썼는가
     cleared: false,                 // 보스 코어 격파 신호(killEnemy 가 세팅 → tickRun 이 소화)
     won: false,                     // finale 격파 = 런 클리어(승리)
     deathCause: null,               // null | 'hp' | 'timeout'
@@ -153,7 +152,7 @@ export function tickRun(world, dt) {
     if (run.cleared) {
       run.cleared = false;
       // §11.3 — 보스 격파 보너스 + 잔여 타이머의 시간 보너스(토큰을 쓴 보스전은 0)
-      addBossClear(world, run.bossTimer, run.bossTokenUsed);
+      addBossClear(world, run.bossTimer);
       if (isFinale(world)) { addRunClear(world); run.won = true; world.over = true; return; }
       run.phase = PHASE.STAGE_CLEAR;
       run.phaseT = 0;
@@ -192,7 +191,7 @@ export function applyStageClearHeal(world) {
 }
 
 /**
- * §6.5 — 다음 스테이지로. 드라이버가 STAGE_CLEAR 에서 드래프트 소화·회복·(1~5차)상점 뒤 부른다.
+ * §6.5 — 다음 스테이지로. 드라이버가 STAGE_CLEAR 에서 드래프트 소화·회복 뒤 부른다 (v1.5: 상점 폐지).
  *   런 포지션을 올리고 MOB 페이즈로 리셋한다. (스폰 상태 리셋·필드 클리어는 배선에서.)
  */
 export function advanceStage(world) {
@@ -210,45 +209,5 @@ export function advanceStage(world) {
   return run;
 }
 
-/**
- * §11.4 — 컨티뉴가 가능한가. 런당 continueMaxPerRun(1) 회 · continueCost(150) 코인.
- *   승리로 끝난 런에는 제공되지 않는다(사망 두 사인 모두에 제공).
- */
-export function canContinue(world) {
-  const f = world.data.meta.flow;
-  if (world.run === undefined || world.run.won) return false;
-  return world.score.continues < f.continueMaxPerRun && world.player.coins >= f.continueCost;
-}
-
-/**
- * §11.4 — 컨티뉴 부활. 대가는 **두 겹**이다: 코인 150 + 퍼펙트·전 스테이지 무피격의 **소급 무효**.
- *   HP 만재 · 적 탄만 소거(적은 남는다) · 하단 중앙 · 무적 3초 · 보스 HP 는 보존하고
- *   보스 타이머만 max(잔여, continueTimerRestoreSec) 로 되살린다.
- */
-export function reviveContinue(world) {
-  if (!canContinue(world)) return false;
-  const f = world.data.meta.flow;
-  const p = world.player;
-  const run = world.run;
-
-  p.coins -= f.continueCost;
-  noteContinue(world);                               // 퍼펙트 + 모든 무피격 소급 무효
-
-  if (f.continueHealToFull) p.hp = p.hpMax;
-  const eb = world.enemyBullets.items;               // 적 탄만 지운다 — 적은 그대로 남는다
-  for (let i = 0; i < eb.length; i += 1) if (eb[i].alive) world.enemyBullets.release(eb[i]);
-
-  p.x = (world.bounds.minX + world.bounds.maxX) / 2; // 하단 중앙 (§2.6 런 시작과 같은 자리)
-  p.y = world.bounds.maxY;
-  p.vx = 0; p.vy = 0;
-  p.iframeSec = f.continueIframeSec;
-  p.slowSec = 0; p.stunSec = 0;
-
-  if (run.phase === PHASE.BOSS && run.bossTimer < f.continueTimerRestoreSec) {
-    run.bossTimer = f.continueTimerRestoreSec;       // 보스 HP 는 건드리지 않는다
-    run.timedOut = false;
-  }
-  run.deathCause = null;
-  world.over = false;
-  return true;
-}
+// ★ v1.5 — 컨티뉴/부활(canContinue·reviveContinue)은 폐지됐다: 경제 제거 + 원데스=게임오버.
+//   사망 = 즉시 RESULTS (main.js). 코인 비용도, 소급 무효도 없다.
