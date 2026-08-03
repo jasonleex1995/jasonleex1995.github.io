@@ -313,7 +313,7 @@
     {
       "id": "antStraight",
       "type": "straight",
-      "bulletId": "pelletS",
+      "bulletId": "accelDart",
       "from": "self",
       "telegraphSec": 0.55,
       "everySec": 5.0,
@@ -322,12 +322,12 @@
       "restSec": 0,
       "count": 1,
       "spreadDeg": 0,
-      "speed": 150
+      "speed": 90
     },
     {
       "id": "dartStraight",
       "type": "straight",
-      "bulletId": "pelletS",
+      "bulletId": "driftHoming",
       "from": "self",
       "telegraphSec": 0.55,
       "everySec": 5.5,
@@ -336,12 +336,12 @@
       "restSec": 0,
       "count": 2,
       "spreadDeg": 24,
-      "speed": 140
+      "speed": 110
     },
     {
       "id": "lancerStraight",
       "type": "straight",
-      "bulletId": "pelletS",
+      "bulletId": "weaveBolt",
       "from": "self",
       "telegraphSec": 0.60,
       "everySec": 6.0,

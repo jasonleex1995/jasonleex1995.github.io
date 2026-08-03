@@ -137,6 +137,8 @@ function makeEnemyBullet() {
     // §4.1 — 적 탄에 element 가 없다. 스키마가 이미 그것을 강제한다 (§9.7)
     status: null, statusDurationSec: 0,
     accel: 0, turnRateDegSec: 0, retargetSec: 0, retargetT: 0,
+    // §9.7(v1.5) 파동탄 — 진행 방향 수직으로 사인 진동(경로가 물결친다). waveAmp=0 이면 직진.
+    waveAmp: 0, waveHz: 0,
     slowMul: 1,   // §9.5(v1.5) 펄스필드 슬로우/정지 — 이동 배율(펄스필드가 매 틱 세팅, moveBullets 가 적용 후 1로 리셋)
     age: 0,
   };
@@ -770,6 +772,8 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   b.turnRateDegSec = def.turnRateDegSec;
   b.retargetSec = def.retargetSec;
   b.retargetT = 0;
+  b.waveAmp = def.waveAmp;
+  b.waveHz = def.waveHz;
   b.slowMul = 1;
   b.age = 0;
   return b;

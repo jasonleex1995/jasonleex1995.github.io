@@ -251,6 +251,17 @@ function moveBullets(world, dt) {
         }
       }
     }
+    // §9.7(v1.5) 파동탄 — 진행 방향 수직으로 사인 진동. 수직속도 = waveAmp·ω·cos(ω·age), ω=2π·waveHz.
+    //   vx/vy(전진)는 그대로 두고 위치에만 수직 성분을 더한다 → 경로가 물결친다. slowMul 도 함께 적용.
+    if (b.waveAmp !== 0) {
+      const sp3 = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      if (sp3 > 0) {
+        const w = Math.PI * 2 * b.waveHz;
+        const pv = b.waveAmp * w * Math.cos(w * b.age) * b.slowMul;
+        b.x += (-b.vy / sp3) * pv * dt;
+        b.y += (b.vx / sp3) * pv * dt;
+      }
+    }
     // §9.5(v1.5) 펄스필드 슬로우/정지 — slowMul(펄스필드가 이번 틱 세팅)로 이동을 줄인다. 적용 후 1로 리셋
     //   → 필드를 벗어나면 다음 틱부터 원속도(«범위 안에서만 느려진다»). 정지(0)면 이 틱 이동 0.
     b.x += b.vx * b.slowMul * dt;

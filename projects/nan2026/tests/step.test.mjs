@@ -614,3 +614,28 @@ suite('step · applyHit 격리 게이트 (§2.4)', () => {
     assert.eq(w.player.iframeSec, rp.iframeSec, 'i-frame 발동');
   });
 });
+
+// ── 탄 거동 v1.5 (가속 · 파동) ──────────────────────────────────────────────
+suite('step · 탄 거동 v1.5 (가속·파동, §9.7)', () => {
+  test('가속탄 — accel≠0 이면 속도가 accel×t 만큼 증가', () => {
+    const w = mk(); silence(w);
+    const b = spawnEnemyBullet(w, 'accelDart', 400, 100, 0, 90);   // 아래로 90px/s
+    const sp0 = Math.hypot(b.vx, b.vy);
+    for (let t = 0; t < 60; t += 1) step(w, makeInput(), TICK_DT);  // 1s
+    const sp1 = Math.hypot(b.vx, b.vy);
+    assert.gt(sp1, sp0, '1s 후 속도 증가');
+    assert.near(sp1, sp0 + bulletDef(w, 'accelDart').accel, 1.5, 'Δ속도 = accel × 1s');
+  });
+
+  test('파동탄 — waveAmp≠0 이면 경로가 진행방향 수직으로 물결친다', () => {
+    const w = mk(); silence(w);
+    const b = spawnEnemyBullet(w, 'weaveBolt', 400, 30, 0, 120);   // 아래로 → 수직 진동축 = x
+    const xs = [];
+    for (let t = 0; t < 50; t += 1) { step(w, makeInput(), TICK_DT); xs.push(b.x); }
+    assert.gt(Math.max(...xs) - Math.min(...xs), 20, 'x 가 좌우로 흔들린다 (물결)');
+    // 대조: 직진탄(pelletS)은 x 불변
+    const s = spawnEnemyBullet(w, 'pelletS', 150, 30, 0, 120);
+    for (let t = 0; t < 50; t += 1) step(w, makeInput(), TICK_DT);
+    assert.near(s.x, 150, 1e-6, '직진탄은 x 불변 (물결 아님)');
+  });
+});

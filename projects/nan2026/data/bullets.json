@@ -11,7 +11,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "fanShard",
@@ -23,7 +25,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "homingM",
@@ -35,7 +39,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 36,
-      "retargetSec": 0.5
+      "retargetSec": 0.5,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "driftHoming",
@@ -47,7 +53,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 20,
-      "retargetSec": 0.6
+      "retargetSec": 0.6,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "hexBolt",
@@ -59,7 +67,9 @@
       "statusDurationSec": 2.5,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "frostBrick",
@@ -68,10 +78,12 @@
       "dmg": 6,
       "shape": "hex",
       "status": "slow",
-      "statusDurationSec": 2.0,
+      "statusDurationSec": 2,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "thornBrick",
@@ -83,7 +95,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "heavyRound",
@@ -95,7 +109,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "beamCore",
@@ -107,7 +123,9 @@
       "statusDurationSec": 0,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
     },
     {
       "id": "stunMark",
@@ -116,10 +134,40 @@
       "dmg": 6,
       "shape": "hex",
       "status": "stun",
-      "statusDurationSec": 1.0,
+      "statusDurationSec": 1,
       "accel": 0,
       "turnRateDegSec": 0,
-      "retargetSec": 0
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
+    },
+    {
+      "id": "accelDart",
+      "radius": 5,
+      "hitboxScale": 0.8,
+      "dmg": 8,
+      "shape": "circle",
+      "status": null,
+      "statusDurationSec": 0,
+      "accel": 40,
+      "turnRateDegSec": 0,
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0
+    },
+    {
+      "id": "weaveBolt",
+      "radius": 6,
+      "hitboxScale": 0.8,
+      "dmg": 8,
+      "shape": "circle",
+      "status": null,
+      "statusDurationSec": 0,
+      "accel": 0,
+      "turnRateDegSec": 0,
+      "retargetSec": 0,
+      "waveAmp": 34,
+      "waveHz": 1.3
     }
   ]
 }

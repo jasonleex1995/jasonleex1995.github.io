@@ -913,7 +913,8 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - **B. 레벨업 회복 신설** (`rules.player.levelUpHeal`=2): 상점·물약 폐지 + 원데스라 스테이지 내 지속 수단이 없어 — 레벨업마다 flat +2 HP(hpMax 상한). 보스 회복은 기존 stageClearHealPct(25%)가 담당(사용자의 「보스 잡으면 회복」 아이디어 = 이미 존재).
 - **C. XP ~10% 하향** (`xpScale` [4.6..18]→[4.1..16.2]): 무기 10종에 맞춰 과성장 억제(사용자 지시).
 - 검증: check0 · **372테스트**(omni/mine 스위트 −13) · 로더0 · 레벨업 회복 유닛 확인(hp50→52) · 무적16런 crash0.
-- **다음(사용자 요청, 설계 제안 필요)**: D. 잡몹 공격 다양화 · E. 보스 시그니처 패턴 → 구체안 제안.
+- **D 완성 (잡몹 공격 다양화)**: 가속탄(accel 필드 활용, columnAnt) · 유도 확대(rearDart→driftHoming) · **파동탄 신규**(bullets waveAmp/waveHz + moveBullets 사인진동, swarmLancer→weaveBolt). 신규 탄 accelDart·weaveBolt. check0·374테스트(가속/파동 2건 신설)·파동 궤적/가속 속도 유닛확인·무적16런 crash0.
+- **다음: E** — 소사 레이저(신규 이미터) + 보스별 페이즈3 시그니처.
 
 ---
 
