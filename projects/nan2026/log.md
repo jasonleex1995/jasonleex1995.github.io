@@ -928,6 +928,23 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - 검증: **check0 · 373테스트 · 인증시뮬 100런 crash0**(수용-red: 봇 약함 설계) · 로더0. 순효과 회복↓·후반 엘리트化·소사/유령 신설·간격 단축.
 - **남음(Unit 3)**: 보스별 **페이즈3 «발악» 시그니처**(코어 HP<30% patternSet[2], 일부 sweep 활용) — §8.9.1 이미터 명명법·129슬롯·telegraph 1.50·S36/S37. 최대 저작 작업.
 
+### 2026-08-03 — Unit 3 완성: 보스 페이즈 3 «발악» 시그니처 (단순 증량 → 타입 전환)
+
+진단: 전 보스 P3가 P1·P2의 **단순 증량**이었다(같은 이미터 타입, count+2, 케이던스 6→4.5→3.6). ext 팔 21개는 전 보스가 **동일한** aimed 펠릿. = 사용자가 지적한 「단조로움」. §8.9.1 이름법이 129슬롯 id를 고정(`{bossId}{PartIdPascal}P{phase}`)하므로 **저작할 것은 「내용」뿐** — id·거처·개수·S36/S37 불변인 채로 각 부위의 P3 이미터 **몸체만 교체**.
+
+- **재저작 21개** (시그니처 부위 22개 중 `kiln.vent`는 이미 ring→mortar→zone 발악이라 유지):
+  - **manta «쌍가위빔»**: finL/finR fan·aimed → **쌍 `sweep`**(40°↔140° 교차, offsetSec 엇갈림) · thruster → 가속탄 분사.
+  - **frostCrown «화이트아웃»**: crownL 직선→**`ring`** 눈보라(frostBrick 슬로우 22발) · crownR **`spiral`** 밀도↑ · pylon 스턴벽 유지.
+  - **kiln «용광로 폭주»**: turret laser→**`sweep`** 소사포 · plate ring→**`mortar`** 용암비(3연) · vent 용암 `zone` 유지.
+  - **scarab «태양 폭발»**: carapace fan→**`ring`** 방사 태양폭발(24발) · stinger aimed→**`sweep`** 꼬리창 · legs 가속탄.
+  - **thornKing «가시 창궐»**: podL ring→**`spiral`** 가시폭풍 · podR 직선→**`fan`** 광각분사 · bloom 벽 간극 축소.
+  - **mire «늪 융기»**: shell fan→**`zone`** 독늪 · tendril 직선→**`aimed`** 슬로우 넝쿨(hexBolt) · sac 스턴 `spiral` 유지.
+  - **tetrarch «사방 진혼»(최종)**: coffinWater→**`sweep`** 조수빔 · coffinFire→**`mortar`** 용암비 · coffinGrass 벽→**`spiral`** · throne aimed→**`ring`** 옥좌 폭발 = **사원소 동시 발악**.
+- **`sweep` 4보스 배치**(manta·kiln·scarab·tetrarch) — E 이미터의 첫 보스 활용.
+- **게이트 준수**: telegraph ≥1.50(보스부위)·스턴탄 ≥1.5 · S30 악절(repeat≥2·restSec>0) · 속도 ≤캡(aimed 200·슬로우 156) · S7 자기중첩 ≤2(tel≤everySec) · 스턴 ≤2부위/보스 유지. **어휘·규칙·개수 0 변경** — §9.8.1 위임 범위 안의 순수 내용 저작.
+- **검증**: check0 · **373테스트** · loader0 · **7보스를 강제 P3로 헤드리스 실행(각 25s) → crash0** (sweep 회전빔·zone·mortar 실증, 전 부위 발사 확인) · 인증시뮬 100런 crash0. 부수: §8.5 표가 v1.5에서 `sweep` 행·「9→10종」을 누락했던 CANON 내부 불일치도 정정.
+- ★ **사용자의 대형 배치 요청("지금 다 천천히 계획한걸 다 반영해줘!") 전량 반영 완료** — 회복 재설계·E 소사레이저·유령몹·전면 엘리트·긴박·보스 P3 발악. 다음 = 사용자 최종 플레이테스트.
+
 ---
 
 ## 다음 할 일
