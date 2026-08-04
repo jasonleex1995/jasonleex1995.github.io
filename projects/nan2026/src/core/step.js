@@ -587,6 +587,13 @@ function killBossEntity(world, e) {
       const c = en[i];
       if (c.alive && c.isBoss && c.isCore && c.aliveArmorPartCount > 0) { c.aliveArmorPartCount -= 1; break; }
     }
+    // §8.12(v1.5 B-3) — 모듈 격파 = «새 패턴». armor 를 부수면 남은 부위를 다음 페이즈 패턴으로
+    //   즉시 격상(발악 앞당김). ★ 페이즈는 오직 오른다(advancePhase 가 HP 임계와 max 합성) → 격파할수록
+    //   보스가 발악에 가까워진다 = 「모듈이 죽을수록 강해지는」 체감(속도만이 아니라 패턴).
+    for (let i = 0; i < en.length; i += 1) {
+      const c = en[i];
+      if (c.alive && c.isBoss && !c.isCore && c.phase < 2) { c.phase += 1; c.emitT = 0; c.emitPhase = 0; }
+    }
   } else if (e.partType === 'mobility' && world.run !== undefined) {
     world.run.bossMoveSpeedMul = bcfg.mobilityPenalty;    // §8.12(v1.5) 엔진 파괴 = 폭주(×1.5, 정지 아님)
     world.run.bossMoveAmpMul = 1;                          //   스웨이 유지(격렬하게 왕복)

@@ -173,7 +173,8 @@ function advancePhase(world, dt) {
       const en = world.enemies.items;
       for (let i = 0; i < en.length; i += 1) {
         const e = en[i];
-        if (e.alive && e.isBoss) { e.phase = run.bossPhase; e.emitT = 0; e.emitPhase = 0; }
+        // ★ B-3: 페이즈는 오직 오른다 — HP 임계 전환이 모듈 격파로 이미 올라간 페이즈를 낮추지 않게 max.
+        if (e.alive && e.isBoss) { if (run.bossPhase > e.phase) e.phase = run.bossPhase; e.emitT = 0; e.emitPhase = 0; }
       }
     }
     return;                                            // 전환 중엔 재판정 안 함
