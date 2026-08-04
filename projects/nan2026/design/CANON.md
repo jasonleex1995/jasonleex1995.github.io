@@ -532,10 +532,10 @@ v1.1은 이 두 값을 **`stance.switchCooldown` · `stance.persistAcrossStages`
 
 ### 5.5 일시정지 (PAUSE) · 옵션 (OPTIONS) · 메뉴
 
-| 키 | PAUSE | **TITLE** | OPTIONS / DIFFICULTY / RESULTS / DEATH |
+| 키 | PAUSE | **TITLE** | OPTIONS / DIFFICULTY / RESULTS |
 |---|---|---|---|
 | `↑ ↓ ← →` | (없음 — 조회 전용) | 커서 | 커서 / 값 조정 |
-| **`Space / Enter`** | — | 시작 | **확정** (RESULTS·DEATH: 같은 난이도 즉시 재시작) |
+| **`Space / Enter`** | — | 시작 | **확정** (RESULTS: 같은 난이도 즉시 재시작 · v1.5 DEATH 화면 폐지=원데스) |
 | `Escape` | 재개(1.5초 카운트다운) | — | 뒤로 |
 | **`O`** | **OPTIONS 진입** | ★ **OPTIONS 진입** | — |
 | **`M`** | — | — | **음소거 토글** (OPTIONS) |
