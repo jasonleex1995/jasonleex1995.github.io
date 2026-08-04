@@ -484,7 +484,7 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
   ctx.fillRect(0, 0, v.logicalW, v.logicalH);
 
   text(ctx, world, pal, 'LEVEL UP', v.logicalW / 2, 92, h.fontHeroPx, pal.hud.textPrimary, 'center', 800);
-  text(ctx, world, pal, `Lv.${world.player.level}  ·  1 / 2 / 3 선택   ←→ 커서   Enter 확정`,
+  text(ctx, world, pal, `Lv.${world.player.level}  ·  1 / 2 / 3 선택   ←→ 커서   Space/Enter 확정`,
     v.logicalW / 2, 132, h.fontBodyPx, pal.hud.textDim, 'center');
   if (world.draftQueue > 1) {
     text(ctx, world, pal, `대기 중인 레벨업 ×${world.draftQueue - 1}`, v.logicalW / 2, 156,
@@ -672,7 +672,9 @@ export function drawResults(ctx, world, pal, t, seedText) {
   text(ctx, world, pal, '총점', a.x + 40, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   text(ctx, world, pal, `${t.total}`, a.x + a.w - 40, y, h.fontHeroPx, pal.hud.accent, 'right', 700);
 
-  text(ctx, world, pal, seedText, a.x + a.w / 2, a.y + a.h - 40, h.fontSmallPx, pal.hud.textDim, 'center', 400);
+  text(ctx, world, pal, seedText, a.x + a.w / 2, a.y + a.h - 56, h.fontSmallPx, pal.hud.textDim, 'center', 400);
+  text(ctx, world, pal, '[Space/Enter] 재시작   ·   [Esc] 타이틀', a.x + a.w / 2, a.y + a.h - 28,
+    h.fontSmallPx, pal.hud.textDim, 'center', 400);
 }
 
 // ★ v1.5 — 사망 화면(drawDeath)/컨티뉴는 폐지됐다: 경제 제거 + 원데스=게임오버.

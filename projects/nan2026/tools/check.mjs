@@ -557,7 +557,7 @@ function S2_schema() {
   if (isObj(r.input)) {
     closedKeys('S2', r.input.bindings, ['move', 'stanceNormal', 'stanceFire', 'stanceWater', 'stanceGrass',
       'pause', 'options', 'draftPick', 'reorderToggle', 'grab',
-      'confirm', 'cursor'], 'rules.input.bindings');
+      'confirm', 'mute', 'cursor'], 'rules.input.bindings');
   }
 
   closedKeys('S2', r.palette, ['element', 'elementCvd', 'threat', 'status', 'pickup', 'enemyBody',

@@ -236,7 +236,7 @@ function checkRules(c, r) {
   if (isObj(r.input)) {
     c.closed('rules.input.bindings', r.input.bindings, ['move', 'stanceNormal', 'stanceFire',
       'stanceWater', 'stanceGrass', 'pause', 'options', 'draftPick',
-      'reorderToggle', 'grab', 'confirm', 'cursor']);
+      'reorderToggle', 'grab', 'confirm', 'mute', 'cursor']);
   }
 
   c.closed('rules.palette', r.palette, ['element', 'elementCvd', 'threat', 'status', 'pickup',

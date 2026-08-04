@@ -198,6 +198,7 @@
       "reorderToggle": "Tab",
       "grab": "Space",
       "confirm": "Enter",
+      "mute": "KeyM",
       "cursor": ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]
     }
   },

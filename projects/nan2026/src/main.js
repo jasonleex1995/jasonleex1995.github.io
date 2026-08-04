@@ -8,7 +8,7 @@
  *   §1.1   s = min(vw/1280, vh/720) · CSS 중앙 정렬 레터박스 · 백킹스토어 1280·min(dpr,2)
  *          · 뷰포트 < minViewportW/H → 플레이 차단 + 안내 (입력 무시)
  *   §5.1   키맵 — 이동 = 방향키 / Q W E R = 스탠스. `event.code` (물리 키 위치)
- *   §5.2   드래프트 — Digit1~3 즉시 선택 · ←→ 커서 · Enter 확정 · F 리롤 · Escape 무시
+ *   §5.2   드래프트 — Digit1~3 즉시 선택 · ←→ 커서 · Space/Enter 확정 · Escape 무시 (§5.5 키 통일)
  *   §5.5   flow.edgeTriggerOnStateEnter — 상태 진입 프레임에 이미 눌려 있던 키는 무시
  *   §5.7   매 고정 틱마다 키 상태를 **폴링**한다 (이벤트 큐 아님) · 게임 키 전부 preventDefault
  *          · blur → 자동 일시정지 + acc = 0 (input.pauseOnBlur)
@@ -519,7 +519,7 @@ async function boot() {
     if (edge.pressed(b.cursor[0])) cursor = (cursor + draft.cards.length - 1) % draft.cards.length;
     if (edge.pressed(b.cursor[1])) cursor = (cursor + 1) % draft.cards.length;
     if (confirmE) { pick(cursor); return; }             // ★ 상단에서 소비한 Enter 를 넘겨받는다
-    // §5.2 — Escape 는 무시한다 (드래프트는 스킵 불가, 리롤 폐지). Q W E R · Space 도 죽은 키다
+    // §5.2 — Escape 는 무시한다 (드래프트는 스킵 불가, 리롤 폐지). Q W E R 는 죽은 키(Space/Enter 는 확정으로 통일)
   }
 
   function pick(i) {
@@ -545,18 +545,21 @@ async function boot() {
     const elapsed = now - last;
     last = now;
 
-    // ★ 엣지는 매 프레임 소비해 prev 를 갱신한다(상태가 어긋나지 않게). Space=시작/스킵, Enter=확정,
-    //   Escape=일시정지/뒤로, O=옵션.
+    // ★ 엣지는 매 프레임 소비해 prev 를 갱신한다(상태가 어긋나지 않게). ★v1.5 키 통일:
+    //   «Space 또는 Enter» = 확정/시작/스킵/재시작/선택(전 화면 동일) · Escape = 일시정지/뒤로 ·
+    //   O = 옵션 · M = 음소거. (이전엔 화면마다 Space/Enter 가 갈렸다 — 플레이 피드백 반영.)
     const pauseEdge = edge.pressed(rules.input.bindings.pause);
     const startEdge = edge.pressed(rules.input.bindings.grab);       // Space
     const confirmEdge = edge.pressed(rules.input.bindings.confirm);  // Enter
+    const muteEdge = edge.pressed(rules.input.bindings.mute);        // M
     const optionsEdge = edge.pressed(rules.input.bindings.options);  // O
     const upEdge = edge.pressed(rules.input.bindings.cursor[2]);
     const downEdge = edge.pressed(rules.input.bindings.cursor[3]);
+    const advanceEdge = startEdge || confirmEdge;                    // ★ 통일된 «확정/진행» = Space ∨ Enter
 
     // ── §6.5 메뉴(런 없음) ─────────────────────────────────────────
     if (state === 'TITLE') {
-      if (startEdge) enter('DIFFICULTY');
+      if (advanceEdge) enter('DIFFICULTY');
       else if (optionsEdge) { optionsFrom = 'TITLE'; enter('OPTIONS'); }
       renderFrame();
       return;
@@ -564,26 +567,26 @@ async function boot() {
     if (state === 'DIFFICULTY') {
       if (upEdge) diffCursor = (diffCursor + DIFFS.length - 1) % DIFFS.length;
       if (downEdge) diffCursor = (diffCursor + 1) % DIFFS.length;
-      if (confirmEdge) startRun(DIFFS[diffCursor]);   // → THEME_BANNER
+      if (advanceEdge) startRun(DIFFS[diffCursor]);   // → THEME_BANNER
       else if (pauseEdge) enter('TITLE');
       renderFrame();
       return;
     }
     if (state === 'OPTIONS') {
       if (audio !== null) {
-        if (startEdge) audio.toggleMuted();                    // Space = 뮤트 토글
+        if (muteEdge) audio.toggleMuted();                     // M = 뮤트 토글(통일)
         if (upEdge) audio.setVolume(audio.getVolume() + 0.1);
         if (downEdge) audio.setVolume(audio.getVolume() - 0.1);
       }
-      if (pauseEdge || optionsEdge) enter(optionsFrom);
+      if (pauseEdge || optionsEdge || advanceEdge) enter(optionsFrom);   // Esc·O·Space·Enter = 나가기
       renderFrame();
       return;
     }
 
-    // ── §6.5 THEME_BANNER — 실시간으로 카운트다운, Space 로 스킵 → PLAY ──
+    // ── §6.5 THEME_BANNER — 실시간 카운트다운, Space/Enter 로 스킵 → PLAY ──
     if (state === 'THEME_BANNER') {
       bannerT -= Math.min(elapsed, rules.loop.maxFrameGapMs);   // §10.1 프레임 갭 클램프(첫 프레임 폭주 방지)
-      if (startEdge || bannerT <= 0) { enter('PLAY'); last = now; acc = 0; }
+      if (advanceEdge || bannerT <= 0) { enter('PLAY'); last = now; acc = 0; }
       renderFrame();
       return;
     }
@@ -594,8 +597,8 @@ async function boot() {
     else if (pauseEdge && state === 'RESULTS') { enter('TITLE'); }
     // §5.5 — PAUSE 에서 O = OPTIONS
     else if (optionsEdge && state === 'PAUSE') { optionsFrom = 'PAUSE'; enter('OPTIONS'); }
-    // §6.5 — RESULTS 에서 Space = 같은 난이도 즉시 재시작
-    if (startEdge && state === 'RESULTS') { startRun(difficultyId); }
+    // §6.5 — RESULTS 에서 Space/Enter = 같은 난이도 즉시 재시작(통일)
+    if (advanceEdge && state === 'RESULTS') { startRun(difficultyId); }
 
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
@@ -624,7 +627,7 @@ async function boot() {
       if (acc >= tickDur) acc = 0;
     } else {
       acc = 0;
-      if (state === 'DRAFT') tickDraft(confirmEdge);
+      if (state === 'DRAFT') tickDraft(advanceEdge);
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
@@ -680,7 +683,7 @@ async function boot() {
     const h = rules.hud;
     mText('NAN 2026', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
-    mText('[Space] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
+    mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
     mText('QWER 스탠스 · 상성 ×2 · 6 스테이지 · 엔드리스 없음',
       view.logicalH / 2 + 84, h.fontSmallPx, pal.hud.textDim, 400);
   }
@@ -696,7 +699,7 @@ async function boot() {
       const label = `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
       mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
     }
-    mText('[↑↓] 선택   [Enter] 시작   [Esc] 뒤로',
+    mText('[↑↓] 선택   [Space/Enter] 시작   [Esc] 뒤로',
       view.logicalH / 2 + 120, h.fontSmallPx, pal.hud.textDim, 400);
   }
   function drawOptionsScreen() {
@@ -710,7 +713,7 @@ async function boot() {
       const vol = Math.round(audio.getVolume() * 100);
       mText(`효과음   ${muted ? '음소거' : `${vol}%`}`, view.logicalH / 2 - 12,
         h.fontBodyPx, muted ? pal.hud.textDim : pal.hud.textPrimary, 700);
-      mText('[Space] 음소거   [↑↓] 볼륨', view.logicalH / 2 + 28, h.fontSmallPx, pal.hud.textDim, 400);
+      mText('[M] 음소거   [↑↓] 볼륨', view.logicalH / 2 + 28, h.fontSmallPx, pal.hud.textDim, 400);
     }
     mText('[Esc] 뒤로', view.logicalH / 2 + 60, h.fontSmallPx, pal.hud.textDim, 400);
   }
