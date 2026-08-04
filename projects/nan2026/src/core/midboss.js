@@ -161,9 +161,9 @@ const _pos = { x: 0, y: 0 };   // 재사용(핫패스 0 alloc)
  *   ★ 편대의 **원점은 소환자**다(산란모함이 자기 자리에서 알을 뿌린다). 편대는 «모양»이고
  *     그 모양이 어디에 놓이는지는 누가 스폰시켰는지가 정한다 — 웨이브면 스폰 라인, 소환이면 모함.
  */
-function summon(world, e, def, dt) {
+export function summon(world, e, def, dt) {
   const sm = def.summon;
-  if (sm === null) return;
+  if (sm === null || sm === undefined) return;
   e.summonT += dt;
   if (e.summonT < sm.everySec) return;
   e.summonT -= sm.everySec;

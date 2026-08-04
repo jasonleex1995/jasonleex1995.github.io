@@ -109,7 +109,7 @@
       "movePattern": "sway",
       "movePatternParams": { "speedPxSec": 32, "ampPx": 150, "yHoldPx": 170 },
       "armorCoreRatio": 4.9,
-      "summon": null,
+      "summon": { "archetypeId": "drifter", "count": 3, "everySec": 5.0, "formationId": "scatter", "ghost": true },
       "core": { "element": "normal", "hp": 976, "radius": 40, "contactDmg": 16, "shapeId": "bulb", "score": 8000 },
       "parts": [
         { "id": "podL", "name": "좌 꼬투리", "partType": "armor", "element": "grass",
@@ -159,7 +159,7 @@
       "movePattern": "holdCenter",
       "movePatternParams": { "speedPxSec": 0, "ampPx": 60, "yHoldPx": 160 },
       "armorCoreRatio": 13.58,
-      "summon": null,
+      "summon": { "archetypeId": "drifter", "count": 4, "everySec": 4.5, "formationId": "scatter", "ghost": true },
       "core": { "element": "normal", "hp": 5700, "radius": 44, "contactDmg": 16, "shapeId": "orb", "score": 15000 },
       "parts": [
         { "id": "coffinWater", "name": "물의 관", "partType": "armor", "sealLayer": 1, "element": "water",

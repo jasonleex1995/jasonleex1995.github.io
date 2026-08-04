@@ -507,7 +507,7 @@ function S2_schema() {
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio',
-    'midBossSummonsAllowed', 'finale'], 'rules.boss');
+    'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale'], 'rules.boss');
   if (isObj(r.boss)) {
     // ★ v1.3: finale.armorCoreRatio 삭제 — 유일 소유자 = bosses[].armorCoreRatio (§23.3)
     closedKeys('S2', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules', 'allowNormalPeripheral'],
@@ -983,6 +983,9 @@ function refIntegrity() {
   need(emitIds, D.rules.boss && D.rules.boss.coreEmitterId, 'rules.boss.coreEmitterId');   // §9.8.1 v1.5
   for (const id of rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed)) {
     need(bossIds, id, 'rules.boss.midBossSummonsAllowed');
+  }
+  for (const id of rowsQuiet(D.rules.boss && D.rules.boss.bossSummonsAllowed)) {
+    need(bossIds, id, 'rules.boss.bossSummonsAllowed');
   }
   for (const t of rowsQuiet(D.stages.themeDraw && D.stages.themeDraw.pool)) {
     need(stageIds, t, 'stages.themeDraw.pool');
@@ -1935,14 +1938,15 @@ function S16_patternSetLen() {
 //  summon != null ⟺ (tier == "mid" 그리고 id ∈ boss.midBossSummonsAllowed)
 // ===========================================================================
 function S17_summon() {
-  const allowed = new Set(rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed));
+  const midAllowed = new Set(rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed));
+  const bossAllowed = new Set(rowsQuiet(D.rules.boss && D.rules.boss.bossSummonsAllowed));   // §8.9 v1.5 — 유령 방패
   for (const b of BOSSES()) {
     if (!isObj(b)) continue;
     const lhs = has(b, 'summon') && b.summon !== null && !isAmb(b.summon);
-    const rhs = b.tier === 'mid' && allowed.has(b.id);
+    const rhs = (b.tier === 'mid' && midAllowed.has(b.id)) || (b.tier !== 'mid' && bossAllowed.has(b.id));
     if (lhs !== rhs) {
-      V('S17', `bosses[${b.id}]: (summon != null)=${lhs} ≠ (tier=="mid" ∧ id ∈ midBossSummonsAllowed)=${rhs} `
-        + `— tier=${b.tier}, midBossSummonsAllowed=[${[...allowed].join(', ')}] (§8.9-R9/S17)`);
+      V('S17', `bosses[${b.id}]: (summon != null)=${lhs} ≠ (mid ∧ midBossSummonsAllowed) ∨ (stage ∧ bossSummonsAllowed)=${rhs} `
+        + `— tier=${b.tier}, mid=[${[...midAllowed].join(', ')}], boss=[${[...bossAllowed].join(', ')}] (§8.9-R9/S17 v1.5)`);
     }
   }
 }

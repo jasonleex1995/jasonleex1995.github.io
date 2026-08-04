@@ -118,6 +118,7 @@
     "armorCoreRatioBandPct": [0.85, 1.0],
     "optionalPartArmorRatio": 0.20,
     "midBossSummonsAllowed": ["mbNest"],
+    "bossSummonsAllowed": ["thornKing", "tetrarch"],
     "finale": {
       "partCount": 8,
       "armorPartCount": 3,

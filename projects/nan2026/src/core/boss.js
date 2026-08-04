@@ -19,6 +19,7 @@
 
 import { spawnBossCore, spawnBossPart } from './state.js';
 import { PHASE, stageEntry } from './stage.js';
+import { summon } from './midboss.js';   // §8.9(v1.5) — 스테이지 보스 유령 방패 소환(코어에서)
 
 /** bosses.json 에서 id 로 조회. */
 function findBoss(world, id) {
@@ -198,6 +199,15 @@ export function bossHook(world, dt) {
   if (!run.bossSpawned) { spawnBoss(world); run.bossSpawned = true; }
   advancePhase(world, dt);
   moveBoss(world);
+  // §8.9(v1.5) — 유령 방패: bossSummonsAllowed 스테이지·최종 보스는 코어에서 유령을 소환한다(경험치 0,
+  //   위쪽 사격을 흡수 = 엄폐). 발사·전환과 달리 «강림·전환 중»엔 멈춘다(숨돌릴 틈 유지).
+  if (run.phase === PHASE.BOSS && run.bossTransitionT <= 0) {
+    const core = findCore(world);
+    if (core !== null) {
+      const def = findBoss(world, core.bossId);
+      if (def !== undefined && def.summon !== undefined && def.summon !== null) summon(world, core, def, dt);
+    }
+  }
 }
 
 export default { bossHook };
