@@ -22,7 +22,7 @@
   "phase": {
     "mobPhaseSec": 120,
     "mobPhaseSkippable": false,
-    "mobPhaseMaxWaves": 14,
+    "mobPhaseMaxWaves": 24,
     "waveIntervalSec": 7.0,
     "waveClearAdvance": true,
     "mobPhaseExitFadeSec": 3.0,
@@ -52,7 +52,7 @@
       { "subWave": 6, "formationId": "vWedge",  "archetypeId": "swarmLancer", "count": 1, "spawnEdge": "top" }
     ],
     "midBossAtSec": [[30], [30, 35], [30, 35], [26, 31, 36], [24, 29, 34, 39], [20, 25, 30, 35, 40]],
-    "midBossLeaveAfterSec": 30,
+    "midBossLeaveAfterSec": 45,
     "midBossElementRule": "themeElseNonTheme",
     "midBossForcedLeaveOnCrisis": true,
     "bossTimerSec": 180,

@@ -577,6 +577,12 @@ function killBossEntity(world, e) {
     for (let i = 0; i < en.length; i += 1) if (en[i].alive && en[i].isBoss) world.enemies.release(en[i]);
     return;
   }
+  // §8.12(v1.5) — 모듈(부위) 격파 = XP 드랍. 각 부위를 잡을 때마다 score 비례 xp 를 떨군다(플레이 피드백).
+  //   ★ score 가 부위 중요도를 인코딩 + 스폰 부위 수가 포지션따라 늚(firingPartsPerStage 3→7) = 자연 스케일.
+  if (bcfg.partXpRatio > 0 && e.score > 0) {
+    const partXp = Math.round(e.score * bcfg.partXpRatio);
+    if (partXp > 0) spawnPickup(world, 'xp', partXp, e.x, e.y);
+  }
   // §8.12(v1.5) — 모듈 파괴 = «격화». 부위가 부서질수록 보스가 더 공격적으로(발사 빨라짐).
   //   ★ escalateFireRateMax 로 상한 — 부위 수(최대 7)가 늘어도 발사 밀도가 페어니스 상한(320)을 넘지 않게.
   if (world.run !== undefined) {

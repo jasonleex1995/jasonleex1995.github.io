@@ -194,7 +194,7 @@
       "patternSet": [ { "emitterIds": ["hammerFan", "hammerZone"] } ],
       "summon": null,
       "parts": [],
-      "xp": 50,
+      "xp": 70,
       "score": 800
     },
     {
@@ -212,7 +212,7 @@
       "patternSet": [ { "emitterIds": ["lancerLaser"] } ],
       "summon": null,
       "parts": [],
-      "xp": 50,
+      "xp": 70,
       "score": 700
     },
     {
@@ -230,7 +230,7 @@
       "patternSet": [ { "emitterIds": ["nestAimed"] } ],
       "summon": { "archetypeId": "drifter", "count": 8, "everySec": 3.0, "formationId": "scatter", "ghost": true },
       "parts": [],
-      "xp": 50,
+      "xp": 70,
       "score": 900
     }
   ]

@@ -106,6 +106,7 @@
     "timerExpire": "kill",
     "coreGateMul": 0.4,
     "mobilityPenalty": 1.5,
+    "partXpRatio": 0.012,
     "escalateFireRateMul": 1.55,
     "escalateFireRateMax": 2.60,
     "coreElement": "normal",
