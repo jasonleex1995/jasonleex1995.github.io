@@ -6,8 +6,14 @@
 
 ## 한 줄 소개
 
-**뱀서식 무기 아스널 × 물·불·풀·노말 속성 스탠스 × 194X식 비행 슈팅.**
-랜덤 테마 스테이지를 돌며 속성을 맞춰 갖춰 양학하는 오락실 로그라이트. 완전 오프라인·무API·바닐라 JS.
+**PRISM WING** — 속성 스탠스 슈팅 · 오락실 로그라이트
+
+> 포켓몬스터와 같이 상성을 고려한 속성 공격으로 적을 깨고,
+> 뱀파이어 서바이버즈와 같이 «선택»으로 무기를 성장시키며,
+> 로그라이크와 같이 스테이지마다 중간보스·보스가 랜덤인
+> **194X식 비행 슈팅 게임.**
+
+완전 오프라인·무API·바닐라 JS.
 
 - **목표**: [NAN 2026](https://nan2026.nhn.com/) (NHN Game × AI 해커톤) 사전과제 — *AI를 활용한 게임 제작*
 - **마감**: 2026-08-10
@@ -17,12 +23,12 @@
 
 | 단계 | 상태 |
 |---|---|
-| 기획 (CANON v1.4) | ✅ 완료 |
+| 기획 (CANON v1.5) | ✅ 완료 |
 | 데이터화 (`data/*.json` 9종) | ✅ 완료 — 빈칸 0 |
-| 정적 검증 (`tools/check.mjs`) | ✅ **통과** (`node tools/check.mjs` → exit 0) |
-| 게임 코드 (`src/`) | ⬜ 미착수 ← **다음** |
-| AI 콘텐츠 생성 + 시뮬 밸런싱 (`tools/sim.mjs`) | ⬜ 미착수 |
-| 제출물 (영상·PDF 2종) | ⬜ 미착수 |
+| 정적 검증 (`tools/check.mjs`) | ✅ **통과** (`node tools/check.mjs` → exit 0) · 테스트 373/373 |
+| 게임 코드 (`src/`) | ✅ 완료 — 브라우저 플레이 가능 |
+| AI 밸런싱 (`tools/sim.mjs` · 봇) | ✅ 완료 |
+| 제출물 | 🔄 진행 — 게임 소개·AI 활용 문서 ✅ / 영상·Pages 배포 남음 |
 
 ## 문서 지도 — 무엇을 어디서 보나
 
@@ -32,7 +38,7 @@
 | 실제 값 | [`data/*.json`](data/) — rules · elements · weapons · passives · bullets · enemies · bosses · stages · meta |
 | 이 설계가 옳은지 검사 | [`tools/check.mjs`](tools/check.mjs) — `node tools/check.mjs` |
 | 색·텔레그래프·HUD 배치 | [`design/02-readability-hud.md`](design/02-readability-hud.md) |
-| 무기 12종·패시브·상점 | [`design/03-weapons-passives-items.md`](design/03-weapons-passives-items.md) |
+| 무기 10종·패시브 | [`design/03-weapons-passives-items.md`](design/03-weapons-passives-items.md) |
 | 적·보스·스테이지 | [`design/04-enemies-bosses-stages.md`](design/04-enemies-bosses-stages.md) |
 | 화면 흐름·점수·온보딩 | [`design/05-flow-shop-score-onboarding.md`](design/05-flow-shop-score-onboarding.md) |
 | **왜 이렇게 정했나 (대화 기록)** | **[`log.md`](log.md)** — 공모전 'AI 활용 기술 문서'의 원천 |
@@ -53,9 +59,9 @@
 - 게임 커밋은 접두어 **`nan2026:`**, 가능한 한 `projects/nan2026/` 파일만 건드린다.
 - 심사자는 `git log --oneline -- projects/nan2026/`로 게임 개발 과정만 본다.
 
-## 다음 할 일
+## 남은 할 일 (제출)
 
-1. `src/` 착수 — 이때부터 `check.mjs`의 S1(core 순수성)·S11(RNG 스트림)이 살아난다.
-2. `tools/sim.mjs` — 헤드리스 시뮬. `check.mjs`의 **STUB 20건**(동적 게이트: 클리어율·보스 타임아웃·지배도·코인 희소성 등)이 여기서 채워진다.
-3. 제출물: 플레이 빌드(GitHub Pages) · YouTube 30~60초 · 게임 소개 PDF · **AI 활용 기술 문서 PDF**(`log.md` 기반).
-4. `data/projects.json`에 카드 등록 (플레이 가능해진 뒤).
+1. **플레이 영상** — YouTube 30~60초 실플레이 화면(직접 녹화).
+2. **Pages 배포 검증** — 커밋 push 후 `https://jasonleex1995.github.io/projects/nan2026/` 라이브 확인.
+3. **PDF 변환** — 게임 소개·AI 활용 문서(`submission/*.html`)를 브라우저 인쇄 → PDF(A4).
+4. `data/projects.json`에 카드 등록 (블로그 갤러리 게시, 선택).
