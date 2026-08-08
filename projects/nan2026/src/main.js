@@ -24,6 +24,7 @@
 import { validate, MANIFEST } from './core/schema.mjs';
 import { createWorld } from './core/state.js';
 import { step, makeInput, TICK_HZ } from './core/step.js';
+import { setBotPolicy, botInput, botDraftPick } from './core/bot.js';   // 셀프플레이 데모(?demo)
 import { buildDraft, applyCard, candidates } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
@@ -432,6 +433,14 @@ async function boot() {
   const kb = makeKeyboard(rules);
   const edge = makeEdge(kb);
   const input = makeInput();
+  // ── 셀프플레이 데모(어트랙트) — `?demo` 이면 봇이 자동 플레이(쇼케이스). 비침습: 기본 OFF ──
+  //   `?demo` / `?demo=1` = 랜덤 시드 루프 · `?demo=<8자리 hex>` = 고정 시드(같은 런 재현).
+  const _demoParam = new URLSearchParams(location.search).get('demo');
+  const DEMO = _demoParam !== null;
+  const DEMO_DEFAULT_SEED = 8;                // 시뮬로 고른 쇼케이스 런: 3스테이지 격파·무기 4종·Lv6 (결정적 재현)
+  const demoFixedSeed = !DEMO ? null
+    : (/^[0-9a-fA-F]{8}$/.test(_demoParam) ? (parseInt(_demoParam, 16) >>> 0) : DEMO_DEFAULT_SEED);
+  let demoHoldT = 0;                          // DRAFT/RESULTS 를 잠깐 보여주는 잔여(ms)
   // §7.10 — SFX. AudioContext 는 사용자 제스처 후에만 소리를 낸다 → 첫 키 입력에서 resume.
   const audio = makeAudio(rules);
   if (audio !== null) window.addEventListener('keydown', () => { audio.resume(); audio.bgmStart(); });
@@ -458,8 +467,10 @@ async function boot() {
     tickDur = 1000 / (TICK_HZ * data.meta.difficulty[diffId].speed);
     // §10.2 — 마스터 시드 = uint32. **비결정성이 들어오는 유일한 지점**. core 밖에서 만들어 주입.
     seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
+    if (DEMO && demoFixedSeed !== null) seed = demoFixedSeed;   // 데모: 고정 시드 = 같은 쇼케이스 런 재현
     world = createWorld({ data, seed, weapons, hooks: HOOKS });
     world.difficultyId = diffId;             // §11.3 점수 배율(tally)이 읽는다
+    if (DEMO) setBotPolicy(world, { farm: 'maxFarm', draft: 'generalist' });  // 무기 다양성 + 레벨업 최대화
     initRun(world);
     interp = makeInterp(world);
     fx = makeFx(world);
@@ -487,6 +498,8 @@ async function boot() {
   function enter(next) {
     state = next;
     if (data.meta.flow.edgeTriggerOnStateEnter) kb.maskHeld();
+    if (DEMO && next === 'DRAFT') demoHoldT = 1200;         // 카드 ~1.2s 보여주고 자동 픽
+    else if (DEMO && next === 'RESULTS') demoHoldT = 2500;  // 결과 ~2.5s 보여주고 루프
   }
 
   // §5.7 — blur → 자동 일시정지 + acc = 0. 세이브 없는 런이 알트탭으로 죽지 않는다
@@ -599,6 +612,7 @@ async function boot() {
     else if (optionsEdge && state === 'PAUSE') { optionsFrom = 'PAUSE'; enter('OPTIONS'); }
     // §6.5 — RESULTS 에서 Space/Enter = 같은 난이도 즉시 재시작(통일)
     if (advanceEdge && state === 'RESULTS') { startRun(difficultyId); }
+    if (DEMO && state === 'RESULTS') { demoHoldT -= elapsed; if (demoHoldT <= 0) startRun('normal'); }  // 데모 루프
 
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
@@ -606,7 +620,7 @@ async function boot() {
       let steps = 0;
       while (acc >= tickDur && steps < rules.loop.maxStepsPerFrame) {
         captureInterp(interp, world);         // §10.1 — 보간용 직전 위치. 렌더가 자기 것으로 들고 있는다
-        step(world, pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다
+        step(world, DEMO ? botInput(world, 1 / TICK_HZ) : pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다 (데모=봇 입력)
         updateFx(fx, world, 1 / TICK_HZ);
         playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
         playEventCues(audio, world, audioPrev); // §7.10 — 레벨업·피격·스탠스 SFX
@@ -627,7 +641,10 @@ async function boot() {
       if (acc >= tickDur) acc = 0;
     } else {
       acc = 0;
-      if (state === 'DRAFT') tickDraft(advanceEdge);
+      if (state === 'DRAFT') {
+        if (DEMO) { demoHoldT -= elapsed; if (demoHoldT <= 0) pick(botDraftPick(world, draft)); }  // 봇 자동 픽
+        else tickDraft(advanceEdge);
+      }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
       // PAUSE 재개는 위의 Escape 토글이 처리한다 (§5.7)
     }
@@ -681,7 +698,7 @@ async function boot() {
   }
   function drawTitleScreen() {
     const h = rules.hud;
-    mText('NAN 2026', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
+    mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
     mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
     mText('QWER 스탠스 · 상성 ×2 · 6 스테이지 · 엔드리스 없음',
@@ -735,6 +752,7 @@ async function boot() {
     ctx.restore();
   }
 
+  if (DEMO) startRun('normal');              // 데모: TITLE/DIFFICULTY 건너뛰고 즉시 자동 플레이
   requestAnimationFrame(frame);
 }
 
