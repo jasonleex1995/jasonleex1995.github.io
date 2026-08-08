@@ -1119,6 +1119,7 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - **projects.json**: venue «NHN NAN»→«NAN» · 설명=«…design, development, and QA all done with Claude Code alone.» · url `projects/nan2026/`→**`prism-wing.html`**(카드 클릭=embed 페이지).
 - **검증**: 로컬 레포루트 서버 렌더 확인 — 블로그 템플릿 + 게임 타이틀 iframe 부팅·콘솔 에러 0.
 - 제출 «플레이 링크»는 직접 URL(`…/projects/nan2026/`) 유지 — embed는 블로그 감상용, 제출·풀스크린은 직접 URL.
+- **URL 통일**(사용자 지적: 루트 `/prism-wing.html`이 EXIF `/projects/exif-frame/`와 불일치): 논의 후 **확장자 없는 폴더**로 이동 — `projects/prism-wing/index.html`(절대경로 `/styles.css`·`/projects/nan2026/`), 카드 url→`projects/prism-wing/`, 옛 루트 파일 삭제. 근거 = 구현 비종속(URL이 `.html`에 안 묶임)·EXIF와 동일 형식·미래 안전. EXIF는 불변. 라이브: 새 200·옛 404 확인.
 
 ---
 
