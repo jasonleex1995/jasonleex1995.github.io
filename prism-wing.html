@@ -27,12 +27,6 @@
 
     .keys { display: inline-block; font-family: var(--font-mono); font-size: .8rem; color: var(--fg);
             background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: .05em .4em; }
-    .play-actions { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); margin: var(--space-4) 0 var(--space-2); }
-    .play-actions a.btn { font-family: var(--font-sans); font-weight: 600; font-size: .95rem; text-decoration: none;
-            border: 1px solid var(--border); border-radius: 8px; padding: .5em .9em; color: var(--fg); background: var(--surface); }
-    .play-actions a.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .play-actions a.btn.primary:hover { background: var(--accent-hover); }
-
     /* very narrow screens: the game (min 1024×576) won't fit — let it scroll rather than break */
     @media (max-width: 1080px) {
       .game-embed { max-width: none; overflow-x: auto; aspect-ratio: auto; }
@@ -61,7 +55,7 @@
         <p class="lead muted">
           An arcade flight-shooter roguelite: switch elemental stances to exploit type weaknesses,
           grow a Vampire-Survivors weapon arsenal, and clear randomized boss stages —
-          with <strong>planning, production, and QA all done entirely using Claude Code</strong>.
+          with planning, production, and QA all done entirely using Claude Code.
         </p>
 
         <div class="game-embed">
@@ -76,11 +70,6 @@
           <span class="keys">Space</span>/<span class="keys">Enter</span> confirm.
           Desktop keyboard only.
         </p>
-
-        <div class="play-actions">
-          <a class="btn primary" href="projects/nan2026/" target="_blank" rel="noopener">▶ Play fullscreen</a>
-          <a class="btn" href="https://github.com/jasonleex1995/jasonleex1995.github.io/tree/main/projects/nan2026" target="_blank" rel="noopener">Source</a>
-        </div>
       </div>
     </main>
 
