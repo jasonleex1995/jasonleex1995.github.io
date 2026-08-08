@@ -1,5 +1,6 @@
 {
   "projects": [
+    { "title": "PRISM WING", "venue": "NAN 2026", "year": 2026, "url": "projects/nan2026/", "description": "Arcade flight-shooter roguelite where you switch elemental stances to exploit type weaknesses and grow a Vampire-Survivors weapon arsenal across randomized boss stages." },
     { "title": "EXIF Frame", "venue": "Side Project", "year": 2026, "url": "projects/exif-frame/", "description": "Reads a JPEG's EXIF and frames the photo with its camera, lens, and shooting settings." }
   ]
 }
