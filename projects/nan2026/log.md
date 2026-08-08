@@ -1101,6 +1101,25 @@ ultracode 워크플로로 4개 시스템 병렬 조사 → 근본원인·설계�
 - **결론**: 영상은 **사용자가 포커스된 브라우저에서 `?demo=1` 열고 화면 녹화**(봇이 알아서 seed-8 쇼케이스 플레이). 로컬 테스트 서버 `http://127.0.0.1:8123/?demo=1` 가동 중.
 - **남음**: 사용자 영상 녹화 · Pages 배포 검증(push) · PDF 변환.
 
+### 2026-08-08 — 배포(GitHub Pages) + AI 문서 PDF 생성
+
+사용자: 영상 녹화 완료(OBS+직접 플레이) → «배포 진행 + 기존 문서는 PDF 제출».
+
+- **PDF**: 헤드리스 Chrome(`--headless --no-pdf-header-footer --print-to-pdf`, file://)으로 `submission/ai-tech.pdf` 생성 — 인쇄 CSS(@page A4·print-color-adjust) 그대로 재현(프리즘 액센트·콜아웃·스탯·국면 뱃지·인용칩), 머리말/꼬리말 없음. PDF 1~2쪽 육안 검증 OK. (게임 소개 PDF는 «영상» 링크 확정 후 생성 예정.)
+- **배포**: 4개 `nan2026:` 커밋(제목+데모 / 제출물 / DESIGN 정비 / 로그) → `git push origin main`. **밀려 있던 99커밋 전부 push**(그동안 미배포 상태였음 → 이번이 최초 공개). origin 동기화 0.
+- **라이브 검증**: 블로그 루트 200 · `…/projects/nan2026/` 200(`<title>PRISM WING`) · src/main.js·core·data·submission/*.html·ai-tech.pdf 전부 200 · **브라우저 부팅 = PRISM WING 타이틀 렌더·콘솔 에러 0**. 제출 플레이 링크 라이브.
+- **남음**: 영상 YouTube 링크 → game-intro.html «영상» 삽입 → game-intro.pdf 생성 → 재배포.
+- **블로그 카드 등록**(사용자: «projects 목록에 안 보임»): 원인 = `data/projects.json` 미등록(게임은 직접 URL에서 계속 라이브였음). PRISM WING 카드 추가(블로그 콘텐츠라 비-`nan2026:` 커밋 2건: 등록 + venue 라벨 «NAN 2026 2026»→«NHN NAN 2026» 수정) → push → `projects.html`에 카드 노출 확인.
+
+### 2026-08-08 — 블로그 임베드 페이지 (게임을 블로그 «안»에 담기)
+
+사용자 피드백 3건: ① venue → «NAN 2026»(«NHN» 제거) ② 설명을 «Claude Code만으로 기획·제작·QA» 강조로 ③ ★카드 클릭 시 게임이 전체 화면을 점령(블로그가 사라짐) → 옛 웹 플래시게임처럼 «블로그 템플릿 다 보이고 게임만 embed» 구조로.
+
+- **`prism-wing.html` 신설**(레포 루트, 블로그 콘텐츠): 블로그 템플릿(헤더·네비·푸터·styles.css) 그대로 + `<iframe src="projects/nan2026/">`로 게임 embed. 발견: `--content-width 1280px`라 게임(1280×720·최소 1024×576)이 콘텐츠 폭에 딱 맞음. 컨트롤 안내 + «Play fullscreen»(직접 URL)·«Source» 버튼. ≤1080px는 가로 스크롤로 게임 최소폭 보존.
+- **projects.json**: venue «NHN NAN»→«NAN» · 설명=«…design, development, and QA all done with Claude Code alone.» · url `projects/nan2026/`→**`prism-wing.html`**(카드 클릭=embed 페이지).
+- **검증**: 로컬 레포루트 서버 렌더 확인 — 블로그 템플릿 + 게임 타이틀 iframe 부팅·콘솔 에러 0.
+- 제출 «플레이 링크»는 직접 URL(`…/projects/nan2026/`) 유지 — embed는 블로그 감상용, 제출·풀스크린은 직접 URL.
+
 ---
 
 ## 다음 할 일
