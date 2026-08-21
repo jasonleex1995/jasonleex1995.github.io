@@ -44,7 +44,7 @@
     }
     .ef-text { width: 130px; }
     .ef-num { width: 64px; }
-    .ef-text:focus, .ef-num:focus { outline: none; border-color: var(--accent); }
+    .ef-text:focus, .ef-num:focus { border-color: var(--accent); }
     .ef-actions { margin-left: auto; display: flex; gap: var(--space-3); }
 
     .ef-btn {
@@ -78,6 +78,7 @@
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="site">
     <header class="site-header">
       <div class="container">
@@ -91,7 +92,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <div class="container" style="max-width: 980px;">
         <h1>EXIF Frame</h1>
         <p class="lead muted">
@@ -123,7 +124,7 @@
           </div>
         </div>
 
-        <div class="ef-results" id="results"></div>
+        <div class="ef-results" id="results" aria-live="polite"></div>
         <p class="ef-empty" id="empty">No photos yet — add some above.</p>
 
         <p class="ef-note">
@@ -432,6 +433,7 @@
         card.className = 'ef-result';
 
         var canvas = document.createElement('canvas');
+        canvas.setAttribute('role', 'img');
         canvas.className = 'ef-canvas';
         drawFrame(canvas, it.bitmap, it.info, opts);
         card.appendChild(canvas);

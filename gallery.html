@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="site">
     <header class="site-header">
       <div class="container">
@@ -22,7 +23,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <div class="container">
         <h1>Gallery</h1>
         <p class="lead muted">Photos I take and drawings I make.</p>
@@ -30,7 +31,7 @@
         <div class="gallery-filter" id="gallery-filter" role="group" aria-label="Filter gallery"></div>
 
         <div class="gallery-masonry" id="gallery"></div>
-        <p class="muted small" id="gallery-empty">준비 중입니다.</p>
+        <p class="muted small" id="gallery-empty" lang="ko">준비 중입니다.</p>
       </div>
     </main>
 
@@ -138,14 +139,21 @@
         var frag = document.createDocumentFragment();
         list.forEach(function (it, i) {
           var fig = document.createElement('figure');
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          // 접근 가능한 이름은 버튼이 가진다 → 안쪽 img 는 장식(alt="")이라
+          // 스크린리더가 캡션과 같은 날짜를 두 번 읽지 않는다.
+          btn.setAttribute('aria-label', altText(it) + ' \u2014 view full size');
           var img = document.createElement('img');
           img.src = (DIRS[it.type] || '') + it.file;
-          img.alt = altText(it);
+          img.alt = '';
           img.loading = 'eager';
           img.decoding = 'async';
-          img.addEventListener('click', function () { openLightbox(it); });
+          btn.addEventListener('click', function () { openLightbox(it); });
           img.addEventListener('load', function () { requestAnimationFrame(function () { layoutFigure(it); }); });
-          fig.appendChild(img);
+          btn.appendChild(img);
+          fig.appendChild(btn);
+          it.trigger = btn;
           var cap = captionText(it);
           if (cap) {
             var fc = document.createElement('figcaption');
@@ -181,29 +189,51 @@
         lbCap.textContent = captionText(it);
       }
 
+      var lbClose = document.getElementById('lb-close');
+      var lbPrev = document.getElementById('lb-prev');
+      var lbNext = document.getElementById('lb-next');
+      var siteEl = document.querySelector('.site');
+      var lastFocused = null;
+
       function openLightbox(it) {
         var idx = visible.indexOf(it);
         if (idx < 0) idx = 0;
         showAt(idx);
+        lastFocused = document.activeElement;
         lb.classList.add('is-open');
         document.body.style.overflow = 'hidden';
+        // 배경을 포커스·읽기 대상에서 제외 (지원 안 하는 브라우저는 아래 Tab 순환이 받는다)
+        if (siteEl) { siteEl.inert = true; siteEl.setAttribute('aria-hidden', 'true'); }
+        lbClose.focus();
       }
 
       function closeLightbox() {
         lb.classList.remove('is-open');
         lbImg.src = '';
         document.body.style.overflow = '';
+        if (siteEl) { siteEl.inert = false; siteEl.removeAttribute('aria-hidden'); }
+        if (lastFocused && lastFocused.focus) lastFocused.focus();
+        lastFocused = null;
       }
 
-      document.getElementById('lb-close').addEventListener('click', closeLightbox);
-      document.getElementById('lb-prev').addEventListener('click', function () { showAt(lbIndex - 1); });
-      document.getElementById('lb-next').addEventListener('click', function () { showAt(lbIndex + 1); });
+      lbClose.addEventListener('click', closeLightbox);
+      lbPrev.addEventListener('click', function () { showAt(lbIndex - 1); });
+      lbNext.addEventListener('click', function () { showAt(lbIndex + 1); });
       lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
       document.addEventListener('keydown', function (e) {
         if (!lb.classList.contains('is-open')) return;
         if (e.key === 'Escape') closeLightbox();
         else if (e.key === 'ArrowLeft') showAt(lbIndex - 1);
         else if (e.key === 'ArrowRight') showAt(lbIndex + 1);
+        else if (e.key === 'Tab') {
+          // 포커스를 라이트박스 안에서만 순환시킨다 (모달 계약: aria-modal="true")
+          var ring = [lbClose, lbPrev, lbNext];
+          var at = ring.indexOf(document.activeElement);
+          var next = e.shiftKey ? (at <= 0 ? ring.length - 1 : at - 1)
+                                : (at === -1 || at === ring.length - 1 ? 0 : at + 1);
+          e.preventDefault();
+          ring[next].focus();
+        }
       });
 
       /* ---------- Init ---------- */
@@ -222,7 +252,7 @@
           buildFilters(types);
           applyFilter('all');
         })
-        .catch(function () { emptyEl.textContent = '갤러리를 불러오지 못했습니다.'; });
+        .catch(function () { emptyEl.lang = 'ko'; emptyEl.textContent = '갤러리를 불러오지 못했습니다.'; });
     })();
   </script>
 </body>

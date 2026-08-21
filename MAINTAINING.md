@@ -101,7 +101,7 @@ git push
 - **그림**: 보통 작아서 그대로 둬도 됩니다 → `assets/drawings/`에 저장
 - 파일명은 **영문/숫자**로 (한글 파일명 X)
 
-**② `data/gallery.json`의 `items` 배열 맨 위에 추가** (최신이 위로):
+**② `data/gallery.json`의 `items` 배열에 추가** (관례상 맨 위. ★ 실제 화면 순서는 배열 위치가 아니라 **`date` 기준 자동 최신순**입니다):
 
 ```json
 { "type": "photo", "file": "202606.webp", "date": "2026-06", "caption": "", "alt": "" }
@@ -203,6 +203,8 @@ python3 -m http.server 8000
 - 🔴 **건드리지 말 것**:
   - `styles.css` — 디자인을 바꿀 때만. (색/폰트는 맨 위 `:root` 변수만 수정)
   - `gallery.html` / `projects.html` 안의 `<script>` 블록 — 렌더링 로직. 수정 불필요.
+  - **`.nojekyll`** (루트의 빈 파일) — 지우면 GitHub Pages가 Jekyll로 처리해서 **밑줄로 시작하는 폴더(`projects/_template/`)가 통째로 사라집니다.**
+  - **`projects/nan2026/` 폴더 이름** — PRISM WING 페이지가 이 경로를 iframe으로 직접 물고 있어서, 바꾸면 게임이 빈 화면이 됩니다.
 - **이미지는 반드시 압축**해서 올리기 (원본 수 MB 그대로 X).
 - **날짜 형식 주의**: 책 = `YYYY.MM.DD`, 갤러리 = `YYYY-MM`.
 - **JSON 문법 주의**: 따옴표 `"`, 항목 사이 쉼표 `,`, **마지막 항목 뒤에는 쉼표 금지**. 헷갈리면 [jsonlint.com](https://jsonlint.com/)에 붙여넣어 검사.

@@ -9,10 +9,12 @@
   --bg:        #FAFAF7;
   --fg:        #2A2A28;
   --muted:     #6F6F6A;
-  --subtle:    #9A9A93;
+  --subtle:    #9A9A93;   /* ⚠ 2.71:1 — 장식 전용(li::marker). 텍스트에 쓰면 WCAG AA 실패.
+                             이 배경에서 AA(4.5:1)를 넘으려면 --muted(4.83:1)와 구분이 안 되므로,
+                             «더 옅은 텍스트» 단계는 색이 아니라 font-size 로 표현한다 */
   --border:    #E4E4DD;
   --surface:   #F2F2EC;
-  --accent:    #5B7C57;
+  --accent:    #5B7B57;   /* 4.55:1 on --bg — WCAG AA. #5B7C57 였을 때 4.4972 로 아슬하게 미달했다 */
   --accent-hover: #436343;
 
   /* Typography */
@@ -163,7 +165,7 @@ p {
 }
 
 .muted { color: var(--muted); }
-.subtle { color: var(--subtle); }
+.subtle { color: var(--muted); }
 small, .small { font-size: 0.875rem; }
 
 a {
@@ -239,7 +241,7 @@ ul.bare > li { margin-block: var(--space-4); }
 .meta {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
-  color: var(--subtle);
+  color: var(--muted);
   letter-spacing: 0.02em;
 }
 
@@ -324,7 +326,7 @@ ul.bare > li { margin-block: var(--space-4); }
 
 .book-card-meta {
   font-size: 0.75rem;
-  color: var(--subtle);
+  color: var(--muted);
   line-height: 1.4;
 }
 
@@ -392,7 +394,8 @@ ul.bare > li { margin-block: var(--space-4); }
   border-color: var(--accent);
 }
 
-.filter-btn .count { opacity: 0.6; font-size: 0.8em; margin-left: 0.25em; }
+.filter-btn .count { color: var(--muted); font-size: 0.875em; margin-left: 0.25em; }
+.filter-btn[aria-pressed="true"] .count { color: #fff; }
 
 /* ---------- Gallery: unit-based mosaic ----------
    Laptop = 9 units wide. Portrait/square = 3 units, landscape = 4 units
@@ -441,6 +444,20 @@ ul.bare > li { margin-block: var(--space-4); }
 
 .gallery-masonry img:hover { filter: brightness(1.06); }
 
+/* 썸네일은 <button> 으로 감싼다 (키보드로 라이트박스를 열 수 있어야 한다).
+   버튼은 순수 래퍼 — 자기 박스를 만들지 않아야 masonry 높이 측정이 그대로 성립한다. */
+.gallery-masonry figure > button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: zoom-in;
+}
+
 /* Caption overlays on hover so the grid stays tight */
 .gallery-masonry figcaption {
   position: absolute;
@@ -456,7 +473,8 @@ ul.bare > li { margin-block: var(--space-4); }
   pointer-events: none;
 }
 
-.gallery-masonry figure:hover figcaption { opacity: 1; }
+.gallery-masonry figure:hover figcaption,
+.gallery-masonry figure:focus-within figcaption { opacity: 1; }
 
 /* ---------- Gallery: lightbox ---------- */
 .lightbox {
@@ -628,6 +646,23 @@ hr {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
   color: var(--fg);
 }
+
+/* ---------- Skip link (a11y) ----------
+   평소엔 화면 밖에 있다가 Tab 첫 타에만 나타난다. */
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -3rem;
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: top 120ms ease;
+}
+.skip-link:focus { top: var(--space-2); }
 
 /* ---------- Focus styles (a11y) ---------- */
 :focus-visible {

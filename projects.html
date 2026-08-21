@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="site">
     <header class="site-header">
       <div class="container">
@@ -22,7 +23,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <div class="container">
         <h1>Projects</h1>
         <p class="lead muted">Research projects and their pages.</p>
@@ -53,7 +54,7 @@
         a.className = 'project-card';
         a.href = p.url || '#';
 
-        var h = document.createElement('h3');
+        var h = document.createElement('h2');
         h.className = 'project-title';
         h.textContent = p.title || '';
         a.appendChild(h);
@@ -86,7 +87,7 @@
           projects.forEach(function (p) { frag.appendChild(card(p)); });
           listEl.appendChild(frag);
         })
-        .catch(function () { emptyEl.textContent = '프로젝트를 불러오지 못했습니다.'; });
+        .catch(function () { emptyEl.lang = 'ko'; emptyEl.textContent = '프로젝트를 불러오지 못했습니다.'; });
     })();
   </script>
 </body>
