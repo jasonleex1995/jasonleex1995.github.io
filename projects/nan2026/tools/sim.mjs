@@ -10,7 +10,7 @@
  *   dpsProbe  — 보스 i 를 3분 안에 격파할 **화력이 있는가**. 봇 무적, 회피 로직은 그대로.
  *               셀 = (보스, 스테이지) 쌍 = 3 + 24 + 1 = 28 셀 (§10.4.2).
  *
- * 산출물 (`tools/report/`, 공모전 기술문서의 근거물 — §10.4.3):
+ * 산출물 (`tools/report/`, 밸런싱·공정성 인증의 근거물 — §10.4.3):
  *   summary.json · weapons.csv · elements.csv · bosses.csv · stages.csv · deaths.csv
  *
  * 사용:

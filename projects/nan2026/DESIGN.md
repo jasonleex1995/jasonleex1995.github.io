@@ -38,7 +38,7 @@
 | [`data/`](data/) | ★ **값의 유일한 거처** — rules · elements · weapons · passives · bullets · enemies · bosses · stages · meta |
 | [`design/`](design/) | [`CANON.md`](design/CANON.md) **정본 (v1.5, ~5,400행)** — 값·규칙·공식·스키마·검증 게이트의 **단일 소유자**. 설계 문서는 이것 하나뿐이다 |
 | [`tests/`](tests/) | 모듈 단위 테스트 22파일 |
-| [`tools/`](tools/) | `check.mjs`(정적 게이트 S1~S40) · `test.mjs`(테스트 러너) · `sim.mjs`(헤드리스 밸런싱 시뮬) |
+| [`tools/`](tools/) | `check.mjs`(정적 게이트 전수(S1~S41 · S33·S40 은 v1.5에서 삭제)) · `test.mjs`(테스트 러너) · `sim.mjs`(헤드리스 밸런싱 시뮬) |
 
 ## 로컬에서 돌리기
 
@@ -62,6 +62,6 @@ python3 -m http.server 8000   # http://localhost:8000/
 
 ```bash
 cd projects/nan2026
-node tools/check.mjs   # 정적 게이트 S1~S40 — 데이터가 정본을 지키는지
+node tools/check.mjs   # 정적 게이트 전수(S1~S41) — 데이터가 정본을 지키는지
 node tools/test.mjs    # 단위 테스트 373개 — 코드가 계약을 지키는지
 ```

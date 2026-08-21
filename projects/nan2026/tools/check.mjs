@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S40 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S41 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -3012,7 +3012,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S40 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S41 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3081,7 +3081,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S40)');
+  line('✓ 전 정적 게이트 통과 (S1~S41 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
