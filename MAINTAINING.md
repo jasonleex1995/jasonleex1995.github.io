@@ -13,7 +13,7 @@
 - 콘텐츠 추가는 둘 중 하나예요:
   - **HTML 파일을 직접 편집** (책, 논문, 경력, 자기소개 등)
   - **`data/*.json`에 한 줄 추가** (갤러리 사진/그림, 프로젝트 목록)
-- 수정한 파일을 **GitHub `main` 브랜치에 push하면 1분 안에 자동 배포**됩니다.
+- 수정한 파일을 **GitHub `main` 브랜치에 push하면 1분 안에 반영**됩니다 (Pages가 브랜치를 그대로 서빙 — 빌드 없음).
 
 ---
 
@@ -43,8 +43,8 @@ git add -A
 git commit -m "books: add OOO"      # 무엇을 했는지 짧게
 git push
 
-# 5) 배포 확인: GitHub 저장소 → Actions 탭 → 초록 체크(약 1분)
-#    반영 주소: https://jasonleex1995.github.io
+# 5) 배포 확인: 약 1분 뒤 https://jasonleex1995.github.io 새로고침
+#    (빌드 과정이 없어서 push한 파일이 그대로 올라갑니다)
 ```
 
 > GitHub 웹에서 편집한 경우 2~5단계가 "Commit changes" 버튼 한 번으로 끝납니다.
@@ -217,8 +217,8 @@ python3 -m http.server 8000
 | 이미지가 안 보임 (깨진 아이콘) | 파일명·경로·**대소문자** 불일치. `data/gallery.json`의 `file`과 실제 파일명을 정확히 맞추기 |
 | 갤러리/프로젝트가 안 바뀜 | `data/*.json` **문법 오류**(쉼표 누락/초과). jsonlint로 검사 |
 | 사진이 옆으로 누움 | 회전(EXIF) 문제 → `assets/photos/README.md`의 "회전 고치기" |
-| push했는데 사이트 반영 안 됨 | ① GitHub **Actions 탭**에서 배포 성공(초록)인지 확인(빨강이면 로그). ② 배포는 성공인데 화면이 그대로면 거의 **브라우저 캐시** → **하드 리프레시**(Mac `⌘+Shift+R`, Win `Ctrl+F5`). 특히 `styles.css`·이미지가 캐시에 잘 남아요 |
-| 첫 배포 실패 | 저장소 **Settings → Pages → Source = GitHub Actions** 인지 확인 |
+| push했는데 사이트 반영 안 됨 | ① 1분쯤 기다렸는지 확인 (빌드는 없지만 반영에 약간 걸립니다). ② 거의 대부분 **브라우저 캐시**입니다 → **하드 리프레시**(Mac `⌘+Shift+R`, Win `Ctrl+F5`). 특히 `styles.css`·이미지가 캐시에 잘 남아요. ③ 저장소 **Settings → Pages**에서 마지막 배포 상태를 볼 수 있어요 |
+| 첫 배포 실패 | 저장소 **Settings → Pages → Source = "Deploy from a branch" → `main` / `(root)`** 인지 확인 |
 
 ---
 
