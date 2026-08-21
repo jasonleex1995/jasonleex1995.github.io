@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  NAN 2026 — check.mjs   (정본 v1.4 §13.4 정적 게이트 S1~S40 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S40 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -3012,7 +3012,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('NAN 2026 — check.mjs   (정본 v1.4 §13.4 S1~S40 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S40 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
