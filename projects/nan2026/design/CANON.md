@@ -1197,7 +1197,8 @@ v1.1: 「`view.spawnLineY`(**−40**) **바로 아래**」. 그러나 **`spawnLi
 - 예) 화산(불): 불 70 / 물 10 / 풀 10 / 노말 10. 정답 = **물 스탠스**.
 - **데이터 표현**: `stages[].mix`는 **4속성 실제 키로 전개된 가중치 맵 하나**다. 화산이면 `{fire: 0.70, water: 0.10, grass: 0.10, normal: 0.10}`. counter/prey 규칙은 **빌드타임 생성 규칙**이며 `check.mjs`가 준수를 검증한다. → **스키마 하나, 예외 0.**
 - **비율의 기준 = 스테이지 잡몹 총 개체 수** (HP 총량 아님, 스폰 확률 아님).
-- **롤 granularity = 웨이브 단위** (`stages[].mixGranularity = "perWave"`, 개체 단위 롤 금지). 웨이브 리스트는 **빌드타임에 결정론적으로 편성**된다.
+- **롤 granularity = 웨이브 단위** (개체 단위 롤 금지). 웨이브 리스트는 **빌드타임에 결정론적으로 편성**된다.
+  ⚠️ **`stages[].mix` · `stages[].mixGranularity` 는 런타임이 읽지 않는다** — 스키마가 허용하는 «기술적 서술»일 뿐이고, 실제 속성 편성은 `waves[].element` 가 100% 결정한다. 이 두 필드를 고쳐도 **게임은 전혀 바뀌지 않는다.**
 - **혼합 비율 제외 대상**: **중간보스 · 새떼 · 보스** (각자 별도 속성 규칙).
 
 **★ v1.4 — 제외 목록에서 「엘리트」를 뺐다 (설계자 확정. 근거를 남긴다)**
@@ -2069,7 +2070,7 @@ data/bosses.json     data/stages.json     data/meta.json
 | `magnetHorseshoe` | 말굽 U자 + 양 끝 굵은 캡 | `magnet` |
 
 - ★ **§21·라운드 4가 둘 다 놓친 이유가 방법론적으로 중요하다**: §21은 **점 표기 리프**만 좌조인했는데 `icons`의 원소는 **배열 원소**라 어느 축에도 안 걸린다(라운드 4는 `icons`를 1회도 언급하지 않는다). → §21.5의 축 D3(「닫힌 어휘 × 그 어휘를 필수로 요구하는 절」).
-- `check.mjs` **S33**: 「`shop`의 전 항목의 `iconId` ∈ `hud.icons`」. **어휘를 닫는 것과 그 어휘가 충분한지는 다른 일이다** — S33이 그 차이를 기계로 만든다.
+- ~~`check.mjs` **S33**: 「`shop`의 전 항목의 `iconId` ∈ `hud.icons`」~~ → **v1.5 폐지** (상점 스코프아웃). 「어휘를 닫는 것과 그 어휘가 충분한지는 다른 일이다」는 원칙만 사료로 남긴다.
 - **새 값 5 (아이콘 id) · 아트 0바이트.**
 
 | 키 | 채택 근거 (한 줄) |
@@ -3435,8 +3436,8 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
 - `magnet.addMagnetPct` → §7.8의 **`player.magnetRadius = 90` → 최대 171**과 일치.
 - `resist.statusDurationPct` → §2.7·§9.4의 **`status.resistAffects: "duration"`**이 적용 대상을 이미 확정.
 - `defense.addDefense` → §2.1의 **방어력 상한 8** · §3.2의 「방어력 8 기준 실측」과 일치.
-- `iconId` → **10/10이 `hud.icons`(14종) 안**이다(§9.4.1). `check.mjs` **S33**이 강제.
-- `check.mjs` **S40**: 「`shop`의 키 집합 == §11.2 표의 `id` 10종」 ∧ 「`stockMax` 보유 ⟺ `id ∈ {reroll, shield, timeToken}`」.
+- ~~`iconId` → **10/10이 `hud.icons`(14종) 안**이다(§9.4.1). `check.mjs` **S33**이 강제.~~ → **v1.5 폐지** (상점·아이콘 어휘 스코프아웃).
+- ~~`check.mjs` **S40**: 「`shop`의 키 집합 == §11.2 표의 `id` 10종」~~ → **v1.5 폐지** (상점 스코프아웃).
 
 - ★ **컨티뉴는 상점에 없다 (확정).** **사망 시점에 제시**한다(오락실식, §11.4). 초안 C·F의 상점 판매 모델은 폐기.
 - **`resist`는 저항만.** '해제'는 발동 키가 필요한데 양손(방향키 + QWER + Space + Shift)이 이미 만석 → **조작 설계 변경을 유발**한다. 저항은 영구 정률이라 키가 필요 없다.
@@ -4236,14 +4237,14 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S30** ★ | **악절의 배타성** (v1.3) — 이미터가 `bosses[]`에서 참조된다 ⟺ (`repeat ≥ 2` ∧ `restSec > 0`). `enemies.archetypes[].attack`에서 참조되는 이미터는 `repeat == 1` ∧ `restSec == 0` (§8.5의 「보스만 쓴다」를 기계로) |
 | **S31** ★ | **위기 편성의 무결성** (v1.3) — `Σ(crisisWaves[].count) == crisisTotal`(60) ∧ `distinct(crisisWaves[].subWave) == crisisSubWaves`(6) ∧ `archetypeId`가 전부 `swarm*` |
 | **S32** ★ | **`themeId`의 적법성** (v1.3) — `tier == "stage"` ⟺ `themeId != null` (S15와 대칭) |
-| **S33** ★ | **아이콘 어휘의 충분성** (v1.3) — `shop`의 전 항목의 `iconId` ∈ `hud.icons`. **어휘를 닫는 것과 그 어휘가 충분한지는 다른 일이다** |
+| ~~**S33**~~ | ~~아이콘 어휘의 충분성 (v1.3) — `shop`의 전 항목의 `iconId` ∈ `hud.icons`~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 | **S34** ★ | **패밀리별 `base`·`evolution.params` 필수 키 집합** (v1.3 · **문면 정정 v1.4**) — §9.5 12행 표를 **두 검사로** 적용한다: ① `weapons[i].base`의 키 집합 == 그 `family`의 행이 ✔한 공통 키 **∪ (고유 파라미터 중 `evo*`가 아닌 것)** ② `weapons[i].evolution.params`의 키 집합 == **그 행의 고유 파라미터 중 `evo*`인 것**. ★ **표의 `+`는 거처 구분자**(§9.5 읽는 법 4번째 규칙) — v1.3의 문면 「∪ 고유 파라미터」는 `evo*`의 거처가 `evolution.params`라는 **같은 절의 확정**과 충돌해 **12행 전부를 실패시켰다**(데이터·검증기는 옳았고 문장이 틀렸다). **이 표가 없으면 S2의 「필수 키」가 무엇인지 검증기가 알 수 없다** |
 | **S35** ★ | **`values`의 길이** (v1.3) — `passives[]` 12행 전부 `len(values) == maxLevel`(5) |
 | **S36** ★ | **보스 이미터 id 규칙** (v1.3) — `bosses[].parts[i].patternSet[j].emitterIds[0] == {bossId}{PartIdPascal}P{j+1}` (§9.8.1) |
 | **S37** ★ | **보스 이미터의 존재** (v1.3) — 위 66개가 `enemies.json > emitters`에 전부 존재(참조 무결성의 정적 판본) |
 | **S38** ★ | **중간보스 이탈의 단일 소유자** (v1.3) — `tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재 |
 | **S39** ★ | **웨이브 해금의 정합** (v1.3) — `waves[i].unlockStageMin ≥ roster[waves[i].archetypeId].unlockStageMin` (해금 안 된 적이 나오는 웨이브 금지) |
-| **S40** ★ | **상점 스키마** (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종 ∧ (`stockMax` 보유 ⟺ `id ∈ {reroll, shield, timeToken}`) |
+| ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 
 ### 13.5 ★ DPS 기준선 — **정본이 소유한다** (사용자 확정 1)
 

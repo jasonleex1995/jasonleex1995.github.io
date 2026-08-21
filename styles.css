@@ -193,12 +193,6 @@ ul, ol { padding-left: 1.25rem; margin-block: var(--space-4); }
 li { margin-block: var(--space-2); }
 li::marker { color: var(--subtle); }
 
-ul.bare {
-  list-style: none;
-  padding-left: 0;
-}
-
-ul.bare > li { margin-block: var(--space-4); }
 
 /* ---------- Hero (Home page) ---------- */
 .hero {
@@ -632,9 +626,6 @@ ul.bare > li { margin-block: var(--space-4); }
   white-space: pre;
 }
 
-/* ---------- Utility ---------- */
-.stack > * + * { margin-top: var(--space-4); }
-.stack-lg > * + * { margin-top: var(--space-6); }
 
 hr {
   border: 0;

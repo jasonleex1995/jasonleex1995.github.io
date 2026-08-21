@@ -9,7 +9,7 @@
  *   §9.1 : `src/core/weapons/**` 의 숫자 리터럴 = {0, 1, -1, 0.5, 2} 뿐
  *   §9.5 : 같은 12 패밀리의 파라미터를 **도(degree)** 로 인쇄한다 —
  *          forward.spreadDeg · forward.jitterDeg · fan.arcDeg · seeker.turnRateDegSec ·
- *          orbit.angularSpeedDegSec · omni.dirOffsetDeg · omni.evoRingRotDeg
+ *          orbit.angularSpeedDegSec · fan.spreadDeg · boomerang.outAngleDeg
  *   삼각함수는 라디안을 먹는다. 변환 상수는 pi/180 이고 **180 은 허용 리터럴이 아니다.**
  *   → **도를 라디안으로 바꾸는 일이 weapons/** 안에서 표현 불가능하다.**
  *
