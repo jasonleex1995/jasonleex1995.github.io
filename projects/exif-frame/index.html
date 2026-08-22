@@ -70,11 +70,15 @@
       border-radius: 4px;
       box-shadow: 0 4px 20px -8px color-mix(in srgb, var(--fg) 30%, transparent);
     }
-    .ef-result-meta { font-size: 0.8125rem; color: var(--subtle); font-family: var(--font-mono); line-height: 1.5; }
+    .ef-result-meta { font-size: 0.8125rem; color: var(--muted); font-family: var(--font-mono); line-height: 1.5; }
     .ef-result-actions { display: flex; gap: var(--space-2); }
 
     .ef-note { font-size: 0.875rem; color: var(--muted); margin-top: var(--space-4); }
-    .ef-empty { color: var(--subtle); margin-block: var(--space-8); }
+    .ef-empty { color: var(--muted); margin-block: var(--space-8); }
+    .ef-skipped { font-size: 0.875rem; color: var(--fg); background: var(--surface);
+                  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+                  border-radius: 4px; padding: var(--space-3) var(--space-4); margin-top: var(--space-4); }
+    .ef-skipped[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -125,6 +129,7 @@
         </div>
 
         <div class="ef-results" id="results" aria-live="polite"></div>
+        <p class="ef-skipped" id="skipped" role="status" hidden></p>
         <p class="ef-empty" id="empty">No photos yet — add some above.</p>
 
         <p class="ef-note">
@@ -390,6 +395,8 @@
     var optionsBar = document.getElementById('options');
     var resultsEl = document.getElementById('results');
     var emptyEl = document.getElementById('empty');
+    var skippedEl = document.getElementById('skipped');
+    var skipped = [];
 
     function outName(name) { return name.replace(/\.[^.]+$/, '') + '-framed.png'; }
 
@@ -409,7 +416,15 @@
     }
 
     async function addFiles(fileList) {
-      var files = Array.prototype.slice.call(fileList).filter(function (f) { return /^image\//.test(f.type); });
+      // 건너뛴 파일은 반드시 이유와 함께 보고한다. 조용히 사라지면 사용자는
+      // 「10장 넣었는데 8장만 나왔다」를 원인 없이 마주하게 된다.
+      skipped = [];
+      var all = Array.prototype.slice.call(fileList);
+      var files = [];
+      all.forEach(function (f) {
+        if (/^image\//.test(f.type)) files.push(f);
+        else skipped.push({ name: f.name, why: 'not an image file' });
+      });
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
         var exif = null;
@@ -417,7 +432,8 @@
           try { exif = parseExif(await file.arrayBuffer()); } catch (e) { exif = null; }
         }
         var bitmap;
-        try { bitmap = await loadBitmap(file); } catch (e) { continue; }
+        try { bitmap = await loadBitmap(file); }
+        catch (e) { skipped.push({ name: file.name, why: 'could not be decoded (corrupt or unsupported)' }); continue; }
         items.push({ name: file.name, bitmap: bitmap, info: format(exif) });
       }
       renderAll();
@@ -426,7 +442,15 @@
     function renderAll() {
       var has = items.length > 0;
       optionsBar.hidden = !has;
-      emptyEl.hidden = has;
+      emptyEl.hidden = has || skipped.length > 0;
+      if (skipped.length) {
+        skippedEl.textContent = 'Skipped ' + skipped.length + ' file' + (skipped.length > 1 ? 's' : '') + ': '
+          + skipped.map(function (s) { return s.name + ' (' + s.why + ')'; }).join(', ');
+        skippedEl.hidden = false;
+      } else {
+        skippedEl.textContent = '';
+        skippedEl.hidden = true;
+      }
       resultsEl.innerHTML = '';
       items.forEach(function (it) {
         var card = document.createElement('div');
@@ -498,7 +522,7 @@
       renderAll();
     });
     document.getElementById('clear-btn').addEventListener('click', function () {
-      items = []; renderAll();
+      items = []; skipped = []; renderAll();
     });
     document.getElementById('download-all').addEventListener('click', function () {
       var canvases = resultsEl.querySelectorAll('.ef-canvas');
