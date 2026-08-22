@@ -245,7 +245,11 @@
 
       var make = (exif.make || '').trim();
       var model = (exif.model || '').trim();
-      if (model && make && model.toLowerCase().indexOf(make.toLowerCase()) !== 0) {
+      // Make 는 브랜드만 오기도 하고("Canon") 회사 정식명이 오기도 한다
+      // ("NIKON CORPORATION" · "RICOH IMAGING COMPANY, LTD." · "LEICA CAMERA AG").
+      // Make 전체로 prefix 비교하면 후자에서 브랜드가 두 번 인쇄된다 → 첫 토큰으로 비교한다.
+      var makeKey = make ? make.split(/[\s,]+/)[0] : '';
+      if (model && makeKey && model.toLowerCase().indexOf(makeKey.toLowerCase()) !== 0) {
         info.camera = make + ' ' + model;
       } else {
         info.camera = model || make;
@@ -526,8 +530,13 @@
     });
     document.getElementById('download-all').addEventListener('click', function () {
       var canvases = resultsEl.querySelectorAll('.ef-canvas');
+      // 이름은 «클릭 시점»에 붙잡는다. 타이머가 400ms 간격으로 늘어지는 동안
+      // Clear 를 누르면 items 가 비어 items[i].name 이 TypeError 를 던지고,
+      // 남은 다운로드가 콘솔에만 흔적을 남긴 채 조용히 사라진다.
+      var names = [].map.call(canvases, function (c, i) { return items[i] ? outName(items[i].name) : null; });
       canvases.forEach(function (c, i) {
-        setTimeout(function () { downloadCanvas(c, outName(items[i].name)); }, i * 400);
+        if (names[i] === null) return;
+        setTimeout(function () { downloadCanvas(c, names[i]); }, i * 400);
       });
     });
   })();
