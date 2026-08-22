@@ -50,14 +50,19 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
 
 /**
  * §3.1 · §6.3 · §11.3 — 직접피해(광역·빔) 무기의 **단일 피해 적용 지점**.
- *   탄 충돌(step.collide)이 하는 세 가지를 한 곳으로 모은다 — 개별 무기가 하나씩 빠뜨리던 것을 막는다:
+ *   탄 충돌(step.collide)이 하는 네 가지를 한 곳으로 모은다 — 개별 무기가 하나씩 빠뜨리던 것을 막는다:
  *   ① §6.3 페이즈 전환 무적: 보스는 그 구간에 피해 0(탄 경로와 동일 게이트) — 안 하면 무적을 우회한다.
+ *   ①' §8.11 레이어 봉인 무적: 앞 레이어가 살아있는 부위는 피해 0(step.collide 와 동일 게이트).
+ *       ★ v1.5 가 봉인을 신설하며 탄 경로(step.js)에만 넣어, 직접피해 4무기
+ *       (nova·lance·barrage·fan 진화)가 봉인을 그대로 뚫고 있었다 — 이 파일의 존재 이유가
+ *       「게이트를 한 곳에 모은다」인데 정작 새 게이트를 안 받은 것이다.
  *   ② §11.3 초효과 처치 보너스의 근거: e.dmgTotal·e.dmgSuper 적립 — 안 하면 직접피해 처치가 보너스를 못 받는다.
  *   ③ §13.1.1 텔레메트리 noteDamage.
  *   반환 = 실제로 적용한 피해(무적이면 0). 호출자는 e.hp<=0 이면 killEnemy 를 부른다.
  */
 export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e) {
   if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) return 0;   // ①
+  if (e.isBoss && !e.isCore && e.sealedNow) return 0;                                    // ①' §8.11
   const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②

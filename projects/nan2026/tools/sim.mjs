@@ -300,7 +300,8 @@ function aggregate(data, runs, meta) {
   const dmgShare = Object.create(null);
   const lethal = Object.create(null);
   const weaponPicks = Object.create(null);
-  const elementPicks = Object.create(null);
+  const elementPicks = Object.create(null);        // 전 런 — elements.csv 진단용
+  const elementPicksCleared = Object.create(null);  // 클리어 런만 — §13.1.1 밴딩용
   const kills = Object.create(null);
   let capA = 0;
   let capB = 0;
@@ -326,6 +327,14 @@ function aggregate(data, runs, meta) {
     }
   }
   for (const f of Object.keys(winShare)) winShare[f] /= Math.max(1, cleared.length);
+  // §13.1.1 — 속성 «승리 지분» 의 분모도 무기와 같이 **클리어 런**이다.
+  //   v1.5까지 이 집계가 전 런(실패 포함)을 돌아, 클리어 0인 빌드에서도 숫자가 나와
+  //   그게 dominance 밴드를 통과/실패시켰다(형제 지표 weaponWinShare 와 비대칭).
+  for (const r of cleared) {
+    for (const e of Object.keys(r.elementPicks)) {
+      elementPicksCleared[e] = (elementPicksCleared[e] === undefined ? 0 : elementPicksCleared[e]) + r.elementPicks[e];
+    }
+  }
   for (const r of runs) {
     const tot = sum(r.tele.dmgByFamily);
     if (tot <= 0) continue;
@@ -372,6 +381,7 @@ function aggregate(data, runs, meta) {
     weaponPickCounts: weaponPicks,
     startWeaponDamageShare: dmgShare[startFamily] === undefined ? null : dmgShare[startFamily],
     elementPickCounts: elementPicks,
+    elementPickCountsCleared: elementPicksCleared,
     archetypeLethality: lethal,
     kills,
     crisisKillsMedian: median(runs.map((r) => r.tele.crisisKills)),
@@ -455,8 +465,11 @@ function grade(data, summary) {
     .reduce((s, k) => s + r.weaponPickCounts[k], 0);
   band('dominance.maxWeaponPickShare', pickTot > 0 ? reNorm(r.weaponPickCounts) : null,
     undefined, rm.dominance.maxWeaponPickShare);
-  const elTot = Object.values(r.elementPickCounts).reduce((s, v) => s + v, 0);
-  band('dominance.maxElementWinShare', elTot > 0 ? Math.max(...Object.values(r.elementPickCounts)) / elTot : null,
+  // §13.1.1 — 분모 = **클리어 런**의 총 속성 투자 픽 수. 클리어가 0이면 측정 불가(null)이며,
+  //   실패 런의 픽 분포로 대신 채점하지 않는다(그건 게이트가 아니라 잡음이다).
+  const elCleared = r.elementPickCountsCleared || Object.create(null);
+  const elTot = Object.values(elCleared).reduce((s, v) => s + v, 0);
+  band('dominance.maxElementWinShare', elTot > 0 ? Math.max(...Object.values(elCleared)) / elTot : null,
     undefined, rm.dominance.maxElementWinShare);
   // 치사 지분 — 중간보스·보스·출처불명은 분모에서도 제외한다(§13.1.1)
   const le = r.archetypeLethality;

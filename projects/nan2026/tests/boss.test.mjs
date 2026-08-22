@@ -5,6 +5,7 @@
  *   spawnBoss — 코어+파트 스폰 · HP × bossHpScale[포지션] · finale 절대HP · aliveArmorPartCount = armor 수
  *   killBossEntity — armor 파트 처치 = 게이트 1단 해제 / mobility 는 불변 / 코어 처치 = cleared + 전 개체 반납
  *   bossHook — BOSS 페이즈 1회 스폰(가드) + 파트가 코어+anchor 추종
+ *   §8.11 봉인 — **탄 경로와 직접피해 경로 양쪽** 모두에서 무적인가 (한쪽만 막던 회귀 방지)
  *   clearField — 보스 등장 시 잔존 잡몹·적탄 정리
  */
 
@@ -15,6 +16,8 @@ import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { bossHook, spawnBoss } from '../src/core/boss.js';
+import { hitEnemy } from '../src/core/damage.js';
+import { stampFor } from '../src/core/stance.js';
 import { initRun, tickRun, stageEntry, PHASE } from '../src/core/stage.js';
 
 function mkRunWorld(seed, stageIndex) {
@@ -196,6 +199,40 @@ suite('boss/레이어 봉인 (§8.11 v1.5)', () => {
     spawnPlayerBullet(w, s, recomputeEff(w, s), vent.x, vent.y, 0, 0, 1);
     step(w, makeInput(), TICK_DT);
     assert.lt(vent.hp, ventHp0, '열린 파트는 피해를 받는다');
+  });
+
+  // ★ 회귀 방지 — 봉인은 v1.5에서 신설되며 step.collide(탄 경로)에만 들어갔고
+  //   damage.hitEnemy(직접피해 경로)에는 빠져 있었다. 그래서 nova·lance·barrage·fan진화
+  //   4무기가 「무적」 부위를 그대로 부쉈다. 위 테스트가 탄만 쏘느라 못 잡았으므로,
+  //   같은 불변식을 **직접피해 경로에서도** 고정한다.
+  test('★ 봉인 파트는 직접피해(hitEnemy) 경로에서도 무적이다', () => {
+    const w = mkRunWorld(1, 0);
+    w.run.order[0] = 'volcano';
+    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = true; w.run.bossTimer = 100; w.run.bossTransitionT = 0;
+    bossHook(w, TICK_DT);
+    const parts = scanBoss(w).parts;
+    const turret = parts.find((p) => p.partId === 'turret');
+    const vent = parts.find((p) => p.partId === 'vent');
+    assert.eq(turret.sealedNow, true, '전제: turret 봉인');
+    assert.eq(vent.sealedNow, false, '전제: vent 열림');
+
+    // 무기 모듈(§9.5)이 만드는 것과 동일한 §3.1 컨텍스트
+    const ctx = {
+      matrix: w.data.elements.matrix,
+      dmgMulSum: w.stats.dmgMul,
+      elementBonusMul: w.stats.elementBonusMul,
+      coreGateMul: w.data.rules.boss.coreGateMul,
+    };
+    const stamp = stampFor(w, 0, 'spawn', w.slots[0].stampElement);
+
+    const tHp = turret.hp;
+    assert.eq(hitEnemy(w, ctx, 'nova', 9999, 1, stamp, turret), 0, '봉인 파트 = 직접피해 0');
+    assert.eq(turret.hp, tHp, '봉인 파트 hp 불변');
+
+    const vHp = vent.hp;
+    assert.gt(hitEnemy(w, ctx, 'nova', 50, 1, stamp, vent), 0, '열린 파트는 직접피해를 받는다');
+    assert.lt(vent.hp, vHp, '열린 파트 hp 감소');
   });
 
   test('낮은 레이어를 다 부수면 높은 레이어가 열린다 (봉인 불사 방지)', () => {

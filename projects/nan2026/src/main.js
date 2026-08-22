@@ -497,6 +497,11 @@ async function boot() {
 
   function enter(next) {
     state = next;
+    // §6.5 — TITLE 은 «런이 없는» 화면이다. 여기서 world 를 비우지 않으면
+    //   renderFrame 의 `world === null` 메뉴 분기가 두 번 다시 잡히지 않아
+    //   RESULTS→Esc 이후 타이틀·난이도 화면이 통째로 백지가 된다(죽은 런이 얼어붙은 채 남는다).
+    //   OPTIONS 는 PAUSE 위에 겹쳐 그리므로 여기서 비우지 않는다.
+    if (next === 'TITLE') { world = null; interp = null; fx = null; }
     if (data.meta.flow.edgeTriggerOnStateEnter) kb.maskHeld();
     if (DEMO && next === 'DRAFT') demoHoldT = 1200;         // 카드 ~1.2s 보여주고 자동 픽
     else if (DEMO && next === 'RESULTS') demoHoldT = 2500;  // 결과 ~2.5s 보여주고 루프
