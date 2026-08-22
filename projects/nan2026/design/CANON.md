@@ -1588,7 +1588,7 @@ v1.1은 **자기 손으로 이 수를 깼다**: §13.2-⑤ · §18.3-9가 04에�
 |---|---|
 | `boss.partCount` ★v1.5 | **7** (최종만 8) — base 3 + extra armament 3. 런 포지션별 동적 스폰(`stages.curve.firingPartsPerStage`=[3,3,4,5,6,7], §8.9.1). extra 부위(`extra:true`)는 발사 위협만 더하고 armor·소프트게이트는 불변 |
 | `boss.partRegen` | **false** — 부위 파괴는 영구. `parts[].regenSec`는 **존재하지 않는다** |
-| `boss.summonsAllowed` | **false** — 스테이지 보스는 잡몹을 소환하지 않는다 |
+| ~~`boss.summonsAllowed`~~ | ~~**false** — 스테이지 보스는 잡몹을 소환하지 않는다~~ → ★ **v1.5 폐기.** `rules.boss.bossSummonsAllowed`(§8.9-R9 확장)가 `thornKing`·`tetrarch` 의 소환을 **허용**한다. 죽은 키 `summonsAllowed` 와 그것을 강제하던 S5 분기는 삭제됐고, 살아있는 규칙은 **S17** 이 강제한다 |
 | `boss.partHitPriority` | `"outermostFirst"` — 히트박스가 겹치면 바깥 부위 우선. 부위 파괴 시 히트박스가 제거되어 **자동으로 코어가 노출**(별도 규칙 불필요) |
 | ★ `parts[].sealLayer` ★v1.5 | **선택(기본 0)** — 부위 봉인 레이어. **살아있는 부위 중 최소 `sealLayer`보다 높은 부위는 무적**(`sealedNow`, 보스훅이 매틱 계산). = 「앞(낮은 레이어) 모듈을 다 부숴야 뒤(높은 레이어)가 열린다」의 트릭. **최소 레이어 부위는 항상 열려 있어** 봉인으로 보스가 불사가 되는 일은 없다(불변식). 봉인 부위도 **발사는 계속**한다(무적일 뿐). 코어는 자체 armor 게이트라 제외. 봉인 렌더 = 무채색 차폐 + 점선 자물쇠 링(§7.7 언어). 스킴 예: `kiln`은 물 vent(L0)를 부숴야 불 turret/plate(L1)가 열리는 «불 키스톤», `tetrarch`는 ext→3관→왕좌 3층 필링 |
 | **HP 구조** | ★ **`core.hp` + `parts[].hp` 전부 절대값**(합산 아님, `hpShare` 없음) → 시뮬이 부위별로 독립 튜닝할 수 있고 검증 항목이 하나 줄어든다 |
@@ -1909,6 +1909,32 @@ data/bosses.json     data/stages.json     data/meta.json
 ### 9.4 `rules.json` — 엔진 상수 · 불변조건 · 팔레트
 
 > ★★ **이 블록과 §9.4.1~§9.4.4의 블록은 예시가 아니라 확정값의 인쇄 자리다 (C-7 — v1.3에서 규약이 뒤집혔다).** `// 예시` 주석이 **없으므로 확정**이다. §21의 12건이 「→ 인쇄(§9.4)」로 닫힌 것은 **이 전제 위에 서 있고**, v1.2의 C-7 문면(「§9의 JSON 블록의 숫자·문자열은 구속력이 없다」)대로면 **그 12건이 아무것도 닫지 못한 것**이 된다. §0.1의 C-7·C-7.1을 보라 — 예시 블록은 ★ **정확히 6개**(v1.4 정정 — v1.3은 「4개」라 썼으나 실측 마커가 5개였고 마커 없는 산문 선언이 2건 더 있었다)이고 전부 「배열의 원소」이며 전부 `// 예시` 주석을 달았다.
+>
+> ---
+> ⚠️ **드리프트 경고 (2026-08-22 실측).** v1.5 의 난이도 오버홀이 `data/*.json` 만 고치고 아래 인쇄
+> 블록과 본문 표를 따라 고치지 않았다. **아래 키들은 정본이 틀렸다 — 정본을 보고 데이터를 복원하지 말 것.**
+> (C-8 의 「정본의 표 = JSON 이 가져야 하는 값」이 이 항목들에 한해 지켜지지 않고 있다.)
+>
+> | 키 | 정본 인쇄값 (낡음) | 실제 데이터 |
+> |---|---|---|
+> | `caps.pickups` | 256 | **384** |
+> | `elite.xpMult` | 6.0 | **3.0** |
+> | `boss.escalateFireRateMul` | 1.25 | **1.55** |
+> | `boss.escalateFireRateMax` | 1.60 | **2.6** |
+> | `fairness.swarmConcurrentMax` | 70 | **85** |
+> | `stages.phase.waveIntervalSec` | 9.0 | **7.0** |
+> | `stages.phase.crisisStartSec` | 95 | **106** |
+> | `stages.phase.crisisDurationSec` | 25 | **14** |
+> | `stages.phase.crisisTotal` | 60 | **84** |
+> | `stages.phase.midBossLeaveAfterSec` | 30 | **45** |
+>
+> 이 값들에서 **파생된** 본문 논증도 같은 만큼 낡았다 — §7.12.3 리드타임(= `crisisDurationSec /
+> crisisSubWaves`, 실제 2.33초이지 4.17초가 아니다) · §12.1 잔존 defer · §6.3 중간보스 중첩 증명.
+> 결론의 방향은 유지되나 마진 수치는 재계산이 필요하다. 숫자만 갈아끼우면 이 논증들이 어긋나므로,
+> 값 동기화는 파생 논증 재검산과 **같이** 해야 한다.
+>
+> `check.mjs` 는 정본 산문이 아니라 **데이터**를 검사하므로, 게이트 통과 상태는 이 드리프트와 무관하게 유효하다.
+> ---
 
 ```json
 {
@@ -2014,7 +2040,7 @@ data/bosses.json     data/stages.json     data/meta.json
 
 - `fairness.*`는 **로더가 강제하는 기계 검사 조건**이다. "느리고 큰 텔레그래프"라는 정성적 기둥이 여기서 처음으로 **검증 가능한 수치**가 된다. AI가 트위치 탄막을 생성하면 **빌드가 깨진다.**
 - `palette`가 **속성 색의 단일 진실**이다. 적 외곽선·아군 탄·HUD·드래프트 카드·데미지 FX가 전부 이 키를 읽는다.
-- ★ **`rules.json`의 블록 목록 = 정확히 17개** (v1.0의 14개 + `hud` + `passiveHooks` + `render`): `loop` `view` `collide` `caps` `player` `status` `bomb` `elite` `boss` `fairness` **`hud`** **`passiveHooks`** `input` `palette` `visual` **`render`** `audio`. 로더는 이 목록 밖의 루트 키를 **에러**로 거부한다.
+- ★ **`rules.json`의 블록 목록 = 정확히 16개** (+ `schemaVersion`): `loop` `view` `collide` `caps` `player` `status` `elite` `boss` `fairness` **`hud`** **`passiveHooks`** `input` `palette` `visual` **`render`** `audio`. ★ v1.5 가 `bomb` 을 삭제해 17→16 이 됐다(`RULES_ROOT_16`). 로더는 이 목록 밖의 루트 키를 **에러**로 거부한다.
 - ★ **v1.2: 목록은 17개 그대로다.** 감사(§21)가 찾아낸 **거처 없는 확정 키 전부**를 기존 스코프에 편입했다 — `stance` 2키 → **`player`**(§4.3) · `midBossSummonsAllowed` → **`boss`**(§8.9) · `telegraphConcurrentMaxGlobal` → **`fairness`**(§12.4가 이미 `fairness` 키라 불렀다) · `neutralGray`·`hud.*` → **`palette`** · `visual` 축약 해제 → **§9.4.3**. **새 루트 스코프 0.**
 - ★ **`enemy.contactPush`(§2.2) · `pickup.lifetimeSec`(§7.8)은 키가 아니다 (v1.2 명문화)**: 루트 17개에 `enemy`·`pickup` 스코프가 없고, **둘 다 구조이지 값이 아니다**(C-4) — 「적과 겹쳐도 밀리지 않는다」·「픽업은 만료되지 않는다」는 **규칙이며 밸런싱 대상이 아니다.** v1.1은 이 둘을 백틱 키 형식으로 인쇄해 **존재하지 않는 스코프를 시사**했다 → 백틱을 벗기고 규칙으로 되돌린다. **새 키 0.** ★ **v1.3이 같은 처분을 3건에 더 적용했다**: `boss.healDrop` · `bosses[].core.xp`/`parts[].xp` · `crisisFailCondition`(§8.11 · §8.10).
 
@@ -4244,6 +4270,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S37** ★ | **보스 이미터의 존재** (v1.3) — 위 66개가 `enemies.json > emitters`에 전부 존재(참조 무결성의 정적 판본) |
 | **S38** ★ | **중간보스 이탈의 단일 소유자** (v1.3) — `tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재 |
 | **S39** ★ | **웨이브 해금의 정합** (v1.3) — `waves[i].unlockStageMin ≥ roster[waves[i].archetypeId].unlockStageMin` (해금 안 된 적이 나오는 웨이브 금지) |
+| **S41** ★ | **진화 짝 패시브의 기계적 유효성** (v1.5) — `weapons[].evolution.requiresPassive.id` 가 그 무기의 «무효» 목록에 들지 않는다(§9.5). 이 표가 v1.5에서 이 행을 누락해, §9.5가 세 번 인용하는 게이트가 미구현처럼 보였다 — `check.mjs` 에는 처음부터 구현돼 있다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 
 ### 13.5 ★ DPS 기준선 — **정본이 소유한다** (사용자 확정 1)

@@ -25,7 +25,7 @@ import { validate, MANIFEST } from './core/schema.mjs';
 import { createWorld } from './core/state.js';
 import { step, makeInput, TICK_HZ } from './core/step.js';
 import { setBotPolicy, botInput, botDraftPick } from './core/bot.js';   // 셀프플레이 데모(?demo)
-import { buildDraft, applyCard, candidates } from './core/draft.js';
+import { buildDraft, applyCard } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
@@ -60,65 +60,6 @@ async function loadData() {
   const raw = {};
   for (let i = 0; i < pairs.length; i += 1) raw[pairs[i][0]] = pairs[i][1];
   return validate(raw);                       // §9.3 — 미지 키 = 에러 / 누락 키 = 에러 / 폴백 금지
-}
-
-/**
- * ★ 1주차 시임 — 드래프트 후보 × 구현된 패밀리의 교집합 (`src/core/weapons/index.js` 가 이 일을
- *   **명시적으로 main.js 에 위임**했다):
- *
- *     draft.js 의 newWeapon 후보는 data/weapons.json 의 **12 패밀리 전부**에서 나온다. 그런데
- *     1주차 레지스트리는 3개다 → 미구현 패밀리 카드를 확정하면 step.fireWeapons 가 던진다
- *     (§9.3 폴백 금지의 올바른 동작이다 — 조용히 안 쏘는 무기가 밸런스를 드리프트시키는 것보다 낫다).
- *
- * ★ 보고 대상: 정본 §11.1 에는 「구현된 무기」라는 개념이 없다 (당연히 — 완성본에는 12개가 다 있다).
- *   그러므로 이것은 **정본의 규칙이 아니라 1주차의 발판**이며, 12 패밀리가 다 서면 통째로 삭제된다.
- *   그때 이 함수를 지우는 것 말고 되돌릴 것이 없도록 **core 를 한 줄도 건드리지 않는다.**
- *
- * ★ 지운 자리를 곧바로 resupply 로 메우지 않는 이유: `guaranteeNewWeaponUntilSlots`(2) 때문에
- *   초반 드래프트는 newWeapon 을 1장 보장하는데, 1주차엔 11 후보 중 9가 미구현이라
- *   **보장 카드가 82% 확률로 「보급」이 되어** 3택이 2택으로 쪼그라든다. 같은 유효 후보 풀에서
- *   대체를 뽑아 「3장 = 실제 선택 3개」를 지킨다. resupply 는 draft.js 와 같은 **최후** 폴백이다.
- */
-function implemented(c) {
-  return c.category !== 'newWeapon' || Object.prototype.hasOwnProperty.call(weapons, c.weaponId);
-}
-
-function dropUnimplementedWeapons(world, draft) {
-  const d = world.data.meta.draft;
-  const taken = new Set(draft.excluded);
-  for (let i = 0; i < draft.cards.length; i += 1) taken.add(draft.cards[i].key);
-
-  for (let i = draft.cards.length - 1; i >= 0; i -= 1) {
-    if (implemented(draft.cards[i])) continue;
-    taken.delete(draft.cards[i].key);
-    draft.cards.splice(i, 1);
-  }
-
-  // 대체 추첨 — draft.js 와 같은 가중치·같은 비복원·같은 rng.draft 스트림
-  while (draft.cards.length < d.optionCount) {
-    const pool = candidates(world).filter((c) => implemented(c) && !taken.has(c.key));
-    if (pool.length === 0) break;
-    const k = world.rng.draft.weighted(pool.map((c) => c.weight));
-    if (k < 0) break;
-    draft.cards.push(pool[k]);
-    taken.add(pool[k].key);
-  }
-
-  // 최후 폴백 — 빈 드래프트 화면이 물리적으로 불가능해진다 (§11.1). v1.5: 코인 폐지 → 회복.
-  while (draft.cards.length < d.optionCount) {
-    draft.cards.push({ category: 'resupply', key: `resupply:${draft.cards.length}`,
-      id: d.fallback.id, name: d.fallback.name, healPct: d.fallback.healPct, weight: 0 });
-  }
-
-  // ★ 피티 재계산 (§11.1 elementCardPity) — fill() 은 시임 **전** 카드로 elementPity 를
-  //   정했는데, 위 대체 추첨이 미구현 newWeapon 자리에 elementLevel 카드를 넣을 수 있다. 그러면 최종
-  //   카드셋엔 속성 카드가 있는데 피티가 리셋되지 않아 과다 계상된다(속성 카드 강제 빈발). draft.js 와
-  //   같은 규칙으로 **최종 카드셋** 기준 다시 판정한다. 이 시임(12패밀리 완성 시 삭제)의 결정성 이탈 봉합.
-  let sawElement = false;
-  for (let i = 0; i < draft.cards.length; i += 1) {
-    if (draft.cards[i].category === 'elementLevel') { sawElement = true; break; }
-  }
-  world.elementPity = sawElement ? 0 : draft.pityBefore + 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +375,8 @@ async function boot() {
   const edge = makeEdge(kb);
   const input = makeInput();
   // ── 셀프플레이 데모(어트랙트) — `?demo` 이면 봇이 자동 플레이(쇼케이스). 비침습: 기본 OFF ──
-  //   `?demo` / `?demo=1` = 랜덤 시드 루프 · `?demo=<8자리 hex>` = 고정 시드(같은 런 재현).
+  //   `?demo` / `?demo=1` = **고정 시드**(DEMO_DEFAULT_SEED) 루프 · `?demo=<8자리 hex>` = 그 시드로 고정.
+  //   ★ 어느 쪽이든 시드는 고정이다 — 아래 demoFixedSeed 는 DEMO 일 때 절대 null 이 되지 않는다.
   const _demoParam = new URLSearchParams(location.search).get('demo');
   const DEMO = _demoParam !== null;
   const DEMO_DEFAULT_SEED = 8;                // 시뮬로 고른 쇼케이스 런: 3스테이지 격파·무기 4종·Lv6 (결정적 재현)
@@ -520,7 +462,6 @@ async function boot() {
     if (world.draftQueue <= 0) return false;
     if (!data.meta.draft.pauseGame) return false;   // §6.4 — 드래프트는 게임 클럭을 멈춘다
     draft = buildDraft(world);
-    dropUnimplementedWeapons(world, draft);         // ★ 1주차 시임 (위)
     cursor = 0;
     acc = 0;
     enter('DRAFT');

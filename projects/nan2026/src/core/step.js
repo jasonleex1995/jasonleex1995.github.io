@@ -396,7 +396,7 @@ function collide(world, dt) {
     const rr = rp.hitboxRadius + b.hitRadius;
     if (dx * dx + dy * dy > rr * rr) continue;
     // §2.4(v1.4) — i-frame 중 통과하는 탄은 소멸하지 않는다. **피해를 실제로 준 그 탄 하나만**
-    //   소멸(아래 release, 실드 흡수 포함). 광역 소거는 폭탄·hitBulletClearRadius 만.
+    //   소멸(아래 release). 광역 소거는 hitBulletClearRadius 만 (v1.5: 실드·폭탄 폐지).
     if (p.iframeSec > 0) continue;
     if (applyHit(world, b.dmg, b.srcArch)) {
       if (b.status !== null) applyStatus(world, b.status, b.statusDurationSec);
@@ -433,7 +433,8 @@ function hazards(world, dt) {
     const z = zs[i];
     if (!z.alive) continue;
     z.age += dt;
-    // ★ 소유권 — 플레이어 장판(무기 mine 등)은 **그 무기가** 수명·반납을 소유한다. 여기선 나이만 먹인다.
+    // ★ 소유권 — 플레이어 장판은 **그 무기가** 수명·반납을 소유한다. 여기선 나이만 먹인다.
+    //   (v1.5 에서 mine 이 삭제돼 현재 fromPlayer 장판의 생산자는 없다 — 경로는 유지.)
     if (z.fromPlayer) continue;
     if (z.age >= z.warnSec + z.activeSec) { world.zones.release(z); continue; }   // 퓨즈+활성 종료 = 반납
     if (z.age < z.warnSec) continue;                                              // §8.5 mortar 퓨즈(예고) = 무해 회피창
@@ -477,7 +478,7 @@ function hazards(world, dt) {
 
 /**
  * §2.4 · §3.2 — 모든 피해원이 공유하는 단 하나의 게이트.
- * @returns 실제로 피해가 적용됐는가 (실드 흡수도 true — 피격 자체는 일어났다)
+ * @returns 실제로 피해가 적용됐는가 (v1.5: 실드 폐지 — 아래 §3.2 주석 참조)
  *
  * ★ export 이유(뮤테이션 가드) — 아래 i-frame 조기반환은 이 함수가 "게이트"라는 계약의 본체다.
  *   현재 호출자(collide 의 탄·몸통 2경로)는 각기 다른 목적으로 호출 **전에** iframeSec 를 이미

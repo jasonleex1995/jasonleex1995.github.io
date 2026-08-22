@@ -121,7 +121,9 @@ function moveBoss(world) {
     return;
   }
 
-  // §8.12 — mobility 파괴 시 speedPxSec ×0.5 · ampPx →0(스웨이 정지). 배율은 run 이 소유.
+  // §8.12(v1.5) — mobility 파괴 시 speedPxSec ×1.5 · ampPx **유지**(정지가 아니라 «격렬하게 왕복»).
+  //   배율은 run 이 소유한다. v1.4 는 ×0.5 · amp→0(정지)이었고 아래 `effAmp <= 0` 가드가 그 잔재다 —
+  //   bossMoveAmpMul 이 1 말고 다른 값이 되는 곳이 없어 지금은 도달하지 않는다(가드는 그대로 둔다).
   const effAmp = mp.ampPx * run.bossMoveAmpMul;
   const effSpeed = mp.speedPxSec * run.bossMoveSpeedMul;
   if (def.movePattern === 'holdCenter' || effAmp <= 0) {

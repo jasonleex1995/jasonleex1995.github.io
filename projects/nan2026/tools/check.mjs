@@ -502,7 +502,7 @@ function S2_schema() {
     'bandAllowed', 'elementAllowed'], 'rules.elite');
 
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
-  closedKeys('S2', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
+  closedKeys('S2', r.boss, ['partCount', 'partRegen', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
@@ -1285,10 +1285,9 @@ function S5_bossRules() {
     }
   }
   EX('S5', n);
-  // §8.11: 스테이지 보스는 소환하지 않는다
-  if (rb.summonsAllowed !== false) {
-    V('S5', `rules.boss.summonsAllowed = ${rb.summonsAllowed} ≠ false (§8.11)`);
-  }
+  // ★ v1.5 — 「스테이지 보스는 소환하지 않는다」는 폐기됐다(§8.9-R9 확장: bossSummonsAllowed).
+  //   그 규칙을 강제하던 rules.boss.summonsAllowed 는 src/ 어디서도 읽히지 않는 화석이라 삭제했다.
+  //   살아있는 규칙은 S17(mid ∨ stage 소환 허용 목록)이 강제한다.
 }
 
 // ===========================================================================

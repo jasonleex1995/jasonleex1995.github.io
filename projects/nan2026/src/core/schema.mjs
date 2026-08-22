@@ -200,7 +200,7 @@ function checkRules(c, r) {
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
   c.closed('rules.elite', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
     'bandAllowed', 'elementAllowed']);
-  c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'summonsAllowed', 'partHitPriority',
+  c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',

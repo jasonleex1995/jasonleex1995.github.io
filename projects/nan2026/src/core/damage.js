@@ -24,7 +24,8 @@ import { elementTerm, hitTier } from './elements.js';
  *                elementBonusMul = resonance 의 k. 미보유면 1.0        (§3.1)
  *                coreGateMul     = rules.boss.coreGateMul              (§8.13)
  * @param dmg      w.dmg — 무기 레벨 행에서 읽은 값                     (§3.1-1항)
- * @param localMul Π(패밀리 지역 배율) — falloff | rearBias | evoSecondaryDmgMul 의 곱.
+ * @param localMul Π(패밀리 지역 배율) — v1.5 기준 실재하는 것은 `evoSecondaryDmgMul` 뿐이다
+ *                 (falloff · rearBias 는 omni 와 함께 소멸했다).
  *                 ★ 폐쇄 목록 3종이며 전부 **1항 안**에서 곱해진다 (§3.1).
  *                 해당 없으면 1.
  * @param stamp    피해 개체에 각인된 속성 (§4.4)

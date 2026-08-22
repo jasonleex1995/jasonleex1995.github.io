@@ -6,6 +6,9 @@
  *   const world = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters: null } });
  *
  * 각 모듈은 `{ update(world, slot, eff, dt) }` 를 default export 한다.
+ * ★ 정정 — 아래 「JSON 을 스스로 읽지 않는다」는 **밸런스 수치**에 한한 말이다. 실제로는 5개 모듈이
+ *   `world.data.rules.view.arena` · `elements.matrix` · `rules.boss.coreGateMul` · `rules.player.iframeSec`
+ *   를 읽는다(11군데) — 전부 «구조 상수»이고 밸런스 수치가 아니라 §9.1 리터럴 제약과 무관하다.
  * step.fireWeapons 가 슬롯마다 recomputeEff(world, slot) 를 계산해 넘기므로
  * ★ 무기 모듈은 JSON 을 스스로 읽지 않는다 → weapons/** 숫자 리터럴 제약이 자연히 지켜진다.
  *

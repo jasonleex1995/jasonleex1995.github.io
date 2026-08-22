@@ -190,10 +190,10 @@ function guarantees(world, pityBefore) {
 
 /**
  * ★ 레벨업 드래프트 1회를 생성한다. 게임 클럭은 이미 멈춰 있다 (§6.4 · draft.pauseGame).
- * @returns { cards, excluded, pityBefore }  (v1.5: 리롤 폐지)
+ * @returns { cards, pityBefore }  (v1.5: 리롤 폐지 → excluded 도 함께 소멸)
  */
 export function buildDraft(world) {
-  const draft = { cards: [], excluded: [], pityBefore: world.elementPity };
+  const draft = { cards: [], pityBefore: world.elementPity };
   fill(world, draft);
   return draft;
 }
@@ -204,11 +204,6 @@ export function buildDraft(world) {
 function fill(world, draft) {
   const d = world.data.meta.draft;
   const pool = candidates(world);
-
-  // 리롤로 제외된 카드를 뺀다 (§11.1 — "방금 본 3장은 그 드래프트 동안 풀에서 제외")
-  for (let i = pool.length - 1; i >= 0; i -= 1) {
-    if (draft.excluded.indexOf(pool[i].key) >= 0) pool.splice(i, 1);
-  }
 
   // ① 보장분 — "3장 = {속성 1, 무기 1, 자유 1}"
   const g = guarantees(world, draft.pityBefore);

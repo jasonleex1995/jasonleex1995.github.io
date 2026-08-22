@@ -6,7 +6,7 @@
  *   §2.1   체력 · 방어  §2.3 히트박스  §2.4 i-frame  §2.6 런 시작 상태  §2.7 상태이상
  *   §4.2   투자 (fire/water/grass)   §4.3 부여
  *   §9.5   무기 슬롯 = 패밀리 계약. levels[] 부분 오버라이드 누적 (§9.3의 유일한 예외)
- *   §9.6   패시브 12훅 1:1 — 가산 풀
+ *   §9.6   패시브 훅 1:1 — 가산 풀 (v1.5: 패시브 11 · 훅 10)
  *   §9.6.1 passiveHooks — src = base ∪ (evolved ? evolution.params : {}) + H1~H4
  *   §10.2  RNG 8 스트림 주입   §10.3 L2 유지 규칙 — 사전할당 풀 + alive 플래그,
  *                              인덱스 오름차순 순회만, **core 내 객체 생성 금지(핫패스 0 bytes/tick)**
@@ -206,7 +206,7 @@ export function pushHitFx(world, x, y, element, tier, killed, enemyIdx, enemyGen
 }
 
 // ---------------------------------------------------------------------------
-// §9.6 — 패시브 12훅. 각 스탯의 소유자는 정확히 1개 패시브다 (1:1)
+// §9.6 — 패시브 훅(v1.5: 11 패시브 · 10 훅). 각 스탯의 소유자는 정확히 1개 패시브다 (1:1)
 // ---------------------------------------------------------------------------
 /**
  * §3.1 · §9.6 — 훅의 기본값.
@@ -260,7 +260,7 @@ function makeSlot(index) {
     cooldownT: 0,
     effDirty: true,
     eff: {},          // 재사용. 매 틱 새로 만들지 않는다
-    // 패밀리별 지속 상태 (오빗 각도 · 오버드라이브 램프 · 마인 배치 타이머 …)
+    // 패밀리별 지속 상태 (오빗 각도 · 오버드라이브 램프 · 부메랑 왕복 위상 …)
     a0: 0, a1: 0, a2: 0, a3: 0,
   };
 }
@@ -312,7 +312,7 @@ export function recomputeEff(world, slot) {
   const hooks = world.data.rules.passiveHooks[slot.family];
   const st = world.stats;
 
-  // H1 — fireRateMul 은 12 패밀리 전부에 적용된다. 주기(간격)이므로 나눗셈
+  // H1 — fireRateMul 은 10 패밀리 전부에 적용된다. 주기(간격)이므로 나눗셈
   eff[hooks.rateKey] = eff[hooks.rateKey] / (1 + st.fireRateMul);
 
   // H2 — areaMul 은 "닿는 범위"만. 산포(spreadDeg·jitterDeg·arcDeg)는 areaKeys 에 없다
@@ -619,6 +619,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.sealLayer = 0; e.sealedNow = false;            // §8.11 — 코어는 봉인 대상이 아니다. 풀 재사용 stale 방지(나머지 3개 스포너와 대칭)
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
 }
@@ -689,8 +690,10 @@ export function spawnPickup(world, kind, value, x, y) {
     }
     if (best !== null) { best.value += value; return best; }
     // ★ 같은 kind 픽업이 하나도 없다 = 풀이 «다른» kind 로 포화. 손실 0 을 지키려면 다른 kind 두 개를
-    //   병합해 슬롯을 비우고 새 픽업을 그 자리에 놓는다. kind 3종·cap ≥ 4 이면 비둘기집으로 어떤 kind 는
-    //   반드시 ≥2 존재한다. (핫패스 아님 — 풀 포화 시에만 도달하며 실측상 도달 0.)
+    //   병합해 슬롯을 비우고 새 픽업을 그 자리에 놓는다.
+    //   ★ v1.5 기준 kind 는 `xp` **하나뿐**(코인·회복 픽업 폐지)이라 위 same-kind 루프가 항상 리턴하고
+    //     이 블록은 **도달 불가**다. 지우지 않는 이유: kind 가 다시 늘면 그 순간 필요한 안전망이고,
+    //     없으면 «픽업 손실 0» 이 조용히 깨진다. kind 가 1종인 동안은 죽은 코드로 읽어도 된다.
     const firstOf = Object.create(null);
     for (let i = 0; i < items.length; i += 1) {
       const q = items[i];

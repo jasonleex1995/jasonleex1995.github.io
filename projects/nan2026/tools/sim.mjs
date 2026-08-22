@@ -303,7 +303,10 @@ function aggregate(data, runs, meta) {
   const elementPicks = Object.create(null);        // 전 런 — elements.csv 진단용
   const elementPicksCleared = Object.create(null);  // 클리어 런만 — §13.1.1 밴딩용
   const kills = Object.create(null);
-  let capA = 0;
+  // ★ A층(enemyConcurrentMax·swarmConcurrentMax 등 defer)은 코어가 카운터 없이 break 로 처리해
+  //   **집계할 원천이 없다**. 0 으로 내보내면 「A층 초과 0건」이라는 거짓 증명이 되므로 null 로 둔다
+  //   (같은 파일 uptimeRef 와 동일한 처분 — 못 재는 것은 PASS 가 아니라 UNMEASURED 다).
+  const capA = null;
   let capB = 0;
 
   for (const r of runs) {
@@ -495,6 +498,16 @@ function grade(data, summary) {
     //   전달률»이 아니다(느린 무기에서 크게 과소계상 → 오도하는 FAIL). 올바른 측정(명목 DPS 대비)이
     //   구현되기 전엔 **UNMEASURED** 로 남긴다. 진단용 tick-proxy 는 bosses.csv 에 그대로 남는다.
     band('dpsProbe.uptimeRef(실측)', null, c.dpsProbe.uptimeRef - 0.05, c.dpsProbe.uptimeRef + 0.05);
+    // ★ 정직성 — probe 는 balanced 빌드 한 축만 돈다. specialist·noElement 축은 **측정 자체를 하지
+    //   않으므로** 밴딩에서 조용히 빠져 있었고, meta.json 의 임계값 18개가 아무도 안 읽는 상태였다.
+    //   측정이 구현되기 전까지 UNMEASURED 로 **출력**한다 — 빠져 있는 것과 못 잰 것은 다르다.
+    for (let i = 0; i < 6; i += 1) {
+      band(`dpsProbe.specialistPass[${i + 1}]`, null, c.dpsProbe.specialistPass.min[i], undefined);
+    }
+    for (let i = 0; i < 6; i += 1) {
+      band(`dpsProbe.noElementPass[${i + 1}]`, null,
+        c.dpsProbe.noElementPass.min[i], c.dpsProbe.noElementPass.max[i]);
+    }
   }
   return out;
 }
