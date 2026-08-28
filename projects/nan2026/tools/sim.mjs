@@ -123,6 +123,8 @@ export function driveRun(data, seed, opts) {
     bossTimerLeft: [],        // §10.4.3 stagePar — 격파 시점의 타이머 잔여
     bossUptime: [],           // 보스전 중 실제로 피해를 넣은 시간 비율(uptimeRef 실측)
     themeOrder: null,
+    // §11.1(v1.6) 시작 무기는 매 런 추첨 → «전역 상수»가 아니라 «런의 속성»이다.
+    startFamily: world.slots[0].family,
     score: 0,
     tele: world.tele,
     capHits: null,
@@ -362,7 +364,20 @@ function aggregate(data, runs, meta) {
 
   const timeouts = runs.filter((r) => r.deathCause === 'timeout').length;
   const hpDeaths = runs.filter((r) => r.deathCause === 'hp').length;
-  const startFamily = data.rules.player.startWeaponId;   // §2.6 — 시작 무기(= forward). id == family (1:1)
+  // §11.1(v1.6) — startWeaponId 는 폐지됐다. 시작 무기가 런마다 다르므로 이 지표는
+  //   «클리어 런 각각에서, 그 런이 들고 시작한 무기가 낸 피해 지분» 의 평균이다.
+  //   v1.5 까지는 전역 상수 forward 하나로 읽었다 — 그대로 두면 undefined 색인이라
+  //   지표가 조용히 null 로 죽는다. 죽은 게이트는 통과가 아니다.
+  let swSum = 0;
+  let swRuns = 0;
+  for (const cr of cleared) {
+    const tot = sum(cr.tele.dmgByFamily);
+    if (tot <= 0) continue;
+    const d = cr.tele.dmgByFamily[cr.startFamily];
+    swSum += (d === undefined ? 0 : d) / tot;
+    swRuns += 1;
+  }
+  const startWeaponShare = swRuns === 0 ? null : swSum / swRuns;
 
   return {
     runs: n,
@@ -382,7 +397,7 @@ function aggregate(data, runs, meta) {
     weaponDamageShare: dmgShare,
     weaponWinShare: winShare,
     weaponPickCounts: weaponPicks,
-    startWeaponDamageShare: dmgShare[startFamily] === undefined ? null : dmgShare[startFamily],
+    startWeaponDamageShare: startWeaponShare,
     elementPickCounts: elementPicks,
     elementPickCountsCleared: elementPicksCleared,
     archetypeLethality: lethal,
@@ -455,16 +470,20 @@ function grade(data, summary) {
   band('dominance.startWeaponDamageShare', r.startWeaponDamageShare,
     rm.dominance.startWeaponDamageShare.min, rm.dominance.startWeaponDamageShare.max);
 
-  // 지배도 — forward 를 빼고 11 종으로 재정규화한다(§13.1.1)
+  // 지배도 — §13.1.1. v1.5 까지는 forward 를 뺀 뒤 재정규화했다: forward 가 «모든 런의
+  //   시작 무기» 라 보유율이 구조적으로 1.00 이었고, 그대로 두면 밴드가 항상 실패했다.
+  //   §11.1(v1.6) 시작 무기가 추첨이 되면서 그 왜곡이 사라졌다 — 어느 무기도 보장되지
+  //   않으므로 **제외 없이 전 종을 재정규화**한다. 특정 무기를 계속 빼는 것은 이제
+  //   근거 없는 특례이고, 지배도 검사에서 한 종을 그냥 지우는 것과 같다.
   const reNorm = (obj) => {
-    const keys = Object.keys(obj).filter((k) => k !== 'forward');
+    const keys = Object.keys(obj);
     const tot = keys.reduce((s, k) => s + obj[k], 0);
     if (tot <= 0) return null;
     return Math.max(...keys.map((k) => obj[k] / tot));
   };
   band('dominance.maxWeaponWinShare', Object.keys(r.weaponWinShare).length > 0 ? reNorm(r.weaponWinShare) : null,
     undefined, rm.dominance.maxWeaponWinShare);
-  const pickTot = Object.keys(r.weaponPickCounts).filter((k) => k !== 'forward')
+  const pickTot = Object.keys(r.weaponPickCounts)
     .reduce((s, k) => s + r.weaponPickCounts[k], 0);
   band('dominance.maxWeaponPickShare', pickTot > 0 ? reNorm(r.weaponPickCounts) : null,
     undefined, rm.dominance.maxWeaponPickShare);

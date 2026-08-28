@@ -36,7 +36,7 @@ function fin(v) { return typeof v === 'number' && Number.isFinite(v); }
 /** 성장 다이얼을 미리 감아 핫패스(count·pierce·area 훅)를 최대한 자극한다 */
 function buildWorld(seed) {
   const data = loadData();
-  const w = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters: null } });
+  const w = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
   giveWeapon(w, 'fan');
   giveWeapon(w, 'seeker');
   const rng = makeRng(seed ^ 0x5eed);

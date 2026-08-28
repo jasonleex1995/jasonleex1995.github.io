@@ -26,7 +26,7 @@ const dt = TICK_DT;
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────
 function mkWorld(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null } });
+  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
 }
 function slotOf(world, family) {
   for (let i = 0; i < world.slots.length; i += 1) if (world.slots[i].family === family) return world.slots[i];

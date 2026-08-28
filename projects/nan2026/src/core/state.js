@@ -352,6 +352,7 @@ export function recomputeEff(world, slot) {
  */
 export function createWorld(opts) {
   const data = opts.data;
+  const startWeaponId = opts.startWeaponId === undefined ? null : opts.startWeaponId;
   const rules = data.rules;
   const caps = rules.caps;
   const rp = rules.player;
@@ -421,6 +422,8 @@ export function createWorld(opts) {
 
     // §3.1 — 데미지 컨텍스트. 매 틱 재사용한다 (핫패스 0 alloc)
     dmgCtx: { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 },
+    // §11.1(v1.6) null = 매 런 추첨. 특정 무기를 시험하는 테스트만 값을 넘긴다.
+    startWeaponId,
 
     slots: new Array(rp.weaponSlots),
     passives: new Array(rp.passiveSlots),
@@ -452,8 +455,20 @@ export function createWorld(opts) {
   for (let i = 0; i < rp.weaponSlots; i += 1) world.slots[i] = makeSlot(i);
   for (let i = 0; i < rp.passiveSlots; i += 1) world.passives[i] = { id: null, level: 0 };
 
-  // §2.6 — forward Lv1 → 슬롯 1 고정
-  giveWeapon(world, rp.startWeaponId);
+  // §11.1(v1.6) — 시작 무기는 매 런 «속성 계열»에서 추첨한다. rng.draft 를 쓰므로
+  //   같은 시드 = 같은 시작 무기다(§10.2 결정성). 고정 startWeaponId 는 폐지됐다.
+  //   ★ opts.startWeaponId 로 못박을 수 있다 — 특정 무기를 시험하는 테스트가 쓴다.
+  //     게임 실행은 넘기지 않으므로 항상 추첨이다.
+  if (world.startWeaponId !== null) {
+    giveWeapon(world, world.startWeaponId);
+  } else {
+    const startPool = [];
+    const wlist = world.data.weapons.weapons;
+    for (let i = 0; i < wlist.length; i += 1) {
+      if (wlist[i].slotClass === 'element') startPool.push(wlist[i].id);
+    }
+    giveWeapon(world, world.rng.draft.pick(startPool));
+  }
   recomputeStats(world);
   recomputeStamps(world);
   world.player.xpToNext = xpToNext(world, 1);
@@ -467,7 +482,11 @@ export function createWorld(opts) {
 export function giveWeapon(world, weaponId) {
   const def = world.weaponDefs[weaponId];
   if (def === undefined) throw new Error(`state: 미지의 무기 "${weaponId}" (§9.5 — id == family)`);
-  for (let i = 0; i < world.slots.length; i += 1) {
+  // ★ 계열 슬롯 — element 무기는 0..eSlots-1, utility 무기는 eSlots..weaponSlots-1 에만 앉는다.
+  const eSlots = world.data.rules.player.elementSlots;
+  const lo = def.slotClass === 'utility' ? eSlots : 0;
+  const hi = def.slotClass === 'utility' ? world.slots.length : eSlots;
+  for (let i = lo; i < hi; i += 1) {
     const s = world.slots[i];
     if (s.weaponId !== null) continue;
     s.weaponId = def.id;
@@ -515,13 +534,21 @@ export function givePassive(world, passiveId) {
 }
 
 /** §5.3 — 슬롯 재정렬(스왑). 드래프트 화면에서만 호출된다 */
+// §11.1(v1.6) — 계열을 **넘는** 교환은 거부한다(false). 속성 무기가 유틸 칸에 앉으면
+//   recomputeStamps 가 각인을 안 내려 그 무기는 영원히 노말이 되고, 반대로 유틸 무기가
+//   속성 칸에 앉으면 각인을 받아 「조준하지 않는 무기는 상성을 노릴 수 없다」는 전제가
+//   무너진다. 지금은 호출처가 테스트뿐이라 실사용 위험이 없지만, 불변식을 우연이 아니라
+//   구조로 세워 둔다 — 나중에 UI 가 이걸 부르면 조용히 깨질 자리다.
 export function swapSlots(world, i, j) {
+  const eSlots = world.data.rules.player.elementSlots;
+  if ((i < eSlots) !== (j < eSlots)) return false;
   const t = world.slots[i];
   world.slots[i] = world.slots[j];
   world.slots[j] = t;
   world.slots[i].index = i;
   world.slots[j].index = j;
   recomputeStamps(world);     // §4.3 재계산 시점 ③ — 슬롯 재정렬
+  return true;
 }
 
 // ---------------------------------------------------------------------------

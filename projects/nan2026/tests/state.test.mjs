@@ -19,7 +19,7 @@ import {
 import { weapons } from '../src/core/weapons/index.js';
 
 function mk(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons });
+  return createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward' });
 }
 /** 풀 불변식: free 스택 + live == size, 언제나 (§10.3 무결) */
 function poolIntact(p) {
@@ -303,10 +303,13 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
   test('giveWeapon — 가장 앞의 빈 슬롯에 append, 만석 = -1', () => {
     const w = mk();                                       // slot0 = forward (startWeapon)
     assert.eq(w.slots[0].family, 'forward', '시작 무기');
-    assert.eq(giveWeapon(w, 'fan'), 1, 'append slot1');
-    assert.eq(giveWeapon(w, 'seeker'), 2, 'append slot2');
-    assert.eq(giveWeapon(w, 'lance'), 3, 'append slot3');
-    assert.eq(giveWeapon(w, 'orbit'), -1, '4칸 만석 → -1');
+    // §11.1(v1.6) 슬롯은 계열로 나뉜다 — 속성 0..2 · 유틸 3..4.
+    assert.eq(giveWeapon(w, 'fan'), 1, '속성 append slot1');
+    assert.eq(giveWeapon(w, 'seeker'), 2, '속성 append slot2');
+    assert.eq(giveWeapon(w, 'lance'), -1, '속성 3칸 만석 → -1 (유틸칸으로 새지 않는다)');
+    assert.eq(giveWeapon(w, 'orbit'), 3, '유틸은 유틸칸 첫 자리');
+    assert.eq(giveWeapon(w, 'aura'), 4, '유틸 append slot4');
+    assert.eq(giveWeapon(w, 'nova'), -1, '유틸 2칸 만석 → -1');
     assert.throws(() => giveWeapon(w, 'no-weapon'), '미지 무기 throw');
   });
 
@@ -328,16 +331,27 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     for (let k = 1; k < maxL; k += 1) assert.ok(givePassive(w, 'warhead'), `Lv${k}→${k + 1}`);
     assert.eq(w.passives[0].level, maxL, 'maxLevel 도달');
     assert.eq(givePassive(w, 'warhead'), false, 'maxLevel 초과 = false');
-    // 6칸 채우고 신규 = false
+    // 만석 채우고 신규 = false — 칸수는 rules 에서 끌어온다(하드코딩 금지)
+    const nSlots = w.data.rules.player.passiveSlots;
     const others = ['overclock', 'coil', 'coating', 'autoload', 'resonance'];
-    for (const id of others) assert.ok(givePassive(w, id), `채움 ${id}`);
-    assert.eq(givePassive(w, 'frame'), false, '6칸 만석 + 미보유 신규 = false');
+    for (let k = 0; k < nSlots - 1; k += 1) assert.ok(givePassive(w, others[k]), `채움 ${others[k]}`);
+    assert.eq(w.passives.length, nSlots, `${nSlots}칸 만석`);
+    assert.eq(givePassive(w, 'frame'), false, '만석 + 미보유 신규 = false');
+  });
+
+  // §11.1(v1.6) — 계열을 넘는 교환은 각인 규약을 깨므로 거부된다
+  test('swapSlots — 계열을 넘는 교환은 거부 (§11.1)', () => {
+    const w = mk();
+    assert.ok(giveWeapon(w, 'orbit') >= 0, '유틸 무기 획득');
+    const before = w.slots.map((s) => s.weaponId);
+    assert.eq(swapSlots(w, 0, 3), false, '속성칸 ↔ 유틸칸 = false');
+    assert.eq(JSON.stringify(w.slots.map((s) => s.weaponId)), JSON.stringify(before), '거부되면 배치 불변');
   });
 
   test('swapSlots — 슬롯 교환 + index 갱신 (§5.3)', () => {
     const w = mk();
     giveWeapon(w, 'fan');                                 // slot1 = fan
-    swapSlots(w, 0, 1);
+    assert.eq(swapSlots(w, 0, 1), true, '같은 계열(속성↔속성) 교환은 허용');
     assert.eq(w.slots[0].family, 'fan', 'slot0 = fan');
     assert.eq(w.slots[0].index, 0, 'index 갱신 0');
     assert.eq(w.slots[1].family, 'forward', 'slot1 = forward');

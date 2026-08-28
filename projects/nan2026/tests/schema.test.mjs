@@ -74,10 +74,13 @@ suite('schema/unknown-and-missing-keys', () => {
 });
 
 suite('schema/references', () => {
-  test('잘못된 참조 startWeaponId → throw (§9.3 참조 무결성)', () => {
+  // §11.1(v1.6) startWeaponId 는 폐지됐다(시작 무기는 매 런 추첨). 그 자리를 지키던
+  //   참조 검사를 «폐지 키가 되살아나면 잡는다» 로 바꾼다 — 되살아난 키를 닫힌-키
+  //   규칙이 잡지 못하면 데이터가 조용히 무시되는 채로 통과한다.
+  test('폐지된 startWeaponId 가 되살아나면 → throw (§9.3 닫힌 키)', () => {
     const raw = clone();
-    raw.rules.player.startWeaponId = 'ghostgun';
-    assert.throws(() => validate(raw), '없는 무기 참조는 던진다');
+    raw.rules.player.startWeaponId = 'forward';       // 존재하는 무기라도 키 자체가 없다
+    assert.throws(() => validate(raw), '폐지 키는 값이 멀쩡해도 던진다');
   });
 
   test('잘못된 참조 stages[].bossId → throw (§9.3)', () => {

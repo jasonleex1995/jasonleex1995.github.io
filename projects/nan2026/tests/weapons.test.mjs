@@ -42,7 +42,7 @@ const dt = TICK_DT;
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────
 function mkWorld(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null } });
+  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
 }
 function slotOf(world, family) {
   for (let i = 0; i < world.slots.length; i += 1) if (world.slots[i].family === family) return world.slots[i];
@@ -252,7 +252,7 @@ suite('weapons/fan', () => {
     let calls = 0;
     const wrappedFan = { update: fan.update, onExpire(...a) { calls += 1; return fan.onExpire(...a); } };
     const reg = { forward: weapons.forward, fan: wrappedFan, seeker: weapons.seeker };
-    const w = createWorld({ data: loadData(), seed: 3, weapons: reg, hooks: { enemies: null, emitters: null } });
+    const w = createWorld({ data: loadData(), seed: 3, weapons: reg, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
 
     giveWeapon(w, 'fan');
     const s = slotOf(w, 'fan');

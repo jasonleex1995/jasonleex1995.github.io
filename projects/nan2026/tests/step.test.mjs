@@ -8,7 +8,7 @@
  *   · killEnemy: 진입 !alive 가드 = 멱등 + §8.6 XP 드랍 (D3) — 회귀
  *   · 레벨업: serial 큐 (§6.4) · 스탠스 런 유지 · 발사 → 탄 스폰
  *
- * world = createWorld({ data, seed, weapons }) · hooks 없이 (1주차: 적 등속 적분만).
+ * world = createWorld({ data, seed, weapons, startWeaponId: 'forward' }) · hooks 없이 (1주차: 적 등속 적분만).
  * ★ 결정성 = 같은 시드+입력열 → 비트 동일 / 다른 시드 → 상이.
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
@@ -19,7 +19,7 @@ import { elementMul } from '../src/core/elements.js';
 import { weapons } from '../src/core/weapons/index.js';
 
 function mk(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons });
+  return createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward' });
 }
 /** 자동 발사가 테스트 대상 풀을 오염시키지 않도록 무기를 침묵시킨다 (family 는 남겨 spawn 계약 유지) */
 function silence(w) {

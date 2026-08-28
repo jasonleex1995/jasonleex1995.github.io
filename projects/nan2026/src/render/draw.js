@@ -724,7 +724,7 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
   ctx.strokeStyle = stanceColor;
   ctx.stroke();
 
-  // ② 슬롯 스트립 (임뷰 칩) — 기체 하단 +14px, 7px × 4칸, 간격 2px. 좌→우 = 슬롯 1..4
+  // ② 슬롯 스트립 (임뷰 칩) — 기체 하단 +14px, 7px × N칸, 간격 2px. 좌→우 = 슬롯 1..N
   const n = world.slots.length;
   const w = n * vs.pipPx + (n - 1) * vs.pipGapPx;
   let sx = x - w / 2 + vs.pipPx / 2;

@@ -406,10 +406,19 @@ function drawRightPanel(ctx, world, pal) {
   }
   y += 14;
 
-  // ---- 무기 슬롯 4칸 + 부여 상태 (§4.3 — 좌→우 = 슬롯 1..4 = 부여 우선순위) --
+  // ---- 무기 슬롯 (§4.3 — 위→아래 = 슬롯 1..N = 부여 우선순위) ---------------
+  //   §11.1(v1.6) 슬롯은 계열로 갈린다: 앞 elementSlots 칸 = 속성칸(각인 대상),
+  //   나머지 = 유틸칸(각인되지 않는다). 갈린 사실이 화면에서 안 읽히면
+  //   빌드를 짤 근거가 사라진다 — 그래서 두 구역에 머리글을 세운다.
+  const eSlots = world.data.rules.player.elementSlots;
   text(ctx, world, pal, '무기 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   y += 24;
   for (let i = 0; i < world.slots.length; i += 1) {
+    if (i === 0 || i === eSlots) {
+      text(ctx, world, pal, i === 0 ? `속성 ${eSlots}칸` : `무속성 ${world.slots.length - eSlots}칸`,
+        x, y, h.fontSmallPx, pal.hud.textDim, 'left', 600);
+      y += 15;
+    }
     const s = world.slots[i];
     const rowH = 34;
     const imbued = s.stampElement !== 'normal';
@@ -443,7 +452,7 @@ function drawRightPanel(ctx, world, pal) {
     y += rowH;
   }
 
-  // ---- 패시브 슬롯 6칸 (§4.2 상한 6 · 좌→우 = 획득 순) ---------------------
+  // ---- 패시브 슬롯 (§4.2 상한 = rules.player.passiveSlots · 위→아래 = 획득 순) ---------------------
   //   ★ 무기 슬롯과 같은 어휘 — "먹을 수 있는 패시브도 6개"가 화면에서 읽힌다
   y += 10;
   text(ctx, world, pal, '패시브 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);

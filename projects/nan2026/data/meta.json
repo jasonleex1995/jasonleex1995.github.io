@@ -13,7 +13,7 @@
     "optionCount": 3,
     "slotAssign": "append",
     "categoryWeights": { "newWeapon": 20, "weaponLevel": 40, "elementLevel": 20, "passive": 20 },
-    "newWeaponSlotScale": [3.0, 1.5, 1.0],
+    "newWeaponSlotScale": [3.0, 1.5, 1.0, 1.0],
     "weaponLevelEvolutionBonus": 2.0,
     "elementFirstLevelBonus": 1.5,
     "passiveNewBonus": 1.3,
@@ -123,7 +123,7 @@
       "killTimeMedianBalanced": { "min": 120, "max": 150 }
     },
     "static": {
-      "growthBudget": { "maxLevelUps": 60, "minTotalSink": 67 },
+      "growthBudget": { "maxLevelUps": 60, "minTotalSink": 70 },
       "capHits": { "max": 0 },
       "fairnessViolations": { "max": 0 }
     }

@@ -194,7 +194,7 @@ function checkRules(c, r) {
   // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'elementSlots',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
   c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
@@ -320,7 +320,7 @@ function checkWeapons(c, w) {
   for (let i = 0; i < w.weapons.length; i += 1) {
     const it = w.weapons[i];
     const p = `weapons[${it && it.id}]`;
-    if (!c.closed(p, it, ['id', 'family', 'name', 'desc', 'elementStampMode', 'base', 'levels', 'evolution'])) continue;
+    if (!c.closed(p, it, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'base', 'levels', 'evolution'])) continue;
     if (!c.vocab(`${p}.family`, it.family, FAMILIES)) continue;
     // §9.5 — id == family (12종 1:1)
     if (it.id !== it.family) c.fail(p, `id ≠ family(${it.family}) — §9.5 "id == family"`);
@@ -612,7 +612,6 @@ function checkRefs(c, d) {
       c.vocab(`stages.stages[${t.id}].waves[${j}].element`, t.waves[j].element, ELEMENTS4);
     }
   }
-  need(weaponIds, d.rules.player.startWeaponId, 'rules.player.startWeaponId');
   need(stageIds, d.stages.themeDraw.finalStageId, 'stages.themeDraw.finalStageId');
 }
 

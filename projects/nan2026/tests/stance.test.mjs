@@ -22,7 +22,7 @@ const SEED = 0xC0FFEE;
 
 /** forward 만 든 fresh 월드 (createWorld 가 startWeapon=forward 를 슬롯0에 넣는다) */
 function mkWorld() {
-  return createWorld({ data: loadData(), seed: SEED, weapons: {} });
+  return createWorld({ data: loadData(), seed: SEED, weapons: {}, startWeaponId: 'forward' });
 }
 
 /** 슬롯을 weaponSlots 개 전부 채운다 (forward + 나머지 아무거나) */

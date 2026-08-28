@@ -490,7 +490,7 @@ function S2_schema() {
   //   (누락=에러, §9.3 폴백 금지)로 잠근다 — 향후 실수로 빠지면 게이트가 짖는다.
   closedKeys('S2', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'startWeaponId',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'elementSlots',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
   if (has(r.player, 'hpSegment')) {
@@ -720,7 +720,7 @@ function S2_files() {
   closedKeys('S2', D.weapons, ['schemaVersion', 'weapons'], 'weapons');
   for (const w of rowsQuiet(D.weapons.weapons)) {
     if (!isObj(w)) continue;
-    closedKeys('S2', w, ['id', 'family', 'name', 'desc', 'elementStampMode', 'base', 'levels', 'evolution'],
+    closedKeys('S2', w, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'base', 'levels', 'evolution'],
       `weapons[${w.id}]`);
     if (isObj(w.evolution)) {
       closedKeys('S2', w.evolution, ['name', 'desc', 'params', 'requiresPassive'], `weapons[${w.id}].evolution`);
@@ -979,7 +979,6 @@ function refIntegrity() {
     need(archIds, cw && cw.archetypeId, 'stages.phase.crisisWaves[].archetypeId');
     need(formIds, cw && cw.formationId, 'stages.phase.crisisWaves[].formationId');
   }
-  need(weaponIds, D.rules.player && D.rules.player.startWeaponId, 'rules.player.startWeaponId');
   need(emitIds, D.rules.boss && D.rules.boss.coreEmitterId, 'rules.boss.coreEmitterId');   // §9.8.1 v1.5
   for (const id of rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed)) {
     need(bossIds, id, 'rules.boss.midBossSummonsAllowed');

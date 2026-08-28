@@ -77,8 +77,18 @@ export function candidates(world) {
   const nWeapons = ownedWeaponCount(world);
 
   // --- newWeapon ------------------------------------------------------------
-  // §11.1 — 무기 4칸 만석 → 카테고리 **전체**를 풀에서 제외. 교체 제안 없음
-  if (nWeapons < rp.weaponSlots) {
+  // §11.1 — 만석이면 카테고리 전체를 풀에서 제외. 교체 제안 없음.
+  //   ★ 계열별로 센다 — 속성 칸이 찼어도 유틸 칸이 비었으면 유틸 무기는 계속 나와야 한다.
+  const eSlots = rp.elementSlots;
+  let nElem = 0;
+  let nUtil = 0;
+  for (let i = 0; i < world.slots.length; i += 1) {
+    if (world.slots[i].weaponId === null) continue;
+    if (i < eSlots) nElem += 1; else nUtil += 1;
+  }
+  const elemFull = nElem >= eSlots;
+  const utilFull = nUtil >= (rp.weaponSlots - eSlots);
+  if (!(elemFull && utilFull)) {
     // §11.1 — newWeaponSlotScale 은 **슬롯 상황**의 함수다.
     //   §13.5.1 이 "무기 1개 보유 시 newWeapon 실효 가중치 60"(= 20 × 3.0)이라 검산했다
     //   → 인덱스 = 보유 무기 수 − 1.
@@ -86,8 +96,10 @@ export function candidates(world) {
     const ws = world.data.weapons.weapons;
     for (let i = 0; i < ws.length; i += 1) {
       // §11.1 — 이미 보유한 무기는 newWeapon 후보에서 제외 (id == family 1:1)
-      //   귀결: forward 는 시작 무기이므로 newWeapon 카드로 영원히 등장하지 않는다
+      //   귀결: 그 런의 시작 무기는 newWeapon 카드로 다시 등장하지 않는다
       if (hasWeapon(world, ws[i].id)) continue;
+      // ★ 그 무기가 들어갈 «계열 칸»이 이미 찼으면 후보에서 뺀다 (§11.1 v1.6 계열 슬롯)
+      if (ws[i].slotClass === 'utility' ? utilFull : elemFull) continue;
       out.push({ category: CAT_NEW_WEAPON, key: `${CAT_NEW_WEAPON}:${ws[i].id}`,
         weaponId: ws[i].id, slot: nWeapons, weight: cw.newWeapon * scale });
     }

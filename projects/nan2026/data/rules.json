@@ -66,14 +66,14 @@
     "lowHpThreshold": 0.30,
     "lowHpCriticalThreshold": 0.15,
     "magnetRadius": 90,
-    "startWeaponId": "forward",
     "startStance": "normal",
     "stanceSwitchCooldown": 0.0,
     "stancePersistAcrossStages": true,
-    "elementCapPerElement": 4,
+    "elementCapPerElement": 3,
     "elementCapTotal": 6,
-    "weaponSlots": 4,
-    "passiveSlots": 6,
+    "weaponSlots": 5,
+    "elementSlots": 3,
+    "passiveSlots": 5,
     "lives": 0
   },
 

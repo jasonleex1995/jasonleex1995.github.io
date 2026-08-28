@@ -52,7 +52,11 @@ export function recomputeStamps(world) {
   const n = stampCount(world);
   const el = world.player.stance;
   const slots = world.slots;
+  // ★ 속성 각인은 «속성 슬롯»(0..elementSlots-1)에만 내린다. 유틸 칸은 영원히 노말이다 —
+  //   유틸 무기가 상성 ×2 를 받으면 「조준하지 않는 무기는 상성을 노릴 수 없다」는 전제가 무너진다.
+  const eSlots = world.data.rules.player.elementSlots;
   for (let i = 0; i < slots.length; i += 1) {
+    if (i >= eSlots) { slots[i].stampElement = NORMAL; continue; }
     // ★ 슬롯 1..N = 인덱스 0..N-1. 빈 슬롯도 자리를 차지한다 (정본은 "슬롯 1..N"이라 말한다).
     slots[i].stampElement = i < n ? el : NORMAL;
   }

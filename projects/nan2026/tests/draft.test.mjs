@@ -23,7 +23,7 @@ import {
 const SEED = 0x5EED1234;
 
 function mkWorld(seed = SEED) {
-  return createWorld({ data: loadData(), seed, weapons: {} });
+  return createWorld({ data: loadData(), seed, weapons: {}, startWeaponId: 'forward' });
 }
 
 function keysOf(cards) { return cards.map((c) => c.key); }
