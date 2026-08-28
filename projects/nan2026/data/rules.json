@@ -31,12 +31,12 @@
   "caps": {
     "playerBullets": 256,
     "enemyBullets": 384,
-    "enemies": 96,
+    "enemies": 128,
     "pickups": 384,
     "zones": 64,
     "drones": 8,
     "particles": 400,
-    "telegraphs": 96,
+    "telegraphs": 128,
     "damageNumbers": 10,
     "effectMarkers": 12,
     "overflow": {
@@ -143,11 +143,11 @@
     "minSpawnRadiusPx": 140,
     "maxSimultaneousEnemyBullets": 320,
     "maxBulletAgeSec": 12,
-    "enemyConcurrentMax": 40,
-    "swarmConcurrentMax": 85,
+    "enemyConcurrentMax": 55,
+    "swarmConcurrentMax": 100,
     "crisisWaveResidualMax": 10,
     "telegraphConcurrentMaxPerEntity": 2,
-    "telegraphConcurrentMaxGlobal": 80,
+    "telegraphConcurrentMaxGlobal": 110,
     "playerWeaponsExempt": true
   },
 

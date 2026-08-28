@@ -52,11 +52,15 @@ suite('crisis/§8.10 새떼', () => {
 
   test('정확히 crisisSubWaves 파 — 시간이 더 지나도 추가 스폰 없음', () => {
     const d = loadData(); const ph = d.stages.phase;
-    const w = mkCrisisWorld(3, 'sea', 3);                          // scale 1 → 60기
+    const w = mkCrisisWorld(3, 'sea', 3);
     w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec * 2;   // 위기 길이의 2배가 지나도
     enemies(w, TICK_DT);
     assert.eq(w.spawner.crisisSpawned, ph.crisisSubWaves, '정확히 6파');
-    assert.eq(swarmStats(w).total, ph.crisisTotal, '총 60기 (상한 초과 스폰 없음)');
+    // ★ 총량은 crisisTotal 그 자체가 아니라 «스테이지 곡선을 태운 값»이다 (§8.10 swarmTotalScale).
+    //   하드코딩하면 곡선을 만질 때마다 이 테스트가 «실패»가 아니라 «거짓말»을 한다.
+    const scale = d.stages.curve.swarmTotalScale[2];               // 스테이지 3 = 인덱스 2
+    const want = Math.round(ph.crisisTotal * scale);
+    assert.eq(swarmStats(w).total, want, `총 ${want}기 (상한 초과 스폰 없음)`);
   });
 
   test('themePure = 전부 테마 속성 (sea → 물)', () => {

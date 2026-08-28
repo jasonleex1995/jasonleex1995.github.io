@@ -13,10 +13,10 @@
     "bossHpScale": [1.00, 1.80, 4.67, 6.96, 14.42, 14.42],
     "bossBulletScale": [1.00, 1.20, 1.45, 1.75, 2.10, 2.10],
     "firingPartsPerStage": [3, 3, 4, 5, 6, 7],
-    "spawnDensityScale": [1.05, 1.30, 1.65, 2.00, 2.35, 2.75],
+    "spawnDensityScale": [1.3, 1.6, 2.0, 2.45, 2.9, 3.4],
     "midBossCount": [1, 2, 2, 3, 4, 5],
     "elitePerWaveChance": [0.0, 0.05, 0.15, 0.40, 0.70, 1.0],
-    "swarmTotalScale": [0.55, 0.85, 1.0, 1.0, 1.0, 1.0],
+    "swarmTotalScale": [0.55, 0.85, 1.15, 1.15, 1.15, 1.15],
     "rearSpawnAllowed": [false, false, true, true, true, true]
   },
   "phase": {
