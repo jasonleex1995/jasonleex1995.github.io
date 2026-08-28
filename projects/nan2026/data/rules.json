@@ -131,6 +131,8 @@
   "fairness": {
     "minTelegraphSec": 0.55,
     "beamLockSec": 0.6,
+    "beamBlockRadiusPx": 18,
+    "beamBlockRatio": 0.6,
     "minStunTelegraphSec": 1.5,
     "maxStunSec": 1.0,
     "maxBulletSpeed": 260,

@@ -56,7 +56,7 @@ const FAMILY_BASE_KEYS = {
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
     'blastRadius', 'telegraphSec', 'slowSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
-    'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
+    'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 
@@ -70,7 +70,7 @@ const FAMILY_EVO_KEYS = {
   aura: ['evoPullForce'],
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
-  drone: ['evoTrailDelaySec'],
+  drone: ['evoTrailDelaySec', 'evoHealFullRangePx'],
   nova: ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 
@@ -210,7 +210,7 @@ function checkRules(c, r) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',
       'allowNormalPeripheral']);
   }
-  c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec',
+  c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
     'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax',
     'swarmConcurrentMax', 'crisisWaveResidualMax', 'telegraphConcurrentMaxPerEntity',

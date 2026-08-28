@@ -587,6 +587,10 @@ export function spawnPlayerBullet(world, slot, eff, x, y, vx, vy, localMul) {
   b.lifetimeSec = eff.lifetimeSec;
   b.hitEpoch += 1;                                                // 히트 기록 세대 교체 = 배열 클리어 불필요
   b.s0 = 0; b.s1 = 0; b.s2 = 0; b.target = -1; b.targetGen = -1;
+  // §9.5(v1.7) anchored — 플레이어에 «붙어 있는» 탄(오빗 공전체)은 아레나 이탈 개념이 없다.
+  //   자유 탄과 같은 컬링을 받으면 벽에 붙었을 때 바깥쪽 공전체가 지워졌다가 다음 틱에
+  //   다시 만들어져 링에 구멍이 깜빡인다(확장 코일 Lv2 부터 상시). 수명은 소유 무기가 관리한다.
+  b.anchored = false;
   return b;
 }
 

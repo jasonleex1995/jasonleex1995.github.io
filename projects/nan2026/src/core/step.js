@@ -213,6 +213,7 @@ function moveBullets(world, dt) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.age += dt;
+    if (b.anchored) continue;                 // §9.5(v1.7) 붙어 있는 탄은 이탈하지 않는다(소유 무기가 수명을 관리)
     if (b.age >= b.lifetimeSec
         || b.x < a.x - pad || b.x > a.x + a.w + pad
         || b.y < a.y - pad || b.y > a.y + a.h + pad) {
@@ -489,8 +490,43 @@ function hazards(world, dt) {
     const ry = p.y - t.y;
     if (rx * ux + ry * uy < 0) continue;
     const perp = Math.abs(rx * uy - ry * ux);
-    if (perp <= t.r * 0.5 + rp.hitboxRadius) applyHit(world, t.dmg, t.srcArch);   // §13.1.1 빔 시전자 귀속
+    if (perp <= t.r * 0.5 + rp.hitboxRadius) {
+      // §9.5(v1.7) 오빗의 차폐 — 「펄스필드는 탄은 막는데 빔은 못 막는다」의 답.
+      //   빔은 원점에서 뻗는 반직선이므로, 원점과 나 사이에 공전체가 서 있으면 그 몫만큼 흩어진다.
+      //   ★ 판정 폭이 공전체 반경보다 넓다(beamBlockRadiusPx). 순수 기하로 하면 차단 창이
+      //     0.08~0.15초인데 빔 활성은 0.5~2.2초라 «실측 0%»가 나온다 — 장식이지 대항 수단이 아니다.
+      //   ★ 감산이지 무효화가 아니다(§2.1 관대함: 영구 무효는 없다). 피해의 «양»만 줄인다.
+      applyHit(world, t.dmg * beamBlockMul(world, t, p), t.srcArch);   // §13.1.1 빔 시전자 귀속
+    }
   }
+}
+
+/**
+ * §9.5(v1.7) 오빗 차폐 — 빔 원점 t 와 플레이어 p 를 잇는 선분 위에 공전체가 있으면 피해가 준다.
+ *   반환 = 피해 배율 (1 = 그대로, 1-ratio = 막힘). 공전체가 없으면 항상 1 이다.
+ *   ★ 「선분 위」의 판정 폭은 eff 가 아니라 규칙이 소유한다(rules.fairness.beamBlockRadiusPx ·
+ *     beamBlockRatio) — 공전체 반경을 그대로 쓰면 차단 창이 빔 활성 시간의 5% 미만이라 실측 0% 다.
+ *   ★ 결정성: 순수 기하다. RNG 를 안 쓴다.
+ */
+function beamBlockMul(world, t, p) {
+  const f = world.data.rules.fairness;
+  const it = world.playerBullets.items;
+  const dx = p.x - t.x;
+  const dy = p.y - t.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 <= 1e-9) return 1;
+  const rr = f.beamBlockRadiusPx * f.beamBlockRadiusPx;
+  for (let i = 0; i < it.length; i += 1) {
+    const b = it[i];
+    if (!b.alive || !b.anchored) continue;             // 붙어 있는 탄(공전체)만 방패가 된다
+    // 선분 t→p 위로의 사영. 구간 밖(원점 뒤·플레이어 너머)은 막지 못한다.
+    const s = ((b.x - t.x) * dx + (b.y - t.y) * dy) / len2;
+    if (s <= 0 || s >= 1) continue;
+    const px = b.x - (t.x + dx * s);
+    const py = b.y - (t.y + dy * s);
+    if (px * px + py * py <= rr) return 1 - f.beamBlockRatio;
+  }
+  return 1;
 }
 
 /**
@@ -558,6 +594,38 @@ function applyStatus(world, status, durSec) {
  * ★ 진입 시 `if (!e.alive) return` 으로 **멱등** — 같은 틱에 두 피해원이 부르면 두 번째는 무해.
  * ★ S11 안전: world.rng.drop 텍스트가 이 파일(step.js)에 잔류하므로 weapons 파일 스캔에 안 걸림.
  */
+/**
+ * §9.5(v1.7) 옵션(드론)의 회수 — «처치 시에만», 그리고 «가까이서 죽일수록 많이».
+ *   사용자 결정: 원거리에서 짤짤이로 계속 회복하는 것은 이 게임의 원데스 긴박함과 맞지 않는다.
+ *   그래서 거리 가중이 구조다 — healFullRangePx 안이면 만액, healZeroRangePx 밖이면 0.
+ *   그 사이는 선형. 원거리 딜러가 회복으로 버티는 빌드가 «구조적으로» 불가능해진다.
+ *   ★ 내부 쿨다운(slot.a1)이 위기 웨이브의 몰살 회복을 막는다(VS Bloody Tear 선례).
+ *   ★ killEnemy 안에서만 불린다 = 유일·멱등 깔때기. 데미지 경로 밖이라 RNG·결정성 무영향.
+ */
+function droneSalvage(world, e) {
+  const p = world.player;
+  if (p.hp >= p.hpMax) return;
+  const slots = world.slots;
+  for (let i = 0; i < slots.length; i += 1) {
+    const slot = slots[i];
+    if (slot.weaponId === null || slot.family !== 'drone') continue;
+    if (slot.a1 > 0) return;                                  // 내부 쿨다운 중
+    const eff = recomputeEff(world, slot);
+    const full = slot.evolved ? eff.evoHealFullRangePx : eff.healFullRangePx;
+    const dx = e.x - p.x;
+    const dy = e.y - p.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist >= eff.healZeroRangePx) return;                  // 너무 멀리서 죽였다 = 회수 없음
+    let w = 1;
+    if (dist > full) w = (eff.healZeroRangePx - dist) / (eff.healZeroRangePx - full);
+    const heal = eff.healOnKill * w;
+    if (heal <= 0) return;
+    p.hp = Math.min(p.hpMax, p.hp + heal);
+    slot.a1 = eff.healCooldownSec;
+    return;
+  }
+}
+
 export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
@@ -565,6 +633,7 @@ export function killEnemy(world, e) {
   addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
   // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
   if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
+  if (!e.ghost) droneSalvage(world, e);                             // §9.5(v1.7) 옵션의 회수 — 유령몹은 제외(파밍 불가)
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }

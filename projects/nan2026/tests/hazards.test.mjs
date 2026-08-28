@@ -9,7 +9,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnZone, spawnBeam } from '../src/core/state.js';
+import { createWorld, spawnZone, spawnBeam, giveWeapon } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 
@@ -83,6 +83,37 @@ suite('hazards/laser 빔 (§8.5)', () => {
     const hp0 = p.hp;
     step(w, makeInput(), TICK_DT);
     assert.lt(p.hp, hp0, '빔 경로 = 피격');
+  });
+
+  // §9.5(v1.7) 오빗 차폐 — 「펄스필드는 탄은 막는데 빔은 못 막는다」의 답.
+  //   ★ 이 테스트가 있어야 하는 이유: 순수 기하로 구현하면 차단 창이 0.08~0.15초인데 빔 활성은
+  //     0.5~2.2초라 «실측 0%»가 나온다. 컴파일되고 게이트를 통과해도 아무 일도 안 일어나는
+  //     장식이 되는 것이다. 그래서 「피해가 실제로 줄었는가」를 못박는다.
+  //   ★ 공전체를 손으로 옮기면 안 된다 — 같은 스텝의 orbit.place() 가 궤도로 되돌린다.
+  //     링 «위상»(slot.a0)으로 제어해야 결정적이다.
+  test('오빗 공전체가 빔 원점과 나 사이에 서면 피해가 준다 (§9.5 차폐)', () => {
+    // 빔은 플레이어 200px 위 원점에서 아래로 → 선분은 플레이어 «바로 위» 수직선이다.
+    //   a0 = -π/2 → 0번 공전체가 정확히 그 위에 선다(막힘). a0 = 0 → 좌우로 비킨다(열림).
+    const run = (phase) => {
+      const w = mkWorld(); const p = w.player;
+      const si = giveWeapon(w, 'orbit');
+      for (let t = 0; t < 20; t += 1) step(w, makeInput(), TICK_DT);
+      w.slots[si].a0 = phase;
+      spawnBeam(w, p.x, p.y - 200, Math.PI / 2, 20, 40, 1.0, -1);
+      p.iframeSec = 0;
+      const hp0 = p.hp;
+      step(w, makeInput(), TICK_DT);
+      return hp0 - p.hp;
+    };
+    const f = mkWorld().data.rules.fairness;
+    assert.gt(f.beamBlockRadiusPx, 0, '판정 폭이 있다(전제)');
+    assert.gt(f.beamBlockRatio, 0, '감산이 있다(전제)');
+
+    const open = run(0);
+    const blocked = run(-Math.PI / 2);
+    assert.gt(open, 0, '막지 않으면 맞는다(전제)');
+    assert.lt(blocked, open, '★ 공전체가 선분 위에 있으면 피해가 «실제로» 준다');
+    assert.gt(blocked, 0, '감산이지 무효화가 아니다 — §2.1 관대함(영구 무효 없음)');
   });
 
   test('빔 뒤쪽(원점 반대편)은 무피격 — 반직선이다', () => {

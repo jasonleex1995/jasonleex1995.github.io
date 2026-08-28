@@ -14,7 +14,7 @@
  * ★ 위성은 drones 풀에 산다(사전할당, §12.1). 이 파일이 **소유자**다 — 배치·발사·반납을 스스로 한다.
  *   위성이 쏘는 것은 평범한 플레이어 탄이므로 이동·충돌은 step 이 그대로 처리한다.
  *
- * 슬롯 스크래치: a0 = 진화(잔상 편대)의 위치 이력 샘플 타이머
+ * 슬롯 스크래치: a0 = 진화(잔상 편대)의 위치 이력 샘플 타이머 / a1 = 회수 내부 쿨다운(§9.5 v1.7)
  */
 
 import { spawnPlayerBullet } from '../state.js';
@@ -63,6 +63,8 @@ function ensureDrones(world, slot, eff) {
 }
 
 export function update(world, slot, eff, dt) {
+  // §9.5(v1.7) 회수 내부 쿨다운 — step.droneSalvage 가 처치 시 세운다. 감소는 여기가 단일 소유.
+  if (slot.a1 > 0) { slot.a1 -= dt; if (slot.a1 < 0) slot.a1 = 0; }
   if (eff.targetMode !== NEAREST) {
     throw new Error(`drone: 미구현 targetMode "${eff.targetMode}" — weapons.json 은 nearest 만 쓴다 (§9.5)`);
   }

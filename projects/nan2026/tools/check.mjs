@@ -320,7 +320,7 @@ const FAMILY_OWN_BASE = {
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec'],
-  drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
+  drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 // §9.5 고유 파라미터 — evolution.params 거처 (evo* 접두)
@@ -333,7 +333,7 @@ const FAMILY_OWN_EVO = {
   aura:      ['evoPullForce'],
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
-  drone:     ['evoTrailDelaySec'],
+  drone:     ['evoTrailDelaySec', 'evoHealFullRangePx'],
   nova:      ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 // §9.5 허용 targetMode (패밀리별). null = targetMode 키 자체가 없다
@@ -518,7 +518,7 @@ function S2_schema() {
   }
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
-  closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
+  closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
     'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');

@@ -40,6 +40,7 @@ function ensureBodies(world, slot, eff) {
     b.pierceLeft = -1;                            // 무제한: 때려도 소멸하지 않는다
     b.lifetimeSec = eff.hitCooldownSec;           // age 를 매 틱 0 으로 되돌리므로 만료되지 않는다
     b.age = 0;
+    b.anchored = true;                            // §9.5(v1.7) 아레나 이탈 컬링 면제 — 벽에 붙어도 링이 안 깨진다
     have += 1;
   }
 }

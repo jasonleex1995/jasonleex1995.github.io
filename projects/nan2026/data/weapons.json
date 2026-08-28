@@ -104,12 +104,13 @@
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 대신 쏜다",
+      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏘고, 가까이서 쓰러진 적에게서 회수한다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
                 "hitCooldownSec":0.0, "targetMode":"nearest",
                 "droneCount":1, "anchorOffsets":[[0,-38]],
-                "droneFireSec":0.55, "droneRangePx":260 },
+                "droneFireSec":0.55, "droneRangePx":260,
+                "healOnKill":1, "healFullRangePx":120, "healZeroRangePx":400, "healCooldownSec":1.00 },
       "levels": [ {}, {"dmg":5},
                   {"droneCount":2,"anchorOffsets":[[-34,-22],[34,-22]]},
                   {"dmg":7,"droneFireSec":0.50}, {"dmg":10},
@@ -117,8 +118,8 @@
                   {"dmg":14,"pierce":1},
                   {"droneCount":4,"dmg":16,"droneFireSec":0.46,
                    "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]} ],
-      "evolution": { "name":"잔상 편대", "desc":"드론이 내가 지나온 자리를 따라간다",
-                     "params": { "evoTrailDelaySec":2.5 },
+      "evolution": { "name":"잔상 편대", "desc":"드론이 내가 지나온 자리를 따라가고, 회수 반경이 넓어진다",
+                     "params": { "evoTrailDelaySec":2.5, "evoHealFullRangePx":200 },
                      "requiresPassive": { "id":"afterimage", "level":3 } }
     },
     {
