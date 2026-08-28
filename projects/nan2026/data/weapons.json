@@ -90,11 +90,11 @@
                      "requiresPassive": { "id":"autoload", "level":3 } }
     },
     {
-      "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아레나 어딘가에 포격이 떨어진다",
+      "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아레나 어딘가에 포격이 떨어져 그 자리 적을 느리게 만든다",
       "elementStampMode": "spawn",
       "base": { "dmg":26, "cooldownSec":2.20, "targetMode":"randomInArena",
                 "strikeIntervalSec":0.25, "strikesPerVolley":1, "blastRadius":45,
-                "telegraphSec":0.50 },
+                "telegraphSec":0.50, "slowSec":2.00 },
       "levels": [ {}, {"dmg":34}, {"strikesPerVolley":2,"cooldownSec":2.05},
                   {"dmg":44,"blastRadius":52}, {"strikesPerVolley":3,"dmg":74},
                   {"dmg":60,"cooldownSec":1.90}, {"dmg":110,"blastRadius":58,"telegraphSec":0.45},
@@ -122,14 +122,15 @@
                      "requiresPassive": { "id":"afterimage", "level":3 } }
     },
     {
-      "id": "nova", "slotClass": "utility", "family": "nova", "name": "노바", "desc": "주기적으로 자기 중심에서 대폭발한다",
+      "id": "nova", "slotClass": "utility", "family": "nova", "name": "노바", "desc": "주기적으로 대폭발해 주변 적의 «행동»을 늦춘다 (발사가 뜸해진다)",
       "elementStampMode": "spawn",
-      "base": { "dmg":30, "intervalSec":5.00, "radius":120, "expandSec":0.35, "telegraphSec":0.60 },
+      "base": { "dmg":30, "intervalSec":5.00, "radius":120, "expandSec":0.35, "telegraphSec":0.60,
+                "actionSlowSec":1.20 },
       "levels": [ {}, {"dmg":40}, {"radius":150,"intervalSec":4.50}, {"dmg":60},
                   {"radius":180,"dmg":75}, {"dmg":110,"intervalSec":4.00},
                   {"dmg":150,"radius":210}, {"dmg":230,"intervalSec":3.20,"radius":240} ],
-      "evolution": { "name":"슈퍼노바", "desc":"2단 폭발 + 확산 링이 적 탄을 지운다",
-                     "params": { "evoRing2Radius":320, "evoClearBullets":true, "evoSecondaryDmgMul":0.5 },
+      "evolution": { "name":"슈퍼노바", "desc":"2단 폭발. 바깥 링에 닿은 적은 두 배로 오래 굳는다",
+                     "params": { "evoRing2Radius":320, "evoSecondaryDmgMul":0.5, "evoActionSlowSec":2.40 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     }
   ]

@@ -54,10 +54,10 @@ const FAMILY_BASE_KEYS = {
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
-    'blastRadius', 'telegraphSec'],
+    'blastRadius', 'telegraphSec', 'slowSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
     'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
-  nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec'],
+  nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 
 /** §9.5 — evolution.params 키 집합 (evo* 접두). 동결 */
@@ -71,7 +71,7 @@ const FAMILY_EVO_KEYS = {
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
   drone: ['evoTrailDelaySec'],
-  nova: ['evoRing2Radius', 'evoClearBullets', 'evoSecondaryDmgMul'],
+  nova: ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 
 /** §9.5 — 허용 targetMode. null = 그 패밀리 계약에 targetMode 키가 없다 */
@@ -197,7 +197,7 @@ function checkRules(c, r) {
     'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'elementSlots',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives']);
-  c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects']);
+  c.closed('rules.status', r.status, ['slowMoveSpeedMul', 'actionSlowMul', 'stackMode', 'resistAffects']);
   c.closed('rules.elite', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
     'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'partHitPriority',
@@ -418,8 +418,10 @@ function checkEnemies(c, e) {
       const a = e.archetypes[i];
       const p = `enemies.archetypes[${a && a.id}]`;
       // §8.6 — element 는 아키타입 필드가 아니다. 웨이브 편성이 주입한다
+      // §8.17(v1.7) 적 개성 3종 = 선택 키(§8.11 sealLayer 규약). 미선언 = 기본값.
       if (!c.closed(p, a, ['id', 'name', 'desc', 'band', 'shapeId', 'radius', 'moveId',
-        'moveParams', 'attack', 'contactDmg', 'hp', 'xp', 'score', 'themeOnly'])) continue;
+        'moveParams', 'attack', 'contactDmg', 'hp', 'xp', 'score', 'themeOnly',
+        'hitFloorSec', 'pierceCost', 'ccImmune'], ['hitFloorSec', 'pierceCost', 'ccImmune'])) continue;
       c.vocab(`${p}.band`, a.band, BANDS);
       if (a.attack !== null) c.closed(`${p}.attack`, a.attack, ['emitterId', 'firstDelaySec']);
     }

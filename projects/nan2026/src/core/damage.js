@@ -61,9 +61,20 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
  *   ③ §13.1.1 텔레메트리 noteDamage.
  *   반환 = 실제로 적용한 피해(무적이면 0). 호출자는 e.hp<=0 이면 killEnemy 를 부른다.
  */
-export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e) {
+export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex) {
+  // §9.5 D3 — slotIndex 는 §8.12 장갑 게이트의 «키»다. 조용히 undefined 를 색인하면
+  //   floorAt[undefined] 가 NaN 비교로 항상 통과해 게이트가 죽는다. 죽은 게이트는 통과가 아니므로 던진다.
+  if (slotIndex === undefined) throw new Error('damage.hitEnemy: slotIndex 누락 — §8.12 장갑 게이트의 키다 (§9.5 D3)');
   if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) return 0;   // ①
   if (e.isBoss && !e.isCore && e.sealedNow) return 0;                                    // ①' §8.11
+  // ①'' §8.17(v1.7) 장갑 — 이 파일의 존재 이유가 「모든 직접피해가 공유하는 단 하나의 입구」다.
+  //   여기 게이트를 안 두면 노바·랜스·바라지·팬진화 4무기가 장갑을 그대로 뚫는다
+  //   (v1.5 가 봉인 sealedNow 를 탄 경로에만 넣어 같은 사고를 낸 자리 = 바로 위 ①' 줄이다).
+  if (e.hitFloorSec > 0) {
+    const at = e.floorAt[slotIndex];
+    if (at !== 0 && world.time - at < e.hitFloorSec) return 0;
+    e.floorAt[slotIndex] = world.time;
+  }
   const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②

@@ -67,9 +67,20 @@ function makePool(size, factory) {
 // ---------------------------------------------------------------------------
 // 엔티티 팩토리 — 필드는 여기서 전부 만들어진다 (히든 클래스 고정 + 0 alloc/tick)
 // ---------------------------------------------------------------------------
-function makeEnemy() {
+function makeEnemy(slotCount) {
   return {
     alive: false, idx: 0, gen: 0,
+    // §8.17(v1.7) 적 개성 — 전부 «데미지 항»이 아니라 «판정 게이트»다(§3.1 구조 동결 불가침).
+    //   hitFloorSec : 같은 무기 슬롯이 이 개체를 다시 때리기까지의 최소 간격. 0 = 하한 없음.
+    //     ★ 기록의 거처가 «적»이어야 한다 — 탄이 들고 있는 hitAt 은 «탄 하나»의 기록이라
+    //       팬아웃(다발)·드론(다기)·오빗(다체)처럼 탄을 여러 개 내는 무기가 하한을 통째로 우회한다.
+    //   pierceCost  : 이 개체를 뚫는 데 드는 관통 수. 무한 관통(-1)에는 영향 없다.
+    //   ccImmune    : 감속·행동감속을 무시한다.
+    hitFloorSec: 0, pierceCost: 1, ccImmune: false,
+    floorAt: new Float64Array(slotCount),
+    // §2.7(v1.7) 행동 감속 — 노바의 동사. 이동(slowSec)이 아니라 «발사 주기»를 늘린다.
+    //   제자리에서 쏘는 anchor 3종에게 이동 감속은 무효이므로, 그들에게 듣는 유일한 비-스턴 제어다.
+    actionSlowSec: 0,
     archetypeId: '', band: '', element: NORMAL,
     // ★ 개체가 자기 글리프를 들고 다닌다 — 보스 개체는 archetypes 에 없어서(archetypeId '')
     //   렌더가 아키타입으로 모양을 찾을 수 없다. 프레임당 스캔도 사라진다(§10.3).
@@ -429,7 +440,7 @@ export function createWorld(opts) {
     passives: new Array(rp.passiveSlots),
     stats: makeStats(),
 
-    enemies: makePool(caps.enemies, makeEnemy),
+    enemies: makePool(caps.enemies, () => makeEnemy(rp.weaponSlots)),
     playerBullets: makePool(caps.playerBullets, () => makePlayerBullet(caps.enemies)),
     enemyBullets: makePool(caps.enemyBullets, makeEnemyBullet),
     pickups: makePool(caps.pickups, makePickup),
@@ -621,7 +632,11 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = '';
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0;
+  e.slowSec = 0; e.stunSec = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  // §8.17(v1.7) 적 개성 — 선택 키(§8.11 sealLayer 와 같은 규약). 미선언 = 기본값 = 현행 동작.
+  e.hitFloorSec = def.hitFloorSec === undefined ? 0 : def.hitFloorSec;
+  e.pierceCost = def.pierceCost === undefined ? 1 : def.pierceCost;
+  e.ccImmune = def.ccImmune === undefined ? false : def.ccImmune;
   e.emitT = 0; e.emitPhase = 0; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0; e.moveT = 0;
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 재사용 stale 방지
   return e;
@@ -645,7 +660,8 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;   // §8.17(v1.7) 개성은 잡몹 전용 — 보스는 봉인(sealLayer)·코어게이트가 그 역할을 한다
   e.sealLayer = 0; e.sealedNow = false;            // §8.11 — 코어는 봉인 대상이 아니다. 풀 재사용 stale 방지(나머지 3개 스포너와 대칭)
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
@@ -668,7 +684,8 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.sealLayer = part.sealLayer === undefined ? 0 : part.sealLayer; e.sealedNow = false;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0;
+  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;   // §8.17(v1.7) 개성은 잡몹 전용 — 보스는 봉인(sealLayer)·코어게이트가 그 역할을 한다
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
 }
@@ -693,7 +710,8 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = def.id;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0;
+  e.slowSec = 0; e.stunSec = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;
   e.emitT = 0; e.emitPhase = 0; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.moveT = 0; e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;
   return e;

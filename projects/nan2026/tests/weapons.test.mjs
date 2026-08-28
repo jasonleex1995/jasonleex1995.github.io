@@ -546,18 +546,34 @@ suite('weapons/nova', () => {
     assert.eq(far.hp, f0, '반경 밖 = 무피해');
   });
 
-  test('진화(슈퍼노바): 2단 링이 더 멀리 닿고 적 탄을 지운다', () => {
+  // §9.5(v1.7) 「확산 링이 적 탄을 지운다」는 폐기됐다 — 오빗 진화(이지스)와 동사가 겹쳤다.
+  //   진화의 값은 이제 «더 오래 굳는다»(evoActionSlowSec)다. 테스트 «이름»도 함께 바꾼다:
+  //   삭제된 기능을 이름이 계속 주장하면 그 자리가 다음 사람이 의미를 발명하는 자리가 된다.
+  test('진화(슈퍼노바): 2단 링이 더 멀리 닿고, 닿은 적이 더 오래 굳는다', () => {
     const w = mkWorld();
     const { s, eff } = setup(w, 'nova', 8, true);
     const p = w.player;
     assert.gt(eff.evoRing2Radius, eff.radius, '2단 링이 더 크다');
+    assert.gt(eff.evoActionSlowSec, eff.actionSlowSec, '진화 감속이 더 길다');
     const outer = addEnemy(w, p.x, p.y - (eff.radius + eff.evoRing2Radius) * 0.5);
     const o0 = outer.hp;
-    spawnEnemyBullet(w, 'pelletS', p.x, p.y - 20, 0, 100);
-    assert.gte(w.enemyBullets.live, 1, '적 탄 존재(전제)');
     nova.update(w, s, eff, dt);
     assert.lt(outer.hp, o0, '1단 밖·2단 안의 적도 맞는다');
-    assert.eq(w.enemyBullets.live, 0, 'evoClearBullets — 링 안의 적 탄 소거');
+    assert.eq(outer.actionSlowSec, eff.evoActionSlowSec, '2단 링의 적은 진화 감속을 받는다');
+  });
+
+  test('행동 감속: ccImmune 인 적에게는 안 걸리고, 피해는 그대로 들어간다 (§8.17)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'nova', 1, false);
+    const p = w.player;
+    const norm = addEnemy(w, p.x, p.y - 10);
+    const immune = addEnemy(w, p.x + 12, p.y - 10);
+    immune.ccImmune = true;
+    const h0 = immune.hp;
+    nova.update(w, s, eff, dt);
+    assert.eq(norm.actionSlowSec, eff.actionSlowSec, '일반 적 = 감속 걸림');
+    assert.eq(immune.actionSlowSec, 0, 'ccImmune = 감속 무효');
+    assert.lt(immune.hp, h0, '★ 제어만 무효다 — 피해는 그대로 들어간다');
   });
 });
 

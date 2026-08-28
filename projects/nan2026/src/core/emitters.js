@@ -260,6 +260,10 @@ export function emitters(world, dt) {
     const e = items[i];
     if (!e.alive) continue;
     if (e.stunSec > 0) continue;                    // 스턴 = 개체 정지(step.moveBullets 와 대칭). 나이도 얼린다
+    // §2.7(v1.7) 행동 감속 — 노바의 동사. 스턴처럼 멈추지는 않고 «발사 주기»만 늘린다.
+    //   emitT 가 느리게 흐르므로 scheduledVolleys 가 보는 시간이 늦어진다 = 발사가 뜸해진다.
+    //   ★ 이동(slowSec)과 갈라 둔 이유: 제자리에서 쏘는 anchor 3종에게 이동 감속은 무효다.
+    const actMul = e.actionSlowSec > 0 ? world.data.rules.status.actionSlowMul : 1;
 
     // §8.9-R8 — 중간보스는 **이미터 1~2개**를 동시에 돌린다(offsetSec 교대 → 동시 텔레그래프 1개가
     //   정적으로 증명된다). 그래서 스케줄 상태가 둘이다: (emitT, emitPhase) · (emitT2, emitPhase2).
@@ -269,13 +273,13 @@ export function emitters(world, dt) {
       const ids = mb.patternSet[0].emitterIds;              // 중간보스 phases = 1개
       const emA = look.emitById[ids[0]];
       if (emA === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[0]}" (§8.9)`);
-      e.emitT += dt;
+      e.emitT += dt * actMul;
       const wantA = scheduledVolleys(e.emitT, emA, 0);
       while (e.emitPhase < wantA) { fireVolley(world, e, emA, e.emitPhase, p, look); e.emitPhase += 1; }
       if (ids.length > 1) {
         const emB = look.emitById[ids[1]];
         if (emB === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[1]}" (§8.9)`);
-        e.emitT2 += dt;
+        e.emitT2 += dt * actMul;
         const wantB = scheduledVolleys(e.emitT2, emB, 0);
         while (e.emitPhase2 < wantB) { fireVolley(world, e, emB, e.emitPhase2, p, look); e.emitPhase2 += 1; }
       }
@@ -310,7 +314,7 @@ export function emitters(world, dt) {
     }
 
     // §8.12(v1.5) — 보스는 모듈이 부서질수록 «격화»한다(발사 빨라짐). run.bossFireRateMul(부위 파괴 시 상승).
-    const edt = (e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt;
+    const edt = ((e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt) * actMul;
     e.emitT += edt;
     const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)

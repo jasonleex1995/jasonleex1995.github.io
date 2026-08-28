@@ -58,7 +58,7 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
     }
     if (best === null) return;
     boundY = bestY; boundIdx = bestIdx;
-    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, best);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, best, slot.index);
     if (dealt > 0 && best.hp <= 0) killEnemy(world, best);
     hits += 1;
   }

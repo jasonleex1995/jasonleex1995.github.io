@@ -85,6 +85,7 @@
       "hp": 14,
       "xp": 6,
       "score": 60,
+      "hitFloorSec": 0.08,
       "themeOnly": null
     },
     {
@@ -101,6 +102,7 @@
       "hp": 16,
       "xp": 8,
       "score": 90,
+      "hitFloorSec": 0.10,
       "themeOnly": null
     },
     {
@@ -117,6 +119,7 @@
       "hp": 30,
       "xp": 12,
       "score": 120,
+      "hitFloorSec": 0.08,
       "themeOnly": null
     },
     {
@@ -133,6 +136,7 @@
       "hp": 28,
       "xp": 13,
       "score": 150,
+      "ccImmune": true,
       "themeOnly": null
     },
     {
@@ -229,6 +233,7 @@
       "hp": 14,
       "xp": 6,
       "score": 70,
+      "pierceCost": 2,
       "themeOnly": "forest"
     },
     {
@@ -245,6 +250,7 @@
       "hp": 25,
       "xp": 10,
       "score": 145,
+      "pierceCost": 2,
       "themeOnly": "bog"
     },
     {

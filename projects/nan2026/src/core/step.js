@@ -284,6 +284,9 @@ function moveBullets(world, dt) {
     if (e.stunSec > 0) { e.stunSec -= dt; continue; }
     let m = 1;
     if (e.slowSec > 0) { e.slowSec -= dt; m = world.data.rules.status.slowMoveSpeedMul; }
+    // §2.7(v1.7) 행동 감속 — 감소는 여기가 «단일 소유»다(stunSec 과 같은 규약, 이중 감소 방지).
+    //   읽는 곳은 emitters.js(발사 주기)이며 이동에는 관여하지 않는다 — 제자리형 적에게 듣는 유일한 비-스턴 제어.
+    if (e.actionSlowSec > 0) { e.actionSlowSec -= dt; if (e.actionSlowSec < 0) e.actionSlowSec = 0; }
     e.x += e.vx * m * dt;
     e.y += e.vy * m * dt;
     e.moveT += dt;
@@ -355,6 +358,19 @@ function collide(world, dt) {
         if (b.hitCooldownSec === 0) continue;
         if (world.time - b.hitAt[e.idx] < b.hitCooldownSec) continue;
       }
+      // §8.17(v1.7) 장갑 — 적이 소유하는 재히트 하한. 위 hitCooldownSec 과 «독립»이며 둘 다 통과해야 한다.
+      //   ★ max(hitCooldownSec, hitFloorSec) 로 합성하면 안 된다: hitCooldownSec 0 은 「한 대상에 정확히
+      //     1회」(위 주석)라, max 는 그 0 을 하한으로 바꿔 관통탄에 재히트 «능력»을 새로 부여한다 —
+      //     장갑을 달았더니 더 맞는 정반대가 된다.
+      //   ★ 기록의 거처가 «적 × 슬롯»이다. 탄이 들고 있는 hitAt 은 «탄 하나»의 기록이라 팬아웃(다발)·
+      //     드론(다기)·오빗(다체)이 탄마다 새 기록을 만들어 하한을 통째로 우회한다.
+      //   ★ 막힌 탄은 pierce 를 «소모하지 않고» 통과한다 — §8.11 봉인 부위의 「탄은 통과」와 대칭.
+      //     흡수(소모)로 하면 장갑 적이 뒤의 전부를 가리는 엄폐물이 되어 DPS 벽을 겹으로 세운다.
+      if (e.hitFloorSec > 0) {
+        const at = e.floorAt[b.slot];
+        if (at !== 0 && world.time - at < e.hitFloorSec) continue;
+        e.floorAt[b.slot] = world.time;
+      }
       b.hitStamp[e.idx] = b.hitEpoch;
       b.hitGen[e.idx] = e.gen;
       b.hitAt[e.idx] = world.time;
@@ -378,7 +394,8 @@ function collide(world, dt) {
 
       // pierce: -1 = 무제한 (§9.6.1). 0 = 첫 히트에 소멸
       if (b.pierceLeft === -1) continue;
-      if (b.pierceLeft > 0) { b.pierceLeft -= 1; continue; }
+      // §8.17(v1.7) 차폐 — 소모량은 적이 정한다(pierceCost, 기본 1). 예산이 모자라면 뚫지 못하고 소멸한다.
+      if (b.pierceLeft >= e.pierceCost) { b.pierceLeft -= e.pierceCost; continue; }
       releasePlayerBullet(world, b);          // D2 — 관통 소진도 onExpire 경유
       break;
     }

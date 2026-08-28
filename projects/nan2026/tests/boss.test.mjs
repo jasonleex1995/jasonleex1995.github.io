@@ -227,11 +227,11 @@ suite('boss/레이어 봉인 (§8.11 v1.5)', () => {
     const stamp = stampFor(w, 0, 'spawn', w.slots[0].stampElement);
 
     const tHp = turret.hp;
-    assert.eq(hitEnemy(w, ctx, 'nova', 9999, 1, stamp, turret), 0, '봉인 파트 = 직접피해 0');
+    assert.eq(hitEnemy(w, ctx, 'nova', 9999, 1, stamp, turret, 0), 0, '봉인 파트 = 직접피해 0');
     assert.eq(turret.hp, tHp, '봉인 파트 hp 불변');
 
     const vHp = vent.hp;
-    assert.gt(hitEnemy(w, ctx, 'nova', 50, 1, stamp, vent), 0, '열린 파트는 직접피해를 받는다');
+    assert.gt(hitEnemy(w, ctx, 'nova', 50, 1, stamp, vent, 0), 0, '열린 파트는 직접피해를 받는다');
     assert.lt(vent.hp, vHp, '열린 파트 hp 감소');
   });
 

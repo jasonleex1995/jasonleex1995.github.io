@@ -76,7 +76,12 @@ function detonate(world, slot, eff, x, y, r) {
     const dx = e.x - x;
     const dy = e.y - y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, e);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, e, slot.index);
+    // §2.7(v1.7) 바라지의 동사 = «개체 이동 감속». 착탄 지점의 적이 느려진다.
+    //   v1.5 부터 공급자가 없어 죽어 있던 e.slowSec 에 드디어 주인이 생긴다.
+    //   ★ stackMode "refresh"(§2.7) — 그냥 대입하면 긴 잔여를 짧은 신규가 덮어써 overwrite 가 된다.
+    //   ★ ccImmune 은 여기서 막힌다. 피해는 그대로 들어가고 «제어만» 무효다.
+    if (!e.ccImmune && eff.slowSec > e.slowSec) e.slowSec = eff.slowSec;
     if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }

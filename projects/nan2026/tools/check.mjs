@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S41 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S42 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -319,9 +319,9 @@ const FAMILY_OWN_BASE = {
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit'],
-  barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec'],
+  barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
-  nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec'],
+  nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 // §9.5 고유 파라미터 — evolution.params 거처 (evo* 접두)
 const FAMILY_OWN_EVO = {
@@ -334,7 +334,7 @@ const FAMILY_OWN_EVO = {
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
   drone:     ['evoTrailDelaySec'],
-  nova:      ['evoRing2Radius', 'evoClearBullets', 'evoSecondaryDmgMul'],
+  nova:      ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 // §9.5 허용 targetMode (패밀리별). null = targetMode 키 자체가 없다
 const FAMILY_TARGET_MODES = {
@@ -497,7 +497,7 @@ function S2_schema() {
     V('S2', 'rules.player.hpSegment: 삭제된 키 (§23.3) — 칸당 = hpMax / hud.hpBarSegCount (§2.1)');
   }
 
-  closedKeys('S2', r.status, ['slowMoveSpeedMul', 'stackMode', 'resistAffects'], 'rules.status');
+  closedKeys('S2', r.status, ['slowMoveSpeedMul', 'actionSlowMul', 'stackMode', 'resistAffects'], 'rules.status');
   closedKeys('S2', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
     'bandAllowed', 'elementAllowed'], 'rules.elite');
 
@@ -678,8 +678,11 @@ function S2_files() {
   }
   for (const a of rowsQuiet(D.enemies.archetypes)) {
     if (!isObj(a)) continue;
+    // §8.17(v1.7) 적 개성 3종은 «선택 키»다 (§8.11 sealLayer 와 같은 규약) — 미선언 = 기본값 = 현행 동작.
     closedKeys('S2', a, ['id', 'name', 'desc', 'band', 'shapeId', 'radius', 'moveId', 'moveParams',
-      'attack', 'contactDmg', 'hp', 'xp', 'score', 'themeOnly'], `enemies.archetypes[${a.id}]`);
+      'attack', 'contactDmg', 'hp', 'xp', 'score', 'themeOnly',
+      'hitFloorSec', 'pierceCost', 'ccImmune'], `enemies.archetypes[${a.id}]`,
+      { optional: ['hitFloorSec', 'pierceCost', 'ccImmune'] });
     // §9.7: 삭제 확정된 필드들. ★ unlockStageMin 은 v1.3에서 실제로 삭제됐다(유일 거처 = roster[])
     for (const dead of ['tier', 'element', 'hpScalePerStage', 'spriteId', 'unlockStageMin']) {
       if (has(a, dead)) {
@@ -2720,6 +2723,44 @@ function S39_waveUnlockCoherence() {
 
 // §9.5 v1.5 — 진화 짝 패시브 (뱀서식). 10 무기 전부 requiresPassive{id,level} 를 갖고,
 //   짝은 실재 패시브 · level∈[1,maxLevel] · 그 무기에 기계적으로 유효(무효 패시브 아님).
+/**
+ * §13.4-S42 (v1.7) — 적 개성 3종의 «값»을 강제한다.
+ *   닫힌-키 검사는 「그 키가 있어도 되는가」만 본다. 타입·범위는 아무도 안 봤다 —
+ *   pierceCost 0 이면 관통이 영원히 안 닳아 탄이 아레나를 무한 관통하고, 음수면 관통이 «늘어난다».
+ *   개성이 하나도 없으면 §8.17 자체가 죽은 어휘이므로, «적어도 1종은 갖는다»도 함께 강제한다.
+ */
+function S42_enemyTraits() {
+  let withTrait = 0;
+  for (const a of ARCHETYPES()) {
+    if (!isObj(a)) continue;
+    const p = `enemies.archetypes[${a.id}]`;
+    let n = 0;
+    if (a.hitFloorSec !== undefined) {
+      n += 1;
+      if (typeof a.hitFloorSec !== 'number' || !(a.hitFloorSec > 0) || a.hitFloorSec > 0.5) {
+        V('S42', `${p}.hitFloorSec(${a.hitFloorSec}): 수 ∈ (0, 0.5] 여야 한다 — 0 은 «개성 없음»이라 선언 자체가 무의미하고, 큰 값은 무기 종류를 가리지 않는 DPS 벽이 된다 (§8.17)`);
+      }
+    }
+    if (a.pierceCost !== undefined) {
+      n += 1;
+      if (!Number.isInteger(a.pierceCost) || a.pierceCost < 1 || a.pierceCost > 3) {
+        V('S42', `${p}.pierceCost(${a.pierceCost}): 정수 ∈ [1, 3] 여야 한다 — 0·음수는 b.pierceLeft 를 안 깎거나 늘려 탄이 영원히 산다 (§8.17)`);
+      }
+    }
+    if (a.ccImmune !== undefined) {
+      n += 1;
+      if (typeof a.ccImmune !== 'boolean') V('S42', `${p}.ccImmune(${a.ccImmune}): 불리언이어야 한다 (§8.17)`);
+    }
+    if (n > 1) {
+      V('S42', `${p}: 개성이 ${n}개다 — 한 적은 «무엇이 안 통하는지» 하나만 말한다. 둘을 겹치면 플레이어가 원인을 분리할 수 없다 (§8.17)`);
+    }
+    if (n === 1) withTrait += 1;
+  }
+  if (withTrait === 0) {
+    V('S42', '적 개성을 가진 아키타입이 0종이다 — §8.17 이 죽은 어휘가 된다. 최소 1종은 가져야 한다');
+  }
+}
+
 function S41_evolutionPairing() {
   const byId = {};
   for (const p of rowsQuiet(D.passives.passives)) if (isObj(p)) byId[p.id] = p;
@@ -3010,7 +3051,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S41 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S42 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3079,7 +3120,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S41 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S42 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
@@ -3133,6 +3174,7 @@ function main() {
   S38_midBossLeave();        // §9.8.2
   S39_waveUnlockCoherence(); // §9.9
   S41_evolutionPairing();    // §9.5 v1.5 진화 짝 패시브
+  S42_enemyTraits();         // §8.17 v1.7 적 개성 값 범위
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB

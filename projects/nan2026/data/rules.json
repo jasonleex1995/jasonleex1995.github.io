@@ -79,6 +79,7 @@
 
   "status": {
     "slowMoveSpeedMul": 0.55,
+    "actionSlowMul": 0.55,
     "stackMode": "refresh",
     "resistAffects": "duration"
   },

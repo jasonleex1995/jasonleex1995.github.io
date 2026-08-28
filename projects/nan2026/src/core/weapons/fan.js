@@ -53,7 +53,7 @@ function blast(world, slot, eff, b) {
     const dx = e.x - b.x;
     const dy = e.y - b.y;
     if (dx * dx + dy * dy > r * r) continue;
-    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, eff.evoSecondaryDmgMul, stamp, e);
+    const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, eff.evoSecondaryDmgMul, stamp, e, slot.index);
     if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
   }
 }
