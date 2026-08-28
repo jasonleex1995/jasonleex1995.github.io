@@ -9,7 +9,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnZone, spawnBeam, giveWeapon } from '../src/core/state.js';
+import { createWorld, spawnZone, spawnBeam, giveWeapon, spawnEnemyBullet } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 
@@ -69,6 +69,55 @@ suite('hazards/zone 장판 (§8.5)', () => {
     assert.lt(p.hp, hp0, '퓨즈 경과 후 = 폭발 피해');
     for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);                         // > warnSec+activeSec
     assert.eq(w.zones.live, 0, 'warnSec+activeSec 후 반납');
+  });
+});
+
+// §8.5/§9.6(v1.7) 벽 반사 — 이 테스트가 지키는 것은 «반사가 일어난다»가 아니라
+//   «봇의 닫힌 형태 외삽이 실제 궤적과 일치한다»이다. 어긋나면 봇이 탄 속으로 피하고,
+//   그 위에서 잰 시뮬 수치 전체가 밸런스 판단의 근거로 썩는다.
+suite('bounce/벽 반사 (§8.5 v1.7)', () => {
+  const fold = (v, lo, hi) => {
+    const span = hi - lo; const P = span * 2;
+    let u = (v - lo) % P; if (u < 0) u += P;
+    return lo + (u <= span ? u : P - u);
+  };
+
+  test('적 탄이 아레나 벽에서 되튄다 — 컬링 경계가 아니라 «벽»에서', () => {
+    const w = mkWorld();
+    const a = w.data.rules.view.arena;
+    const b = spawnEnemyBullet(w, 'ricochet', a.x + 20, a.y + 200, -300, 0, '');
+    assert.ok(b, '반사탄 스폰');
+    assert.eq(b.bounceLeft, -1, 'ricochet 은 무제한 반사(S43)');
+    for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);
+    assert.ok(b.alive, '벽에서 사라지지 않는다');
+    assert.gt(b.vx, 0, '★ 왼쪽 벽에서 되튀어 속도 부호가 뒤집혔다');
+    assert.gte(b.x, a.x, '벽 안으로 되접혔다 — 파고든 채 들러붙지 않는다');
+  });
+
+  test('반사 예산 0 인 탄은 안 튀고 그대로 나간다 (기본값 = 현행 동작)', () => {
+    const w = mkWorld();
+    const a = w.data.rules.view.arena;
+    const b = spawnEnemyBullet(w, 'pelletS', a.x + 20, a.y + 200, -300, 0, '');
+    assert.eq(b.bounceLeft, 0, '미선언 = 0');
+    for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);
+    assert.ok(!b.alive || b.vx < 0, '되튀지 않는다(그대로 나가 컬링)');
+  });
+
+  test('★ 봇의 삼각파 접기 외삽이 실제 궤적과 일치한다 (§10.4)', () => {
+    const w = mkWorld();
+    const a = w.data.rules.view.arena;
+    const b = spawnEnemyBullet(w, 'ricochet', a.x + 100, a.y + 100, 260, 170, '');
+    const x0 = b.x; const y0 = b.y; const vx = b.vx; const vy = b.vy;
+    let worst = 0;
+    for (let t = 1; t <= 300; t += 1) {
+      step(w, makeInput(), TICK_DT);
+      if (!b.alive) break;
+      const T = t * TICK_DT;
+      worst = Math.max(worst,
+        Math.abs(fold(x0 + vx * T, a.x, a.x + a.w) - b.x),
+        Math.abs(fold(y0 + vy * T, a.y, a.y + a.h) - b.y));
+    }
+    assert.lt(worst, 1e-6, '접기 예측과 실제 궤적의 오차가 0 이다 — 봇이 반사탄을 정확히 피한다');
   });
 });
 

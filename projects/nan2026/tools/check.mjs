@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S42 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S43 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -272,7 +272,7 @@ function census() {
 // ---------------------------------------------------------------------------
 // 동결 어휘 (§13.4 S3)
 // ---------------------------------------------------------------------------
-const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'rearIn'];              // §8.4 (8)
+const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'rearIn', 'bounce'];    // §8.4 (9 — v1.7 bounce)
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep']; // §8.5 (10, v1.5 mortar·sweep)
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];                                // §8.7 · §9.9.2 (6)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
@@ -318,7 +318,7 @@ const FAMILY_OWN_BASE = {
   lance:     ['beamWidthPx', 'chargeSec', 'rangePx'],
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
-  boomerang: ['outRangePx', 'returnSpeed', 'canRehit'],
+  boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
@@ -645,7 +645,8 @@ function S2_files() {
   for (const b of rowsQuiet(D.bullets.bullets)) {
     if (!isObj(b)) continue;
     closedKeys('S2', b, ['id', 'radius', 'hitboxScale', 'dmg', 'shape', 'status',
-      'statusDurationSec', 'accel', 'turnRateDegSec', 'retargetSec', 'waveAmp', 'waveHz'], `bullets[${b.id}]`);
+      'statusDurationSec', 'accel', 'turnRateDegSec', 'retargetSec', 'waveAmp', 'waveHz',
+      'bounceLeft'], `bullets[${b.id}]`, { optional: ['bounceLeft'] });   // §8.5(v1.7)
     // §9.7 "element 키가 존재하지 않는다 — 스키마가 '적 공격에는 속성이 없다'를 강제한다"
     if (has(b, 'element')) {
       V('S2', `bullets[${b.id}].element: 존재해서는 안 되는 키 — §9.7/§4.1 "적의 공격에는 속성이 없다"`);
@@ -2729,6 +2730,22 @@ function S39_waveUnlockCoherence() {
  *   pierceCost 0 이면 관통이 영원히 안 닳아 탄이 아레나를 무한 관통하고, 음수면 관통이 «늘어난다».
  *   개성이 하나도 없으면 §8.17 자체가 죽은 어휘이므로, «적어도 1종은 갖는다»도 함께 강제한다.
  */
+/**
+ * §13.4-S43 (v1.7) — 적 탄의 반사 예산은 «무제한(-1)»이거나 «없음(0)»이어야 한다.
+ *   봇(src/core/bot.js)은 반사탄을 삼각파 접기의 «닫힌 형태»로 외삽한다 — 무한 반사여야
+ *   그 수식이 정확하다. 유한 반사는 예산 소진 후 직선이 되어 봇의 예측이 빗나가고,
+ *   그러면 회피율이 떨어진 채로 잰 시뮬 수치 전체가 밸런스 판단의 근거로 썩는다.
+ *   ★ 플레이어 탄은 봇의 위협 모델에 없으므로 유한 반사가 허용된다(리턴 = 2).
+ */
+function S43_bulletBounce() {
+  for (const b of rowsQuiet(D.bullets.bullets)) {
+    if (!isObj(b) || b.bounceLeft === undefined) continue;
+    if (!Number.isInteger(b.bounceLeft) || (b.bounceLeft !== -1 && b.bounceLeft !== 0)) {
+      V('S43', `bullets[${b.id}].bounceLeft(${b.bounceLeft}): 적 탄은 -1(무제한) 또는 0(없음)만 허용된다 — 유한 반사는 bot.js 의 닫힌 형태 외삽을 빗나가게 해 시뮬 수치를 못 믿게 만든다 (§8.5 v1.7)`);
+    }
+  }
+}
+
 function S42_enemyTraits() {
   let withTrait = 0;
   for (const a of ARCHETYPES()) {
@@ -3051,7 +3068,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S42 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S43 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3120,7 +3137,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S42 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S43 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
@@ -3175,6 +3192,7 @@ function main() {
   S39_waveUnlockCoherence(); // §9.9
   S41_evolutionPairing();    // §9.5 v1.5 진화 짝 패시브
   S42_enemyTraits();         // §8.17 v1.7 적 개성 값 범위
+  S43_bulletBounce();        // §8.5 v1.7 적 탄 반사 예산
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB

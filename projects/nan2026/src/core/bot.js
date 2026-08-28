@@ -85,6 +85,8 @@ function ensureBot(world) {
     snapElapsed: 0,               // 스냅샷 이후 경과(외삽용)
     nBul: 0, bx: new Float64Array(CAP_BUL), by: new Float64Array(CAP_BUL),
     bvx: new Float64Array(CAP_BUL), bvy: new Float64Array(CAP_BUL), br: new Float64Array(CAP_BUL),
+    // §10.4(v1.7) 이 탄이 벽 반사하는가(1/0). 롤아웃이 삼각파 접기로 외삽할지 정한다.
+    bbounce: new Uint8Array(CAP_BUL),
     nCon: 0, cx: new Float64Array(CAP_CON), cy: new Float64Array(CAP_CON),
     cvx: new Float64Array(CAP_CON), cvy: new Float64Array(CAP_CON), cr: new Float64Array(CAP_CON),
     nLas: 0, lx: new Float64Array(CAP_LAS), ly: new Float64Array(CAP_LAS),
@@ -288,6 +290,7 @@ function snapshotThreats(world, b) {
     const ry = bu.y - p.y;
     if (rx * rx + ry * ry > percept2) continue;
     b.bx[n] = bu.x; b.by[n] = bu.y; b.bvx[n] = bu.vx; b.bvy[n] = bu.vy;
+    b.bbounce[n] = bu.bounceLeft !== 0 ? 1 : 0;   // §10.4(v1.7) 반사탄은 직선 외삽이 틀린다
     b.br[n] = rp.hitboxRadius + bu.hitRadius + PAD_BUL;
     n += 1;
   }
@@ -357,6 +360,25 @@ function firingIdeal(world, b) {
 // 롤아웃 세그 끝 위치(모듈 스코프 — 핫패스 0 alloc). rollSeg 가 완주 시 채운다.
 const _rollEnd = { x: 0, y: 0 };
 
+
+/**
+ * §10.4(v1.7) 반사탄의 «닫힌 형태» 외삽 — 봇이 벽 반사를 예측하기 위한 삼각파 접기.
+ *   벽 사이를 무한히 되튀는 점의 위치는 반복 없이 한 번에 구할 수 있다: 구간 [lo,hi] 를
+ *   주기 2(hi-lo) 로 접으면 된다. 그래서 롤아웃이 틱마다 반사를 시뮬레이션할 필요가 없다.
+ *   ★ 이게 없으면 봇은 반사탄을 직선으로 보고 «탄 속으로» 피한다 — 회피율이 무너지고
+ *     그 위에서 잰 시뮬 수치가 전부 무의미해진다(밸런스 판단의 근거가 썩는다).
+ *   ★ 유한 반사(bounceLeft > 0)는 예산 소진 후 직선이 되므로 이 근사가 보수적으로 빗나간다.
+ *     그래서 반사탄은 무제한(-1)으로만 저작한다 — S43 이 그것을 강제한다.
+ */
+function foldSpan(v, lo, hi) {
+  const span = hi - lo;
+  if (span <= 0) return lo;
+  const period = span * 2;
+  let u = (v - lo) % period;
+  if (u < 0) u += period;
+  return lo + (u <= span ? u : period - u);
+}
+
 /**
  * ★ 롤아웃 세그 — (sx,sy)에서 dir 로 startK 틱 뒤부터 n 틱 등속 이동. 외삽 위협과 처음 맞는
  *   «전역» 틱(startK+로컬)을 반환한다. 무피격이면 0(완주)을 반환하고 끝 위치를 _rollEnd 에 쓴다.
@@ -364,6 +386,7 @@ const _rollEnd = { x: 0, y: 0 };
  */
 function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
   const bounds = world.bounds;
+  const arena = world.data.rules.view.arena;      // §10.4(v1.7) 반사탄 접기의 구간
   const rp = world.data.rules.player;
   const dt = TICK_DT;
   const vx = dirx * rp.moveSpeed * dt;
@@ -376,8 +399,15 @@ function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
     const gk = startK + k;
     const tk = b.snapElapsed + gk * dt;
     for (let i = 0; i < b.nBul; i += 1) {
-      const ex = px - (b.bx[i] + b.bvx[i] * tk);
-      const ey = py - (b.by[i] + b.bvy[i] * tk);
+      // §10.4(v1.7) 반사탄은 벽에서 되튄다 — 직선 외삽하면 봇이 «탄 속으로» 피한다.
+      let bxk = b.bx[i] + b.bvx[i] * tk;
+      let byk = b.by[i] + b.bvy[i] * tk;
+      if (b.bbounce[i] === 1) {
+        bxk = foldSpan(bxk, arena.x, arena.x + arena.w);
+        byk = foldSpan(byk, arena.y, arena.y + arena.h);
+      }
+      const ex = px - bxk;
+      const ey = py - byk;
       const r = b.br[i];
       if (ex * ex + ey * ey < r * r) return gk;
     }

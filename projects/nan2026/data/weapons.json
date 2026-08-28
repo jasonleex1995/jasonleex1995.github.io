@@ -77,11 +77,11 @@
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "던져서 되받는다. 오갈 때 두 번 벤다",
+      "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "던져서 되받는다. 벽을 튀고, 오갈 때 두 번 벤다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "cooldownSec":1.10, "count":1, "projSpeed":260, "projRadius":6,
                 "lifetimeSec":3.0, "pierce":-1, "hitCooldownSec":0.50, "targetMode":"forward",
-                "outRangePx":240, "returnSpeed":320, "canRehit":true },
+                "outRangePx":240, "returnSpeed":320, "canRehit":true, "bounceLeft":2 },
       "levels": [ {}, {"dmg":6}, {"count":2,"outRangePx":300}, {"dmg":9,"returnSpeed":380},
                   {"dmg":12,"cooldownSec":1.00}, {"count":3,"dmg":13},
                   {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95} ],

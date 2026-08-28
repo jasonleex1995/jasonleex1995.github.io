@@ -40,7 +40,7 @@ const SLICE_STAGE_ID = 'sea';
 const SLICE_STAGE_NUMBER = 1;
 
 /** ★ 슬라이스가 구현한 이동(§8.4)·플레이 가능한 밴드(§8.6). 로스터 필터의 근거이며 하드코딩 id 가 아니다. */
-const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'rearIn'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
+const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'rearIn', 'bounce'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
 const PLAYABLE_BANDS = ['chaff', 'line', 'turret', 'bruiser'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
@@ -276,7 +276,19 @@ function applyMovement(world) {
     const speed = descentSpeed(mp);
     const mv = def.moveId;
 
-    if (mv === 'weave' && typeof mp.ampPx === 'number' && typeof mp.freqHz === 'number') {
+    if (mv === 'bounce') {
+      // §8.4(v1.7) 벽 반사 — 대각으로 들어와 좌우 벽을 되튀며 내려온다.
+      //   플레이어의 도탄 무기(리턴)와 «같은 규칙»을 적이 쓴다. 벽이 내 편만은 아니라는 것을 가르친다.
+      //   ★ 진입 방향은 strafe 와 같은 규약으로 정한다 — 스폰 x 가 중앙보다 왼쪽인가. rng 금지(§10.2).
+      //   ★ 반사는 여기서 «속도 부호»만 뒤집는다. 위치 되접기는 step 의 적 이동이 클램프로 처리한다.
+      if (e.mp0 === 0) e.mp0 = e.x < (arena.x + arena.w * 0.5) ? 1 : -1;
+      const hx = typeof mp.hSpeed === 'number' ? mp.hSpeed : speed;
+      if (e.x <= arena.x + e.radius && e.mp0 < 0) e.mp0 = 1;
+      else if (e.x >= arena.x + arena.w - e.radius && e.mp0 > 0) e.mp0 = -1;
+      e.vx = hx * e.mp0;
+      e.vy = speed;
+
+    } else if (mv === 'weave' && typeof mp.ampPx === 'number' && typeof mp.freqHz === 'number') {
       const w = TAU * mp.freqHz;
       e.vy = speed;
       e.vx = mp.ampPx * w * Math.cos(w * e.moveT);

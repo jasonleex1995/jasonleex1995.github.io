@@ -2,6 +2,21 @@
   "schemaVersion": 1,
   "bullets": [
     {
+      "id": "ricochet",
+      "radius": 6,
+      "hitboxScale": 0.8,
+      "dmg": 12,
+      "shape": "circle",
+      "status": null,
+      "statusDurationSec": 0,
+      "accel": 0,
+      "turnRateDegSec": 0,
+      "retargetSec": 0,
+      "waveAmp": 0,
+      "waveHz": 0,
+      "bounceLeft": -1
+    },
+    {
       "id": "pelletS",
       "radius": 5,
       "hitboxScale": 0.8,

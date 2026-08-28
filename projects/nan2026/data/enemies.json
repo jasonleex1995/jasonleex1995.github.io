@@ -206,12 +206,12 @@
     {
       "id": "dustRunner",
       "name": "질주충",
-      "desc": "스쳐 지나간다. 놓치면 끝",
+      "desc": "벽을 튀며 파고든다. 벽은 내 편만이 아니다",
       "band": "line",
       "shapeId": "dart",
       "radius": 8,
-      "moveId": "dive",
-      "moveParams": { "speed": 230 },
+      "moveId": "bounce",
+      "moveParams": { "speed": 150, "hSpeed": 210 },
       "attack": null,
       "contactDmg": 7,
       "hp": 4,
@@ -509,7 +509,7 @@
     {
       "id": "hammerFan",
       "type": "fan",
-      "bulletId": "heavyRound",
+      "bulletId": "ricochet",
       "from": "self",
       "telegraphSec": 1.20,
       "everySec": 6.0,
@@ -1109,7 +1109,7 @@
     {
       "id": "thornKingPodLP2",
       "type": "ring",
-      "bulletId": "fanShard",
+      "bulletId": "ricochet",
       "from": "part",
       "telegraphSec": 1.50,
       "everySec": 4.5,

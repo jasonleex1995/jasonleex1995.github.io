@@ -202,6 +202,25 @@ function releasePlayerBullet(world, b) {
 // ---------------------------------------------------------------------------
 // 4. 탄 이동
 // ---------------------------------------------------------------------------
+/**
+ * §9.6/§8.5(v1.7) 벽 반사 — 아레나 «벽»에서 되튄다(컬링 경계가 아니다. 컬링은 벽에서 pad 만큼
+ *   더 바깥이라, 거기서 튀면 화면 밖 보이지 않는 선에서 튀는 꼴이 된다).
+ *   반환 = 이 탄이 살아 있어야 하는가. 반사 예산(bounceLeft)이 남아 있을 때만 되튄다.
+ *   ★ 순수 기하다 — 입사각 = 반사각. RNG 를 안 쓰므로 결정성 무영향.
+ *   ★ 위치를 벽 안으로 «되접어» 넣는다. 단순히 속도만 뒤집으면 벽을 파고든 채로 매 틱
+ *     부호가 뒤집혀 탄이 벽에 들러붙는다.
+ */
+function bounceOffWalls(b, a) {
+  if (b.bounceLeft === 0) return false;
+  let hit = false;
+  if (b.x < a.x) { b.x = a.x + (a.x - b.x); b.vx = -b.vx; hit = true; }
+  else if (b.x > a.x + a.w) { b.x = (a.x + a.w) - (b.x - (a.x + a.w)); b.vx = -b.vx; hit = true; }
+  if (b.y < a.y) { b.y = a.y + (a.y - b.y); b.vy = -b.vy; hit = true; }
+  else if (b.y > a.y + a.h) { b.y = (a.y + a.h) - (b.y - (a.y + a.h)); b.vy = -b.vy; hit = true; }
+  if (hit && b.bounceLeft > 0) b.bounceLeft -= 1;
+  return hit;
+}
+
 function moveBullets(world, dt) {
   const a = world.data.rules.view.arena;
   const pad = 64;
@@ -214,6 +233,7 @@ function moveBullets(world, dt) {
     b.y += b.vy * dt;
     b.age += dt;
     if (b.anchored) continue;                 // §9.5(v1.7) 붙어 있는 탄은 이탈하지 않는다(소유 무기가 수명을 관리)
+    bounceOffWalls(b, a);                      // §9.6(v1.7) 반사 예산이 있으면 벽에서 되튄다
     if (b.age >= b.lifetimeSec
         || b.x < a.x - pad || b.x > a.x + a.w + pad
         || b.y < a.y - pad || b.y > a.y + a.h + pad) {
@@ -269,6 +289,7 @@ function moveBullets(world, dt) {
     b.y += b.vy * b.slowMul * dt;
     b.slowMul = 1;
     b.age += dt;
+    bounceOffWalls(b, a);                      // §8.5(v1.7) 적 탄도 같은 규칙으로 되튄다
     // §9.5(v1.5) — 최대 수명(maxBulletAgeSec): 펄스필드 정지 등으로 화면에 묶인 탄이 무한 누적하지
     //   않게 흩어져 사라진다(정상 탄은 그 전에 off-screen 으로 나간다). 풀 포화(capHits) 방지.
     if (b.x < a.x - pad || b.x > a.x + a.w + pad || b.y < a.y - pad || b.y > a.y + a.h + pad

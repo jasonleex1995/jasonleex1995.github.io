@@ -3,7 +3,7 @@
  *
  * 폐쇄된 파라미터 계약 (§9.5 12행 표 — 이 파일은 계약 밖의 키를 읽지 않는다):
  *   base            : dmg cooldownSec count projSpeed projRadius lifetimeSec pierce
- *                     hitCooldownSec targetMode outRangePx returnSpeed canRehit
+ *                     hitCooldownSec targetMode outRangePx returnSpeed canRehit bounceLeft
  *   evolution.params: evoChainCount
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:

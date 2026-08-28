@@ -134,6 +134,8 @@ function makePlayerBullet(capEnemies) {
     hitGen: new Int32Array(capEnemies),
     // 패밀리별 스크래치 (부메랑 왕복 · 시커 타겟 등). s2gen = s2(직전 경유 적)의 gen — 슬롯 재사용 판별.
     s0: 0, s1: 0, s2: 0, s2gen: -1, target: -1, targetGen: -1,
+      // §9.6(v1.7) 벽 반사 — 남은 반사 횟수. 0 = 반사 없음(현행). -1 = 무제한.
+      bounceLeft: 0,
   };
 }
 
@@ -147,6 +149,9 @@ function makeEnemyBullet() {
     dmg: 0, radius: 0, hitRadius: 0,
     // §4.1 — 적 탄에 element 가 없다. 스키마가 이미 그것을 강제한다 (§9.7)
     status: null, statusDurationSec: 0,
+      // §8.5(v1.7) 벽 반사 — 남은 반사 횟수. 0 = 반사 없음. -1 = 무제한.
+      //   ★ 무제한이면 위치가 «삼각파 접기»의 닫힌 형태라 봇이 정확히 외삽할 수 있다(bot.js).
+      bounceLeft: 0,
     accel: 0, turnRateDegSec: 0, retargetSec: 0, retargetT: 0,
     // §9.7(v1.5) 파동탄 — 진행 방향 수직으로 사인 진동(경로가 물결친다). waveAmp=0 이면 직진.
     waveAmp: 0, waveHz: 0,
@@ -591,6 +596,7 @@ export function spawnPlayerBullet(world, slot, eff, x, y, vx, vy, localMul) {
   //   자유 탄과 같은 컬링을 받으면 벽에 붙었을 때 바깥쪽 공전체가 지워졌다가 다음 틱에
   //   다시 만들어져 링에 구멍이 깜빡인다(확장 코일 Lv2 부터 상시). 수명은 소유 무기가 관리한다.
   b.anchored = false;
+  b.bounceLeft = eff.bounceLeft === undefined ? 0 : eff.bounceLeft;   // §9.6(v1.7)
   return b;
 }
 
@@ -826,6 +832,7 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   b.hitRadius = def.radius * def.hitboxScale;   // §2.3
   b.status = def.status;
   b.statusDurationSec = def.statusDurationSec;
+  b.bounceLeft = def.bounceLeft === undefined ? 0 : def.bounceLeft;   // §8.5(v1.7)
   b.accel = def.accel;
   b.turnRateDegSec = def.turnRateDegSec;
   b.retargetSec = def.retargetSec;
