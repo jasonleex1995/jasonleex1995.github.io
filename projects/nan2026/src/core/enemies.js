@@ -29,6 +29,9 @@
 
 import { spawnEnemy } from './state.js';
 import { TAU } from './angle.js';
+
+const DEG2RAD = Math.PI / 180;
+const ANCHOR_SWAY_HZ = 0.35;   // §8.4 「좌우 소폭 왕복」의 주기. 진폭은 swayAmpPx 가 소유한다
 import { formationPos } from './formations.js';
 import { PHASE } from './stage.js';
 
@@ -37,8 +40,8 @@ const SLICE_STAGE_ID = 'sea';
 const SLICE_STAGE_NUMBER = 1;
 
 /** ★ 슬라이스가 구현한 이동(§8.4)·플레이 가능한 밴드(§8.6). 로스터 필터의 근거이며 하드코딩 id 가 아니다. */
-const IMPLEMENTED_MOVES = ['dive', 'weave'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
-const PLAYABLE_BANDS = ['chaff', 'line'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
+const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'rearIn'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
+const PLAYABLE_BANDS = ['chaff', 'line', 'turret', 'bruiser'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
@@ -262,6 +265,7 @@ function spawnCrisis(world, s) {
 function applyMovement(world) {
   const items = world.enemies.items;
   const arch = world.spawner.archIndex;
+  const arena = world.data.rules.view.arena;
   for (let i = 0; i < items.length; i += 1) {
     const e = items[i];
     if (!e.alive) continue;
@@ -270,12 +274,63 @@ function applyMovement(world) {
     const def = arch[e.archetypeId];
     const mp = def.moveParams;
     const speed = descentSpeed(mp);
-    if (def.moveId === 'weave' && typeof mp.ampPx === 'number' && typeof mp.freqHz === 'number') {
+    const mv = def.moveId;
+
+    if (mv === 'weave' && typeof mp.ampPx === 'number' && typeof mp.freqHz === 'number') {
       const w = TAU * mp.freqHz;
       e.vy = speed;
       e.vx = mp.ampPx * w * Math.cos(w * e.moveT);
+
+    } else if (mv === 'strafe') {
+      // §8.4 — 좌/우 벽 진입 → 수평 횡단 → 반대편 이탈. yPx 고정.
+      //   ★ 진입 방향은 «스폰 x 가 아레나 중앙보다 왼쪽인가»로 정한다 — rng 를 쓰지 않는다(§10.2 결정성).
+      if (e.mp0 === 0) e.mp0 = e.x < (arena.x + arena.w * 0.5) ? 1 : -1;
+      e.vx = speed * e.mp0;
+      e.vy = 0;
+
+    } else if (mv === 'anchor') {
+      // §8.4 — 상단 진입 → yHoldPx 정지 → 좌우 소폭 왕복 → leaveAfterSec 후 하단 이탈.
+      const hold = typeof mp.yHoldPx === 'number' ? mp.yHoldPx : 0;
+      const sway = typeof mp.swayAmpPx === 'number' ? mp.swayAmpPx : 0;
+      const leave = typeof mp.leaveAfterSec === 'number' ? mp.leaveAfterSec : 0;
+      if (e.mp0 === 0 && e.y < hold) {
+        e.vy = speed; e.vx = 0;                        // ① 진입
+      } else {
+        if (e.mp0 === 0) { e.mp0 = 1; e.mp1 = e.moveT; }   // 정지 시각을 잠근다
+        const held = e.moveT - e.mp1;
+        if (held >= leave) {
+          e.vy = speed; e.vx = 0;                      // ③ 이탈
+        } else {
+          const w = TAU * ANCHOR_SWAY_HZ;              // ② 체류 — 속도로 준다(적분해도 진폭을 안 넘는다)
+          e.vy = 0;
+          e.vx = sway * w * Math.cos(w * held);
+        }
+      }
+
+    } else if (mv === 'orbitDrift') {
+      // §8.4 — 플레이어 쪽으로 호를 그리며 접근 → keepDistPx 유지.
+      const keep = typeof mp.keepDistPx === 'number' ? mp.keepDistPx : 0;
+      const turn = typeof mp.turnRateDegSec === 'number' ? mp.turnRateDegSec : 0;
+      let dx = world.player.x - e.x;
+      let dy = world.player.y - e.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > 0.0001) { dx /= d; dy /= d; } else { dx = 0; dy = 1; }
+      const radial = d > keep ? 1 : -1;                // 멀면 접근, 가까우면 후퇴
+      const tan = turn * DEG2RAD * keep;               // 각속도 × 반경 = 접선 속도
+      let vx = dx * radial * speed - dy * tan;
+      let vy = dy * radial * speed + dx * tan;
+      const vm = Math.sqrt(vx * vx + vy * vy);
+      if (vm > speed) { vx = vx / vm * speed; vy = vy / vm * speed; }
+      e.vx = vx;
+      e.vy = vy;
+
+    } else if (mv === 'rearIn') {
+      // §8.4 — 하단 밖에서 «상승» 진입. 스폰 y 와 warnSec 진입 표식은 스폰 측 책임이다.
+      e.vy = -speed;
+      e.vx = 0;
+
     } else {
-      // dive + 폴백
+      // dive · column + 폴백 — 직하강. column 의 «일렬 종대»는 이동이 아니라 스폰 편성(gapSec)이 만든다.
       e.vy = speed;
       e.vx = 0;
     }
