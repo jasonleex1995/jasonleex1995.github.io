@@ -15,6 +15,7 @@ import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnEnemy } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { enemies } from '../src/core/enemies.js';
+import { emitters } from '../src/core/emitters.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { TAU } from '../src/core/angle.js';
 
@@ -275,5 +276,60 @@ suite('enemies · HP↔속도 튜닝 (피드백 #3 — 느린=탱키/빠른=약�
     const slowest = rows[rows.length - 1];
     assert.gte(slowest.effHp / fastest.effHp, 3,
       `가장 느린 ${slowest.id}(effHP ${slowest.effHp}) 는 가장 빠른 ${fastest.id}(effHP ${fastest.effHp}) 의 ≥3배 (체감되는 대비)`);
+  });
+});
+
+// §8.18(v1.7) 잡몹 사격 «강도»의 스테이지 곡선.
+//   v1.6 까지 잡몹의 발사 주기와 탄 피해는 전 스테이지 동일했다 — 체력·밀도만 오르고
+//   사격은 안 올랐으므로 스테이지 1 이 상대적으로 과했다(플레이 피드백: 「1인데 너무 많이 쏜다」).
+//   이 두 테스트가 지키는 것은 «곡선이 존재한다»가 아니라 «곡선이 실제로 적용된다»이다.
+suite('enemies/§8.18 잡몹 사격 강도의 스테이지 곡선 (v1.7)', () => {
+  const mk = (stageIndex) => {
+    const w = createWorld({ data: loadData(), seed: 6, weapons, hooks: {}, startWeaponId: 'forward' });
+    w.run = { stageIndex, bossFireRateMul: 1, order: [], crisis: false };
+    return w;
+  };
+
+  test('발사 주기 — 이미터 시간이 곡선만큼 느리게/빠르게 흐른다', () => {
+    const curve = loadData().stages.curve.mobFireRateScale;
+    assert.eq(curve.length, 6, '스테이지 6개분');
+    for (let i = 0; i < 6; i += 1) {
+      const w = mk(i);
+      const p = w.player;
+      const e = spawnEnemy(w, 'hexer', 'normal', p.x, p.y - 220, 9e9, false, false);
+      for (let t = 0; t < 60; t += 1) emitters(w, TICK_DT);        // 1초
+      assert.lt(Math.abs(e.emitT - curve[i]), 1e-6, `스테이지 ${i + 1}: emitT ${curve[i]} 여야 한다`);
+    }
+    assert.lt(curve[0], curve[5], '★ 초반이 후반보다 뜸하게 쏜다');
+  });
+
+  test('탄 피해 — 같은 탄이라도 스테이지에 따라 다르게 아프다', () => {
+    const d = loadData();
+    const curve = d.stages.curve.mobBulletDmgScale;
+    const base = d.bullets.bullets.find((b) => b.id === 'hexBolt').dmg;
+    const dmgAt = (i) => {
+      const w = mk(i);
+      const p = w.player;
+      const e = spawnEnemy(w, 'hexer', 'normal', p.x, p.y - 220, 9e9, false, false);
+      for (let t = 0; t < 60 * 6; t += 1) {
+        emitters(w, TICK_DT);
+        const b = w.enemyBullets.items.find((x) => x.alive);
+        if (b) return b.dmg;
+      }
+      return null;
+    };
+    const lo = dmgAt(0); const hi = dmgAt(5);
+    assert.eq(lo, Math.max(1, Math.round(base * curve[0])), '스테이지 1 탄 피해 = 기본 × 곡선');
+    assert.eq(hi, Math.max(1, Math.round(base * curve[5])), '스테이지 6 탄 피해 = 기본 × 곡선');
+    assert.lt(lo, hi, '★ 초반 탄이 후반 탄보다 덜 아프다');
+  });
+
+  test('보스·중간보스는 이 곡선 밖이다 (자기 곡선을 이미 갖는다)', () => {
+    const w = mk(0);
+    const p = w.player;
+    const e = spawnEnemy(w, 'hexer', 'normal', p.x, p.y - 220, 9e9, false, false);
+    e.midBossId = 'mbHammer';                                       // 중간보스로 표시
+    for (let t = 0; t < 60; t += 1) emitters(w, TICK_DT);
+    assert.lt(Math.abs(e.emitT - 1), 1e-6, '중간보스는 배율 1 — 잡몹 곡선을 안 탄다');
   });
 });

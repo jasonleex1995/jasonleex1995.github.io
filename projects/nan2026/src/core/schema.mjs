@@ -52,7 +52,7 @@ const FAMILY_BASE_KEYS = {
   orbit: ['dmg', 'projRadius', 'hitCooldownSec', 'orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura: ['dmg', 'radius', 'tickIntervalSec', 'falloff'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
-    'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft'],
+    'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
     'blastRadius', 'telegraphSec', 'slowSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
@@ -478,7 +478,7 @@ function checkStages(c, s) {
   c.closed('stages', s, ['schemaVersion', 'themeDraw', 'curve', 'phase', 'stages', 'formations']);
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
   c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed']);
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',

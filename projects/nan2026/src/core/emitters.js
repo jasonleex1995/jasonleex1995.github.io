@@ -222,6 +222,15 @@ function fireSweep(world, e, em, look) {
     em.telegraphSec, false, aEnd);            // track=false · aEnd = 소사 끝각
 }
 
+/**
+ * §8.18(v1.7) 잡몹 사격 강도의 스테이지 곡선. 1 미만이면 이미터 시간이 느리게 흘러 발사가 뜸해진다.
+ *   런이 없는 슬라이스 월드(테스트)에서는 1 — 곡선은 런의 진행이 있어야 의미가 있다.
+ */
+function mobFireScale(world) {
+  if (world.run === undefined || world.run.stageIndex === undefined) return 1;
+  return world.data.stages.curve.mobFireRateScale[world.run.stageIndex];
+}
+
 /** 한 볼리를 타입대로 발사한다(§8.5 어휘 8종 전부). */
 // §17 — 보스 발사체 밀도는 스테이지가 갈수록 는다(bossBulletScale). 잡몹·중간보스는 1(불변).
 //   발사 시점 count 만 곱한다(이미터 데이터·66슬롯 명명법 불변). laser·zone 은 count 가 없어 제외.
@@ -264,6 +273,12 @@ export function emitters(world, dt) {
     //   emitT 가 느리게 흐르므로 scheduledVolleys 가 보는 시간이 늦어진다 = 발사가 뜸해진다.
     //   ★ 이동(slowSec)과 갈라 둔 이유: 제자리에서 쏘는 anchor 3종에게 이동 감속은 무효다.
     const actMul = e.actionSlowSec > 0 ? world.data.rules.status.actionSlowMul : 1;
+    // §8.18(v1.7) 잡몹 사격 «강도»의 스테이지 곡선. v1.6 까지 잡몹의 발사 주기와 탄 피해는
+    //   전 스테이지 동일했다 — 스테이지 1 의 적이 스테이지 6 의 적과 «똑같이» 쏘았다.
+    //   체력·밀도만 오르고 사격은 안 올랐으므로 초반이 상대적으로 과하고 후반이 싱거웠다.
+    //   ★ 보스·중간보스는 제외 — 보스는 bossBulletScale + escalateFireRateMul 로 자기 곡선을
+    //     이미 갖고, 중간보스는 정본이 값으로 확정한 별개 압박 장치다(§8.9).
+    const stageMul = (e.isBoss || e.midBossId !== '') ? 1 : mobFireScale(world);
 
     // §8.9-R8 — 중간보스는 **이미터 1~2개**를 동시에 돌린다(offsetSec 교대 → 동시 텔레그래프 1개가
     //   정적으로 증명된다). 그래서 스케줄 상태가 둘이다: (emitT, emitPhase) · (emitT2, emitPhase2).
@@ -314,7 +329,7 @@ export function emitters(world, dt) {
     }
 
     // §8.12(v1.5) — 보스는 모듈이 부서질수록 «격화»한다(발사 빨라짐). run.bossFireRateMul(부위 파괴 시 상승).
-    const edt = ((e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt) * actMul;
+    const edt = ((e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt) * actMul * stageMul;
     e.emitT += edt;
     const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)

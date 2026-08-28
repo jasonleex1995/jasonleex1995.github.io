@@ -827,7 +827,11 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   b.bulletId = def.id;
   b.srcArch = srcArch === undefined ? '' : srcArch;
   b.x = x; b.y = y; b.vx = vx; b.vy = vy;
-  b.dmg = def.dmg;
+  // §8.18(v1.7) 잡몹 탄 «피해»의 스테이지 곡선. 발사 주기(emitters.mobFireScale)와 짝이다.
+  //   보스·중간보스 탄은 srcArch 가 '' 이라 제외된다 — 그쪽은 자기 곡선을 이미 갖는다.
+  const dmgMul = (srcArch !== '' && world.run !== undefined && world.run.stageIndex !== undefined)
+    ? world.data.stages.curve.mobBulletDmgScale[world.run.stageIndex] : 1;
+  b.dmg = Math.max(1, Math.round(def.dmg * dmgMul));
   b.radius = def.radius;
   b.hitRadius = def.radius * def.hitboxScale;   // §2.3
   b.status = def.status;

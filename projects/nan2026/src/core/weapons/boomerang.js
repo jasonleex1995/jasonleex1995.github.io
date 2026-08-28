@@ -3,7 +3,7 @@
  *
  * 폐쇄된 파라미터 계약 (§9.5 12행 표 — 이 파일은 계약 밖의 키를 읽지 않는다):
  *   base            : dmg cooldownSec count projSpeed projRadius lifetimeSec pierce
- *                     hitCooldownSec targetMode outRangePx returnSpeed canRehit bounceLeft
+ *                     hitCooldownSec targetMode outRangePx returnSpeed canRehit bounceLeft spacingDeg
  *   evolution.params: evoChainCount
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
@@ -30,6 +30,7 @@
  */
 
 import { spawnPlayerBullet } from '../state.js';
+import { DEG2RAD } from '../angle.js';
 
 const FORWARD = 'forward';
 const OUT = 0;
@@ -132,10 +133,14 @@ function steer(world, slot, eff, chain) {
 function throwVolley(world, slot, eff) {
   const p = world.player;
   const n = eff.count;
-  // ★ 다발 투척의 부채 각은 CANON 미규정(§0.4 → 구현 소유). 정면 중심 45°(π/4) 총폭에 균등 배치.
-  const fan = Math.PI * 0.5 * 0.5;
-  const stepRad = n > 1 ? fan / (n - 1) : 0;
-  let a = n > 1 ? -fan * 0.5 : 0;
+  // ★ 다발 투척의 부채 각은 CANON 미규정(§0.4 → 구현 소유).
+  //   §9.5(v1.7) «총 부채폭 고정»에서 «탄당 간격 고정»으로 바꾼다.
+  //   총폭 45°를 n 등분하던 v1.6 까지는 **짝수 count 에 정면 탄이 없었다** — count 2 는 ±22.5°라
+  //   정면의 적을 둘 다 빗나간다. 실측: Lv2(count 1) 11 DPS → Lv3(count 2) **0 DPS**.
+  //   레벨업이 무기를 죽이는 자리였다. 간격을 고정하면 짝수도 정면을 ±6° 로 감싸 명중한다.
+  //   값은 데이터가 소유한다(§9.1 — weapons/** 는 숫자 리터럴을 쓰지 않는다).
+  const stepRad = eff.spacingDeg * DEG2RAD;
+  let a = -stepRad * (n - 1) * 0.5;
 
   for (let i = 0; i < n; i += 1) {
     const vx = Math.sin(a) * eff.projSpeed;

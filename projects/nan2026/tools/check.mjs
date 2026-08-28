@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S43 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S44 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -318,7 +318,7 @@ const FAMILY_OWN_BASE = {
   lance:     ['beamWidthPx', 'chargeSec', 'rangePx'],
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
-  boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft'],
+  boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
@@ -818,7 +818,7 @@ function S2_files() {
   }
   closedKeys('S2', D.stages.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId'], 'stages.themeDraw');
   closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed'], 'stages.curve');
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
@@ -2737,6 +2737,43 @@ function S39_waveUnlockCoherence() {
  *   그러면 회피율이 떨어진 채로 잰 시뮬 수치 전체가 밸런스 판단의 근거로 썩는다.
  *   ★ 플레이어 탄은 봇의 위협 모델에 없으므로 유한 반사가 허용된다(리턴 = 2).
  */
+/**
+ * §13.4-S44 (v1.7) — 무기 레벨 곡선의 «단조성». 레벨업이 무기를 약하게 만들면 안 된다.
+ *   대용치 DPS = dmg × count ÷ rate 이며, count·rate 의 «이름»은 정본이 이미 소유한다
+ *   (rules.passiveHooks[family].countKey / rateKey). 그래서 게이트가 어휘를 새로 만들지 않는다.
+ *   ★ dmg 단독으로 검사하면 안 된다 — 설계자는 피해를 주기·발수와 맞바꾼다(시커 Lv6 dmg 12→10 이지만
+ *     쿨다운 1.05→0.75 · count 3 이라 실제로는 강해진다). 세 항을 함께 봐야 «약해졌는가»가 나온다.
+ *   ★ 이 게이트가 없어서 실제로 두 건이 살아 있었다: 바라지 Lv5→6(실측 47→40 DPS)과
+ *     리턴의 짝수 count 정면 사각(Lv2 11 → Lv3 0). 둘 다 «레벨업이 약화»다.
+ */
+function S44_weaponCurveMonotonic() {
+  const hooks = D.rules.passiveHooks;
+  for (const w of rowsQuiet(D.weapons.weapons)) {
+    if (!isObj(w) || !Array.isArray(w.levels)) continue;
+    const h = hooks[w.family];
+    if (!isObj(h) || typeof h.rateKey !== 'string') continue;      // 주기가 없는 무기는 대상 밖
+    const cur = Object.assign({}, w.base);
+    let prev = null;
+    for (let i = 0; i < w.levels.length; i += 1) {
+      // ★ «질적» 변화가 낀 스텝은 대용치가 볼 수 없다 — 조준 방식이 바뀌면 같은 수치라도
+      //   실제 명중이 달라진다(바라지 Lv8 randomInArena → densest 는 실측 DPS 가 오히려 5배다).
+      //   대용치로 판정할 수 없는 구간은 «통과»가 아니라 «측정 불가»로 두고 비교를 끊는다.
+      const qualitative = isObj(w.levels[i]) && w.levels[i].targetMode !== undefined;
+      Object.assign(cur, w.levels[i]);                              // 부분 오버라이드 누적
+      if (qualitative) { prev = null; continue; }
+      const rate = cur[h.rateKey];
+      const dmg = cur.dmg;
+      if (typeof rate !== 'number' || rate <= 0 || typeof dmg !== 'number') { prev = null; continue; }
+      const cnt = (h.countKey && typeof cur[h.countKey] === 'number') ? cur[h.countKey] : 1;
+      const proxy = (dmg * cnt) / rate;
+      if (prev !== null && proxy < prev * 0.995) {
+        V('S44', `weapons[${w.id}] Lv${i} → Lv${i + 1}: 대용치 DPS ${prev.toFixed(1)} → ${proxy.toFixed(1)} 로 «역행»한다 — 레벨업이 무기를 약하게 만든다 (dmg×${h.countKey || 1}÷${h.rateKey}, §9.5)`);
+      }
+      prev = proxy;
+    }
+  }
+}
+
 function S43_bulletBounce() {
   for (const b of rowsQuiet(D.bullets.bullets)) {
     if (!isObj(b) || b.bounceLeft === undefined) continue;
@@ -3068,7 +3105,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S43 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S44 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3137,7 +3174,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S43 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S44 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
@@ -3193,6 +3230,7 @@ function main() {
   S41_evolutionPairing();    // §9.5 v1.5 진화 짝 패시브
   S42_enemyTraits();         // §8.17 v1.7 적 개성 값 범위
   S43_bulletBounce();        // §8.5 v1.7 적 탄 반사 예산
+  S44_weaponCurveMonotonic();// §9.5 v1.7 무기 레벨 곡선 단조성
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB
