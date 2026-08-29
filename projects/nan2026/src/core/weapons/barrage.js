@@ -27,6 +27,7 @@ import { killEnemy } from '../step.js';
 const RANDOM_IN_ARENA = 'randomInArena';
 const DENSEST = 'densest';
 const STRIKE = 'strike';
+const HIT = 'barrageHit';        // §7.12(v1.7) 착탄 연출용 kind
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 (§10.3) */
 const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
@@ -100,9 +101,20 @@ export function update(world, slot, eff, dt) {
     if (!t.alive || t.kind !== STRIKE) continue;
     if (t.age < t.durSec) continue;
     detonate(world, slot, eff, t.x, t.y, t.r);
-    world.telegraphs.release(t);
+    // §7.12(v1.7) 착탄 연출 — v1.6 까지 예고 원이 «소리 없이 사라졌다». 맞았는지 안 맞았는지가
+    //   화면에 없어서 「공격한다는 느낌이 없다」가 됐다(플레이 피드백).
+    //   풀도 필드도 늘리지 않는다: 같은 텔레그래프의 kind 를 «명중»으로 바꿔 짧게 남긴다.
+    t.kind = HIT;
+    t.age = 0;
+    t.durSec = eff.impactFlashSec;
   }
 
+  // ── 착탄 연출이 끝난 것을 반납한다(이 무기가 소유) ──────────────────────
+  for (let i = 0; i < ts.length; i += 1) {
+    const t = ts[i];
+    if (t.alive && t.kind === HIT && t.age >= t.durSec) world.telegraphs.release(t);
+  }
+  
   // ── 볼리 스케줄 — cooldownSec 마다 strikesPerVolley 발, 간격 strikeIntervalSec ──
   if (slot.a1 <= 0) {
     slot.a0 -= dt;

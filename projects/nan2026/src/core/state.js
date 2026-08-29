@@ -742,6 +742,18 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
 
 /** §12.1 — pickup 초과 = "merge": 신규 값을 최근접 기존 픽업에 합산 (★ 손실 0 = 무-노가다 기둥 보존) */
 export function spawnPickup(world, kind, value, x, y) {
+  // §2.6(v1.7) — 보상은 «닿을 수 있는 곳»에 떨어진다. 처치 지점을 그대로 쓰면 아레나 가장자리에서
+  //   죽은 적의 XP 가 플레이어의 이동 가능 영역(bounds = 아레나 − 인셋) 밖에 남아 영영 못 먹는다.
+  //   ★ 이탈 몰수(§8.7)와는 다른 문제다: 그건 «안 죽인 것»의 보상이고, 이건 «죽인 것»의 보상이다.
+  //     죽였는데 못 먹는 것은 규칙이 아니라 사고다(플레이 피드백).
+  const b = world.bounds;
+  let px = x; let py = y;
+  if (px < b.minX) px = b.minX; else if (px > b.maxX) px = b.maxX;
+  if (py < b.minY) py = b.minY; else if (py > b.maxY) py = b.maxY;
+  return spawnPickupAt(world, kind, value, px, py);
+}
+
+function spawnPickupAt(world, kind, value, x, y) {
   const p = world.pickups.alloc();
   if (p === null) {
     world.capHits.pickup += 1;

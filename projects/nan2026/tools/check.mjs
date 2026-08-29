@@ -319,7 +319,7 @@ const FAMILY_OWN_BASE = {
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['radius', 'tickIntervalSec', 'falloff'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
-  barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec'],
+  barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };

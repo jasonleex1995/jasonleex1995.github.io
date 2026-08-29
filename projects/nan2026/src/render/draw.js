@@ -720,13 +720,25 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.fillRect(x - bw / 2, y - e.radius - 8, bw * (e.hp / e.hpMax), 3);
     }
 
-    // §8.9(v1.5) 중간보스 — 개체 위 속성색 HP 바. 동시 다수라 상단 바 하나로는 부족 → 각 개체에 붙인다.
-    if (e.midBossId !== '') {
+    // §7.6(v1.7) 개체 위 HP 바 — «내가 때리고 있는 그것»의 남은 체력은 그것에 붙어 있어야 읽힌다.
+    //   대상: 중간보스 · 보스 부위(코어 제외). 코어만 상단 바가 맡는다 —
+    //   코어는 「이 판을 끝내는 것」이라 화면 어디를 보고 있든 알아야 하는 유일한 값이다.
+    //   ★ armor 부위는 §8.13 소프트게이트를 쥐고 있다(부수면 코어가 열린다). 바를 두껍게 +
+    //     밑줄을 그어 「이건 그냥 부위가 아니다」를 말한다 — 상단 세그먼트 없이도 게이트가 읽힌다.
+    const ownBar = e.midBossId !== '' || (e.isBoss && !e.isCore);
+    if (ownBar) {
+      const isArmor = e.partType === 'armor';
+      const bh = isArmor ? 6 : 4;
       const bw = e.radius * 2;
+      const byy = y - e.radius - 10;
       ctx.fillStyle = rgba(pal.threat.outline, 0.85);
-      ctx.fillRect(x - bw / 2, y - e.radius - 10, bw, 4);
+      ctx.fillRect(x - bw / 2, byy, bw, bh);
       ctx.fillStyle = color;
-      ctx.fillRect(x - bw / 2, y - e.radius - 10, bw * (e.hp / e.hpMax), 4);
+      ctx.fillRect(x - bw / 2, byy, bw * (e.hp / e.hpMax), bh);
+      if (isArmor) {
+        ctx.fillStyle = rgba(pal.element.normal, 0.9);
+        ctx.fillRect(x - bw / 2, byy + bh + 1, bw, 1);       // 게이트 표식
+      }
     }
 
     // 코어 글리프 — max(6, bodyPx × bodyRatio), 상한 maxPx. cvd 는 ×1.5 + 항상 렌더
@@ -1032,10 +1044,33 @@ function drawTelegraphs(ctx, world, pal) {
   ctx.globalAlpha = vt.airAlpha;
   ctx.setLineDash([vt.dashPx, vt.dashPx]);
   ctx.lineWidth = vt.strokePx;
-  ctx.strokeStyle = pal.threat.telegraph;
   for (let i = 0; i < items.length; i += 1) {
     const t = items[i];
     if (!t.alive || t.kind === 'laser') continue;
+    // §7.12(v1.7) 착탄 — 예고가 익어 «맞은» 순간. 점선이 아니라 «찬 원»이 빠르게 사라진다.
+    //   예고(점선·옅음)와 착탄(채움·밝음)이 시각적으로 반대라, 「올 것」과 「왔다」가 갈린다.
+    if (t.kind === 'barrageHit') {
+      const f = t.durSec > 0 ? Math.min(1, t.age / t.durSec) : 1;
+      const sl = t.owner >= 0 && t.owner < world.slots.length ? world.slots[t.owner] : null;
+      const c = pal.element[sl === null ? 'normal' : sl.stampElement] || pal.element.normal;
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = rgba(c, 0.55 * (1 - f));
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.r * (0.55 + 0.45 * f), 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = rgba(c, 0.95 * (1 - f * f));
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+    // §7.12.6(v1.7) — 자홍은 «적의 위협»색이다. 원형 텔레그래프 레이어는 실제로는
+    //   바라지(플레이어 무기) 전용인데 자홍으로 칠하고 있었다 — 적 예고는 spawnZone 으로 가고
+    //   이 레이어에 오지 않는다. 「내 공격인지 적 공격인지 모르겠다」의 직접 원인이다.
+    //   소유자로 가른다: owner >= 0 = 내 슬롯 → 그 슬롯의 속성색, 음수 = 적 → 자홍.
+    const mine = t.owner >= 0 && t.owner < world.slots.length;
+    const st = mine ? world.slots[t.owner].stampElement : null;
+    ctx.strokeStyle = mine ? (pal.element[st] || pal.element.normal) : pal.threat.telegraph;
     ctx.beginPath();
     ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
     ctx.stroke();
@@ -1188,11 +1223,15 @@ function drawNova(ctx, world, pal, px, py) {
     if (since >= 0 && since < eff.expandSec) {                  // 폭발 확장 플래시
       const f = since / eff.expandSec;                          // 0→1
       const rr = eff.radius * f;
-      ctx.fillStyle = rgba(pal.threat.bulletCore, Math.min(0.5 * (1 - f), cap));
+      // §7.12(v1.7) — v1.6 은 알파가 0.5×(1−f) 라 **커질수록 흐려졌다**: 가장 밝을 때 가장 작고,
+      //   실제 도달 반경에 닿을 땐 이미 안 보인다. 그래서 「노바가 좁아 보인다」가 됐다(플레이 피드백).
+      //   ★ 채움은 사라지되(잔상 방지) **테두리는 항상 eff.radius 에 그리고 끝까지 남긴다** —
+      //     「여기까지 닿았다」가 매 폭발마다 같은 자리에서 읽힌다.
+      ctx.fillStyle = rgba(pal.threat.bulletCore, Math.min(0.4 * (1 - f), cap));
       ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fill();
       ctx.lineWidth = 3;
-      ctx.strokeStyle = rgba(col, Math.min(0.9 * (1 - f), cap));
-      ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = rgba(col, Math.min(0.9, cap));
+      ctx.beginPath(); ctx.arc(px, py, eff.radius, 0, Math.PI * 2); ctx.stroke();
       if (slot.evolved) {                                       // 슈퍼노바 2단 링
         ctx.strokeStyle = rgba(col, Math.min(0.5 * (1 - f), cap));
         ctx.beginPath(); ctx.arc(px, py, eff.evoRing2Radius * f, 0, Math.PI * 2); ctx.stroke();

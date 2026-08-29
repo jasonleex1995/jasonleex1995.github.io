@@ -54,7 +54,7 @@ const FAMILY_BASE_KEYS = {
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
-    'blastRadius', 'telegraphSec', 'slowSec'],
+    'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
     'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
   nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],

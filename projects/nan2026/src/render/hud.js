@@ -105,47 +105,28 @@ function drawTopBand(ctx, world, pal) {
       a.x + a.w / 2, a.y + 18, h.fontLargePx * scale, color, 'center', 700);
   }
 
-  // 보스 코어 HP (40~48) + 살아있는 armor 칸 = §8.13 소프트게이트 단계. 보스가 없으면 안 그린다
-  //   ★ §7.6 — **중간보스도 같은 상단 바**를 쓴다(엘리트는 개체에 붙는 바, 중간보스는 화면 상단 바).
-  //     색은 그 개체의 속성색 → §7.6 「바 색이 곧 '무슨 스탠스로 때려야 하나'」. 코어는 노말=은색.
+  // 보스 «코어» HP — 이 판을 끝내는 단 하나의 값. 보스가 없으면 안 그린다
+  //   ★ §7.6(v1.7) — 상단 바는 **보스 코어 전용**이다. v1.6 까지 중간보스도 이 바를 썼는데,
+  //     draw.js 가 중간보스 «개체 위»에도 같은 바를 그려서 **같은 체력이 화면에 두 번** 떴다.
+  //     둘 중 개체 위 바가 옳다: 중간보스는 동시 다수라 상단 바 하나로는 애초에 부족하고,
+  //     내가 보고 있는 곳에 붙어 있어야 읽힌다. 상단은 «이 판을 끝내는 것»만 말한다.
   let core = null;
-  let mid = null;
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (e.alive && e.isBoss && e.isCore) { core = e; break; }
-    if (e.alive && e.midBossId !== '' && mid === null) mid = e;
   }
-  const bar = core !== null ? core : mid;
+  const bar = core;
   if (bar !== null) {
-    // §18 — 굵은 코어 바 + 수치 + armor 파트별 HP 세그먼트(속성색 = §7.6 「무슨 스탠스로」).
+    // §18 — 굵은 코어 바 + 수치. (v1.7: armor 세그먼트는 부위 자기 바로 옮겼다)
     //   기존 6px 은색 실오라기 + magenta 카운트 핍이라 «남은 체력이 안 보였다».
     const barW = a.w - pad * 2;
     const bx = a.x + pad;
     const coreH = 12;
-    const armorH = 8;
     const coreY = a.y + topH - coreH;
-    // armor 파트(살아있는) 수집 — 코어를 가리는 §8.13 게이트 부위
-    const armor = [];
-    if (core !== null) {
-      for (let i = 0; i < en.length; i += 1) {
-        const e = en[i];
-        if (e.alive && e.isBoss && !e.isCore && e.partType === 'armor') armor.push(e);
-      }
-    }
-    if (armor.length > 0) {
-      const armorY = coreY - armorH - 3;
-      const gap = 4;
-      const segW = (barW - gap * (armor.length - 1)) / armor.length;
-      for (let k = 0; k < armor.length; k += 1) {
-        const sx = bx + k * (segW + gap);
-        ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
-        ctx.fillRect(sx, armorY, segW, armorH);
-        ctx.fillStyle = pal.element[armor[k].element];   // 이 armor 의 속성 → 상성 스탠스 단서
-        const r = armor[k].hpMax > 0 ? armor[k].hp / armor[k].hpMax : 0;
-        ctx.fillRect(sx, armorY, segW * r, armorH);
-      }
-    }
+    // §7.6(v1.7) armor 세그먼트 스트립 폐지 — 이제 부위마다 «자기 위»에 바가 있다(draw.js).
+    //   같은 값을 두 곳에 그리면 어느 쪽을 봐야 하는지가 사라진다. §8.13 게이트는 armor 부위의
+    //   «두꺼운 바 + 밑줄»이 대신 말한다 — 정보가 읽는 사람이 보고 있는 대상 위에 붙는다.
     const ratio = bar.hpMax > 0 ? bar.hp / bar.hpMax : 0;
     ctx.fillStyle = rgba(pal.hud.panelRule, 0.85);
     ctx.fillRect(bx, coreY, barW, coreH);

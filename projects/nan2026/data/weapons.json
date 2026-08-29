@@ -94,7 +94,7 @@
       "elementStampMode": "spawn",
       "base": { "dmg":26, "cooldownSec":2.20, "targetMode":"randomInArena",
                 "strikeIntervalSec":0.25, "strikesPerVolley":1, "blastRadius":45,
-                "telegraphSec":0.50, "slowSec":2.00 },
+                "telegraphSec":0.50, "slowSec":2.00, "impactFlashSec":0.22 },
       "levels": [ {}, {"dmg":34}, {"strikesPerVolley":2,"cooldownSec":2.05},
                   {"dmg":44,"blastRadius":52}, {"strikesPerVolley":3,"dmg":74},
                   {"dmg":72,"cooldownSec":1.90}, {"dmg":110,"blastRadius":58,"telegraphSec":0.45},

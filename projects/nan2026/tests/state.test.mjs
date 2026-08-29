@@ -17,6 +17,7 @@ import {
   spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext,
 } from '../src/core/state.js';
 import { weapons } from '../src/core/weapons/index.js';
+import { killEnemy } from '../src/core/step.js';
 
 function mk(seed = 1) {
   return createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward' });
@@ -386,5 +387,29 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     const d = w.data.passives.passives.find((p) => p.id === 'warhead').values[0];
     assert.eq(w.stats.dmgMul, d, 'dmgMul 가산 풀 = 0.08');
     assert.throws(() => { const x = mk(); x.passives[0] = { id: 'ghost', level: 1 }; recomputeStats(x); }, '미지 패시브 throw');
+  });
+});
+
+// §2.6(v1.7) — 「화면 밖에서 적이 죽으면 경험치를 못 먹는다」(플레이 피드백).
+//   이탈 몰수(§8.7)와는 다른 문제다: 그건 «안 죽인 것»의 보상이고, 이건 «죽인 것»의 보상이다.
+//   죽였는데 못 먹는 것은 규칙이 아니라 사고다.
+suite('state · 픽업은 «닿을 수 있는 곳»에 떨어진다 (§2.6 v1.7)', () => {
+  test('아레나 가장자리·바깥에서 죽어도 픽업은 이동 가능 영역 안이다', () => {
+    const w = mk();
+    const b = w.bounds;
+    const a = w.data.rules.view.arena;
+    const spots = [
+      [a.x + 2, a.y + 2], [a.x + a.w - 2, a.y + a.h - 2],
+      [a.x - 40, a.y + 300], [a.x + a.w / 2, a.y + a.h + 30],
+    ];
+    for (const [x, y] of spots) {
+      const e = spawnEnemy(w, 'drifter', 'normal', x, y, 1, false, false);
+      killEnemy(w, e);
+      const live = w.pickups.items.filter((q) => q.alive);
+      const q = live[live.length - 1];
+      assert.ok(q !== undefined, '픽업이 생겼다');
+      assert.ok(q.x >= b.minX && q.x <= b.maxX, `x 가 이동 가능 영역 안 (${q.x})`);
+      assert.ok(q.y >= b.minY && q.y <= b.maxY, `y 가 이동 가능 영역 안 (${q.y})`);
+    }
   });
 });

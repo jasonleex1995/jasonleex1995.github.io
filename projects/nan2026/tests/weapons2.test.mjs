@@ -185,7 +185,14 @@ suite('weapons/barrage — 바라지 (§9.5)', () => {
 
     tickWeapon(w, 'barrage', s, 3);
     assert.lt(e.hp, hp0, '익으면 폭발');
-    assert.eq(t.alive, false, '예고는 소유자가 반납한다');
+    // §7.12(v1.7) 착탄 연출 — 예고가 «소리 없이 사라지면» 맞았는지가 화면에 없다(플레이 피드백).
+    //   터진 뒤 곧장 반납하지 않고, 같은 텔레그래프를 «명중» kind 로 바꿔 impactFlashSec 만큼 남긴다.
+    //   풀도 필드도 늘리지 않는 대신, 반납 책임이 한 틱 뒤로 간다 — 그것을 여기서 못박는다.
+    assert.eq(t.alive, true, '터진 직후엔 착탄 연출로 남는다');
+    assert.eq(t.kind, 'barrageHit', 'kind 가 «명중»으로 바뀐다');
+    assert.gt(eff.impactFlashSec, 0, '연출 시간이 데이터에 있다(§9.1 — 코드는 리터럴을 못 쓴다)');
+    tickWeapon(w, 'barrage', s, Math.ceil(eff.impactFlashSec / dt) + 2);   // ★ 인자는 «틱 수»다
+    assert.eq(t.alive, false, '연출이 끝나면 소유자가 반납한다');
   });
 
   test("Lv8 targetMode 'densest' 는 가장 밀집한 무리 위에 떨어진다", () => {
