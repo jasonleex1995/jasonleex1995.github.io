@@ -19,6 +19,7 @@
     "bandXpH": 24,
     "playerBoundsInset": { "top": 56, "bottom": 56, "left": 20, "right": 20 },
     "spawnLineY": -40,
+    "spawnPadPx": 40,
     "minViewportW": 1024,
     "minViewportH": 576,
     "maxDpr": 2

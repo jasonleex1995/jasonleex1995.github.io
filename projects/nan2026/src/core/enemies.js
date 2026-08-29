@@ -156,9 +156,31 @@ function descentSpeed(mp) {
  * §9.9.2 — 편대별 i번째 개체의 스폰 좌표. 원점 = 스폰 라인 중앙.
  * spawnEdge 는 슬라이스에서 top 만 유효(sea stage-1 전량 top). base y = view.spawnLineY.
  */
-function placement(world, wave, i, count, out) {
+function placement(world, wave, i, count, out, def) {
   // 편대의 원점 = 스폰 라인 중앙(웨이브). 모양 자체는 formations.js 가 소유한다(§9.9.2).
   const a = world.data.rules.view.arena;
+  const mv = def === undefined ? '' : def.moveId;
+  const mp = def === undefined ? null : def.moveParams;
+  // §8.4(v1.7) — 이동 동사가 «어디서 들어오는가»를 정하는 두 경우. 이걸 안 읽어서 세 아키타입이
+  //   스폰만 되고 아레나에 한 번도 서지 못했다(실측 도달률 flanker·thornWeaver·rearDart 전부 0.0%):
+  //   · strafe 는 「좌/우 벽 진입 → 수평 횡단」인데 상단 스폰라인에서 vy=0 이라 화면 위에 머물렀다.
+  //   · rearIn 은 「하단 밖에서 상승 진입」인데 상단에서 vy=-speed(위로)라 더 멀어졌다.
+  //     (rearIn 구현 주석이 「스폰 y 는 스폰 측 책임」이라 적어 놓고 그 책임자가 없었다)
+  //   값은 이미 저작돼 있었다 — moveParams.yPx(flanker 180 · thornWeaver 140) · warnSec(0.8).
+  if (mv === 'strafe' && mp !== null && typeof mp.yPx === 'number') {
+    // 좌우 벽 «밖»에서 시작한다. 어느 쪽인지는 편대 인덱스로 갈라 rng 를 쓰지 않는다(§10.2 결정성).
+    const pad = world.data.rules.view.spawnPadPx;
+    const left = (i % 2) === 0;
+    out.x = left ? a.x - pad : a.x + a.w + pad;
+    out.y = a.y + mp.yPx;
+    return out;
+  }
+  if (mv === 'rearIn') {
+    const pad = world.data.rules.view.spawnPadPx;
+    out.x = a.x + a.w * ((i + 0.5) / Math.max(1, count));   // 하단을 균등 분할 — 편대 모양 대신 폭을 쓴다
+    out.y = a.y + a.h + pad;
+    return out;
+  }
   return formationPos(world, wave.formationId, i, count,
     a.x + a.w / 2, world.data.rules.view.spawnLineY, out);
 }
@@ -187,7 +209,7 @@ function spawnWave(world, s) {
   for (let i = 0; i < count; i += 1) {
     // §8.7 초과 정책 = defer. 동시 오써링 상한을 넘으면 나머지는 이번 웨이브에서 놓는다(풀 캡이 B층 안전망).
     if (world.enemies.live >= concurrentMax) break;
-    placement(world, wave, i, count, _pos);
+    placement(world, wave, i, count, _pos, def);
     // §8.6 — 엘리트 = 두 경로의 OR:
     //   (1) eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그(베이크된 스포트라이트, perWaveMax 1).
     //   (2) 엘리트 재롤(§8.6, 이제 구현 — 예약된 rng.elite 스트림): 자격 개체(밴드∈bandAllowed ∧

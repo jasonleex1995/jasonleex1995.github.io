@@ -465,7 +465,7 @@ function S2_schema() {
 
   closedKeys('S2', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate'], 'rules.loop');
   closedKeys('S2', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW', 'bandTopH',
-    'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'minViewportW', 'minViewportH', 'maxDpr'], 'rules.view');
+    'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'spawnPadPx', 'minViewportW', 'minViewportH', 'maxDpr'], 'rules.view');
   if (isObj(r.view)) {
     closedKeys('S2', r.view.arena, ['x', 'y', 'w', 'h'], 'rules.view.arena');
     closedKeys('S2', r.view.playerBoundsInset, ['top', 'bottom', 'left', 'right'], 'rules.view.playerBoundsInset');

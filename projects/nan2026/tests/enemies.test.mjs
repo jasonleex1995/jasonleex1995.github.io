@@ -12,7 +12,7 @@
  * ★ 값은 전부 data/정본에서 유도한다 (하드코딩 매직넘버 지양).
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnBeam, spawnZone } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -362,5 +362,47 @@ suite('enemies/§7.6 공격 기호 · §8.6 엘리트 곡선 (v1.7)', () => {
     assert.gt(baked, 0, '스테이지 1 에 eliteIndex 가 박힌 웨이브가 있다(전제) — 없으면 무의미한 통과');
     assert.lt(d.stages.curve.elitePerWaveChance[0], d.stages.curve.elitePerWaveChance[5],
       '★ 곡선은 스테이지가 갈수록 오른다 — 초반 평범한 몹 → 후반 엘리트');
+  });
+});
+
+// §8.4/§8.18(v1.7 후속) — 「비행기 없이 적만」 계측이 잡아낸 두 구멍의 회귀.
+suite('enemies/§8.4 진입 위치 · §8.18 빔·장판 곡선 (v1.7)', () => {
+  // ★ strafe·rearIn 은 «스폰만 되고 아레나에 한 번도 서지 못했다»(실측 도달률 0.0%).
+  //   strafe 는 상단 스폰라인에서 vy=0 이라 화면 위에 머물렀고, rearIn 은 거기서 vy=-speed 로
+  //   더 멀어졌다. 값(moveParams.yPx)은 이미 저작돼 있었고 스폰이 그것을 안 읽은 것이 원인이다.
+  test('strafe 는 좌우 벽 밖 · yPx 높이에서 들어온다', () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 3, weapons, hooks: { enemies }, startWeaponId: 'forward' });
+    const a = d.rules.view.arena;
+    const def = d.enemies.archetypes.find((x) => x.moveId === 'strafe');
+    assert.ok(def !== undefined, 'strafe 아키타입 존재(전제)');
+    assert.eq(typeof def.moveParams.yPx, 'number', 'yPx 가 저작돼 있다(전제)');
+    const e = spawnEnemy(w, def.id, 'normal', 0, 0, 10, false, false);
+    // 스폰 좌표는 spawnWave 경유라 직접 호출로는 안 잡힌다 — 여기서는 «이동이 화면 안을 향하는가»만 본다.
+    for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(e.vy, 0, 'strafe 는 수평 횡단이다');
+    assert.ok(e.vx !== 0, '옆으로 움직인다');
+    assert.ok(def.moveParams.yPx > 0 && def.moveParams.yPx < a.h, 'yPx 가 아레나 안이다');
+  });
+
+  test('빔·장판도 잡몹 피해 곡선을 탄다 — 단 «깎기만» 한다 (§2.1 상한 보존)', () => {
+    const d = loadData();
+    const mk = (stageIndex) => {
+      const w = createWorld({ data: d, seed: 1, weapons, hooks: {}, startWeaponId: 'forward' });
+      w.run = { stageIndex, order: [], crisis: false, bossFireRateMul: 1 };
+      return w;
+    };
+    const curve = d.stages.curve.mobBulletDmgScale;
+    assert.lt(curve[0], 1, '스테이지 1 은 1 미만이다(전제)');
+    assert.gt(curve[5], 1, '스테이지 6 은 1 초과다(전제)');
+    const RAW = 22;
+    const lo = spawnBeam(mk(0), 500, 100, 1.57, 16, RAW, 1, -1, 'turretPod', 0.5, false);
+    const hi = spawnBeam(mk(5), 500, 100, 1.57, 16, RAW, 1, -1, 'turretPod', 0.5, false);
+    const boss = spawnBeam(mk(5), 500, 100, 1.57, 16, RAW, 1, -1, '', 0.5, false);
+    assert.lt(lo.dmg, RAW, '★ 초반 빔은 깎인다 — 「스테이지 1인데 너무 아프다」의 답');
+    assert.eq(hi.dmg, RAW, '★ 후반에도 저작 상한을 넘지 않는다 — §2.1 「최대 단발 22 → 최소 5초」 보증');
+    assert.eq(boss.dmg, RAW, '보스 빔(귀속 \'\')은 곡선 밖이다');
+    const z = spawnZone(mk(0), 500, 300, 40, 12, 1, false, 'magmaBomb', 0.5);
+    assert.lt(z.dmg, 12, '장판도 초반에 깎인다');
   });
 });

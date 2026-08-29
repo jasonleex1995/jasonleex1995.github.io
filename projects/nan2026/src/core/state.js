@@ -800,10 +800,26 @@ function spawnPickupAt(world, kind, value, x, y) {
  * §8.5 zone — 원형 장판. 적 장판(fromPlayer=false)은 안에 있는 플레이어를 때리고, 플레이어 장판
  *   (무기 A2)은 적을 때린다. 피해는 **적용 1회**이며 i-frame 이 게이트한다(§8.5 「dps 는 없다」).
  */
+/**
+ * §8.18(v1.7) 잡몹 사격 강도의 «피해» 배율. 보스·중간보스 탄은 srcArch 가 '' 이라 제외된다.
+ *   ★ 1 로 클램프한다 = «깎기만 하고 올리지 않는다». 빔/장판은 이미 저작 상한에 서 있고,
+ *     §2.1 이 「hpMax 100 · 최대 단발 22 · i-frame 1.0 → 죽으려면 최소 5초」를 **산술적 보증**으로
+ *     못박았다. 22 × 1.4 = 31 이면 4회 = 3.2초가 되어 그 보증이 깨진다.
+ *     또 beamCore 는 잡몹 1종(turretPod)과 보스 5종이 «공유»하므로 저작값을 낮추면 보스가 약해진다.
+ *   초반 완화(스테이지1 ×0.65)만 얻고 상한은 건드리지 않는 것이 이 클램프의 값이다.
+ */
+function mobDmgMul(world, srcArch, clampToOne) {
+  if (srcArch === undefined || srcArch === '') return 1;
+  if (world.run === undefined || world.run.stageIndex === undefined) return 1;
+  const v = world.data.stages.curve.mobBulletDmgScale[world.run.stageIndex];
+  return clampToOne === true ? Math.min(1, v) : v;
+}
+
 export function spawnZone(world, x, y, radius, dmg, activeSec, fromPlayer, srcArch, warnSec) {
   const z = world.zones.alloc();
   if (z === null) { world.capHits.zone += 1; return null; }
-  z.x = x; z.y = y; z.radius = radius; z.dmg = dmg;
+  z.x = x; z.y = y; z.radius = radius;
+  z.dmg = Math.max(1, Math.round(dmg * mobDmgMul(world, srcArch, true)));   // §8.18(v1.7)
   z.activeSec = activeSec; z.age = 0; z.fromPlayer = fromPlayer;
   z.warnSec = warnSec === undefined ? 0 : warnSec;    // §8.5 v1.5 — mortar «퓨즈»(착탄→폭발). 0 = 즉시 활성(기존)
   z.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속
@@ -835,7 +851,8 @@ export function spawnBeam(world, x, y, angleRad, widthPx, dmg, activeSec, owner,
   const warn = warnSec === undefined ? 0 : warnSec;
   t.kind = 'laser'; t.x = x; t.y = y; t.a = angleRad; t.r = widthPx;
   t.aStart = angleRad; t.aEnd = angleEndRad === undefined ? angleRad : angleEndRad;   // aStart≠aEnd = 소사
-  t.age = 0; t.warnSec = warn; t.durSec = warn + activeSec; t.dmg = dmg;
+  t.age = 0; t.warnSec = warn; t.durSec = warn + activeSec;
+  t.dmg = Math.max(1, Math.round(dmg * mobDmgMul(world, srcArch, true)));   // §8.18(v1.7)
   t.track = track === true;
   t.owner = owner;
   t.srcArch = srcArch === undefined ? '' : srcArch;   // §13.1.1 치사 지분 귀속

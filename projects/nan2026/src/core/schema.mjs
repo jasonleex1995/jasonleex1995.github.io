@@ -178,7 +178,7 @@ function checkRules(c, r) {
   c.closed('rules', r, ['schemaVersion', ...RULES_ROOT_16]);
   c.closed('rules.loop', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate']);
   c.closed('rules.view', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW',
-    'bandTopH', 'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'minViewportW',
+    'bandTopH', 'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'spawnPadPx', 'minViewportW',
     'minViewportH', 'maxDpr']);
   if (isObj(r.view)) {
     c.closed('rules.view.arena', r.view.arena, ['x', 'y', 'w', 'h']);
