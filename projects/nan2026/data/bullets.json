@@ -53,10 +53,11 @@
       "status": null,
       "statusDurationSec": 0,
       "accel": 0,
-      "turnRateDegSec": 36,
+      "turnRateDegSec": 30,
       "retargetSec": 0.5,
       "waveAmp": 0,
-      "waveHz": 0
+      "waveHz": 0,
+      "homingSec": 1.2
     },
     {
       "id": "driftHoming",
@@ -67,10 +68,11 @@
       "status": null,
       "statusDurationSec": 0,
       "accel": 0,
-      "turnRateDegSec": 20,
+      "turnRateDegSec": 16,
       "retargetSec": 0.6,
       "waveAmp": 0,
-      "waveHz": 0
+      "waveHz": 0,
+      "homingSec": 1.8
     },
     {
       "id": "hexBolt",

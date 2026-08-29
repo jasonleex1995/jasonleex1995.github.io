@@ -143,12 +143,12 @@
     "minGapWidthPx": 46,
     "minSpawnRadiusPx": 140,
     "maxSimultaneousEnemyBullets": 320,
-    "maxBulletAgeSec": 12,
-    "enemyConcurrentMax": 55,
+    "maxBulletAgeSec": 6,
+    "enemyConcurrentMax": 42,
     "swarmConcurrentMax": 100,
     "crisisWaveResidualMax": 10,
     "telegraphConcurrentMaxPerEntity": 2,
-    "telegraphConcurrentMaxGlobal": 110,
+    "telegraphConcurrentMaxGlobal": 84,
     "playerWeaponsExempt": true
   },
 
