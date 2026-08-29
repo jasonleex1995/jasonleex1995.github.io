@@ -40,7 +40,7 @@ const SLICE_STAGE_ID = 'sea';
 const SLICE_STAGE_NUMBER = 1;
 
 /** ★ 슬라이스가 구현한 이동(§8.4)·플레이 가능한 밴드(§8.6). 로스터 필터의 근거이며 하드코딩 id 가 아니다. */
-const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'rearIn', 'bounce'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
+const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'bounce'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
 const PLAYABLE_BANDS = ['chaff', 'line', 'turret', 'bruiser'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
@@ -169,8 +169,6 @@ function placement(world, wave, i, count, out, def) {
   // §8.4(v1.7) — 이동 동사가 «어디서 들어오는가»를 정하는 두 경우. 이걸 안 읽어서 세 아키타입이
   //   스폰만 되고 아레나에 한 번도 서지 못했다(실측 도달률 flanker·thornWeaver·rearDart 전부 0.0%):
   //   · strafe 는 「좌/우 벽 진입 → 수평 횡단」인데 상단 스폰라인에서 vy=0 이라 화면 위에 머물렀다.
-  //   · rearIn 은 「하단 밖에서 상승 진입」인데 상단에서 vy=-speed(위로)라 더 멀어졌다.
-  //     (rearIn 구현 주석이 「스폰 y 는 스폰 측 책임」이라 적어 놓고 그 책임자가 없었다)
   //   값은 이미 저작돼 있었다 — moveParams.yPx(flanker 180 · thornWeaver 140) · warnSec(0.8).
   if (mv === 'strafe' && mp !== null && typeof mp.yPx === 'number') {
     // 좌우 벽 «밖»에서 시작한다. 어느 쪽인지는 편대 인덱스로 갈라 rng 를 쓰지 않는다(§10.2 결정성).
@@ -178,12 +176,6 @@ function placement(world, wave, i, count, out, def) {
     const left = (i % 2) === 0;
     out.x = left ? a.x - pad : a.x + a.w + pad;
     out.y = a.y + mp.yPx;
-    return out;
-  }
-  if (mv === 'rearIn') {
-    const pad = world.data.rules.view.spawnPadPx;
-    out.x = a.x + a.w * ((i + 0.5) / Math.max(1, count));   // 하단을 균등 분할 — 편대 모양 대신 폭을 쓴다
-    out.y = a.y + a.h + pad;
     return out;
   }
   return formationPos(world, wave.formationId, i, count,
@@ -376,10 +368,6 @@ function applyMovement(world) {
       e.vx = vx;
       e.vy = vy;
 
-    } else if (mv === 'rearIn') {
-      // §8.4 — 하단 밖에서 «상승» 진입. 스폰 y 와 warnSec 진입 표식은 스폰 측 책임이다.
-      e.vy = -speed;
-      e.vx = 0;
 
     } else {
       // dive · column + 폴백 — 직하강. column 의 «일렬 종대»는 이동이 아니라 스폰 편성(gapSec)이 만든다.

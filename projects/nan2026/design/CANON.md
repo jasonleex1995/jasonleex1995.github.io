@@ -1305,19 +1305,20 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 - ★ **`swarmTotalScale`은 여기서 정의된다.** 초안 D §5.2가 참조만 하고 값이 없던 열 + 초안 E의 `stage1CrisisScale: 0.5`는 **같은 개념의 두 이름**이었다 → **하나로 통합.**
 - **후반 = 스펀지 방지**: HP만 올리면 후반이 무르다 → **아키타입 해금**(`unlockStageMin`)이 함께 올라 *다른 적*이 나온다. 스테이지 로스터 교체는 **없음**(콘텐츠 물량 5배 방지).
 
-### 8.4 적 이동 어휘 `moveId` (9종 ★v1.7, 동결)
+### 8.4 적 이동 어휘 `moveId` (8종 ★v1.7 — `bounce` 신설 · `rearIn` 폐지, 동결)
 
 | `moveId` | 이름 | 거동 | 파라미터 | 존재 이유 (무기 시너지) |
 |---|---|---|---|---|
 | `dive` | 직하강 | 상단 진입 → 등속 하강 → 하단 이탈 | `speed` | 포워드/벌컨 |
 | `bounce` ★v1.7 | 벽 반사 | 대각 진입 → 좌우 벽을 되튀며 하강 | `speed, hSpeed` | **플레이어의 도탄(리턴)과 «같은 규칙»을 적이 쓴다** — 벽이 내 편만은 아니라는 것을 가르친다. 진입 방향은 `strafe` 와 같은 규약(스폰 x 가 아레나 중앙보다 왼쪽인가)으로 정한다 — `rng` 금지(§10.2 결정성) |
 | `weave` | 사인 하강 | 좌우 사인 흔들며 하강 | `speed, ampPx, freqHz` | 확산/팬 |
+> **★ 진입 방향 (v1.7 후속, 사용자 판정 — 정본을 덮는다)**: 「적은 위에서 아래로, 혹은 «옆»에서 들어온다. **아래에서 위로 올라오는 적은 없다.** 옆 진입은 화면 상단 절반이어야 한다」. 근거: 아래에서 올라오는 적은 플레이어의 «시선 뒤»라 예고 없이 닿는다 — 회피 판단의 근거가 없다. 그래서 `rearIn` 어휘와 `spawnEdge: "bottom"` 을 **폐지**했고(`rearDart` 는 `strafe` 로 전환), `curve.rearSpawnAllowed` 는 소비처가 사라졌다. **S9** 가 ⓐ `spawnEdge` 는 `top` 뿐 ⓑ `strafe` 의 `yPx` 는 아레나 상단 절반 이내를 강제한다 — 웨이브와 **위기 웨이브 양쪽**을 본다.
+
 | `column` | 종대 스트림 | **같은 x축 일렬 종대**로 줄줄이 하강 | `speed, gapSec` | **관통 랜스 "줄 세우기"** |
 | `strafe` | 측면 횡단 | 좌/우 벽 진입 → 수평 횡단 → 반대편 이탈 | `speed, yPx` | **부메랑 "라인 정렬"**, 후방/전방위 |
 | `anchor` | 진입 체류 | 상단 진입 → `yHoldPx`에 정지 → 좌우 소폭 왕복 | `enterSpeed, yHoldPx, swayAmpPx, leaveAfterSec` | 드론/옵션, 관통 저격 |
 | `orbitDrift` | 선회 접근 | 플레이어 쪽으로 호를 그리며 접근 → `keepDistPx` 유지 | `speed, turnRateDegSec, keepDistPx` | **오빗/오라 "파고들어 몸빵"** |
 | `charge` | 돌진 | 상단 체류 → 텔레그래프 → 플레이어 방향 1회 직선 돌진 → 이탈 | `windUpSec, dashSpeed` | 위치 판단 시험 |
-| `rearIn` | 후방 진입 | **하단 밖에서 상승 진입** | `speed, warnSec` | **후방/전방위 무기의 존재 이유** |
 
 - ★ 초안 D의 어휘를 채택한다(초안 F의 `straightDown/sineDown/…` 8종은 폐기). 근거: **D의 8종은 각각 특정 무기 패밀리와 짝지어져 설계되었고**(column↔lance, strafe↔boomerang, orbitDrift↔orbit/aura, rearIn↔omni), 그 짝이 "의미 있는 이동" 기둥의 구현체다. F의 어휘는 짝이 없다.
 - ★ **`rearIn`은 `rearSpawnAllowed[stage]`(3+)에서만**, 그리고 **반드시 `warnSec = 0.8` 동안 하단 경계에 진입 표식**이 선행한다. **뒤에서 소리 없이 나오는 적은 금지** (무-트위치 기둥). 초안 F의 무제약 `entrySide: "bottom"`은 폐기.

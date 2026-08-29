@@ -272,7 +272,7 @@ function census() {
 // ---------------------------------------------------------------------------
 // 동결 어휘 (§13.4 S3)
 // ---------------------------------------------------------------------------
-const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'rearIn', 'bounce'];    // §8.4 (9 — v1.7 bounce)
+const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'bounce'];              // §8.4 (8 — v1.7: bounce 신설 · rearIn 폐지)
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep']; // §8.5 (10, v1.5 mortar·sweep)
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];                                // §8.7 · §9.9.2 (6)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
@@ -1628,36 +1628,40 @@ function S9_structure() {
     }
   }
 
-  // (4) rearIn / spawnEdge:"bottom" 은 rearSpawnAllowed[stage] 일 때만 (§8.4 · §8.7)
-  const rear = rowsQuiet(st.curve && st.curve.rearSpawnAllowed);
-  const firstRearStage = rear.findIndex((v) => v === true) + 1;   // 1-indexed. 0 = 영영 불가
+  // (4) §8.4(v1.7) 진입 방향 — 사용자 판정으로 어휘가 바뀌었다:
+  //     「적은 위에서 아래로, 혹은 «옆»에서 들어온다. 아래에서 위로 올라오는 적은 없다.
+  //      옆 진입은 화면 상단 절반이어야 한다」
+  //   근거: 아래에서 올라오는 적은 플레이어의 «시선 뒤»라 예고 없이 닿는다 — 회피 판단의 근거가 없다.
+  //   (v1.7 이전의 rearIn / rearSpawnAllowed 게이트를 이것으로 대체했다 — 그 어휘는 폐지됐다)
+  // ★ st 는 D.stages 다 — st.rules 는 없다. 이걸 틀리면 arenaH 가 0 이 되어 아래 검사가
+  //   통째로 건너뛰어진다(«죽은 게이트»). 실제로 한 번 그렇게 넣었고 주입 테스트가 잡았다.
+  const arenaH = (D.rules && D.rules.view && D.rules.view.arena) ? D.rules.view.arena.h : 0;
+  if (!(arenaH > 0)) V('S9', 'rules.view.arena.h 를 못 읽었다 — 진입 높이 검사가 죽는다');
+  // ★ 위기 웨이브(phase.crisisWaves)도 spawnEdge 를 «선언»한다 — 여기를 빠뜨리면 게이트가
+  //   전체의 절반만 본다. (실제로 처음엔 빠뜨렸고, 주입 테스트가 「웨이브 156, 전부 top」이라
+  //   말해 줘서 알았다 — 내가 주입한 bottom 이 crisisWaves 쪽이라 보이지 않았다)
+  const edgeSources = [];
   for (const t of rowsQuiet(st.stages)) {
     if (!isObj(t)) continue;
-    const isFinale = t.id === FINAL_ID;
-    rowsQuiet(t.waves).forEach((w, i) => {
-      if (!isObj(w)) return;
-      const a = archById.get(w.archetypeId);
-      if (!a) return;
-      const needsRear = a.moveId === 'rearIn' || w.spawnEdge === 'bottom';
-      if (!needsRear) return;
-      const u = w.unlockStageMin;      // ★ v1.3: 웨이브 자신의 티어가 이 판정의 주체다
-      const tag = `stages.stages[${t.id}].waves[${i}] (${w.archetypeId}, moveId=${a.moveId}, spawnEdge=${w.spawnEdge})`;
-      if (isAmb(u) || !num(u)) {
-        A(`${tag}.unlockStageMin`, 'rearSpawnAllowed 게이트를 평가할 unlockStageMin 이 없다');
-        return;
-      }
-      // ★ 이 웨이브가 실제로 등장할 수 있는 가장 이른 스테이지 (S8·S22와 같은 스테이지 축)
-      //   pool 테마: 셔플되어 s1~s5 어디에도 온다 → 최이른 = unlockStageMin
-      //   finale:   ★ 항상 스테이지 6 이다 (§8.16). unlockStageMin 은 전부 1 이지만 그것은
-      //             「단일 티어, 티어 필터링 없음」의 형식값이지 등장 스테이지가 아니다 (§23.1-D11)
-      const earliest = isFinale ? 6 : Math.max(1, u);
-      if (firstRearStage === 0) V('S9', `${tag}: rearSpawnAllowed 가 전 스테이지 false 인데 후방 진입 (§8.4)`);
-      else if (earliest < firstRearStage) {
-        V('S9', `${tag}: 최이른 등장 스테이지 ${earliest}(unlockStageMin ${u}) < 후방 스폰 최초 허용 스테이지 ${firstRearStage} `
-          + `— rearSpawnAllowed = [${rear.join(', ')}] (§8.4/§8.7)`);
-      }
-    });
+    rowsQuiet(t.waves).forEach((w, wi) => edgeSources.push([`stages.stages[${t.id}].waves[${wi}]`, w]));
   }
+  rowsQuiet(st.phase && st.phase.crisisWaves).forEach((w, wi) => edgeSources.push([`stages.phase.crisisWaves[${wi}]`, w]));
+  for (const [tag, w] of edgeSources) {
+    if (!isObj(w)) continue;
+    if (w.spawnEdge !== undefined && w.spawnEdge !== 'top') {
+      V('S9', `${tag}.spawnEdge = "${w.spawnEdge}" — 진입은 상단(top)뿐이다. 아래에서 올라오는 적은 시선 뒤라 회피 판단의 근거가 없다 (§8.4 v1.7)`);
+    }
+  }
+  for (const a of ARCHETYPES()) {
+    if (!isObj(a) || a.moveId !== 'strafe') continue;
+    const y = (a.moveParams && a.moveParams.yPx);
+    if (typeof y !== 'number') {
+      V('S9', `enemies.archetypes[${a.id}]: strafe 는 moveParams.yPx 가 필요하다 — 없으면 스폰 라인에 머물러 화면에 서지 못한다 (§8.4)`);
+    } else if (arenaH > 0 && y > arenaH * 0.5) {
+      V('S9', `enemies.archetypes[${a.id}].moveParams.yPx(${y}) — 옆 진입은 «화면 상단 절반»(≤ ${arenaH * 0.5})이어야 한다 (§8.4 v1.7)`);
+    }
+  }
+
 
   // (5) 새떼에 swarm* 외 아키타입 금지 (§8.10) — 역방향: 잡몹 로스터/웨이브에 swarm* 금지
   for (const t of rowsQuiet(st.stages)) {

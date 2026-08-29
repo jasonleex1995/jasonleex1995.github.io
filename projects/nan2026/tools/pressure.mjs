@@ -9,7 +9,11 @@
  *   A 스폰·엘리트·개성 보유 수 · 초당 신규탄 · 초당 피해량 · 동시 최대치
  *   B 밴드 구성 (일반 웨이브 / 위기 웨이브 분리)
  *   C 가만히 서 있을 때 생존 시간 (i-frame 정상 — §2.1 관대함 보장 포함)
- *   D «숨 쉴 곳» = 1초 안에 탄도 몸통도 닿지 않는 칸의 비율
+ *   D «숨 쉴 곳» = 1초 안에 탄도 몸통도 닿지 않는 칸의 비율 (아레나 전체 기준)
+ *   E ★ «갈 수 있는 안전한 곳» — D 의 결함을 고친 것.
+ *     안전한 칸이 «탄막 반대편»에 있으면 못 간다. 난이도의 실체는 «안전한 면적»이 아니라
+ *     «지금 내 자리에서 닿을 수 있는 안전한 곳이 있는가»다(사용자 지적).
+ *     예: 적이 일자로 내려오며 일자로 쏘면 아레나의 90% 가 비어 있어도 피할 구석이 없다.
  *
  * ★ 함정 두 개(둘 다 실제로 밟았다):
  *   ① 풀은 객체를 재사용한다 — 객체 동일성으로 세면 과소집계된다. 키는 `${idx}:${gen}` 다.
@@ -83,6 +87,55 @@ function safeFraction(w, d) {
   return safe / tot;
 }
 
+/**
+ * §E — «피할 길이 있는가». 난이도의 실체는 «안전한 면적»이 아니라 «빠져나갈 경로»다.
+ *   사용자 지적: 「적이 일자로 내려오고 일자로 쏘면 피할 구석이 없다」 — 그때 아레나의 90%가
+ *   비어 있어도 그 안전지대는 탄막 «건너편»이라 갈 수가 없다.
+ *
+ *   그래서 칸이 아니라 «경로»를 본다: 8방향으로 최대 속도로 HORIZON 초 달려 보고,
+ *   경로 «전체»가 안전한 방향이 몇 개인지 센다. 0 이면 어디로 가도 맞는다 = 강제 피격.
+ *   ★ 봇의 롤아웃(bot.rollSeg)과 같은 모델이다 — 그쪽은 회피를 «고르고», 이쪽은 «셀 뿐»이다.
+ *   ★ 벽은 막는다(bounds 클램프) — 구석에 몰리면 방향이 실제로 줄어든다.
+ */
+function escapeDirs(w, d, px, py) {
+  const b = w.bounds;
+  const rp = d.rules.player;
+  const STEPS = 12;
+  const dt = HORIZON / STEPS;
+  const step = rp.moveSpeed * dt;
+  const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.7071, -0.7071], [0.7071, -0.7071], [-0.7071, 0.7071], [0.7071, 0.7071]];
+  let ok = 0;
+  for (let k = 0; k < DIRS.length; k += 1) {
+    let x = px;
+    let y = py;
+    let safe = true;
+    for (let t = 1; t <= STEPS && safe; t += 1) {
+      x += DIRS[k][0] * step;
+      y += DIRS[k][1] * step;
+      if (x < b.minX) x = b.minX; else if (x > b.maxX) x = b.maxX;
+      if (y < b.minY) y = b.minY; else if (y > b.maxY) y = b.maxY;
+      const at = t * dt;                       // 이 시각의 위협 위치와 비교한다
+      for (const e of w.enemies.items) {
+        if (!e.alive) continue;
+        const ex = e.x + e.vx * at;
+        const ey = e.y + e.vy * at;
+        const r = rp.hitboxRadius + e.radius;
+        if ((ex - x) * (ex - x) + (ey - y) * (ey - y) <= r * r) { safe = false; break; }
+      }
+      if (!safe) break;
+      for (const bu of w.enemyBullets.items) {
+        if (!bu.alive) continue;
+        const bx = bu.x + bu.vx * at;
+        const by = bu.y + bu.vy * at;
+        const r = rp.hitboxRadius + bu.hitRadius;
+        if ((bx - x) * (bx - x) + (by - y) * (by - y) <= r * r) { safe = false; break; }
+      }
+    }
+    if (safe) ok += 1;
+  }
+  return ok;
+}
+
 /** 등속 근사로 [0, HORIZON] 안의 최근접이 r 안에 드는가 (가속·유도는 보수적으로 무시). */
 function nearestWithin(px, py, ox, oy, ovx, ovy, r) {
   const rx = ox - px;
@@ -110,6 +163,7 @@ function probe(d, stageIdx, seed) {
     wave: { spawn: 0, band: Object.create(null) },
     cris: { spawn: 0, band: Object.create(null) },
     safeSum: 0, safeN: 0, safeWorst: 1, safeCrisisWorst: 1,
+    reachSum: 0, reachWorst: 1, trapped: 0,   // §E 갈 수 있는 안전한 곳 · trapped = 하나도 없던 표본
   };
   const seenE = new Set();      // ★ 키 = `${idx}:${gen}` — 풀 재사용 때문에 객체로 세면 안 된다
   const seenB = new Set();
@@ -153,6 +207,10 @@ function probe(d, stageIdx, seed) {
       st.safeSum += f; st.safeN += 1;
       if (f < st.safeWorst) st.safeWorst = f;
       if (w.run && w.run.crisis && f < st.safeCrisisWorst) st.safeCrisisWorst = f;
+      const dirs = escapeDirs(w, d, p.x, p.y);
+      st.reachSum += dirs / 8;
+      if (dirs / 8 < st.reachWorst) st.reachWorst = dirs / 8;
+      if (dirs === 0) st.trapped += 1;
     }
   }
   st.sec = st.ticks / 60;
@@ -218,6 +276,9 @@ function main() {
       safeMean: sum((r) => r.safeSum) / sum((r) => r.safeN),
       safeWorst: Math.min(...rs.map((r) => r.safeWorst)),
       safeCrisis: Math.min(...rs.map((r) => r.safeCrisisWorst)),
+      reachMean: sum((r) => r.reachSum) / sum((r) => r.safeN),
+      reachWorst: Math.min(...rs.map((r) => r.reachWorst)),
+      trapped: sum((r) => r.trapped) / sum((r) => r.safeN),
     };
     rows.push(row);
     line(`   ${si + 1}     ${String(Math.round(row.spawn)).padStart(4)}  ${String(Math.round(row.elite)).padStart(5)} ${String(Math.round(row.trait)).padStart(5)}  ${row.shots.toFixed(1).padStart(6)}  ${row.dmg.toFixed(1).padStart(7)}  ${String(row.maxEn).padStart(5)}  ${String(row.maxBul).padStart(6)}  ${String(row.maxTele).padStart(4)}`);
@@ -235,9 +296,14 @@ function main() {
   line('엘리트·개성 노출 (전체 스폰 대비)');
   for (const r of rows) line(`   ${r.si + 1}: 엘리트 ${pct(r.elite / r.spawn)} · 개성 보유 ${pct(r.trait / r.spawn)}`);
   line('');
-  line('숨 쉴 곳 — 1초 안에 탄도 몸통도 «닿지 않는» 칸의 비율');
+  line('숨 쉴 곳 — 1초 안에 탄도 몸통도 «닿지 않는» 칸의 비율 (아레나 전체)');
   line('스테이지  평균    최악 순간  위기 최악');
   for (const r of rows) line(`   ${r.si + 1}     ${pct(r.safeMean).padStart(6)}  ${pct(r.safeWorst).padStart(7)}  ${pct(r.safeCrisis).padStart(8)}`);
+  line('');
+  line('★ 피할 «길» — 8방향으로 1초 달려 경로 전체가 안전한 방향의 비율');
+  line('   (안전한 칸이 탄막 건너편이면 못 간다 — 면적이 아니라 경로를 본다)');
+  line('스테이지  평균    최악 순간  «길 0개» 표본 비율');
+  for (const r of rows) line(`   ${r.si + 1}     ${pct(r.reachMean).padStart(6)}  ${pct(r.reachWorst).padStart(7)}  ${pct(r.trapped).padStart(12)}`);
   line('');
   line('가만히 서 있을 때 생존 — 무기 0 · 이동 0 · HP 100 · i-frame 정상');
   line('스테이지  생존(초)  피격 수  판정');
