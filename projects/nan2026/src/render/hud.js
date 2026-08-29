@@ -20,7 +20,7 @@
  *   → 패널 안의 px 좌표는 이 파일이 임시로 소유한다 (보고 대상). 띠(§1.2)·칸 수·상한은 정본 값이다.
  */
 
-import { rgba, glyphPath, elementIcon } from './draw.js';
+import { rgba, glyphPath } from './draw.js';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
@@ -517,24 +517,9 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     const cx = x + cw / 2;
     // §7.3 — cvd/mono 에서 HUD·카드는 **텍스트 라벨 강제**. off 에서도 라벨은 손해가 없다
     if (body.glyph !== null) {
-      // §7.3(v1.7) 카드는 충분히 크다 → 안쪽 디테일이 있는 아이콘을 쓴다.
-      //   실루엣은 작은 크기(탄·적)와 «같으므로» 두 자리가 다른 것을 말하지 않는다.
+      glyphPath(ctx, body.glyph, cx, y0 + 100, 26 * pal.glyphScale);
       ctx.fillStyle = accent;
-      elementIcon(ctx, body.glyph, cx, y0 + 100, 26 * pal.glyphScale);
-    }
-    // §11.1(v1.7) 무기·패시브 아이콘 — 속성 카드에만 그림이 있고 나머지는 비어 있었다.
-    //   셋이 같은 자리에 놓이는데 하나만 그림이 있으면 «다르게 생겼다»는 신호부터 어긋난다.
-    //   ★ 선(stroke)으로만 그린다 — 속성 글리프(채움)와 층이 갈린다.
-    if (body.icon !== undefined && body.icon !== null) {
-      ctx.save();
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = accent;
-      if (body.icon.kind === 'weapon') weaponIconPath(ctx, body.icon.id, cx, y0 + 100, 22);
-      else passiveIconPath(ctx, body.icon.id, cx, y0 + 100, 22);
-      ctx.stroke();
-      ctx.restore();
+      ctx.fill();
     }
     // 헤드라인(이름/레벨) — 가장 크게
     text(ctx, world, pal, body.title, cx, y0 + 156, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
@@ -551,7 +536,7 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     const delta = cardDelta(world, c);
     cy += 34;
     for (let k = 0; k < delta.length; k += 1) {
-      text(ctx, world, pal, delta[k], cx, cy, h.fontBodyPx, pal.hud.textPrimary, 'center', 700);
+      text(ctx, world, pal, delta[k], cx, cy, h.fontBodyPx, pal.hud.textPrimary, 'center');
       cy += 22;
     }
     // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
@@ -726,124 +711,7 @@ function cardDelta(world, c) {
   return out;
 }
 
-/**
- * §11.1(v1.7) 드래프트 카드의 아이콘 — 속성 카드에만 글리프가 있고 무기·패시브 카드는 «비어» 있었다.
- *   셋이 같은 자리에 놓이는데 하나만 그림이 있으면, 카드가 서로 다른 것을 말하는지 알기 전에
- *   «다르게 생겼다»는 신호부터 어긋난다(플레이 피드백).
- *
- * ★ 무기 = «그 무기가 무엇을 하는가»의 궤적. 적의 공격 기호(§7.6.1)와 같은 결이다 —
- *   한쪽은 적이 무엇을 하는가, 한쪽은 내가 무엇을 하는가. 어휘가 같은 문법을 쓴다.
- * ★ 패시브 = «어느 스탯을 건드리는가». passives[].stat 이 11종 1:1 이라 그것을 그대로 그린다.
- * ★ 둘 다 선(stroke)으로만 그린다 — 속성 글리프(채움)와 층이 갈린다.
- */
-function weaponIconPath(ctx, family, x, y, r) {
-  const a = r;
-  ctx.beginPath();
-  if (family === 'forward') {                 // 직사 — 겹친 두 화살
-    ctx.moveTo(x, y + a); ctx.lineTo(x, y - a);
-    ctx.moveTo(x - a * 0.4, y - a * 0.45); ctx.lineTo(x, y - a); ctx.lineTo(x + a * 0.4, y - a * 0.45);
-  } else if (family === 'fan') {              // 방사 — 갈라지는 세 갈래
-    ctx.moveTo(x, y + a); ctx.lineTo(x - a * 0.85, y - a * 0.7);
-    ctx.moveTo(x, y + a); ctx.lineTo(x, y - a);
-    ctx.moveTo(x, y + a); ctx.lineTo(x + a * 0.85, y - a * 0.7);
-  } else if (family === 'seeker') {           // 유도 — 휘어지는 궤적 + 표적
-    ctx.moveTo(x - a, y + a);
-    ctx.quadraticCurveTo(x + a, y + a * 0.2, x + a * 0.2, y - a * 0.8);
-    ctx.moveTo(x + a * 0.75, y - a * 0.55); ctx.arc(x + a * 0.2, y - a * 0.55, a * 0.55, 0, Math.PI * 2);
-  } else if (family === 'lance') {            // 관통 — 굵은 선이 세 표적을 꿴다
-    ctx.moveTo(x, y + a); ctx.lineTo(x, y - a);
-    for (let k = -1; k <= 1; k += 1) { ctx.moveTo(x + a * 0.3, y + k * a * 0.55); ctx.arc(x, y + k * a * 0.55, a * 0.3, 0, Math.PI * 2); }
-  } else if (family === 'boomerang') {        // 회귀 — 열린 고리 + 끝점에 붙은 화살촉
-    // ★ 화살촉을 «호의 끝점»에서 유도한다. 좌표를 눈대중으로 찍으면 반경·각도를 바꿀 때마다
-    //   어긋난다(v1.6 이 그랬다 — 화살표가 고리에서 떨어져 보였다).
-    const a0 = Math.PI * 0.35;
-    const a1 = Math.PI * 1.9;
-    const rr = a * 0.8;
-    ctx.arc(x, y, rr, a0, a1);
-    const ex = x + Math.cos(a1) * rr;         // 호의 끝점
-    const ey = y + Math.sin(a1) * rr;
-    const tx = -Math.sin(a1);                 // 그 점에서의 진행 방향(접선)
-    const ty = Math.cos(a1);
-    const nx = Math.cos(a1);                  // 바깥 법선
-    const ny = Math.sin(a1);
-    const hl = a * 0.42;                      // 화살촉 길이
-    ctx.moveTo(ex - tx * hl + nx * hl * 0.55, ey - ty * hl + ny * hl * 0.55);
-    ctx.lineTo(ex, ey);
-    ctx.lineTo(ex - tx * hl - nx * hl * 0.55, ey - ty * hl - ny * hl * 0.55);
-  } else if (family === 'orbit') {            // 공전 — 궤도 위의 두 몸체
-    ctx.arc(x, y, a * 0.75, 0, Math.PI * 2);
-    ctx.moveTo(x + a * 0.75 + a * 0.25, y); ctx.arc(x + a * 0.75, y, a * 0.25, 0, Math.PI * 2);
-    ctx.moveTo(x - a * 0.75 + a * 0.25, y); ctx.arc(x - a * 0.75, y, a * 0.25, 0, Math.PI * 2);
-  } else if (family === 'aura') {             // 장 — 겹친 두 원(안쪽이 느려진다)
-    ctx.arc(x, y, a * 0.95, 0, Math.PI * 2);
-    ctx.moveTo(x + a * 0.5, y); ctx.arc(x, y, a * 0.5, 0, Math.PI * 2);
-  } else if (family === 'nova') {             // 폭발 — 중심에서 뻗는 여섯 갈래
-    for (let k = 0; k < 6; k += 1) {
-      const th = (k / 6) * Math.PI * 2;
-      ctx.moveTo(x + Math.cos(th) * a * 0.35, y + Math.sin(th) * a * 0.35);
-      ctx.lineTo(x + Math.cos(th) * a, y + Math.sin(th) * a);
-    }
-  } else if (family === 'barrage') {          // 포격 — 위에서 떨어져 바닥에 퍼진다
-    ctx.moveTo(x, y - a); ctx.lineTo(x, y + a * 0.2);
-    ctx.moveTo(x - a * 0.3, y - a * 0.2); ctx.lineTo(x, y + a * 0.2); ctx.lineTo(x + a * 0.3, y - a * 0.2);
-    ctx.moveTo(x - a, y + a * 0.75); ctx.quadraticCurveTo(x, y + a * 0.2, x + a, y + a * 0.75);
-  } else if (family === 'drone') {            // 위성 — 본체 + 따라다니는 두 점
-    ctx.moveTo(x + a * 0.35, y); ctx.arc(x, y, a * 0.35, 0, Math.PI * 2);
-    ctx.moveTo(x - a * 0.55 + a * 0.22, y - a * 0.6); ctx.arc(x - a * 0.55, y - a * 0.6, a * 0.22, 0, Math.PI * 2);
-    ctx.moveTo(x + a * 0.55 + a * 0.22, y - a * 0.6); ctx.arc(x + a * 0.55, y - a * 0.6, a * 0.22, 0, Math.PI * 2);
-  } else {
-    throw new Error(`hud: 아이콘 없는 무기 패밀리 "${family}" (§11.1)`);
-  }
-}
 
-/** 패시브 아이콘 — passives[].stat 11종에 1:1. «어느 스탯을 건드리는가»를 그린다. */
-function passiveIconPath(ctx, stat, x, y, r) {
-  const a = r;
-  ctx.beginPath();
-  if (stat === 'dmgMul') {                    // 피해 — 위로 향한 쐐기
-    ctx.moveTo(x - a * 0.8, y + a * 0.7); ctx.lineTo(x, y - a); ctx.lineTo(x + a * 0.8, y + a * 0.7);
-  } else if (stat === 'fireRateMul') {        // 발사 주기 — 시계
-    ctx.arc(x, y, a * 0.9, 0, Math.PI * 2);
-    ctx.moveTo(x, y - a * 0.55); ctx.lineTo(x, y); ctx.lineTo(x + a * 0.5, y);
-  } else if (stat === 'areaMul') {            // 범위 — 안에서 밖으로 퍼지는 두 원
-    ctx.arc(x, y, a * 0.4, 0, Math.PI * 2);
-    ctx.moveTo(x + a, y); ctx.arc(x, y, a, 0, Math.PI * 2);
-  } else if (stat === 'pierceAdd') {          // 관통 — 두 겹을 뚫는 선
-    ctx.moveTo(x, y + a); ctx.lineTo(x, y - a);
-    ctx.moveTo(x - a * 0.75, y - a * 0.3); ctx.lineTo(x + a * 0.75, y - a * 0.3);
-    ctx.moveTo(x - a * 0.75, y + a * 0.3); ctx.lineTo(x + a * 0.75, y + a * 0.3);
-  } else if (stat === 'projCountAdd') {       // 발수 — 나란한 세 발
-    for (let k = -1; k <= 1; k += 1) { ctx.moveTo(x + k * a * 0.55, y + a); ctx.lineTo(x + k * a * 0.55, y - a); }
-  } else if (stat === 'elementBonusMul') {    // 상성 — 맞물린 두 삼각
-    ctx.moveTo(x - a * 0.9, y + a * 0.6); ctx.lineTo(x - a * 0.1, y - a * 0.8); ctx.lineTo(x + a * 0.1, y + a * 0.6); ctx.closePath();
-    ctx.moveTo(x + a * 0.9, y - a * 0.6); ctx.lineTo(x + a * 0.1, y + a * 0.8); ctx.lineTo(x - a * 0.1, y - a * 0.6); ctx.closePath();
-  } else if (stat === 'ghostSecOnHit') {      // 잔광(무적) — 겹친 잔상
-    ctx.arc(x - a * 0.3, y, a * 0.6, 0, Math.PI * 2);
-    ctx.moveTo(x + a * 0.3 + a * 0.6, y); ctx.arc(x + a * 0.3, y, a * 0.6, 0, Math.PI * 2);
-  } else if (stat === 'hitBulletClearRadius') { // 탄 소거 — 원 밖으로 튕기는 조각
-    ctx.arc(x, y, a * 0.55, 0, Math.PI * 2);
-    for (let k = 0; k < 4; k += 1) {
-      const th = Math.PI * 0.25 + (k / 4) * Math.PI * 2;
-      ctx.moveTo(x + Math.cos(th) * a * 0.8, y + Math.sin(th) * a * 0.8);
-      ctx.lineTo(x + Math.cos(th) * a, y + Math.sin(th) * a);
-    }
-  } else if (stat === 'maxHpAdd') {           // 최대 HP — 방패
-    ctx.moveTo(x, y - a); ctx.lineTo(x + a * 0.8, y - a * 0.5);
-    ctx.lineTo(x + a * 0.8, y + a * 0.3); ctx.lineTo(x, y + a);
-    ctx.lineTo(x - a * 0.8, y + a * 0.3); ctx.lineTo(x - a * 0.8, y - a * 0.5); ctx.closePath();
-  } else if (stat === 'moveSpeedMul') {       // 이동 — 앞으로 뻗는 속도선
-    for (let k = -1; k <= 1; k += 1) { ctx.moveTo(x - a, y + k * a * 0.5); ctx.lineTo(x + a * (k === 0 ? 1 : 0.5), y + k * a * 0.5); }
-  } else if (stat === 'xpGainMul') {          // 경험치 — 안으로 빨려드는 마름모
-    ctx.moveTo(x, y - a * 0.55); ctx.lineTo(x + a * 0.45, y); ctx.lineTo(x, y + a * 0.55); ctx.lineTo(x - a * 0.45, y); ctx.closePath();
-    for (let k = 0; k < 4; k += 1) {
-      const th = Math.PI * 0.25 + (k / 4) * Math.PI * 2;
-      ctx.moveTo(x + Math.cos(th) * a, y + Math.sin(th) * a);
-      ctx.lineTo(x + Math.cos(th) * a * 0.7, y + Math.sin(th) * a * 0.7);
-    }
-  } else {
-    throw new Error(`hud: 아이콘 없는 패시브 스탯 "${stat}" (§11.1)`);
-  }
-}
 
 function categoryLabel(world, c) {
   const cat = c.category;
@@ -880,18 +748,18 @@ function cardBody(world, c) {
     //   슬롯 번호만으로는 그것을 읽을 수 없었다(플레이 피드백).
     const util = def.slotClass === 'utility';
     const kind = util ? '무속성 · 속성이 실리지 않는다' : '속성 · 스탠스가 실린다';
-    return { glyph: null, icon: { kind: 'weapon', id: def.family }, title: def.name, sub: def.desc,
+    return { glyph: null, title: def.name, sub: def.desc,
       desc: '' };   // §11.1(v1.7) 계열은 칩이, 수치는 증분 줄이 말한다 — 하단 줄은 중복이었다
   }
   if (c.category === 'weaponLevel') {
     const def = world.weaponDefs[c.weaponId];
     if (c.isEvolution) {
-      return { glyph: null, icon: { kind: 'weapon', id: def.family }, title: def.evolution.name, sub: def.evolution.desc,
+      return { glyph: null, title: def.evolution.name, sub: def.evolution.desc,
         desc: `${def.name} 진화 · Lv.7/8 → 8/8` };
     }
     // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
     const util = def.slotClass === 'utility';
-    return { glyph: null, icon: { kind: 'weapon', id: def.family }, title: `${def.name} Lv.${c.to}`, sub: def.desc,
+    return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc,
       desc: `Lv.${c.from}/8 → ${c.to}/8` };   // 계열은 칩이 말한다(중복 제거)
   }
   if (c.category === 'elementLevel') {
@@ -914,7 +782,7 @@ function cardBody(world, c) {
     for (let i = 0; i < list.length; i += 1) {
       if (list[i].id !== c.passiveId) continue;
       // ★ 테마 이름(예: "학습 회로")만으론 안 와닿는다 → 효과(desc)를 크게 sub 에, 레벨을 작게 desc 에.
-      return { glyph: null, icon: { kind: 'passive', id: list[i].stat }, title: list[i].name, sub: list[i].desc,
+      return { glyph: null, title: list[i].name, sub: list[i].desc,
         desc: c.isNew ? '신규 획득' : `Lv.${c.from} → ${c.to} 강화` };
     }
     throw new Error(`hud: 미지의 패시브 "${c.passiveId}" (§9.6)`);

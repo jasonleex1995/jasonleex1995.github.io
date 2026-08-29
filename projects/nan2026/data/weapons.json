@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "weapons": [
     {
-      "id": "forward", "slotClass": "element", "family": "forward", "name": "벌컨", "desc": "정면으로 쉬지 않고 퍼붓는다. 앞에 선 것만 맞는다",
+      "id": "forward", "slotClass": "element", "family": "forward", "name": "벌컨", "desc": "정면으로 계속 쏜다",
       "elementStampMode": "spawn",
       "base": { "dmg":5, "cooldownSec":0.50, "count":1, "projSpeed":420, "projRadius":4,
                 "lifetimeSec":1.6, "pierce":0, "hitCooldownSec":0.0, "targetMode":"forward",
@@ -10,12 +10,12 @@
       "levels": [ {}, {"dmg":7}, {"burstCount":2}, {"dmg":7},
                   {"count":2,"spreadDeg":6}, {"dmg":12,"cooldownSec":0.44},
                   {"dmg":13,"pierce":1}, {"burstCount":3,"cooldownSec":0.40} ],
-      "evolution": { "name":"오버드라이브", "desc":"맞지 않고 버틸수록 빨라진다. 한 대 맞으면 처음부터 다시",
+      "evolution": { "name":"오버드라이브", "desc":"맞지 않고 버틸수록 빨라진다",
                      "params": { "evoRampSec":3.0, "evoRampFireRateMul":1.55 },
                      "requiresPassive": { "id":"overclock", "level":3 } }
     },
     {
-      "id": "fan", "slotClass": "element", "family": "fan", "name": "팬아웃", "desc": "앞으로 여러 발을 부채꼴로 뿌린다. 붙을수록 많이 박힌다",
+      "id": "fan", "slotClass": "element", "family": "fan", "name": "팬아웃", "desc": "정면으로 여러 발을 넓게 뿌린다",
       "elementStampMode": "spawn",
       "base": { "dmg":3, "cooldownSec":0.70, "count":3, "projSpeed":300, "projRadius":4,
                 "lifetimeSec":1.0, "pierce":0, "hitCooldownSec":0.0, "targetMode":"forward",
@@ -23,12 +23,12 @@
       "levels": [ {}, {"dmg":4}, {"count":5,"arcDeg":50}, {"dmg":6},
                   {"count":7,"arcDeg":62,"cooldownSec":0.62}, {"dmg":9},
                   {"dmg":11,"pierce":1}, {"count":11,"arcDeg":90,"dmg":13} ],
-      "evolution": { "name":"플레어 팬", "desc":"탄이 사라진 자리에서 작게 터진다. 빗나가도 터진다",
+      "evolution": { "name":"플레어 팬", "desc":"탄이 사라진 자리에서 작게 터진다",
                      "params": { "evoBlastRadius":40, "evoSecondaryDmgMul":0.5 },
                      "requiresPassive": { "id":"autoload", "level":3 } }
     },
     {
-      "id": "seeker", "slotClass": "element", "family": "seeker", "name": "시커", "desc": "탄이 스스로 휘어 가까운 적을 쫓는다. 못 찾으면 정면으로 나간다",
+      "id": "seeker", "slotClass": "element", "family": "seeker", "name": "시커", "desc": "가장 가까운 적을 찾아서 때린다",
       "elementStampMode": "spawn",
       "base": { "dmg":5, "cooldownSec":0.85, "count":1, "projSpeed":190, "projRadius":5,
                 "lifetimeSec":2.4, "pierce":0, "hitCooldownSec":0.2,
@@ -37,12 +37,12 @@
       "levels": [ {}, {"dmg":7}, {"count":2,"dmg":9}, {"dmg":12,"turnRateDegSec":160},
                   {"count":3}, {"dmg":13,"cooldownSec":0.75}, {"pierce":1},
                   {"count":4,"dmg":14} ],
-      "evolution": { "name":"스웜", "desc":"쏘는 순간 탄마다 다른 적을 문다. 표적이 죽으면 곧장 다음으로",
+      "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
                      "requiresPassive": { "id":"autoload", "level":3 } }
     },
     {
-      "id": "lance", "slotClass": "element", "family": "lance", "name": "랜스", "desc": "잠깐 모았다가 정면으로 빔을 뻗는다. 한 줄로 겹칠수록 많이 꿴다",
+      "id": "lance", "slotClass": "element", "family": "lance", "name": "랜스", "desc": "잠깐 모았다가 정면을 꿰뚫는다",
       "elementStampMode": "spawn",
       "base": { "dmg":11, "cooldownSec":1.60, "count":1, "pierce":3, "hitCooldownSec":0.0,
                 "targetMode":"forward",
@@ -50,34 +50,34 @@
       "levels": [ {}, {"dmg":15}, {"pierce":5,"rangePx":520}, {"dmg":22,"cooldownSec":1.45},
                   {"dmg":32}, {"count":2,"beamWidthPx":12}, {"dmg":46,"pierce":8},
                   {"count":3,"dmg":60,"cooldownSec":1.30} ],
-      "evolution": { "name":"레일건", "desc":"빔이 화면 끝까지 뻗는다. 앞을 지나는 적을 전부 꿴다",
+      "evolution": { "name":"레일건", "desc":"화면 끝까지 뚫고, 앞의 적을 전부 꿴다",
                      "params": { "evoFullHeight":true },
                      "requiresPassive": { "id":"coating", "level":3 } }
     },
     {
-      "id": "orbit", "slotClass": "utility", "family": "orbit", "name": "오빗", "desc": "비행기를 도는 공이 적을 뚫고 계속 때린다. 적 빔도 가린다",
+      "id": "orbit", "slotClass": "utility", "family": "orbit", "name": "오빗", "desc": "주위를 도는 공이 닿는 적을 계속 때린다",
       "elementStampMode": "live",
       "base": { "dmg":5, "hitCooldownSec":1.20, "projRadius":7,
                 "orbitRadius":60, "angularSpeedDegSec":90, "bodyCount":2 },
       "levels": [ {}, {"dmg":7}, {"bodyCount":3}, {"dmg":10,"angularSpeedDegSec":120},
                   {"bodyCount":4,"orbitRadius":72}, {"dmg":14,"hitCooldownSec":1.00},
                   {"dmg":18}, {"bodyCount":5,"dmg":20,"hitCooldownSec":0.90} ],
-      "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다. 한 번 지우면 잠깐 쉰다",
+      "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다",
                      "params": { "evoBulletClearCooldownSec":1.0 },
                      "requiresPassive": { "id":"reactive", "level":3 } }
     },
     {
-      "id": "aura", "slotClass": "utility", "family": "aura", "name": "펄스필드", "desc": "비행기 둘레의 적 탄이 느려진다. 때리지도 지우지도 않는다",
+      "id": "aura", "slotClass": "utility", "family": "aura", "name": "펄스필드", "desc": "주위의 적 탄을 느리게 만든다",
       "elementStampMode": "live",
       "base": { "radius":70, "slowMul":0.50 },
       "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
                   {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148} ],
-      "evolution": { "name":"싱귤래리티", "desc":"원 안의 적 탄이 아예 멈춘다. 잡몹은 안쪽으로 끌려온다",
+      "evolution": { "name":"싱귤래리티", "desc":"적 탄이 아예 멈추고, 잡몹이 끌려온다",
                      "params": { "evoPullForce":90 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "관통하는 탄을 던져서 되받는다. 오갈 때 두 번 때린다",
+      "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "관통하는 탄을 던져서 되받는다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "cooldownSec":1.10, "count":1, "projSpeed":260, "projRadius":6,
                 "lifetimeSec":3.0, "pierce":-1, "hitCooldownSec":0.50, "targetMode":"forward",
@@ -85,12 +85,12 @@
       "levels": [ {}, {"dmg":6}, {"count":2,"outRangePx":300}, {"dmg":9,"returnSpeed":380},
                   {"dmg":12,"cooldownSec":1.00}, {"count":3,"dmg":13},
                   {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95} ],
-      "evolution": { "name":"체인 리턴", "desc":"돌아오는 길에 가까운 적들을 차례로 들른다",
+      "evolution": { "name":"체인 리턴", "desc":"돌아오는 길에 가까운 적들을 들른다",
                      "params": { "evoChainCount":3 },
                      "requiresPassive": { "id":"autoload", "level":3 } }
     },
     {
-      "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아레나 어딘가에 포격이 떨어진다. 맞은 적은 느려진다",
+      "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아무 데나 포격이 떨어져 적을 느리게 한다",
       "elementStampMode": "spawn",
       "base": { "dmg":26, "cooldownSec":2.20, "targetMode":"randomInArena",
                 "strikeIntervalSec":0.25, "strikesPerVolley":1, "blastRadius":45,
@@ -99,12 +99,12 @@
                   {"dmg":44,"blastRadius":52}, {"strikesPerVolley":3,"dmg":74},
                   {"dmg":72,"cooldownSec":1.90}, {"dmg":110,"blastRadius":58,"telegraphSec":0.45},
                   {"dmg":77,"cooldownSec":2.40,"targetMode":"densest"} ],
-      "evolution": { "name":"오비탈 스트라이크", "desc":"착탄 반경이 두 배가 된다. 예고 원도 그만큼 커진다",
+      "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
                      "params": { "evoRadiusMul":2.0 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다. 내 곁에서 적이 죽으면 체력이 돌아온다",
+      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다. 가까이서 잡으면 회복한다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
                 "hitCooldownSec":0.0, "targetMode":"nearest",
@@ -118,19 +118,19 @@
                   {"dmg":14,"pierce":1},
                   {"droneCount":4,"dmg":16,"droneFireSec":0.46,
                    "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]} ],
-      "evolution": { "name":"잔상 편대", "desc":"위성이 한 박자 늦게 따라온다. 조금 멀리서 죽여도 다 돌아온다",
+      "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라오고, 더 멀리서도 회복한다",
                      "params": { "evoTrailDelaySec":2.5, "evoHealFullRangePx":200 },
                      "requiresPassive": { "id":"afterimage", "level":3 } }
     },
     {
-      "id": "nova", "slotClass": "utility", "family": "nova", "name": "노바", "desc": "이따금 비행기 둘레가 터진다. 휩쓸린 적은 사격이 뜸해진다",
+      "id": "nova", "slotClass": "utility", "family": "nova", "name": "노바", "desc": "이따금 주위가 터져 적의 사격을 늦춘다",
       "elementStampMode": "spawn",
       "base": { "dmg":30, "intervalSec":5.00, "radius":120, "expandSec":0.35, "telegraphSec":0.60,
                 "actionSlowSec":1.20 },
       "levels": [ {}, {"dmg":40}, {"radius":150,"intervalSec":4.50}, {"dmg":60},
                   {"radius":180,"dmg":75}, {"dmg":110,"intervalSec":4.00},
                   {"dmg":150,"radius":210}, {"dmg":230,"intervalSec":3.20,"radius":240} ],
-      "evolution": { "name":"슈퍼노바", "desc":"폭발이 한 겹 더 멀리 퍼진다. 닿은 적이 더 오래 뜸해진다",
+      "evolution": { "name":"슈퍼노바", "desc":"폭발이 더 멀리 퍼지고, 더 오래 늦춘다",
                      "params": { "evoRing2Radius":320, "evoSecondaryDmgMul":0.5, "evoActionSlowSec":2.40 },
                      "requiresPassive": { "id":"coil", "level":3 } }
     }

@@ -205,50 +205,6 @@ export function glyphPath(ctx, element, x, y, r) {
   throw new Error(`draw: 글리프가 없는 속성 "${element}" (§7.2 — 어휘 4종)`);
 }
 
-/**
- * §7.3(v1.7) 큰 크기용 속성 아이콘 — 「불은 불 같고, 물은 물 같고, 풀은 풀 같았으면」(플레이 피드백).
- *
- * ★ glyphPath(●▲◆✚)는 **바꾸지 않는다.** 그것은 탄 반경 4px·코어 1.8px 에서도 읽혀야 하는
- *   식별 어휘이고(§7.3 「글리프가 주」), 색맹 접근성이 색이 아니라 그 «모양»에 걸려 있다.
- *   디테일을 넣으면 작은 크기에서 뭉개져 셋이 구분되지 않는다 — 접근성이 먼저다.
- * ★ 그래서 «같은 실루엣 + 안쪽 디테일»의 상위집합으로 만든다. 드래프트 카드·상성표처럼
- *   충분히 큰 자리에서만 쓴다. 실루엣이 같으므로 두 자리가 다른 것을 말하지 않는다.
- */
-export function elementIcon(ctx, element, x, y, r) {
-  glyphPath(ctx, element, x, y, r);            // ① 바깥 실루엣 = 작은 크기와 «같은» 모양
-  ctx.fill();
-  ctx.save();
-  ctx.lineWidth = Math.max(1.5, r * 0.11);
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = ctx.fillStyle;
-  ctx.beginPath();
-  if (element === 'fire') {                    // ② 불 — 안쪽에서 솟는 두 갈래 심지
-    ctx.moveTo(x, y + r * 0.55);
-    ctx.quadraticCurveTo(x - r * 0.42, y + r * 0.05, x, y - r * 0.62);
-    ctx.moveTo(x, y + r * 0.55);
-    ctx.quadraticCurveTo(x + r * 0.42, y + r * 0.05, x + r * 0.16, y - r * 0.32);
-  } else if (element === 'water') {            // ② 물 — 물방울이 남기는 두 겹 파문
-    ctx.moveTo(x - r * 0.5, y + r * 0.15);
-    ctx.quadraticCurveTo(x, y + r * 0.62, x + r * 0.5, y + r * 0.15);
-    ctx.moveTo(x - r * 0.3, y - r * 0.25);
-    ctx.quadraticCurveTo(x, y + r * 0.12, x + r * 0.3, y - r * 0.25);
-  } else if (element === 'grass') {            // ② 풀 — 줄기 + 네 팔의 잎맥
-    // 「왜 하필 십자인가」에 대한 답: 실루엣은 4px 에서 ●▲◆ 와 갈리려면 십자여야 한다(§7.3).
-    //   대신 «안쪽»을 식물로 읽히게 한다 — 세로 줄기 하나 + 각 팔로 뻗는 잎맥.
-    ctx.moveTo(x, y + r * 0.85); ctx.lineTo(x, y - r * 0.85);
-    ctx.moveTo(x, y - r * 0.15); ctx.lineTo(x - r * 0.6, y - r * 0.5);
-    ctx.moveTo(x, y - r * 0.15); ctx.lineTo(x + r * 0.6, y - r * 0.5);
-    ctx.moveTo(x, y + r * 0.35); ctx.lineTo(x - r * 0.6, y + r * 0.05);
-    ctx.moveTo(x, y + r * 0.35); ctx.lineTo(x + r * 0.6, y + r * 0.05);
-  } else {                                     // ② 노말 — 무색. 안쪽 고리 하나로 «비어 있음»을 말한다
-    ctx.moveTo(x + r * 0.45, y);
-    ctx.arc(x, y, r * 0.45, 0, Math.PI * 2);
-  }
-  ctx.globalCompositeOperation = 'destination-out';   // 파낸다 → 배경색이 비쳐 «안쪽 무늬»가 된다
-  ctx.stroke();
-  ctx.restore();
-}
 
 
 // ---------------------------------------------------------------------------
