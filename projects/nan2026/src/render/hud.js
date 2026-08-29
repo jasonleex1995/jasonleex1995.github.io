@@ -537,13 +537,151 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     text(ctx, world, pal, body.title, cx, y0 + 156, h.fontLargePx, pal.hud.textPrimary, 'center', 700);
     // ★ 효과 한 줄을 **크게**(accent, 16px, 굵게, 중앙) — "무엇을 하는가"가 여기서 읽힌다.
     //   긴 효과는 자동 줄바꿈 (accent 로 헤드라인과 명도 대비를 준다)
+    // ★ wrap 은 «마지막 줄의 y» 를 돌려준다 — 아래 블록을 그 값에서 이어 붙여
+    //   긴 설명이 증분 줄을 덮는 일이 없게 한다(고정 y 는 sub 가 4줄이 되면 겹친다).
+    let cy = y0 + 200;
     if (body.sub !== '') {
-      wrap(ctx, world, pal, body.sub, cx, y0 + 200, cw - 36, h.fontBodyPx, accent, 22, 'center', 600);
+      cy = wrap(ctx, world, pal, body.sub, cx, cy, cw - 36, h.fontBodyPx, accent, 22, 'center', 600);
+    }
+    // ★ §11.1(v1.7) 증분 줄 — «얼마나» 좋아지는가. 세 장을 비교할 근거가 여기서 나온다.
+    //   accent(효과)와 색을 갈라 둔다 — 「무엇을」과 「얼마나」가 서로 묻히지 않게.
+    const delta = cardDelta(world, c);
+    cy += 34;
+    for (let k = 0; k < delta.length; k += 1) {
+      text(ctx, world, pal, delta[k], cx, cy, h.fontBodyPx, pal.hud.textPrimary, 'center', 700);
+      cy += 22;
     }
     // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
-    wrap(ctx, world, pal, body.desc, cx, y0 + 300, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
+    wrap(ctx, world, pal, body.desc, cx, cy + 18, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
   }
   // ★ v1.5 — 리롤 표시 폐지(경제 제거). 드래프트는 3장 고정.
+}
+
+/**
+ * §11.1(v1.7) 드래프트 카드의 «증분 줄» — 레벨업이 구체적으로 무엇을 얼마나 바꾸는지.
+ *   v1.6 까지 카드는 「모든 피해 증가」처럼 **방향만** 말하고 «얼마나»를 말하지 않았다.
+ *   그래서 세 장 중 무엇이 더 나은지 고를 근거가 화면에 없었다(플레이 피드백).
+ *
+ * ★ 표기는 «스탯의 값»이지 «효과의 약속»이 아니다. 예컨대 오버클럭은 노바·펄스필드에
+ *   무효(§9.6.1 rateKey null)인데, 카드는 그 사실을 지우지 않는다 — 정본 H4 가
+ *   「시스템이 지우면 드래프트는 선택이 아니라 자동 최적화가 된다」로 확정한 규약이다.
+ *   무엇이 자기 빌드에 듣는가는 여전히 플레이어가 안다.
+ */
+
+/** 패시브 스탯의 표기법. 단위가 스탯마다 다르다(비율·정수·초·픽셀·곱). */
+const STAT_FMT = {
+  dmgMul: 'pct', fireRateMul: 'pct', areaMul: 'pct', moveSpeedMul: 'pct', xpGainMul: 'pct',
+  pierceAdd: 'add', projCountAdd: 'add', maxHpAdd: 'add',
+  elementBonusMul: 'mul',                 // ★ §3.1 의 k — 가산이 아니라 «대입»이다
+  ghostSecOnHit: 'sec', hitBulletClearRadius: 'px',
+};
+
+/** 무기 파라미터의 한글 이름. 없는 키는 원래 이름을 그대로 보인다(조용히 숨기지 않는다). */
+const PARAM_KO = {
+  dmg: '피해', cooldownSec: '발사 주기', count: '발수', spreadDeg: '산포',
+  burstCount: '연사', pierce: '관통', hitCooldownSec: '재타격 간격',
+  projSpeed: '탄속', projRadius: '탄 크기', lifetimeSec: '지속',
+  rangePx: '사거리', beamWidthPx: '빔 폭', arcDeg: '부채각', radius: '반경',
+  blastRadius: '폭발 반경', intervalSec: '폭발 주기', telegraphSec: '예고',
+  orbitRadius: '궤도 반경', angularSpeedDegSec: '공전 속도', bodyCount: '공전체',
+  outRangePx: '사거리', returnSpeed: '귀환 속도', spacingDeg: '투척 간격',
+  turnRateDegSec: '선회', acquireRadius: '포착 반경', retargetSec: '재조준',
+  strikesPerVolley: '포격 수', strikeIntervalSec: '포격 간격', targetMode: '조준',
+  droneCount: '위성', droneFireSec: '위성 주기', droneRangePx: '위성 사거리',
+  anchorOffsets: '배치', actionSlowSec: '행동 감속', slowSec: '감속', bounceLeft: '벽 반사',
+  healOnKill: '회수량', healFullRangePx: '만액 반경', healZeroRangePx: '회수 한계',
+  healCooldownSec: '회수 쿨다운', slowMul: '탄 감속',
+  // 진화 파라미터 — 불리언은 «켜짐/꺼짐»이라 수치가 없다. desc 가 이미 그것을 말하므로 표기에서 뺀다.
+  evoRampSec: '가속까지', evoRampFireRateMul: '가속 후 발사', evoBlastRadius: '폭발 반경',
+  evoSecondaryDmgMul: '2차 피해', evoBulletClearCooldownSec: '탄 소거 쿨다운',
+  evoPullForce: '흡인력', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
+  evoTrailDelaySec: '잔상 지연', evoHealFullRangePx: '만액 반경',
+  evoRing2Radius: '2단 링', evoActionSlowSec: '행동 감속',
+};
+
+/** 키 이름이 단위를 말한다 — Sec = 초, Px/Radius = px, Deg = °. 없으면 단위 없음. */
+function unitOf(k) {
+  if (k.endsWith('Sec')) return '초';
+  if (k.endsWith('Px') || k.endsWith('Radius')) return 'px';
+  if (k.endsWith('Deg') || k.endsWith('DegSec')) return '°';
+  return '';
+}
+
+/** 수를 짧게 — 정수는 그대로, 소수는 유효한 자리까지만. */
+function num(v) {
+  if (typeof v !== 'number') return String(v);
+  if (Number.isInteger(v)) return String(v);
+  return String(Math.round(v * 100) / 100);
+}
+
+function fmtStat(kind, v) {
+  if (kind === 'pct') return `+${Math.round(v * 100)}%`;
+  if (kind === 'mul') return `×${num(v)}`;
+  if (kind === 'sec') return `${num(v)}초`;
+  if (kind === 'px') return `${num(v)}px`;
+  return `+${num(v)}`;
+}
+
+/** 무기 레벨 i(1-기준)까지 부분 오버라이드를 누적한 파라미터 집합. */
+function paramsAt(def, level) {
+  const cur = Object.assign({}, def.base);
+  for (let i = 0; i < level && i < def.levels.length; i += 1) Object.assign(cur, def.levels[i]);
+  return cur;
+}
+
+/**
+ * 카드가 바꾸는 것을 「이름 이전 → 이후」 문자열 배열로 만든다. 바뀌는 게 없으면 빈 배열.
+ *   ★ 무기 레벨은 «그 레벨에서 실제로 바뀐 키»만 보인다 — 안 바뀐 값을 나열하면 신호가 묻힌다.
+ */
+function cardDelta(world, c) {
+  const out = [];
+  if (c.category === 'passive') {
+    const list = world.data.passives.passives;
+    for (let i = 0; i < list.length; i += 1) {
+      if (list[i].id !== c.passiveId) continue;
+      const def = list[i];
+      const kind = STAT_FMT[def.stat] || 'add';
+      const to = def.values[c.to - 1];
+      if (c.isNew) { out.push(fmtStat(kind, to)); return out; }
+      out.push(`${fmtStat(kind, def.values[c.from - 1])} → ${fmtStat(kind, to)}`);
+      return out;
+    }
+    return out;
+  }
+  if (c.category === 'weaponLevel') {
+    const def = world.weaponDefs[c.weaponId];
+    if (c.isEvolution) {
+      const pr = def.evolution.params;
+      const keys = Object.keys(pr);
+      for (let i = 0; i < keys.length && out.length < 3; i += 1) {
+        const k = keys[i];
+        if (typeof pr[k] === 'boolean') continue;      // 켜짐/꺼짐은 수치가 아니다 — desc 가 말한다
+        out.push(`${PARAM_KO[k] || k} ${num(pr[k])}${unitOf(k)}`);
+      }
+      return out;
+    }
+    const before = paramsAt(def, c.from);
+    const changed = def.levels[c.to - 1];
+    if (!changed) return out;
+    const keys = Object.keys(changed);
+    for (let i = 0; i < keys.length && out.length < 3; i += 1) {
+      const k = keys[i];
+      const ko = PARAM_KO[k] || k;
+      if (Array.isArray(changed[k])) { out.push(`${ko} 변경`); continue; }
+      const u = unitOf(k);
+      out.push(`${ko} ${num(before[k])}${u} → ${num(changed[k])}${u}`);
+    }
+    return out;
+  }
+  if (c.category === 'newWeapon') {
+    const b = world.weaponDefs[c.weaponId].base;
+    const keys = ['dmg', 'cooldownSec', 'count', 'intervalSec', 'hitCooldownSec', 'droneFireSec'];
+    for (let i = 0; i < keys.length && out.length < 3; i += 1) {
+      if (b[keys[i]] !== undefined) out.push(`${PARAM_KO[keys[i]]} ${num(b[keys[i]])}${unitOf(keys[i])}`);
+    }
+    return out;
+  }
+  return out;
 }
 
 function categoryLabel(cat) {

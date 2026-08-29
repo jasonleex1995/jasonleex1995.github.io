@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S44 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S45 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -2746,6 +2746,43 @@ function S39_waveUnlockCoherence() {
  *   ★ 이 게이트가 없어서 실제로 두 건이 살아 있었다: 바라지 Lv5→6(실측 47→40 DPS)과
  *     리턴의 짝수 count 정면 사각(Lv2 11 → Lv3 0). 둘 다 «레벨업이 약화»다.
  */
+/**
+ * §13.4-S45 (v1.7) — 드래프트 카드의 «증분 줄»이 원시 키를 노출하지 않는다.
+ *   카드는 레벨업이 무엇을 얼마나 바꾸는지 보여준다(§11.1). 그 이름표는 src/render/hud.js 의
+ *   PARAM_KO 가 소유하는데, 새 무기 파라미터를 데이터에 넣고 이름표를 안 만들면
+ *   화면에 `evoRampFireRateMul 1.55` 같은 **코드 식별자가 그대로 뜬다**.
+ *   테스트로는 안 잡힌다(렌더는 던지지 않는다) — 그래서 정적으로 강제한다.
+ *   ★ 불리언 진화 파라미터는 표기에서 빠지므로 이름표가 필요 없다.
+ */
+function S45_draftParamLabels() {
+  const hudPath = join(ROOT, 'src', 'render', 'hud.js');
+  if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
+  const src = readFileSync(hudPath, 'utf8');
+  const m = src.match(/const PARAM_KO = \{([\s\S]*?)\n\};/);
+  if (m === null) { V('S45', 'src/render/hud.js 에서 PARAM_KO 표를 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라'); return; }
+  const known = new Set();
+  const re = /(\w+)\s*:/g;
+  let hit = re.exec(m[1]);
+  while (hit !== null) { known.add(hit[1]); hit = re.exec(m[1]); }
+  for (const w of rowsQuiet(D.weapons.weapons)) {
+    if (!isObj(w)) continue;
+    const seen = new Set();
+    for (const lv of (Array.isArray(w.levels) ? w.levels : [])) {
+      if (isObj(lv)) for (const k of Object.keys(lv)) seen.add(k);
+    }
+    if (isObj(w.evolution) && isObj(w.evolution.params)) {
+      for (const k of Object.keys(w.evolution.params)) {
+        if (typeof w.evolution.params[k] !== 'boolean') seen.add(k);
+      }
+    }
+    for (const k of seen) {
+      if (!known.has(k)) {
+        V('S45', `weapons[${w.id}] 의 파라미터 "${k}" 에 한글 이름표가 없다 — 드래프트 카드에 코드 식별자가 그대로 뜬다 (src/render/hud.js PARAM_KO, §11.1)`);
+      }
+    }
+  }
+}
+
 function S44_weaponCurveMonotonic() {
   const hooks = D.rules.passiveHooks;
   for (const w of rowsQuiet(D.weapons.weapons)) {
@@ -3105,7 +3142,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S44 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S45 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3174,7 +3211,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S44 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S45 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
@@ -3231,6 +3268,7 @@ function main() {
   S42_enemyTraits();         // §8.17 v1.7 적 개성 값 범위
   S43_bulletBounce();        // §8.5 v1.7 적 탄 반사 예산
   S44_weaponCurveMonotonic();// §9.5 v1.7 무기 레벨 곡선 단조성
+  S45_draftParamLabels();    // §11.1 v1.7 드래프트 카드 이름표
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB
