@@ -233,10 +233,14 @@ export function elementIcon(ctx, element, x, y, r) {
     ctx.quadraticCurveTo(x, y + r * 0.62, x + r * 0.5, y + r * 0.15);
     ctx.moveTo(x - r * 0.3, y - r * 0.25);
     ctx.quadraticCurveTo(x, y + r * 0.12, x + r * 0.3, y - r * 0.25);
-  } else if (element === 'grass') {            // ② 풀 — 줄기와 잎맥
-    ctx.moveTo(x, y + r * 0.75); ctx.lineTo(x, y - r * 0.75);
-    ctx.moveTo(x, y - r * 0.1); ctx.lineTo(x - r * 0.55, y - r * 0.5);
-    ctx.moveTo(x, y + r * 0.2); ctx.lineTo(x + r * 0.55, y - r * 0.2);
+  } else if (element === 'grass') {            // ② 풀 — 줄기 + 네 팔의 잎맥
+    // 「왜 하필 십자인가」에 대한 답: 실루엣은 4px 에서 ●▲◆ 와 갈리려면 십자여야 한다(§7.3).
+    //   대신 «안쪽»을 식물로 읽히게 한다 — 세로 줄기 하나 + 각 팔로 뻗는 잎맥.
+    ctx.moveTo(x, y + r * 0.85); ctx.lineTo(x, y - r * 0.85);
+    ctx.moveTo(x, y - r * 0.15); ctx.lineTo(x - r * 0.6, y - r * 0.5);
+    ctx.moveTo(x, y - r * 0.15); ctx.lineTo(x + r * 0.6, y - r * 0.5);
+    ctx.moveTo(x, y + r * 0.35); ctx.lineTo(x - r * 0.6, y + r * 0.05);
+    ctx.moveTo(x, y + r * 0.35); ctx.lineTo(x + r * 0.6, y + r * 0.05);
   } else {                                     // ② 노말 — 무색. 안쪽 고리 하나로 «비어 있음»을 말한다
     ctx.moveTo(x + r * 0.45, y);
     ctx.arc(x, y, r * 0.45, 0, Math.PI * 2);

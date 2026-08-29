@@ -2,8 +2,8 @@
  * src/core/weapons/aura.js — 펄스필드 (§9.5, v1.5 «영역 슬로우»)
  *
  * 폐쇄된 파라미터 계약 (§9.5 12행 표):
- *   base            : dmg radius tickIntervalSec falloff  (★v1.5: dmg·tickIntervalSec·falloff 미사용 —
- *                     펄스필드는 이제 피해/제거가 아니라 «슬로우 필드»다. 레벨은 radius 만 키운다)
+ *   base            : radius slowMul  (★v1.7: 죽어 있던 dmg·tickIntervalSec·falloff 삭제 —
+ *                     통일 표기가 그 값들을 «피해 3 · 주기 0.7초»로 화면에 띄워 거짓말을 했다)
  *   evolution.params: evoPullForce
  *
  * ★ §9.5(v1.5, 사용자 결정 2026-08-01) — 펄스필드의 정체성 = «영역 슬로우». v1.4의 «탄막 제거»(너무 쉬움)
@@ -11,12 +11,12 @@
  *   않는다 — «이 범위 안에서만» 느려지고, 벗어나면 원속도로 돌아간다(step.moveBullets 의 slowMul).
  *   진화 = 완전 정지 + 잡몹 끌어당김(블랙홀). 피해 없음(순수 제어 무기).
  *
- * §9.6.1 훅(state.recomputeEff): countKey null · pierceApplies false · areaKeys ["radius"](필드 확대).
+ * §9.6.1 훅(state.recomputeEff): rateKey **null**(v1.7 — 주기가 없다) · countKey null ·
+ *   pierceApplies false · areaKeys ["radius"](필드 확대).
  * 슬롯 스크래치: 없음(슬로우는 매 틱 연속 적용, 주기 없음).
  */
 
 const CHAFF = 'chaff';
-const SLOW = 0.5;   // base — 적 탄 이동 ×0.5 (화이트리스트 리터럴)
 const STOP = 0;     // 진화 — 완전 정지
 
 /**
@@ -63,7 +63,7 @@ export function update(world, slot, eff, dt) {
     slowField(world, eff, STOP);
     pull(world, eff, dt);
   } else {
-    slowField(world, eff, SLOW);
+    slowField(world, eff, eff.slowMul);   // §9.1(v1.7) 값은 데이터가 소유한다
   }
 }
 

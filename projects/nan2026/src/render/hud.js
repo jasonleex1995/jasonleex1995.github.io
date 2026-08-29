@@ -565,6 +565,9 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
  */
 
 /** 패시브 스탯의 표기법. 단위가 스탯마다 다르다(비율·정수·초·픽셀·곱). */
+/** §5 스탠스 키의 «글자». 바인딩(rules.input.bindings.stance*)은 KeyW 같은 코드라 화면에 못 쓴다. */
+const STANCE_KEY = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
+
 const STAT_FMT = {
   dmgMul: 'pct', fireRateMul: 'pct', areaMul: 'pct', moveSpeedMul: 'pct', xpGainMul: 'pct',
   pierceAdd: 'add', projCountAdd: 'add', maxHpAdd: 'add',
@@ -574,16 +577,16 @@ const STAT_FMT = {
 
 /** 무기 파라미터의 한글 이름. 없는 키는 원래 이름을 그대로 보인다(조용히 숨기지 않는다). */
 const PARAM_KO = {
-  dmg: '피해', cooldownSec: '발사 주기', count: '발수', spreadDeg: '산포',
+  dmg: '피해', cooldownSec: '발사 주기', count: '발사체 수', spreadDeg: '산포',
   burstCount: '연사', pierce: '관통', hitCooldownSec: '재타격 간격',
   projSpeed: '탄속', projRadius: '탄 크기', lifetimeSec: '지속',
   rangePx: '사거리', beamWidthPx: '빔 폭', arcDeg: '부채각', radius: '반경',
   blastRadius: '폭발 반경', intervalSec: '폭발 주기', telegraphSec: '예고',
-  orbitRadius: '궤도 반경', angularSpeedDegSec: '공전 속도', bodyCount: '공전체',
+  orbitRadius: '궤도 반경', angularSpeedDegSec: '공전 속도', bodyCount: '공전체 수',
   outRangePx: '사거리', returnSpeed: '귀환 속도', spacingDeg: '투척 간격',
   turnRateDegSec: '선회', acquireRadius: '포착 반경', retargetSec: '재조준',
   strikesPerVolley: '포격 수', strikeIntervalSec: '포격 간격', targetMode: '조준',
-  droneCount: '위성', droneFireSec: '위성 주기', droneRangePx: '위성 사거리',
+  droneCount: '위성 수', droneFireSec: '위성 주기', droneRangePx: '위성 사거리',
   anchorOffsets: '배치', actionSlowSec: '행동 감속', slowSec: '감속', bounceLeft: '벽 반사',
   healOnKill: '회수량', healFullRangePx: '만액 반경', healZeroRangePx: '회수 한계',
   healCooldownSec: '회수 쿨다운', slowMul: '탄 감속',
@@ -631,6 +634,21 @@ function paramsAt(def, level) {
  */
 function cardDelta(world, c) {
   const out = [];
+  if (c.category === 'elementLevel') {
+    // §11.1(v1.7) 상성은 «양날»이다 — 강한 쪽만 보여주면 스탠스를 언제 «바꿔야» 하는지 모른다.
+    //   값은 elements.matrix 가 소유한다(카드가 배율을 발명하지 않는다).
+    const m = world.data.elements.matrix[c.element];
+    if (m === undefined) return out;
+    const keys = Object.keys(m);
+    for (let k = 0; k < keys.length; k += 1) {
+      const t = keys[k];
+      if (t === c.element || m[t] === 1) continue;      // 자기 자신·등배는 말할 게 없다
+      // 강한 쪽(×2)을 앞에 — 「무엇을 노리는가」가 먼저, 「무엇을 피하는가」가 뒤.
+      const line = `${ELEMENT_NAME[t] || t} 적에게 ×${num(m[t])}`;
+      if (m[t] > 1) out.unshift(line); else out.push(line);
+    }
+    return out;
+  }
   if (c.category === 'passive') {
     const list = world.data.passives.passives;
     for (let i = 0; i < list.length; i += 1) {
@@ -670,10 +688,31 @@ function cardDelta(world, c) {
     return out;
   }
   if (c.category === 'newWeapon') {
-    const b = world.weaponDefs[c.weaponId].base;
-    const keys = ['dmg', 'cooldownSec', 'count', 'intervalSec', 'hitCooldownSec', 'droneFireSec'];
+    // §11.1(v1.7) — 무기마다 다른 이름으로 다른 줄이 뜨면 세 장을 나란히 못 읽는다(플레이 피드백:
+    //   「오빗은 피해·재타격 간격, 리턴은 피해·발사 주기·발수 — 다 제각각」).
+    //   ★ 라벨을 «통일»하고 값만 무기별 키에서 끌어온다. 어느 키가 그 무기의 주기·발수인지는
+    //     rules.passiveHooks 가 이미 소유한다(rateKey/countKey) — 새 어휘를 만들지 않는다.
+    //   ★ 발사체가 없는 무기(펄스필드·노바·옵션)는 countKey 가 null 이다. 그 «없음»도 정보라
+    //     빈칸(—)으로 자리를 지킨다 — 자리가 사라지면 세 장의 줄 수가 어긋나 비교가 깨진다.
+    const def = world.weaponDefs[c.weaponId];
+    const b = def.base;
+    const hk = world.data.rules.passiveHooks[def.family];
+    const rate = hk && hk.rateKey ? b[hk.rateKey] : undefined;
+    const cnt = hk && hk.countKey ? b[hk.countKey] : undefined;
+    const used = { dmg: 1 };
+    if (hk && hk.rateKey) used[hk.rateKey] = 1;
+    if (hk && hk.countKey) used[hk.countKey] = 1;
+    if (b.dmg !== undefined) out.push(`피해 ${num(b.dmg)}`);
+    if (rate !== undefined) out.push(`공격 주기 ${num(rate)}초`);
+    if (cnt !== undefined) out.push(`발사체 수 ${num(cnt)}`);
+    // ★ 세 항이 다 있는 무기가 기준이다. 없는 항을 «—»로 채우면 세 줄이 통째로 비어
+    //   아무 정보도 없는 카드가 나온다(펄스필드는 피해도 주기도 발사체도 없다).
+    //   빈 자리는 그 무기가 «실제로 가진» 값으로 메운다 — 라벨은 PARAM_KO 가 소유한다.
+    const keys = Object.keys(b);
     for (let i = 0; i < keys.length && out.length < 3; i += 1) {
-      if (b[keys[i]] !== undefined) out.push(`${PARAM_KO[keys[i]]} ${num(b[keys[i]])}${unitOf(keys[i])}`);
+      const k = keys[i];
+      if (used[k] === 1 || typeof b[k] !== 'number') continue;
+      out.push(`${PARAM_KO[k] || k} ${num(b[k])}${unitOf(k)}`);
     }
     return out;
   }
@@ -707,9 +746,23 @@ function weaponIconPath(ctx, family, x, y, r) {
   } else if (family === 'lance') {            // 관통 — 굵은 선이 세 표적을 꿴다
     ctx.moveTo(x, y + a); ctx.lineTo(x, y - a);
     for (let k = -1; k <= 1; k += 1) { ctx.moveTo(x + a * 0.3, y + k * a * 0.55); ctx.arc(x, y + k * a * 0.55, a * 0.3, 0, Math.PI * 2); }
-  } else if (family === 'boomerang') {        // 회귀 — 열린 고리
-    ctx.arc(x, y, a * 0.8, Math.PI * 0.35, Math.PI * 1.9);
-    ctx.moveTo(x + a * 0.35, y - a * 0.9); ctx.lineTo(x + a * 0.75, y - a * 0.6); ctx.lineTo(x + a * 0.3, y - a * 0.35);
+  } else if (family === 'boomerang') {        // 회귀 — 열린 고리 + 끝점에 붙은 화살촉
+    // ★ 화살촉을 «호의 끝점»에서 유도한다. 좌표를 눈대중으로 찍으면 반경·각도를 바꿀 때마다
+    //   어긋난다(v1.6 이 그랬다 — 화살표가 고리에서 떨어져 보였다).
+    const a0 = Math.PI * 0.35;
+    const a1 = Math.PI * 1.9;
+    const rr = a * 0.8;
+    ctx.arc(x, y, rr, a0, a1);
+    const ex = x + Math.cos(a1) * rr;         // 호의 끝점
+    const ey = y + Math.sin(a1) * rr;
+    const tx = -Math.sin(a1);                 // 그 점에서의 진행 방향(접선)
+    const ty = Math.cos(a1);
+    const nx = Math.cos(a1);                  // 바깥 법선
+    const ny = Math.sin(a1);
+    const hl = a * 0.42;                      // 화살촉 길이
+    ctx.moveTo(ex - tx * hl + nx * hl * 0.55, ey - ty * hl + ny * hl * 0.55);
+    ctx.lineTo(ex, ey);
+    ctx.lineTo(ex - tx * hl - nx * hl * 0.55, ey - ty * hl - ny * hl * 0.55);
   } else if (family === 'orbit') {            // 공전 — 궤도 위의 두 몸체
     ctx.arc(x, y, a * 0.75, 0, Math.PI * 2);
     ctx.moveTo(x + a * 0.75 + a * 0.25, y); ctx.arc(x + a * 0.75, y, a * 0.25, 0, Math.PI * 2);
@@ -821,7 +874,7 @@ function cardBody(world, c) {
     const util = def.slotClass === 'utility';
     const kind = util ? '무속성 · 속성이 실리지 않는다' : '속성 · 스탠스가 실린다';
     return { glyph: null, icon: { kind: 'weapon', id: def.family }, title: def.name, sub: def.desc,
-      desc: `${kind} · 슬롯 ${c.slot + 1} 에 장착` };
+      desc: '' };   // §11.1(v1.7) 계열은 칩이, 수치는 증분 줄이 말한다 — 하단 줄은 중복이었다
   }
   if (c.category === 'weaponLevel') {
     const def = world.weaponDefs[c.weaponId];
@@ -832,19 +885,21 @@ function cardBody(world, c) {
     // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
     const util = def.slotClass === 'utility';
     return { glyph: null, icon: { kind: 'weapon', id: def.family }, title: `${def.name} Lv.${c.to}`, sub: def.desc,
-      desc: `${util ? '무속성' : '속성'} · Lv.${c.from}/8 → ${c.to}/8 강화` };
+      desc: `Lv.${c.from}/8 → ${c.to}/8` };   // 계열은 칩이 말한다(중복 제거)
   }
   if (c.category === 'elementLevel') {
     // ★ §11.1 — 키 문자 대신 속성명+결과. prey(먹이)는 draft.js 가 matrix 에서 유도해 실어 보낸다.
     //   부여 프리뷰(앞의 N개 무기)는 §4.3 슬롯 순서를 가르치는 유일한 지점이라 desc 에 유지한다.
     const name = ELEMENT_NAME[c.element];
-    const prey = ELEMENT_NAME[c.prey] || '상성 상대';
     const n = c.imbuedAfter;
+    // §11.1(v1.7) — v1.6 은 «강한 쪽»만 말했다. 상성은 양날이라 «약한 쪽»을 모르면
+    //   스탠스를 언제 바꿔야 하는지 판단할 수 없다(플레이 피드백). 둘 다 매트릭스에서 끌어온다.
+    const key = STANCE_KEY[c.element] || '?';
     return {
       glyph: c.element,
       title: `${name} 강화`,
-      sub: `무기 ${n}개가 ${name}속성 — ${prey} 적에게 ×2`,
-      desc: `${name} 스탠스에서 앞의 ${n}개 무기가 ${name}속성이 된다.`,
+      sub: `속성 슬롯의 앞 ${n}개 무기를 ${name}속성으로 바꿀 수 있다`,
+      desc: `${key} 키 = ${name} 스탠스. 그동안 앞 ${n}개 무기가 ${name}속성이 된다.`,
     };
   }
   if (c.category === 'passive') {

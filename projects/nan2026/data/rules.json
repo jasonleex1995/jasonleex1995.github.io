@@ -179,7 +179,7 @@
     "seeker":    { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius", "acquireRadius"] },
     "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["beamWidthPx", "rangePx"] },
     "orbit":     { "rateKey": "hitCooldownSec",   "countKey": "bodyCount",        "pierceApplies": false, "areaKeys": ["orbitRadius", "projRadius"] },
-    "aura":      { "rateKey": "tickIntervalSec",  "countKey": null,               "pierceApplies": false, "areaKeys": ["radius"] },
+    "aura":      { "rateKey": null,               "countKey": null,               "pierceApplies": false, "areaKeys": ["radius"] },
     "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": ["outRangePx", "projRadius"] },
     "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierceApplies": false, "areaKeys": ["blastRadius"] },
     "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": ["droneRangePx", "projRadius"] },

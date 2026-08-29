@@ -69,7 +69,7 @@
     {
       "id": "aura", "slotClass": "utility", "family": "aura", "name": "펄스필드", "desc": "범위 안 적 탄막을 느리게 (지우지 않음)",
       "elementStampMode": "live",
-      "base": { "dmg":3, "radius":70, "tickIntervalSec":0.70, "falloff":0.35 },
+      "base": { "radius":70, "slowMul":0.50 },
       "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
                   {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148} ],
       "evolution": { "name":"싱귤래리티", "desc":"범위 안 탄막 완전 정지 + 잡몹 빨아들임",

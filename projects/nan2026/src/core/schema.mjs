@@ -50,7 +50,7 @@ const FAMILY_BASE_KEYS = {
   lance: ['dmg', 'cooldownSec', 'count', 'pierce', 'hitCooldownSec', 'targetMode',
     'beamWidthPx', 'chargeSec', 'rangePx'],
   orbit: ['dmg', 'projRadius', 'hitCooldownSec', 'orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
-  aura: ['dmg', 'radius', 'tickIntervalSec', 'falloff'],
+  aura: ['radius', 'slowMul'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
