@@ -391,17 +391,24 @@ function drawRightPanel(ctx, world, pal) {
   //   §11.1(v1.6) 슬롯은 계열로 갈린다: 앞 elementSlots 칸 = 속성칸(각인 대상),
   //   나머지 = 유틸칸(각인되지 않는다). 갈린 사실이 화면에서 안 읽히면
   //   빌드를 짤 근거가 사라진다 — 그래서 두 구역에 머리글을 세운다.
+  //   ★ 세로 리듬은 상수로 둔다. v1.6 은 머리글 앞 여백이 «첫 머리글에만» 있어서
+  //     두 번째(무속성) 머리글이 앞 슬롯 박스와 2px 겹쳤다 — text 의 기준선이 middle 이라
+  //     y 에 그리면 글자가 y−6 부터 시작하는데, 그 y 가 박스 바닥 +4 였다.
+  const ROW_H = 34;          // 슬롯 행: 박스 30 + 아래 간격 4
+  const HEAD_TO_ROW = 18;    // 구역 머리글(middle) → 다음 박스 top
+  const GROUP_GAP = 16;      // 앞 구역의 마지막 박스 바닥 → 다음 구역 머리글(middle)
   const eSlots = world.data.rules.player.elementSlots;
   text(ctx, world, pal, '무기 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
-  y += 24;
+  y += 26;
   for (let i = 0; i < world.slots.length; i += 1) {
     if (i === 0 || i === eSlots) {
+      if (i !== 0) y += GROUP_GAP;      // ★ 첫 구역은 섹션 제목이 이미 여백을 준다
       text(ctx, world, pal, i === 0 ? `속성 ${eSlots}칸` : `무속성 ${world.slots.length - eSlots}칸`,
         x, y, h.fontSmallPx, pal.hud.textDim, 'left', 600);
-      y += 15;
+      y += HEAD_TO_ROW;
     }
     const s = world.slots[i];
-    const rowH = 34;
+    const rowH = ROW_H;
     const imbued = s.stampElement !== 'normal';
     ctx.fillStyle = imbued ? rgba(pal.element[s.stampElement], 0.14) : rgba(pal.hud.panelRule, 0.35);
     ctx.fillRect(x, y, w, rowH - 4);
@@ -434,8 +441,8 @@ function drawRightPanel(ctx, world, pal) {
   }
 
   // ---- 패시브 슬롯 (§4.2 상한 = rules.player.passiveSlots · 위→아래 = 획득 순) ---------------------
-  //   ★ 무기 슬롯과 같은 어휘 — "먹을 수 있는 패시브도 6개"가 화면에서 읽힌다
-  y += 10;
+  //   ★ 무기 슬롯과 같은 어휘 — 먹을 수 있는 패시브 수가 화면에서 읽힌다
+  y += 18;                   // 섹션 사이 — 구역 사이(16)보다 넓어야 «다른 것»으로 읽힌다
   text(ctx, world, pal, '패시브 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   y += 24;
   const pdefs = world.data.passives.passives;
