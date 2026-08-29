@@ -85,6 +85,10 @@ function makeEnemy(slotCount) {
     // ★ 개체가 자기 글리프를 들고 다닌다 — 보스 개체는 archetypes 에 없어서(archetypeId '')
     //   렌더가 아키타입으로 모양을 찾을 수 없다. 프레임당 스캔도 사라진다(§10.3).
     shapeId: '',
+    // §7.6(v1.7) 공격 기호 — 이 개체가 «무엇을 하는가»를 모양과 별개로 들고 다닌다.
+    //   shapeId(종족)만으로는 예측이 안 됐다: 같은 hexPod 이 aimed 와 spiral 을 쓰고,
+    //   straight 는 네 가지 모양으로 나왔다(플레이 피드백). '' = 사격하지 않음.
+    attackType: '',
     x: 0, y: 0, vx: 0, vy: 0,
     hp: 0, hpMax: 0, radius: 0,
     contactDmg: 0, xp: 0, score: 0,
@@ -610,6 +614,13 @@ function curveIdxOf(world) {
   return (world.run !== undefined && world.run.order !== undefined) ? world.run.stageIndex : 0;
 }
 
+/** §7.6(v1.7) 이미터 id → 타입. 스폰 때 1회만 부른다(핫패스 아님). */
+function emitterTypeOf(world, emitterId) {
+  const ems = world.data.enemies.emitters;
+  for (let i = 0; i < ems.length; i += 1) if (ems[i].id === emitterId) return ems[i].type;
+  throw new Error(`state: 미지의 이미터 "${emitterId}" (§8.5 — 폴백 금지)`);
+}
+
 export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
@@ -623,6 +634,8 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.archetypeId = def.id;
   e.band = def.band;
   e.shapeId = def.shapeId;
+  // §7.6(v1.7) 공격 기호 — 이미터 타입을 개체에 굽는다(렌더가 매 프레임 찾지 않게).
+  e.attackType = def.attack === null ? '' : emitterTypeOf(world, def.attack.emitterId);
   e.element = element;                    // §8.6 — element 는 아키타입 필드가 아니다. 편성이 주입한다
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;
   e.hp = elite ? hp * el.hpMult : hp;     // §8.6 — 엘리트 = 접두 플래그다. 별도 개체가 아니다

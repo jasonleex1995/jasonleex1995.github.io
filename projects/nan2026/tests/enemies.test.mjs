@@ -333,3 +333,34 @@ suite('enemies/§8.18 잡몹 사격 강도의 스테이지 곡선 (v1.7)', () =>
     assert.lt(Math.abs(e.emitT - 1), 1e-6, '중간보스는 배율 1 — 잡몹 곡선을 안 탄다');
   });
 });
+
+// §7.6/§8.6(v1.7) — 「생김새로 공격을 예측할 수 없다」와 「스테이지 1부터 엘리트가 너무 많다」의 답.
+suite('enemies/§7.6 공격 기호 · §8.6 엘리트 곡선 (v1.7)', () => {
+  test('모든 아키타입이 자기 이미터 타입을 개체에 싣는다 (사격 안 하면 빈 문자열)', () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 3, weapons, hooks: {}, startWeaponId: 'forward' });
+    const byId = {};
+    for (const em of d.enemies.emitters) byId[em.id] = em;
+    for (const a of d.enemies.archetypes) {
+      const e = spawnEnemy(w, a.id, 'normal', 500, 100, 10, false, false);
+      const want = a.attack === null ? '' : byId[a.attack.emitterId].type;
+      assert.eq(e.attackType, want, `${a.id} 의 공격 기호`);
+    }
+  });
+
+  // ★ v1.6 까지 베이크된 eliteIndex 가 곡선을 무시했다 — 스테이지 1 은 곡선 0.0 인데도
+  //   웨이브의 34% 가 엘리트를 낳았고, 엘리트는 hpMult 4.0 이라 초반에 10~20초짜리 벽이었다.
+  test('엘리트는 스테이지 곡선이 «유일한 권위»다 — 곡선 0 이면 한 마리도 없다', () => {
+    const d = loadData();
+    assert.eq(d.stages.curve.elitePerWaveChance[0], 0, '스테이지 1 곡선 = 0 (전제)');
+    // 곡선이 0 인 스테이지에서, eliteIndex 가 박힌 웨이브가 실제로 존재하는지 먼저 확인한다.
+    //   (없으면 이 테스트가 «통과»해도 아무것도 증명하지 못한다)
+    let baked = 0;
+    for (const st of d.stages.stages) {
+      for (const wv of st.waves) if (wv.unlockStageMin <= 1 && wv.eliteIndex !== null) baked += 1;
+    }
+    assert.gt(baked, 0, '스테이지 1 에 eliteIndex 가 박힌 웨이브가 있다(전제) — 없으면 무의미한 통과');
+    assert.lt(d.stages.curve.elitePerWaveChance[0], d.stages.curve.elitePerWaveChance[5],
+      '★ 곡선은 스테이지가 갈수록 오른다 — 초반 평범한 몹 → 후반 엘리트');
+  });
+});

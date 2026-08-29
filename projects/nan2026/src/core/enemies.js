@@ -196,9 +196,22 @@ function spawnWave(world, s) {
     //       ★ 단락평가로 자격 개체만 rng.elite 를 뽑는다(결정성: 같은 시드 = 같은 엘리트열, §10.2).
     const el = world.data.rules.elite;
     const eligible = el.bandAllowed.indexOf(def.band) >= 0 && el.elementAllowed.indexOf(wave.element) >= 0;
-    const rerollElite = eligible
-      && world.rng.elite.f() < world.data.stages.curve.elitePerWaveChance[s.curveIdx];
-    const elite = (wave.eliteIndex !== null && i === wave.eliteIndex) || rerollElite;
+    const chance = world.data.stages.curve.elitePerWaveChance[s.curveIdx];
+    // §8.6(v1.7) — ★ 곡선이 «유일한 권위»다. v1.6 까지 베이크된 eliteIndex 는 곡선을 통째로
+    //   무시했다: 스테이지 1 은 곡선이 0.0 인데도 웨이브의 34% 가 엘리트를 낳았고, 엘리트는
+    //   hpMult 4.0 이라 Lv1 무기로 10~20초짜리 벽이었다(플레이 피드백).
+    //   이제 베이크된 스포트라이트도 «그 스테이지가 엘리트를 허용할 때만» 선다 — 초반엔 같은
+    //   자리에 평범한 몹이 서고, 스테이지가 갈수록 그 자리가 엘리트가 된다.
+    const stageAllows = chance > 0;
+    const rerollElite = eligible && stageAllows && world.rng.elite.f() < chance;
+    const bakedElite = stageAllows && eligible && wave.eliteIndex !== null && i === wave.eliteIndex;
+    // §8.6 perWaveMax — 선언만 되어 있고 아무도 강제하지 않던 값이다(재롤이 웨이브당 여러 마리를
+    //   만들 수 있었다). 이제 실제로 상한이다.
+    // §8.6 perWaveMax(=1) 는 «베이크된 스포트라이트» 쪽 서술이다 — eliteIndex 가 단일 인덱스라
+    //   구조적으로 웨이브당 1기다. 재롤에까지 상한을 걸면 안 된다: 정본 v1.5 가 「최종 1.0 = 자격
+    //   전원」으로 «후반 전면 엘리트화»를 확정했으므로, 상한을 걸면 그 설계가 통째로 죽는다
+    //   (실측: 걸었더니 스테이지 6 엘리트율이 1.2% 로 주저앉았다).
+    const elite = bakedElite || rerollElite;
     spawnEnemy(world, archetypeId, wave.element, _pos.x, _pos.y, hp, elite);
   }
 

@@ -708,7 +708,12 @@ function cardAccent(world, pal, c) {
 function cardBody(world, c) {
   if (c.category === 'newWeapon') {
     const def = world.weaponDefs[c.weaponId];
-    return { glyph: null, title: def.name, sub: def.desc, desc: `새 무기 · 슬롯 ${c.slot + 1} 에 장착` };
+    // §11.1(v1.7) 계열을 밝힌다 — 속성칸(각인 O)인지 유틸칸(각인 X)인지가 곧 «무엇을 포기하는가»다.
+    //   슬롯 번호만으로는 그것을 읽을 수 없었다(플레이 피드백).
+    const util = def.slotClass === 'utility';
+    const kind = util ? '무속성 · 속성이 실리지 않는다' : '속성 · 스탠스가 실린다';
+    return { glyph: null, title: def.name, sub: def.desc,
+      desc: `${kind} · 슬롯 ${c.slot + 1} 에 장착` };
   }
   if (c.category === 'weaponLevel') {
     const def = world.weaponDefs[c.weaponId];
@@ -717,7 +722,9 @@ function cardBody(world, c) {
         desc: `${def.name} 진화 · Lv.7/8 → 8/8` };
     }
     // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
-    return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc, desc: `Lv.${c.from}/8 → ${c.to}/8 강화` };
+    const util = def.slotClass === 'utility';
+    return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc,
+      desc: `${util ? '무속성' : '속성'} · Lv.${c.from}/8 → ${c.to}/8 강화` };
   }
   if (c.category === 'elementLevel') {
     // ★ §11.1 — 키 문자 대신 속성명+결과. prey(먹이)는 draft.js 가 matrix 에서 유도해 실어 보낸다.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S45 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S46 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -2754,6 +2754,25 @@ function S39_waveUnlockCoherence() {
  *   테스트로는 안 잡힌다(렌더는 던지지 않는다) — 그래서 정적으로 강제한다.
  *   ★ 불리언 진화 파라미터는 표기에서 빠지므로 이름표가 필요 없다.
  */
+/**
+ * §13.4-S46 (v1.7) — 이미터 10종 전부가 «공격 기호»를 갖는다.
+ *   기호는 「생김새로 공격을 예측할 수 없다」의 답이다(§7.6). 새 이미터 타입을 어휘에 넣고
+ *   기호를 안 그리면 draw.attackGlyphPath 가 **런타임에 던진다** — 게임 중에, 그 적이 처음
+ *   화면에 뜨는 순간에. 테스트로는 안 잡힌다(그 조합이 나와야 터진다). 그래서 정적으로 막는다.
+ */
+function S46_attackGlyphs() {
+  const drawPath = join(ROOT, 'src', 'render', 'draw.js');
+  if (!existsSync(drawPath)) { V('S46', 'src/render/draw.js 가 없다'); return; }
+  const src = readFileSync(drawPath, 'utf8');
+  const m = src.match(/function attackGlyphPath\([\s\S]*?\n\}/);
+  if (m === null) { V('S46', 'src/render/draw.js 에서 attackGlyphPath 를 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라'); return; }
+  for (const t of EMITTER_TYPES) {
+    if (m[0].indexOf(`'${t}'`) < 0) {
+      V('S46', `이미터 타입 "${t}" 에 공격 기호가 없다 — 그 적이 화면에 뜨는 순간 draw 가 던진다 (src/render/draw.js attackGlyphPath, §7.6)`);
+    }
+  }
+}
+
 function S45_draftParamLabels() {
   const hudPath = join(ROOT, 'src', 'render', 'hud.js');
   if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
@@ -3142,7 +3161,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S45 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S46 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3211,7 +3230,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S45 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S46 · S33·S40 은 v1.5에서 삭제)');
   line();
   return 0;
 }
@@ -3269,6 +3288,7 @@ function main() {
   S43_bulletBounce();        // §8.5 v1.7 적 탄 반사 예산
   S44_weaponCurveMonotonic();// §9.5 v1.7 무기 레벨 곡선 단조성
   S45_draftParamLabels();    // §11.1 v1.7 드래프트 카드 이름표
+  S46_attackGlyphs();        // §7.6 v1.7 공격 기호 어휘 완결성
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB

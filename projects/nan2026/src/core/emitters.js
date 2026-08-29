@@ -289,6 +289,7 @@ export function emitters(world, dt) {
       const emA = look.emitById[ids[0]];
       if (emA === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[0]}" (§8.9)`);
       e.emitT += dt * actMul;
+      e.attackType = emA.type;                 // §7.6(v1.7) 중간보스도 같은 어휘
       const wantA = scheduledVolleys(e.emitT, emA, 0);
       while (e.emitPhase < wantA) { fireVolley(world, e, emA, e.emitPhase, p, look); e.emitPhase += 1; }
       if (ids.length > 1) {
@@ -329,6 +330,9 @@ export function emitters(world, dt) {
     }
 
     // §8.12(v1.5) — 보스는 모듈이 부서질수록 «격화»한다(발사 빨라짐). run.bossFireRateMul(부위 파괴 시 상승).
+    // §7.6(v1.7) 공격 기호 — 해석된 이미터의 타입을 개체에 실어 렌더가 읽게 한다.
+    //   여기가 «항상 현재»인 유일한 자리다: 보스 부위는 페이즈마다 이미터가 바뀐다(§9.8.1).
+    e.attackType = em.type;
     const edt = ((e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt) * actMul * stageMul;
     e.emitT += edt;
     const want = scheduledVolleys(e.emitT, em, firstDelay);
