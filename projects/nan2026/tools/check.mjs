@@ -646,7 +646,7 @@ function S2_files() {
     if (!isObj(b)) continue;
     closedKeys('S2', b, ['id', 'radius', 'hitboxScale', 'dmg', 'shape', 'status',
       'statusDurationSec', 'accel', 'turnRateDegSec', 'retargetSec', 'waveAmp', 'waveHz',
-      'bounceLeft'], `bullets[${b.id}]`, { optional: ['bounceLeft'] });   // §8.5(v1.7)
+      'bounceLeft', 'homingSec'], `bullets[${b.id}]`, { optional: ['bounceLeft', 'homingSec'] });   // §8.5(v1.7)
     // §9.7 "element 키가 존재하지 않는다 — 스키마가 '적 공격에는 속성이 없다'를 강제한다"
     if (has(b, 'element')) {
       V('S2', `bullets[${b.id}].element: 존재해서는 안 되는 키 — §9.7/§4.1 "적의 공격에는 속성이 없다"`);

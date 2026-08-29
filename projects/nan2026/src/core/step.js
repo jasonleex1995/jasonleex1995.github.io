@@ -256,7 +256,8 @@ function moveBullets(world, dt) {
     }
     // §8.5·§9.7 — 유도: turnRateDegSec>0 이면 retargetSec 마다 플레이어 쪽으로 각을 꺾는다(재조준 간격이
     //   회피 창을 준다). 사이엔 직진. 이 통합이 없으면 «유도탄»이 직진해 유도의 의미가 사라진다(실측 버그).
-    if (b.turnRateDegSec !== 0) {
+    // §9.7(v1.7) — 유도는 homingSec 까지만. 그 뒤엔 직진하므로 «따돌릴 수 있다».
+    if (b.turnRateDegSec !== 0 && (b.homingSec === 0 || b.age < b.homingSec)) {
       b.retargetT -= dt;
       if (b.retargetT <= 0) {
         b.retargetT += b.retargetSec;

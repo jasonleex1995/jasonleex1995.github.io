@@ -398,7 +398,7 @@ function checkBullets(c, b) {
     // §9.7 — element 키가 존재하지 않는다. 스키마가 "적의 공격에는 속성이 없다"를 강제한다 (§4.1)
     c.closed(`bullets[${it && it.id}]`, it, ['id', 'radius', 'hitboxScale', 'dmg', 'shape',
       'status', 'statusDurationSec', 'accel', 'turnRateDegSec', 'retargetSec', 'waveAmp', 'waveHz',
-        'bounceLeft'], ['bounceLeft']);   // §8.5(v1.7) 반사는 선택 키 — 미선언 = 반사 없음
+        'bounceLeft', 'homingSec'], ['bounceLeft', 'homingSec']);   // §8.5(v1.7) 반사는 선택 키 — 미선언 = 반사 없음
   }
 }
 

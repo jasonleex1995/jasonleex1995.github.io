@@ -153,6 +153,11 @@ function makeEnemyBullet() {
     dmg: 0, radius: 0, hitRadius: 0,
     // §4.1 — 적 탄에 element 가 없다. 스키마가 이미 그것을 강제한다 (§9.7)
     status: null, statusDurationSec: 0,
+      // §9.7(v1.7) 유도 지속시간(초). age 가 이걸 넘으면 유도를 멈추고 직진한다.
+      //   ★ 없으면 유도는 maxBulletAgeSec(12초) 내내 계속된다 — 「어느 방향으로 달리는가」가
+      //     답이 되지 못해 «회피 불가»가 구조적으로 생긴다(실측: 유도탄이 「길 0개」의 주범).
+      //     따라오되 «따돌릴 수 있어야» 한다. 0 = 무제한(v1.6 동작).
+      homingSec: 0,
       // §8.5(v1.7) 벽 반사 — 남은 반사 횟수. 0 = 반사 없음. -1 = 무제한.
       //   ★ 무제한이면 위치가 «삼각파 접기»의 닫힌 형태라 봇이 정확히 외삽할 수 있다(bot.js).
       bounceLeft: 0,
@@ -879,6 +884,7 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   b.status = def.status;
   b.statusDurationSec = def.statusDurationSec;
   b.bounceLeft = def.bounceLeft === undefined ? 0 : def.bounceLeft;   // §8.5(v1.7)
+  b.homingSec = def.homingSec === undefined ? 0 : def.homingSec;     // §9.7(v1.7)
   b.accel = def.accel;
   b.turnRateDegSec = def.turnRateDegSec;
   b.retargetSec = def.retargetSec;
