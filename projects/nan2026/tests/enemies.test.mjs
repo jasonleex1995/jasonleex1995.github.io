@@ -242,17 +242,39 @@ suite('enemies · 슬라이스 로스터 다양성 (피드백 #3 — 대비를 �
     assert.eq(roster[0], 'drifter', '로스터[0] = drifter (element 테스트 전제)');
   });
 
-  test('오래 돌리면 ≥3종의 아키타입이 실제로 스폰된다 (느린 탱커 ↔ 빠른 약골)', () => {
-    const w = mk(13);
-    silence(w);
-    const seen = new Set();
-    for (let i = 0; i < 3000; i += 1) {
-      step(w, makeInput(), dt);
-      const items = w.enemies.items;
-      for (let j = 0; j < items.length; j += 1) if (items[j].alive) seen.add(items[j].archetypeId);
-    }
-    assert.gte(seen.size, 3, `≥3종 스폰됨 (실제 ${seen.size}종: ${[...seen].sort().join(', ')})`);
-  });
+    // ★ v1.7 — 「≥3종」에서 「진행에 따라 늘어난다」로 바꿨다.
+    //   저작 로스터를 배선하기 전까지 이 코드는 archetypes 전량을 썼고, 그래서 스테이지와
+    //   무관하게 늘 많은 종이 나왔다 — 「≥3종」은 그 «버그» 위에서만 참이었다.
+    //   §8.3 의 의도는 「후반 = 아키타입 해금이 함께 올라 다른 적이 나온다」이므로,
+    //   고정 개수가 아니라 «증가»를 못박는 것이 옳다. 초반이 1종으로 쪼그라들지 않는 것도 함께.
+    test('아키타입은 스테이지가 오를수록 «늘어난다» — 초반 ≥2종, 후반이 더 많다 (§8.3)', () => {
+      const d = loadData();
+      for (const st of d.stages.stages) {
+        if (st.id === 'finale') continue;
+        const at = (n) => st.roster.filter((r) => r.unlockStageMin <= n).length;
+        assert.gte(at(1), 2, `${st.id}: 스테이지 1 이 ${at(1)}종 — 1종이면 첫 판이 통째로 단조롭다`);
+        assert.gt(at(6), at(1), `${st.id}: 후반(${at(6)})이 초반(${at(1)})보다 많아야 한다`);
+        for (let n = 2; n <= 6; n += 1) {
+          assert.gte(at(n), at(n - 1), `${st.id}: 해금은 되돌아가지 않는다 (S${n - 1}→S${n})`);
+        }
+      }
+    });
+
+    test('해금된 종만 실제로 스폰된다 (저작 로스터가 화면에 반영된다)', () => {
+      const w = mk(13);
+      silence(w);
+      const allowed = new Set(sliceRoster(w));
+      const seen = new Set();
+      for (let i = 0; i < 3000; i += 1) {
+        step(w, makeInput(), dt);
+        const items = w.enemies.items;
+        for (let j = 0; j < items.length; j += 1) if (items[j].alive) seen.add(items[j].archetypeId);
+      }
+      assert.gte(seen.size, 2, `≥2종 스폰됨 (실제 ${seen.size}종: ${[...seen].sort().join(', ')})`);
+      for (const id of seen) {
+        assert.ok(allowed.has(id), `${id} 는 이 스테이지 로스터에 없다 — 해금이 새고 있다`);
+      }
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────

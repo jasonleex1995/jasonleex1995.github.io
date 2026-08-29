@@ -114,7 +114,7 @@
         { "archetypeId": "spitter", "unlockStageMin": 1 },
         { "archetypeId": "turretPod", "unlockStageMin": 2 },
         { "archetypeId": "frostLance", "unlockStageMin": 2 },
-        { "archetypeId": "columnAnt", "unlockStageMin": 3 }
+        { "archetypeId": "columnAnt", "unlockStageMin": 1 }
       ],
       "mix": { "water": 0.70, "fire": 0.10, "grass": 0.10, "normal": 0.10 },
       "mixGranularity": "perWave",
@@ -156,7 +156,7 @@
         { "archetypeId": "spitter", "unlockStageMin": 1 },
         { "archetypeId": "magmaBomb", "unlockStageMin": 2 },
         { "archetypeId": "mortarHulk", "unlockStageMin": 3 },
-        { "archetypeId": "rearDart", "unlockStageMin": 3 }
+        { "archetypeId": "rearDart", "unlockStageMin": 1 }
       ],
       "mix": { "fire": 0.70, "water": 0.10, "grass": 0.10, "normal": 0.10 },
       "mixGranularity": "perWave",
@@ -197,7 +197,7 @@
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "dustRunner", "unlockStageMin": 1 },
         { "archetypeId": "turretPod", "unlockStageMin": 2 },
-        { "archetypeId": "rearDart", "unlockStageMin": 3 }
+        { "archetypeId": "rearDart", "unlockStageMin": 2 }
       ],
       "mix": { "fire": 0.70, "water": 0.10, "grass": 0.10, "normal": 0.10 },
       "mixGranularity": "perWave",
@@ -237,7 +237,7 @@
       "roster": [
         { "archetypeId": "spitter", "unlockStageMin": 1 },
         { "archetypeId": "thornWeaver", "unlockStageMin": 1 },
-        { "archetypeId": "flanker", "unlockStageMin": 2 },
+        { "archetypeId": "flanker", "unlockStageMin": 1 },
         { "archetypeId": "stalker", "unlockStageMin": 3 }
       ],
       "mix": { "grass": 0.70, "water": 0.10, "fire": 0.10, "normal": 0.10 },
@@ -276,7 +276,7 @@
       "crisisElementRule": "themePure",
       "roster": [
         { "archetypeId": "hexer", "unlockStageMin": 1 },
-        { "archetypeId": "flanker", "unlockStageMin": 2 },
+        { "archetypeId": "flanker", "unlockStageMin": 1 },
         { "archetypeId": "bogHexer", "unlockStageMin": 2 },
         { "archetypeId": "turretPod", "unlockStageMin": 3 }
       ],

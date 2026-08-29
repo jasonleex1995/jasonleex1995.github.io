@@ -97,18 +97,23 @@ function buildSpawner(world, stageId, curveIdx) {
   const cw = world.data.stages.phase.crisisWaves;
   for (let i = 0; i < cw.length; i += 1) crisisArch[cw[i].archetypeId] = true;
 
-  // ★ 로스터 — 구현된 이동(dive·weave) × 플레이 가능한 밴드(chaff·line) × 이 스테이지 테마 부합.
-  //   웨이브가 골격을 대고(케이던스·편대·element·count) 이 로스터가 아키타입 다양성을 댄다(§8.6).
+  // ★ 로스터 — **정본이 저작한 stages[].roster 를 쓴다** (§8.3 · §8.6 · §9.9).
+  //   v1.7 까지 이 코드는 저작 로스터를 «읽지 않고» archetypes 전량에서 자체 로스터를 만들었다.
+  //   그 결과 §8.3 이 명시한 「후반 = 아키타입 해금이 함께 올라 «다른 적»이 나온다」가 0 으로
+  //   반영됐다 — 스테이지 1 과 6 의 등장 종 집합이 사실상 같았고, 스테이지 1 에 96HP 짜리
+  //   turretPod 가 섰다(실측). unlockStageMin 저작 전체가 죽은 데이터였다.
+  //   ★ 해금 기준은 «런의 스테이지 번호»(1..6) — 테마는 셔플되지만 해금은 진행도를 따른다.
   const roster = [];
-  for (let i = 0; i < archetypes.length; i += 1) {
-    const a = archetypes[i];
+  for (let i = 0; i < stage.roster.length; i += 1) {
+    const ent = stage.roster[i];
+    if (ent.unlockStageMin > stageNumber) continue;                // 아직 안 열린 적
+    const a = archIndex[ent.archetypeId];
+    if (a === undefined) throw new Error(`enemies: 로스터의 미지 아키타입 "${ent.archetypeId}" (§9.9)`);
     if (crisisArch[a.id]) continue;                                // 위기 전용 → 정상 로스터 제외
     if (IMPLEMENTED_MOVES.indexOf(a.moveId) < 0) continue;         // 이동 미구현 → 애초에 제외
-    if (PLAYABLE_BANDS.indexOf(a.band) < 0) continue;              // turret/bruiser 스폰지 제외
-    if (a.themeOnly !== null && a.themeOnly !== stageId) continue;  // 테마 부합만
     roster.push(a.id);
   }
-  if (roster.length === 0) throw new Error(`enemies: "${stageId}" 로스터 0종 (§8.6 — 필터가 전부 걸렀다)`);
+  if (roster.length === 0) throw new Error(`enemies: "${stageId}" 스테이지 ${stageNumber} 로스터 0종 (§8.6)`);
 
   return {
     stageId, curveIdx, waves, archIndex, roster,
