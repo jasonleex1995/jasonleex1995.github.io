@@ -1293,12 +1293,12 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 
 | 스테이지 | `enemyHpScale` | `xpScale` | `spawnDensityScale` | **`mobFireRateScale`** | **`mobBulletDmgScale`** | `midBossCount` | `elitePerWaveChance` | `swarmTotalScale` | `rearSpawnAllowed` |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | 1.0 | 4.1 | 1.3 | **0.6** | **0.65** | 1 | **0.0** | **0.55** | false |
+| 1 | 1.0 | 4.1 | 1.4 | **0.6** | **0.65** | 1 | **0.0** | **0.55** | false |
 | 2 | 1.5 | 6.2 | 1.6 | **0.75** | **0.8** | 2 | **0.05** | **0.85** | false |
 | 3 | 2.4 | 8.6 | 2.0 | **0.9** | **0.95** | 2 | **0.15** | **1.15** | true |
-| 4 | 4.2 | 11.2 | 2.45 | **1.0** | **1.1** | 3 | **0.4** | **1.15** | true |
-| 5 | 6.8 | 14.0 | 2.9 | **1.1** | **1.25** | 4 | **0.7** | **1.15** | true |
-| 6 (최종) | 9.8 | 16.2 | 3.4 | **1.25** | **1.4** | 5 | **1.0** | **1.15** | true | ★v1.5 난이도 오버홀 — xpScale 는 실데이터(후반 starve, XP −10% 반영)·enemyHp·density·midBoss 후반 급증. **`elitePerWaveChance` = 이제 라이브 «엘리트 재롤»(§8.6, rng.elite): 초반 0(자유)→최종 1.0(자격 개체 전원 엘리트).** bossBulletScale 별표(§8.3 추가): [1.00,1.20,1.45,1.75,2.10,2.10]
+| 4 | 4.2 | 11.2 | 2.5 | **1.0** | **1.1** | 3 | **0.4** | **1.15** | true |
+| 5 | 6.8 | 14.0 | 3.05 | **1.1** | **1.25** | 4 | **0.7** | **1.15** | true |
+| 6 (최종) | 9.8 | 16.2 | 3.6 | **1.25** | **1.4** | 5 | **1.0** | **1.15** | true | ★v1.5 난이도 오버홀 — xpScale 는 실데이터(후반 starve, XP −10% 반영)·enemyHp·density·midBoss 후반 급증. **`elitePerWaveChance` = 이제 라이브 «엘리트 재롤»(§8.6, rng.elite): 초반 0(자유)→최종 1.0(자격 개체 전원 엘리트).** bossBulletScale 별표(§8.3 추가): [1.00,1.20,1.45,1.75,2.10,2.10]
 
 - **적 HP 스테이지 스케일은 이 테이블이 유일한 소유자다.** 초안 F의 개체별 `hpScalePerStage: 0.18`(선형, 스테이지 6 = 1.9배)은 **폐기** — 15 아키타입 × 개별 계수는 곡선을 튜닝 불가능하게 만든다.
 - `xpScale`은 **초안 D의 미결(XP 곡선이 후반에 마르는 문제)을 닫는다.** `enemyHpScale`과 짝지어 레벨업 횟수를 50~60으로 유지하는 축.
@@ -1341,7 +1341,7 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 
 **★ `sweep`(v1.5) = «소사 레이저»**: 활성 구간(`activeSec`) 동안 빔 각이 `angleStartDeg`→`angleEndDeg`로 **회전**하며 아레나를 쓸고 지나간다(고정 `laser`의 회전판). 구현 = `laser` 재사용(telegraphs 풀·`spawnBeam`) + 텔레그래프의 `aStart`/`aEnd` 필드 — 둘이 같으면 고정 빔이라 기존 `laser`가 불변. 텔레그래프 하한 1.20(보스 부위면 §7.4 개체 클래스 1.50이 이긴다). 사용처: 중간보스 `mbLancer`(60°→120° 소사) · **보스 페이즈 3 «발악» 시그니처**(manta 쌍가위빔·kiln 소사포·scarab 꼬리창·tetrarch 조수빔, §9.8.1은 어휘·개수만 확정하고 구체 편성은 04에 위임).
 
-**★ `mortar`(v1.5, 사용자 결정 2026-07-31) = «폭탄»**: 개체 자리가 아니라 **플레이어 예측 표적**(현재 위치 + 속도×`leadSec`, 아레나 클램프)에 착탄해 `fuseSec` 뒤 반경 `radius` 로 폭발(`dmg`, `activeSec`)한다. `bulletId=null`(zone 처럼 dmg 직접, S19). 구현 = `zone` 재사용 + `warnSec=fuseSec` 필드(퓨즈 동안 예고·무해 = 회피 창, hazards 소유). **`fuseSec ≥ fairness.minTelegraphSec` 강제**(S19). 사용처: 잡몹 `mortarHulk`(volcano·finale) `hulkZone` · **보스 `kiln`(vent P2)·`tetrarch`(coffinFire P2)** — «보스 = 전 잡몹 스타일 포함» 원칙 완성(9/9, 사용자 결정 2026-07-31). 보스판은 `repeat 2`(악절, 잡몹은 1)라 개수로 다르다.
+**★ `mortar`(v1.5, 사용자 결정 2026-07-31) = «폭탄»**: 개체 자리가 아니라 **플레이어 예측 표적**(현재 위치 + 속도×`leadSec`, 아레나 클램프)에 착탄해 `fuseSec` 뒤 반경 `radius` 로 폭발(`dmg`, `activeSec`)한다. `bulletId=null`(zone 처럼 dmg 직접, S19). 구현 = `zone` 재사용 + `warnSec=fuseSec` 필드(퓨즈 동안 예고·무해 = 회피 창, hazards 소유). **`fuseSec ≥ fairness.minTelegraphSec` 강제**(S19). 사용처: 잡몹 `mortarHulk`(volcano·forest·finale) `hulkZone` · **보스 `kiln`(vent P2)·`tetrarch`(coffinFire P2)** — «보스 = 전 잡몹 스타일 포함» 원칙 완성(9/9, 사용자 결정 2026-07-31). 보스판은 `repeat 2`(악절, 잡몹은 1)라 개수로 다르다.
 
 공통 파라미터: `type, bulletId, from, telegraphSec, everySec, offsetSec, repeat, restSec`
 
