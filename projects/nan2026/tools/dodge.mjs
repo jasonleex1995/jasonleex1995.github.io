@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from '../src/core/schema.mjs';
+import { makeCtx, escapeDirs, trackMotion } from './lib/escape.mjs';
 import { createWorld } from '../src/core/state.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -35,75 +36,23 @@ import { buildDraft, applyCard } from '../src/core/draft.js';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const DT = 1 / 60;
-const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0],
-  [-0.70710678, -0.70710678], [0.70710678, -0.70710678],
-  [-0.70710678, 0.70710678], [0.70710678, 0.70710678]];
 
-function loadData() {
+export function loadData() {
   const names = ['rules', 'weapons', 'passives', 'enemies', 'stages', 'bosses', 'bullets', 'elements', 'meta'];
   const raw = {};
   for (const n of names) raw[n] = JSON.parse(readFileSync(join(ROOT, 'data', `${n}.json`), 'utf8'));
   return validate(raw);
 }
 
-/**
- * 8방향 중 «경로 전체»가 horizon 초 동안 안전한 방향의 수 (0..8).
- *   위협은 등속 외삽한다. 벽은 막는다 — 구석에 몰리면 길이 실제로 줄어든다.
- */
-function escapeDirs(w, d, horizon) {
-  const p = w.player;
-  const b = w.bounds;
-  const rp = d.rules.player;
-  const STEPS = 10;
-  const dt = horizon / STEPS;
-  const stepPx = rp.moveSpeed * dt;
-  let ok = 0;
-  for (let k = 0; k < DIRS.length; k += 1) {
-    let x = p.x;
-    let y = p.y;
-    let safe = true;
-    for (let t = 1; t <= STEPS; t += 1) {
-      x += DIRS[k][0] * stepPx;
-      y += DIRS[k][1] * stepPx;
-      if (x < b.minX) x = b.minX; else if (x > b.maxX) x = b.maxX;
-      if (y < b.minY) y = b.minY; else if (y > b.maxY) y = b.maxY;
-      const at = t * dt;
-      if (threatAt(w, rp, x, y, at)) { safe = false; break; }
-    }
-    if (safe) ok += 1;
-  }
-  return ok;
-}
-
-/** (x, y) 가 at 초 뒤에 위협과 겹치는가. 적 몸통 + 적 탄 둘 다 본다. */
-function threatAt(w, rp, x, y, at) {
-  const en = w.enemies.items;
-  for (let i = 0; i < en.length; i += 1) {
-    const e = en[i];
-    if (!e.alive) continue;
-    const ex = e.x + e.vx * at;
-    const ey = e.y + e.vy * at;
-    const r = rp.hitboxRadius + e.radius;
-    if ((ex - x) * (ex - x) + (ey - y) * (ey - y) <= r * r) return true;
-  }
-  const eb = w.enemyBullets.items;
-  for (let i = 0; i < eb.length; i += 1) {
-    const b = eb[i];
-    if (!b.alive) continue;
-    const bx = b.x + b.vx * at;
-    const by = b.y + b.vy * at;
-    const r = rp.hitboxRadius + b.hitRadius;
-    if ((bx - x) * (bx - x) + (by - y) * (by - y) <= r * r) return true;
-  }
-  return false;
-}
+let CTX = null;
+function ctxOf(d) { if (CTX === null) CTX = makeCtx(d); return CTX; }
 
 /**
  * 한 런을 끝까지 돌린다(무적이라 죽지 않는다). 스테이지별로 피격을 «강제/실수»로 가른다.
  *   ★ escapeDirs 는 비싸므로 SAMPLE 틱마다 표본을 뜨고, 피격 시 «반응 지연 이전»의 표본을 본다.
  *     맞는 순간이 아니라 손을 쓸 수 있었던 마지막 순간이 판정의 기준이다.
  */
-function runOne(d, seed, opt) {
+export function runOne(d, seed, opt) {
   const w = createWorld({ data: d, seed, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook } });
   w.difficultyId = 'normal';
   w.tele = { dmgByFamily: Object.create(null), dmgTakenByArch: Object.create(null), kills: Object.create(null), crisisKills: 0, xpGained: 0 };
@@ -136,8 +85,9 @@ function runOne(d, seed, opt) {
     const bucket = per[Math.min(5, si)];
     // ★ 무적 — 죽지 않게 두되 «맞은 것»은 센다. 그래야 후반 스테이지도 표본이 잡힌다.
     w.player.hp = w.player.hpMax;
+    trackMotion(w, ctxOf(d), DT);
     if (t % SAMPLE === 0) {
-      const dirs = escapeDirs(w, d, opt.horizon);
+      const dirs = escapeDirs(w, d, opt.horizon, ctxOf(d));
       ring.push([t, dirs]);
       if (ring.length > 64) ring.shift();
       bucket.dirsSum += dirs; bucket.dirsN += 1;
@@ -203,4 +153,4 @@ function main() {
   line('─'.repeat(78));
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

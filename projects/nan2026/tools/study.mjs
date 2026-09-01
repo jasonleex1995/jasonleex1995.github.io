@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, rea
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from '../src/core/schema.mjs';
+import { makeCtx, escapeDirs, trackMotion } from './lib/escape.mjs';
 import { createWorld, giveWeapon, levelUpWeapon, givePassive, recomputeStats } from '../src/core/state.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -31,14 +32,50 @@ import { botInput } from '../src/core/bot.js';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const DT = 1 / 60;
-const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0],
-  [-0.70710678, -0.70710678], [0.70710678, -0.70710678],
-  [-0.70710678, 0.70710678], [0.70710678, 0.70710678]];
 
-function loadData() {
+/** 이미터를 id 로 집는다 — 없으면 조용히 넘어가지 않고 터뜨린다(§9.3). */
+function emitterOf(raw, id) {
+  const e = raw.enemies.emitters.find((x) => x.id === id);
+  if (e === undefined) throw new Error(`study: 미지의 이미터 "${id}"`);
+  return e;
+}
+
+/**
+ * A/B 팔 — 한 번에 손잡이 «하나»만 돌린다. data/*.json 은 건드리지 않고
+ * 메모리에서만 고친 뒤 validate 를 통과시킨다 — 스키마 위반은 여기서도 에러다.
+ */
+const ARMS = {
+  base() {},
+  magma(raw) { emitterOf(raw, 'magmaZone').activeSec = 1.2; },
+  siren(raw) {
+    const src = raw.bullets.bullets.find((b) => b.id === 'driftHoming');
+    if (src === undefined) throw new Error('study: driftHoming 이 없다');
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = 'sirenShard';
+    copy.turnRateDegSec = 0;
+    copy.homingSec = 0;
+    raw.bullets.bullets.push(copy);
+    emitterOf(raw, 'sirenRing').bulletId = 'sirenShard';
+  },
+  frost(raw) { emitterOf(raw, 'frostWall').gapWidthPx = 100; },
+  // 동시 개체를 정본 원래값으로 되돌린다 — 런타임이 «실제로 읽는» 유일한 새떼 상한이다.
+  //   (crisisWaveResidualMax 는 런타임이 읽지 않으므로 데이터로 실험할 수 없다.)
+  swarm(raw) { raw.rules.fairness.swarmConcurrentMax = 70; },
+  // bogSpiral 을 패치 전 값으로 되돌린다 — 「더 어려워졌는데 더 공정해지진 않았다」의 검증용.
+  bogrevert(raw) {
+    const e = emitterOf(raw, 'bogSpiral');
+    e.count = 10; e.everySec = 7.0; e.durationSec = 2.0;
+  },
+};
+
+
+export function loadData(arm) {
   const names = ['rules', 'weapons', 'passives', 'enemies', 'stages', 'bosses', 'bullets', 'elements', 'meta'];
   const raw = {};
   for (const n of names) raw[n] = JSON.parse(readFileSync(join(ROOT, 'data', `${n}.json`), 'utf8'));
+  const fn = ARMS[arm || 'base'];
+  if (fn === undefined) throw new Error(`study: 미지의 팔 "${arm}"`);
+  fn(raw);
   return validate(raw);
 }
 
@@ -53,58 +90,17 @@ function mulberry(seed) {
   };
 }
 
-/** 8방향 중 «경로 전체»가 horizon 초 동안 안전한 방향의 수 (0..8). 면적이 아니라 경로다. */
-function escapeDirs(w, rp, horizon) {
-  const p = w.player;
-  const b = w.bounds;
-  const STEPS = 10;
-  const dt = horizon / STEPS;
-  const stepPx = rp.moveSpeed * dt;
-  let ok = 0;
-  for (let k = 0; k < DIRS.length; k += 1) {
-    let x = p.x;
-    let y = p.y;
-    let safe = true;
-    for (let t = 1; t <= STEPS; t += 1) {
-      x += DIRS[k][0] * stepPx;
-      y += DIRS[k][1] * stepPx;
-      if (x < b.minX) x = b.minX; else if (x > b.maxX) x = b.maxX;
-      if (y < b.minY) y = b.minY; else if (y > b.maxY) y = b.maxY;
-      const at = t * dt;
-      let hit = false;
-      const en = w.enemies.items;
-      for (let i = 0; i < en.length; i += 1) {
-        const e = en[i];
-        if (!e.alive) continue;
-        const ex = e.x + e.vx * at;
-        const ey = e.y + e.vy * at;
-        const r = rp.hitboxRadius + e.radius;
-        if ((ex - x) * (ex - x) + (ey - y) * (ey - y) <= r * r) { hit = true; break; }
-      }
-      if (!hit) {
-        const eb = w.enemyBullets.items;
-        for (let i = 0; i < eb.length; i += 1) {
-          const bu = eb[i];
-          if (!bu.alive) continue;
-          const bx = bu.x + bu.vx * at;
-          const by = bu.y + bu.vy * at;
-          const r = rp.hitboxRadius + bu.hitRadius;
-          if ((bx - x) * (bx - x) + (by - y) * (by - y) <= r * r) { hit = true; break; }
-        }
-      }
-      if (hit) { safe = false; break; }
-    }
-    if (safe) ok += 1;
-  }
-  return ok;
-}
+/** 회피 판정은 tools/lib/escape.mjs 가 소유한다 — 4벌 복사본이 갈라지지 않게. */
+let CTX = null;
+function ctxOf(d) { if (CTX === null) CTX = makeCtx(d); return CTX; }
+
 
 /**
  * 지정 레벨·빌드를 «심는다». 레벨링이 안 돼서 못 잡는 일이 없게 하는 것이 목적이다(사용자 지시).
  *   무기 레벨 · 신규 무기 · 패시브 · 속성 투자를 시나리오 난수로 다양하게 섞는다.
  *   ★ 드래프트를 흉내 내는 것이 아니라 «도달했을 법한 상태»를 직접 세운다 — 그래야 조합이 고르게 퍼진다.
  */
-function seedBuild(w, d, rnd, level) {
+export function seedBuild(w, d, rnd, level) {
   const elems = d.weapons.weapons.filter((x) => x.slotClass === 'element').map((x) => x.id);
   const utils = d.weapons.weapons.filter((x) => x.slotClass === 'utility').map((x) => x.id);
   const passives = d.passives.passives.map((x) => x.id);
@@ -123,7 +119,15 @@ function seedBuild(w, d, rnd, level) {
       let nE = 0; let nU = 0;
       for (let k = 0; k < w.slots.length; k += 1) if (w.slots[k].weaponId !== null) { if (k < eSlots) nE += 1; else nU += 1; }
       const pool = (nE < eSlots && (rnd() < 0.5 || nU >= wSlots - eSlots)) ? elems : utils;
-      const id = pool[Math.floor(rnd() * pool.length)];
+      // ★ 이미 든 무기는 다시 주지 않는다. giveWeapon 은 중복을 막지 않는다 — 막는 것은
+      //   드래프트(§11.1 「이미 보유한 무기는 newWeapon 후보에서 제외」)이고 우리는 그걸 우회한다.
+      //   중복이 생기면 두 슬롯이 같은 family 를 갖고, drone.js 의 위성 순번 k 가
+      //   anchorOffsets 길이를 넘겨 런타임에 던진다(실측 — 이 하네스가 그렇게 죽었다).
+      const have = Object.create(null);
+      for (let k2 = 0; k2 < w.slots.length; k2 += 1) if (w.slots[k2].weaponId !== null) have[w.slots[k2].weaponId] = 1;
+      const free = pool.filter((x) => have[x] !== 1);
+      if (free.length === 0) continue;
+      const id = free[Math.floor(rnd() * free.length)];
       if (giveWeapon(w, id) >= 0) continue;
     }
     if (r < 0.88) {                                 // 패시브
@@ -157,19 +161,22 @@ function runScenario(d, sc) {
   for (let k = 0; k < sc.stage - 1; k += 1) advanceStage(w);
   const rp = d.rules.player;
   const theme = w.run.order[w.run.stageIndex];
+  // A/B 에서는 대상 테마만 돌린다 — 나머지는 시뮬레이션 자체를 건너뛴다(비용 1/6).
+  if (sc.only !== null && theme !== sc.only) return null;
   const SAMPLE = 30;                                // 0.5초마다 회피 표본
   const backTicks = Math.round(sc.reaction / DT);
   const ring = [];
-  const out = { hits: 0, forced: 0, dirsSum: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, exit: 0, sec: 0, maxEn: 0 };
+  const out = { hits: 0, forced: 0, dirsSum: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, exit: 0, sec: 0, maxEn: 0, endLive: 0 };
   const seen = new Set();
   let guard = 0;
   for (let t = 0; t < 60 * 200; t += 1) {
     if (w.over) break;
     if (w.run && w.run.phase !== PHASE.MOB) break;   // 몹 구간만
     w.player.hp = w.player.hpMax;                    // 무적
+    trackMotion(w, ctxOf(d), DT);                    // 보스·중간보스는 vx/vy 를 쓰지 않는다
     w.draftQueue = 0;                                // 빌드는 이미 심었다 — 중간 성장은 변수에서 뺀다
     if (t % SAMPLE === 0) {
-      const dirs = escapeDirs(w, rp, sc.horizon);
+      const dirs = escapeDirs(w, d, sc.horizon, ctxOf(d));
       ring.push([t, dirs]);
       if (ring.length > 40) ring.shift();
       out.dirsSum += dirs; out.dirsN += 1;
@@ -185,6 +192,7 @@ function runScenario(d, sc) {
       if (!seen.has(k)) { seen.add(k); out.spawn += 1; }
     }
     if (live > out.maxEn) out.maxEn = live;
+    out.endLive = live;                              // 마지막 틱의 생존 수 — 이탈 계산에서 뺀다
     const before = w.player.hit;
     step(w, botInput(w, DT), DT);
     out.sec += DT;
@@ -198,14 +206,16 @@ function runScenario(d, sc) {
     }
   }
   out.kills = Object.values(w.tele.kills).reduce((a, b) => a + b, 0);
-  out.exit = Math.max(0, out.spawn - out.kills);
+  // ★ 이탈 = 스폰 - 처치 - «끝날 때 살아있던 것». 잔차로만 두면 화면에 남아있던 적까지
+  //   이탈로 세어 비율이 부풀려진다(구 지표는 상한이었지 실측이 아니었다).
+  out.exit = Math.max(0, out.spawn - out.kills - out.endLive);
   out.theme = theme;
   out.ticks = guard;
   return out;
 }
 
 /** 시나리오 조합 — 시드에서 결정적으로 유도한다. 샤드가 겹치지 않게 전역 인덱스로 뽑는다. */
-function makeScenario(d, idx) {
+export function makeScenario(d, idx) {
   const rnd = mulberry(0x9E3779B9 ^ idx);
   const elems = d.weapons.weapons.filter((x) => x.slotClass === 'element').map((x) => x.id);
   const stage = 1 + (idx % 6);                       // 6판을 고르게 — 나머지는 난수
@@ -238,18 +248,22 @@ function main() {
   const outPath = val('--out', join(ROOT, 'tools', 'report', `study-${si}.jsonl`));
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, '');
-  const d = loadData();
+  const arm = val('--patch', 'base');
+  const only = val('--only', null);                    // 이 테마만 잰다(없으면 전부)
+  const d = loadData(arm);
   const t0 = Date.now();
   const buf = [];
   for (let n = 0; n < runs; n += 1) {
     const idx = si + n * sn;                          // 샤드끼리 겹치지 않는 전역 인덱스
     const sc = makeScenario(d, idx);
+    sc.only = only;
     const r = runScenario(d, sc);
+    if (r === null) continue;                         // 대상 테마가 아니다
     buf.push(JSON.stringify({
       idx, stage: sc.stage, theme: r.theme, weapon: sc.startWeapon, level: sc.level,
       hits: r.hits, forced: r.forced, dirs: r.dirsN ? +(r.dirsSum / r.dirsN).toFixed(3) : null,
       zero: r.dirsN ? +(r.zero / r.dirsN).toFixed(4) : null,
-      kills: r.kills, spawn: r.spawn, exit: r.exit, sec: +r.sec.toFixed(1), maxEn: r.maxEn,
+      kills: r.kills, spawn: r.spawn, exit: r.exit, endLive: r.endLive, sec: +r.sec.toFixed(1), maxEn: r.maxEn,
     }));
     if (buf.length >= 200) { appendFileSync(outPath, `${buf.join('\n')}\n`); buf.length = 0; }
     if ((n + 1) % 500 === 0) {
@@ -279,8 +293,9 @@ function merge(dir) {
     for (const r of rows) {
       const k = keyFn(r);
       let a = m.get(k);
-      if (a === undefined) { a = { n: 0, hits: 0, forced: 0, dirs: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, sec: 0 }; m.set(k, a); }
+      if (a === undefined) { a = { n: 0, hits: 0, forced: 0, dirs: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, sec: 0, exit: 0, maxEn: 0 }; m.set(k, a); }
       a.n += 1; a.hits += r.hits; a.forced += r.forced; a.kills += r.kills; a.spawn += r.spawn; a.sec += r.sec;
+      a.exit += r.exit; if (r.maxEn > a.maxEn) a.maxEn = r.maxEn;
       if (r.dirs !== null) { a.dirs += r.dirs; a.dirsN += 1; a.zero += r.zero; }
     }
     return m;
@@ -298,6 +313,23 @@ function merge(dir) {
         + `${pct(a.dirsN ? a.zero / a.dirsN : 0).padStart(8)} ${pct(a.spawn ? a.kills / a.spawn : 0).padStart(8)}`);
     }
   };
+  /**
+   * «상대 적이 적절한가» — 잡히지 않고 화면을 빠져나간 적의 비율이 핵심이다.
+   * 이탈이 많으면 그 구간의 적은 «맷집이 과하거나 너무 빠르거나» 둘 중 하나다.
+   */
+  const showEnemy = (title, m, cols) => {
+    line('');
+    line(title);
+    line(`${cols.padEnd(14)}  판수   스폰/분   처치율   이탈률   동시최대   피격/처치`);
+    for (const k of [...m.keys()].sort()) {
+      const a = m.get(k);
+      const spawnMin = a.sec > 0 ? a.spawn / (a.sec / 60) : 0;
+      line(`${String(k).padEnd(14)} ${String(a.n).padStart(6)} ${spawnMin.toFixed(1).padStart(8)} `
+        + `${pct(a.spawn ? a.kills / a.spawn : 0).padStart(8)} ${pct(a.spawn ? a.exit / a.spawn : 0).padStart(8)} `
+        + `${String(a.maxEn).padStart(9)} ${(a.kills ? a.hits / a.kills : 0).toFixed(3).padStart(10)}`);
+    }
+  };
+
   line('═'.repeat(78));
   line(`대규모 난이도 통계 — 표본 ${rows.length.toLocaleString()} 판 (무적 · 보스 타이머 통과 · 레벨 심음)`);
   line('  강제% = 피격 중 «반응 시점에 어디로 달려도 맞았던» 비율 (설계 결함)');
@@ -320,7 +352,22 @@ function merge(dir) {
     });
     line(`  S${s}   ${cells.join('')}`);
   }
+  showEnemy('■ 적 적절성 — 스테이지별', grp((r) => `S${r.stage}`), '스테이지');
+  showEnemy('■ 적 적절성 — 지형별', grp((r) => r.theme), '테마');
+  line('');
+  line('■ 레벨 × 스테이지 — 처치율 (레벨링이 병목인지 확인)');
+  const lvs = [...new Set(rows.map((r) => Math.floor(r.level / 5) * 5))].sort((x, y) => x - y);
+  line(`        ${lvs.map((v) => `Lv${v}~`.padStart(8)).join('')}`);
+  for (let st = 1; st <= 6; st += 1) {
+    const cells = lvs.map((v) => {
+      const sub = rows.filter((r) => r.stage === st && Math.floor(r.level / 5) * 5 === v);
+      const sp = sub.reduce((a, r) => a + r.spawn, 0);
+      if (sp === 0) return '     —  ';
+      return pct(sub.reduce((a, r) => a + r.kills, 0) / sp).padStart(8);
+    });
+    line(`  S${st}   ${cells.join('')}`);
+  }
   line('═'.repeat(78));
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

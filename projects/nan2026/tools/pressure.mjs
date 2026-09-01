@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from '../src/core/schema.mjs';
+import { makeCtx, escapeDirs as escapeShared } from './lib/escape.mjs';
 import { createWorld } from '../src/core/state.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -87,54 +88,11 @@ function safeFraction(w, d) {
   return safe / tot;
 }
 
-/**
- * §E — «피할 길이 있는가». 난이도의 실체는 «안전한 면적»이 아니라 «빠져나갈 경로»다.
- *   사용자 지적: 「적이 일자로 내려오고 일자로 쏘면 피할 구석이 없다」 — 그때 아레나의 90%가
- *   비어 있어도 그 안전지대는 탄막 «건너편»이라 갈 수가 없다.
- *
- *   그래서 칸이 아니라 «경로»를 본다: 8방향으로 최대 속도로 HORIZON 초 달려 보고,
- *   경로 «전체»가 안전한 방향이 몇 개인지 센다. 0 이면 어디로 가도 맞는다 = 강제 피격.
- *   ★ 봇의 롤아웃(bot.rollSeg)과 같은 모델이다 — 그쪽은 회피를 «고르고», 이쪽은 «셀 뿐»이다.
- *   ★ 벽은 막는다(bounds 클램프) — 구석에 몰리면 방향이 실제로 줄어든다.
- */
-function escapeDirs(w, d, px, py) {
-  const b = w.bounds;
-  const rp = d.rules.player;
-  const STEPS = 12;
-  const dt = HORIZON / STEPS;
-  const step = rp.moveSpeed * dt;
-  const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0], [-0.7071, -0.7071], [0.7071, -0.7071], [-0.7071, 0.7071], [0.7071, 0.7071]];
-  let ok = 0;
-  for (let k = 0; k < DIRS.length; k += 1) {
-    let x = px;
-    let y = py;
-    let safe = true;
-    for (let t = 1; t <= STEPS && safe; t += 1) {
-      x += DIRS[k][0] * step;
-      y += DIRS[k][1] * step;
-      if (x < b.minX) x = b.minX; else if (x > b.maxX) x = b.maxX;
-      if (y < b.minY) y = b.minY; else if (y > b.maxY) y = b.maxY;
-      const at = t * dt;                       // 이 시각의 위협 위치와 비교한다
-      for (const e of w.enemies.items) {
-        if (!e.alive) continue;
-        const ex = e.x + e.vx * at;
-        const ey = e.y + e.vy * at;
-        const r = rp.hitboxRadius + e.radius;
-        if ((ex - x) * (ex - x) + (ey - y) * (ey - y) <= r * r) { safe = false; break; }
-      }
-      if (!safe) break;
-      for (const bu of w.enemyBullets.items) {
-        if (!bu.alive) continue;
-        const bx = bu.x + bu.vx * at;
-        const by = bu.y + bu.vy * at;
-        const r = rp.hitboxRadius + bu.hitRadius;
-        if ((bx - x) * (bx - x) + (by - y) * (by - y) <= r * r) { safe = false; break; }
-      }
-    }
-    if (safe) ok += 1;
-  }
-  return ok;
-}
+let CTX = null;
+function ctxOf(d) { if (CTX === null) CTX = makeCtx(d); return CTX; }
+
+/** 회피 판정은 tools/lib/escape.mjs 가 소유한다 — 이 도구는 «기체 없이 임의 지점»을 잰다. */
+function escapeDirs(w, d, px, py) { return escapeShared(w, d, HORIZON, ctxOf(d), undefined, px, py); }
 
 /** 등속 근사로 [0, HORIZON] 안의 최근접이 r 안에 드는가 (가속·유도는 보수적으로 무시). */
 function nearestWithin(px, py, ox, oy, ovx, ovy, r) {
