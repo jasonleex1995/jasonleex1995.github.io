@@ -828,7 +828,7 @@ function S2_files() {
   }
 
   // --- stages.json (§9.9) — ★ v1.3: themes → stages 개명 -------------------
-  closedKeys('S2', D.stages, ['schemaVersion', 'themeDraw', 'curve', 'phase', 'stages', 'formations'], 'stages');
+  closedKeys('S2', D.stages, ['schemaVersion', 'theme', 'themeDraw', 'curve', 'phase', 'stages', 'formations'], 'stages');
   if (has(D.stages, 'themes')) {
     V('S2', 'stages.themes: 개명된 키 → stages.stages (§9.9/§23.3) — 파일 이름이 stages.json 이고 게이트가 stages[] 라 부른다');
   }
@@ -1583,6 +1583,12 @@ function S8_mix() {
     }
     if (num(t.mix[T]) && t.mix[T] < 0.5) V('S8', `${tag}.mix.${T} = ${t.mix[T]} < 0.5 — 테마가 다수여야 한다 (§8.2)`);
   }
+  // ③ (v1.10 ㉔) 테마 밖 속성은 약하다 — stages.theme.offThemeHpMul ∈ (0, 1). 사용자(2026-09-05): 「풀 몹은 3방, 다른 속성은 2방」.
+  //    1 이면 «항만 있고 효과 없음»(죽은 키) → 위반. 하한 0.5: 절반 아래면 먹이 속성이 «있으나 마나»가 돼 2속성 규칙의 뜻이 사라진다.
+  cells += 1;
+  const th = D.stages.theme;
+  if (!isObj(th) || !num(th.offThemeHpMul)) V('S8', 'stages.theme.offThemeHpMul 이 없다 (§8.2 ③)');
+  else if (th.offThemeHpMul >= 1 || th.offThemeHpMul < 0.5) V('S8', `stages.theme.offThemeHpMul = ${th.offThemeHpMul} ∉ [0.5, 1) — 1 은 죽은 키, 0.5 아래는 먹이가 유령이 된다 (§8.2 ③)`);
   EX('S8', cells);
 }
 

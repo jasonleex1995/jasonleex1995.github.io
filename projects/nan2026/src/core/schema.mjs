@@ -498,7 +498,12 @@ function checkBosses(c, b) {
 }
 
 function checkStages(c, s) {
-  c.closed('stages', s, ['schemaVersion', 'themeDraw', 'curve', 'phase', 'stages', 'formations']);
+  c.closed('stages', s, ['schemaVersion', 'theme', 'themeDraw', 'curve', 'phase', 'stages', 'formations']);
+  // §8.2 ③(v1.10 ㉔) 테마 밖 속성의 HP 배율 — (0, 1]. 1 = 차이 없음(항은 존재하고 값만 바뀐다, C-4)
+  if (isObj(s.theme)) {
+    c.closed('stages.theme', s.theme, ['offThemeHpMul']);
+    if (typeof s.theme.offThemeHpMul !== 'number' || !(s.theme.offThemeHpMul > 0) || s.theme.offThemeHpMul > 1) c.fail('stages.theme.offThemeHpMul', '(0, 1] 이어야 한다 (§8.2 ③)');
+  } else c.fail('stages.theme', '객체가 아니다 (§8.2 ③)');
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
   c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
     'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',

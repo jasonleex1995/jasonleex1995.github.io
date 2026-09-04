@@ -1285,6 +1285,14 @@ v1.1: 「`view.spawnLineY`(**−40**) **바로 아래**」. 그러나 **`spawnLi
   ⚠️ **`stages[].mix` 는 런타임이 읽지 않는다** — 스키마가 허용하는 «기술적 서술»일 뿐이고, 실제 속성 편성은 `waves[].element`·`count` 에서 **파생한 가중치**가 결정한다(S8 이 그 리스트를 mix ±3%p 로 묶으므로 mix 는 «표기», 리스트가 «출처»). `waves[].element` 는 이제 «그 웨이브의 색»이 아니라 **가중치의 재료**다. ~~`stages[].mixGranularity`~~ 는 **v1.10 ④ 에 삭제** — 값 `"perWave"` 가 거짓이 됐고 읽는 곳이 0 이었다.
 - **혼합 비율 제외 대상**: **중간보스 · 새떼 · 보스** (각자 별도 속성 규칙).
 
+**③ ★ 테마 밖 속성은 약하다 (v1.10 ㉔ 신설 — 사용자 2026-09-05).** 「늪은 풀이 메인이니까 풀 몹은 3방 맞으면 죽고, 다른 속성은
+2방 — 환경과 같은 속성이면 지금대로, 아닌 속성은 조금 더 약하게 설계하는 재미.」 잡몹 HP 에 배율 하나가 더 붙는다:
+`hp = archetype.hp × band.hpMult × enemyHpScale[포지션] × offThemeHpMul(테마, 속성)` — 속성이 테마와 다르면 **`stages.theme.offThemeHpMul`
+= 0.67**(≈ 3방 → 2방), 같으면·노말이면·최종(테마 없음)이면 1. 먹이(30%)가 «가볍게 쓸리는 쪽»이 되어 테마 스탠스로 다 쏘는 흐름이
+더 시원해지고, 테마 몸(70%)만 «버틴다». 입구는 잡몹 HP 의 단일 소유자 두 곳(`enemies.enemyHp` · 중간보스 소환 유령 `midboss.js`)이
+같은 헬퍼 `elements.offThemeHpMul` 을 부른다 — **보스·중간보스는 대상이 아니다**(자기 HP 곡선 §8.9·§8.11). 실측(늪, 포지션 0):
+도입종 풀 13 · 물 8.71. 게이트 S8 ③: `offThemeHpMul ∈ [0.5, 1)` — 1 은 죽은 키, 0.5 아래는 먹이가 유령이 된다.
+
 **★ v1.4 — 제외 목록에서 「엘리트」를 뺐다 (설계자 확정. 근거를 남긴다)**
 
 v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였다. **엘리트를 빼는 이유 2개, 어느 하나만으로도 충분하다:**
@@ -2040,8 +2048,11 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 타이머와 «구간»은 양립하지 않는다(타이머가 먼저 끝나면 공백, 나중에 끝나면 위기와 겹친다).
 
 **② 스테이지가 «공격형 : 무공격» 비율을 소유한다 — `curve.shooterRatio` (6칸, 포지션 단조 비감소).**
-현재 `[0.10, 0.13, 0.20, 0.35, 0.55, 0.70]`. 사용자 수치(10·13·20·—·60·—)에 4 를 보간하고 5·6 을 실측으로 낮췄다
-(60·80 은 공정성 예산과 부딪혔다 — 아래 ④).
+현재 `[0.00, 0.10, 0.20, 0.35, 0.55, 0.70]` — ★ v1.10 ㉔(사용자 2026-09-05): 「**스테이지 1 에서 초기 구간·위기 구간에는 탄환을
+아예 안 쏘고, stage 2 부터 조금씩**」 → 포지션 0 = **0**(초기 벽도, 위기 새떼도 전부 몸 — 같은 비율을 두 구간이 읽으므로 한 값으로
+둘 다 닫힌다. 스테이지 1 에서 쏘는 것은 중간보스와 보스뿐), 포지션 1 = 0.10. ~~[0.10, 0.13, …]~~ — 사용자 수치(10·13·20·—·60·—)에
+4 를 보간하고 5·6 을 실측으로 낮췄던 값(60·80 은 공정성 예산과 부딪혔다 — 아래 ④). 실측(12초 초기 구간, 270기): 포지션 0 공격형
+0(적 탄 0) · 1 10.0% · 2 19.6% · 3 26.3% · 4 35.9% · 5 37.4%(예산 상한).
 
 **③ 봉지(bag) — 마리수 편차 0, 배치만 매 판 다르다.**
 웨이브의 몸 수 `count` 는 «무공격 밴드»(`bands[introArchetypeId.band]`) 기준이다 — 사양이 「300 중 30」이므로
@@ -3279,6 +3290,7 @@ tetrarchThroneP1  ...
 ```json
 // stages.json
 { "schemaVersion": 1,
+  "theme": { "offThemeHpMul": 0.67 },                       // §8.2 ③ (v1.10 ㉔) 테마 밖 속성 HP 배율 — 루트 7키
   "themeDraw": { "pool":["sea","glacier","volcano","desert","forest","bog"],
                  "count":5, "allowRepeat":false, "stage1RequiresIntroOk":true, "finalStageId":"finale" },
   "curve": { "enemyHpScale":[1.0,1.5,2.2,3.2,4.5,6.0], "xpScale":[1.0,1.6,2.4,3.4,4.6,6.0],
@@ -3287,7 +3299,7 @@ tetrarchThroneP1  ...
              "midBossCount":[1,1,2,2,2,2], "elitePerWaveChance":[0.10,0.15,0.20,0.25,0.30,0.35],
              "swarmTotalScale":[0.5,0.7,0.85,1.0,1.0,1.0],
              "rearSpawnAllowed":[false,false,true,true,true,true],
-             "shooterRatio":[0.10,0.13,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },
+             "shooterRatio":[0.00,0.10,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },   // ㉔ 포지션 0 = 무공격
   "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":56,
              "waveIntervalSec":9.0, "waveClearAdvance":true,
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
@@ -4772,7 +4784,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S5** | **보스 R1~R7 전부** + `partCount == 4` (finale는 5, `exemptRules` 적용) + ★ **`armor` 수 == 2** (finale는 `finale.armorPartCount` 3) + ★ **`tier == "final"` ⟺ `finale` 스테이지 전용 ⟺ `bossHpScale` 미적용** |
 | **S6** | **공정성** — ★ **`enemies.json > emitters`만** 검사(`fairness.playerWeaponsExempt`) — `telegraphSec`가 **3축의 `max`**(거동별 표 · 탄 상태 · 개체 클래스 — §7.4)를 만족, `speed ≤ 260`, 조준탄 ≤ 200, ★ **상태이상 탄 ≤ `maxBulletSpeed × statusBulletSpeedMul`(156)**, 틈 ≥ 46px, 스턴 ≥ 1.5s / ≤ 1.0s. ★ **v1.3: `minSpawnRadiusPx`(140)는 여기서 뺐다** — 발사 시점 플레이어 위치의 함수라 정적 검사 불가 → `certify.static.fairnessViolations`(런타임) |
 | **S7** | **동시 텔레그래프** — 보스 `patternSet`을 3페이즈 전부 전개해 **개체당 ≤ 2** 정적 검사 |
-| **S8** | **혼합 비율** — ★ **저작 리스트**(= `stages[].waves[]` 중 **`unlockStageMin ≤ s`인 레코드**, v1.3)의 **원시 개체 수**(= `count` 그대로, ★ **v1.4: 엘리트를 빼지 않는다** — §8.2) 기준 속성 비율이 `mix`에 **±3%p** (**중간보스·새떼·보스 제외** — 셋 다 `waves[]` 밖이라 동어반복이다). `mix`가 counter/prey 규칙(70/10/10/10)을 따르는지. ★ **실측: 전 31셀 0.0000%p** |
+| **S8** | **혼합 비율** — ★ **저작 리스트**(= `stages[].waves[]` 중 **`unlockStageMin ≤ s`인 레코드**, v1.3)의 **원시 개체 수**(= `count` 그대로, ★ **v1.4: 엘리트를 빼지 않는다** — §8.2) 기준 속성 비율이 `mix`에 **±3%p** (**중간보스·새떼·보스 제외** — 셋 다 `waves[]` 밖이라 동어반복이다). `mix`가 counter/prey 규칙(70/10/10/10)을 따르는지. ★ **실측: 전 31셀 0.0000%p** · ★ ㉔ ③ `stages.theme.offThemeHpMul ∈ [0.5, 1)` (테마 밖 속성은 약하다 — §8.2 ③) |
 | **S9** | **구조** — `stages[].element ∈ {water,fire,grass,null}` 이고 `null`은 `finale`만 · 무기 `levels` 정확히 8행 · `4 ≤ elementCapTotal < 3 × elementCapPerElement` · `rearIn`/`spawnEdge:"bottom"`은 `rearSpawnAllowed[stage]`일 때만 · 새떼에 `swarm*` 외 아키타입 금지 · ★ **`crisisElementRule == "finaleRotating"` ⟺ `stages[].id == "finale"`** (v1.3 — 불리언이 어휘값이 됐다) |
 | **S10** | **성장 예산** — ★ **v1.3 문면 수정**: 「XP 곡선으로 계산한 최대 레벨업 횟수」는 **정적 검사가 불가능**하다(파밍 정책의 함수다) → ★ **선언 상수 비교 + 유도 검사**로 바꾼다: `certify.static.growthBudget.maxLevelUps`(60) `<` `certify.static.growthBudget.minTotalSink`(67) ∧ **`minTotalSink`가 실제 데이터에서 유도된 값과 일치**(= 3 신규 무기 + Σ(무기 `maxLevel`−1) 28 + `elementCapTotal` 6 + Σ(패시브 `maxLevel`) 30 = **67**). **선언과 데이터가 갈라지면 실패** |
 | **S11** | **RNG 스트림** — ★ **명명된 9 스트림만**(v1.10 ⑦: 8 + `terrain`, §8.21) 사용, 스트림 간 공유 금지. `rng.pattern`만 적·플레이어 양쪽 접근 허용 |

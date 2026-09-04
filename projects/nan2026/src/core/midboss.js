@@ -31,6 +31,7 @@
 
 import { spawnMidBoss, spawnEnemy } from './state.js';
 import { formationPos } from './formations.js';
+import { offThemeHpMul } from './elements.js';   // §8.2 ③
 
 const ELEMENTS3 = ['fire', 'water', 'grass'];   // §4.1 — 노말을 뺀 3종(주입 후보)
 const EXIT_SPEED_PX = 220;                      // §8.9(v1.5) 퇴장 상승 속도(비행슈팅 «서서히 빠져나감»)
@@ -214,7 +215,7 @@ export function summon(world, e, def, dt) {
   let a = null;
   for (let i = 0; i < arch.length; i += 1) if (arch[i].id === sm.archetypeId) { a = arch[i]; break; }
   if (a === null) throw new Error(`midboss: 미지의 소환 아키타입 "${sm.archetypeId}" (§8.9-R9)`);
-  const hp = a.hp * curve.enemyHpScale[idx];
+  const hp = a.hp * curve.enemyHpScale[idx] * offThemeHpMul(world.data, themeElement(world), e.element);   // §8.2 ③ 소환도 잡몹이다
   // §12.1(v1.8) — 유령은 웨이브 예산 «밖»이므로 자기 예산을 갖는다. 새 키 0 —
   //   telegraphConcurrentMaxGlobal = enemyConcurrentMax × perEntity 와 같은 재사용식 파생이다.
   //   정적 산술: 웨이브 42 + 유령 42 + max(midBossCount) 5 = 89 ≤ caps.enemies 128 (S12 가 강제).

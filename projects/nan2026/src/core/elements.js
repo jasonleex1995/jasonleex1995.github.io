@@ -64,3 +64,13 @@ export function isInvestable(elements, element) {
 export function isElement(elements, element) {
   return elements.order.indexOf(element) >= 0;
 }
+
+/**
+ * §8.2 ③(v1.10 ㉔) — 테마 밖 속성의 HP 배율. 사용자(2026-09-05): 「늪은 풀이 메인이니까 풀 몹은 3방, 다른 속성은 2방 —
+ *   환경과 같은 속성이면 지금대로, 아닌 속성은 조금 더 약하게」. 테마 속성·노말(속성 없음)·최종(테마 없음)은 1.
+ *   잡몹 HP 의 단일 입구(enemies.enemyHp · midboss 소환)가 같이 부른다. 보스·중간보스는 대상이 아니다(§8.9·§8.11 자기 HP 곡선).
+ */
+export function offThemeHpMul(data, stageElement, element) {
+  if (stageElement === null || element === stageElement || element === 'normal') return 1;
+  return data.stages.theme.offThemeHpMul;
+}

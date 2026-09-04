@@ -21,6 +21,7 @@ import { TAU } from '../src/core/angle.js';
 import { formationPos } from '../src/core/formations.js';
 import { PHASE, initRun, tickRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
+import { offThemeHpMul } from '../src/core/elements.js';
 
 const dt = TICK_DT;
 
@@ -301,15 +302,19 @@ suite('enemies · 슬라이스 로스터 다양성 (피드백 #3 — 대비를 �
       }
     });
 
-    test('해금된 종만 실제로 스폰된다 (저작 로스터가 화면에 반영된다)', () => {
-      const w = mk(13);
+    test('해금된 종만 실제로 스폰된다 (저작 로스터가 화면에 반영된다) — 포지션 1(스테이지 1 은 무공격이라 도입종뿐, v1.10 ㉔)', () => {
+      const w = mkRun(loadData(), 13);
+      w.run.phase = PHASE.MOB; w.run.stageIndex = 1; w.run.order[1] = 'sea';
       silence(w);
-      const allowed = new Set(sliceRoster(w));
+      // 허용 = 그 스테이지·포지션에서 해금된 로스터(unlockStageMin ≤ 스테이지 번호) + 도입종 — 데이터가 유일한 출처(§8.7)
+      const st = w.data.stages.stages.find((x) => x.id === 'sea');
+      const allowed = new Set([st.introArchetypeId, ...st.roster.filter((r) => r.unlockStageMin <= w.run.stageIndex + 1).map((r) => r.archetypeId)]);
       const seen = new Set();
       for (let i = 0; i < 3000; i += 1) {
         step(w, makeInput(), dt);
         const items = w.enemies.items;
-        for (let j = 0; j < items.length; j += 1) if (items[j].alive) seen.add(items[j].archetypeId);
+        // 잡몹만 — 48초의 중간보스(archetypeId 없음)·보스는 로스터의 대상이 아니다(§8.9·§8.11)
+        for (let j = 0; j < items.length; j += 1) if (items[j].alive && !items[j].isBoss && items[j].midBossId === '') seen.add(items[j].archetypeId);
       }
       assert.gte(seen.size, 2, `≥2종 스폰됨 (실제 ${seen.size}종: ${[...seen].sort().join(', ')})`);
       for (const id of seen) {
@@ -496,7 +501,7 @@ suite('enemies · §8.19 구간과 비율 (v1.10 — 사용자 사양)', () => {
   test('② 다른 시드 → 공격형의 «자리»는 갈리고 «수»는 같다', () => {
     const d = loadData();
     const sig = (seed) => {
-      const w = mkRun(d, seed); w.run.phase = PHASE.MOB; w.run.stageIndex = 0;
+      const w = mkRun(d, seed); w.run.phase = PHASE.MOB; w.run.stageIndex = 1; w.run.order[1] = 'sea';   // 포지션 1 — 스테이지 1 은 공격형 0(㉔)
       enemies(w, TICK_DT);
       const rows = [];
       for (const e of w.enemies.items) if (e.alive) rows.push(`${e.idx}:${isShooter(d, e.archetypeId) ? 'S' : '-'}`);
@@ -556,5 +561,73 @@ suite('enemies · §8.19 구간과 비율 (v1.10 — 사용자 사양)', () => {
       for (let i = 1; i < xs.length; i += 1) { const g = xs[i] - xs[i - 1] - 2 * r; if (g > gap) gap = g; }
       assert.gte(gap, need, `줄의 최대 차선 ${gap.toFixed(1)}px ≥ ${need}px`);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('enemies · v1.10 ㉔ — 스테이지 1 은 안 쏜다 · 테마 밖 속성은 약하다 (§8.19 · §8.2 ③)', () => {
+  const isShooterId = (d, id) => { const a = d.enemies.archetypes.find((x) => x.id === id); return a !== undefined && a.attack !== null; };
+  /** 런 월드를 pos 에 세우고 phaseT 부터 sec 초 돌리며 «잡몹» 스폰 종을 모은다(중간보스·보스·소환 유령 제외) */
+  function mobsSeen(d, seed, pos, stageId, phaseT, sec, crisis) {
+    const w = mkRun(d, seed);
+    w.run.phase = PHASE.MOB; w.run.stageIndex = pos; w.run.order[pos] = stageId;
+    w.run.phaseT = phaseT;
+    if (crisis) { w.run.crisis = true; w.run.crisisAtSec = phaseT; }
+    w.player.hp = 1e9; w.player.hpMax = 1e9;
+    const seen = new Map();
+    for (let i = 0; i < Math.round(sec / TICK_DT); i += 1) {
+      step(w, makeInput(), TICK_DT);
+      for (const e of w.enemies.items) if (e.alive && !e.isBoss && e.midBossId === '' && !e.ghost) seen.set(`${e.gen}:${e.idx}`, e.archetypeId);
+    }
+    return { w, ids: [...seen.values()] };
+  }
+
+  test('포지션 0(스테이지 1): 초기 구간·위기 구간 모두 공격형 0 · 포지션 1 부터 > 0 (shooterRatio[0] = 0)', () => {
+    const d = loadData();
+    assert.eq(d.stages.curve.shooterRatio[0], 0, 'shooterRatio[0] = 0 — 사용자 결정 2026-09-05');
+    assert.gt(d.stages.curve.shooterRatio[1], 0, '포지션 1 부터 쏜다');
+    const early0 = mobsSeen(d, 3, 0, 'bog', 0, 12, false);
+    assert.gt(early0.ids.length, 50, `초기 구간에 몸은 많다 (${early0.ids.length})`);
+    assert.eq(early0.ids.filter((id) => isShooterId(d, id)).length, 0, '초기 구간 공격형 0');
+    assert.eq(early0.w.enemyBullets.live, 0, '적 탄 0');
+    const crisis0 = mobsSeen(d, 3, 0, 'bog', d.stages.phase.crisisStartSec, 10, true);
+    assert.gt(crisis0.ids.length, 50, `위기 구간에 새떼는 많다 (${crisis0.ids.length})`);
+    assert.eq(crisis0.ids.filter((id) => isShooterId(d, id)).length, 0, '위기 구간 공격형 0');
+    const early1 = mobsSeen(d, 3, 1, 'bog', 0, 12, false);
+    assert.gt(early1.ids.filter((id) => isShooterId(d, id)).length, 0, '포지션 1 초기 구간엔 공격형이 섞인다');
+    const crisis1 = mobsSeen(d, 3, 1, 'bog', d.stages.phase.crisisStartSec, 10, true);
+    assert.gt(crisis1.ids.filter((id) => isShooterId(d, id)).length, 0, '포지션 1 위기엔 공격형이 섞인다');
+  });
+
+  test('테마 밖 속성의 HP = 테마 속성 HP × offThemeHpMul · 최종(테마 없음)은 전부 같다 · 소환 유령도 같은 규칙', () => {
+    const d = loadData();
+    const mul = d.stages.theme.offThemeHpMul;
+    assert.ok(mul > 0 && mul < 1, `offThemeHpMul ${mul} ∈ (0,1)`);
+    // bog = 풀 테마, 먹이 = 물. 초기 벽은 전부 도입종(같은 아키타입) → HP 차이는 속성뿐
+    const w = mkRun(d, 5);
+    w.run.phase = PHASE.MOB; w.run.stageIndex = 2; w.run.order[2] = 'bog';
+    for (let i = 0; i < 120; i += 1) step(w, makeInput(), TICK_DT);
+    const byEl = {};
+    for (const e of w.enemies.items) {
+      if (!e.alive || e.isBoss || e.midBossId !== '' || e.archetypeId !== 'drifter') continue;
+      (byEl[e.element] = byEl[e.element] || new Set()).add(e.hpMax);
+    }
+    assert.ok(byEl.grass !== undefined && byEl.water !== undefined, `풀·물 둘 다 섰다 (${Object.keys(byEl).join(',')})`);
+    assert.eq(byEl.grass.size, 1, '테마 속성 HP 는 한 값'); assert.eq(byEl.water.size, 1, '먹이 속성 HP 도 한 값');
+    const hpG = [...byEl.grass][0]; const hpW = [...byEl.water][0];
+    assert.near(hpW, hpG * mul, 1e-9, `물(먹이) ${hpW} = 풀(테마) ${hpG} × ${mul}`);
+    assert.eq(Object.keys(byEl).length, 2, '두 속성뿐(§8.2 ②)');
+    // 최종 — 테마가 없으니 세 속성이 같은 HP
+    const f = mkRun(d, 6);
+    f.run.phase = PHASE.MOB; f.run.stageIndex = 5; f.run.order[5] = 'finale';
+    for (let i = 0; i < 120; i += 1) step(f, makeInput(), TICK_DT);
+    const hps = new Set();
+    for (const e of f.enemies.items) if (e.alive && !e.isBoss && e.midBossId === '' && e.archetypeId === 'drifter') hps.add(e.hpMax);
+    assert.eq(hps.size, 1, `최종: 도입종 HP 한 값 (${[...hps].join(',')})`);
+    // 소환 유령 — 중간보스 속성이 테마 밖이면 유령도 약하다(같은 입구 규칙)
+    assert.near(offThemeHpMul(d, 'grass', 'water'), mul, 1e-12, '헬퍼: 테마 밖');
+    assert.eq(offThemeHpMul(d, 'grass', 'grass'), 1, '헬퍼: 테마');
+    assert.eq(offThemeHpMul(d, 'grass', 'normal'), 1, '헬퍼: 노말은 대상이 아니다');
+    assert.eq(offThemeHpMul(d, null, 'fire'), 1, '헬퍼: 최종');
   });
 });

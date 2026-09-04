@@ -20,6 +20,8 @@ import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { weapons } from '../src/core/weapons/index.js';
+import { initRun, tickRun, PHASE } from '../src/core/stage.js';
+import { bossHook } from '../src/core/boss.js';
 
 const dt = TICK_DT;
 
@@ -27,9 +29,12 @@ const dt = TICK_DT;
 function mkSolo(seed = 1) {
   return createWorld({ data: loadData(), seed, weapons, hooks: { emitters } });
 }
-/** 스포너 + 이미터 (통합/결정성) */
+/** 스포너 + 이미터 (통합/결정성) — ★ v1.10 ㉔: 스테이지 1(포지션 0)은 «아예 안 쏜다»(shooterRatio 0)이므로 런을 세워 포지션 1 에서 본다 */
 function mkFull(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies, emitters } });
+  const w = createWorld({ data: loadData(), seed, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook } });
+  initRun(w);
+  w.run.order[1] = 'sea'; w.run.stageIndex = 1; w.run.phase = PHASE.MOB;
+  return w;
 }
 function arch(w, id) { return w.data.enemies.archetypes.find((a) => a.id === id); }
 function emit(w, id) { return w.data.enemies.emitters.find((e) => e.id === id); }
@@ -212,7 +217,7 @@ suite('emitters · attack:null 은 안 쏜다 (§8.5)', () => {
  *   v1.10: 도입 침묵은 «비율»로 대체됐다 — 첫 웨이브부터 공격형이 섞인다.
  */
 function ticksToFirstFire(w) {
-  // v1.10 비율 모델 — 공격형이 웨이브 0 부터 섞인다(shooterRatio[0] > 0). 두 웨이브 + 발사 유예면 충분하다.
+  // v1.10 비율 모델 — 포지션 1 부터 공격형이 웨이브 0 부터 섞인다(shooterRatio[1] > 0). 두 웨이브 + 발사 유예면 충분하다.
   const iv = w.data.stages.phase.waveIntervalSec;
   return Math.ceil((2 * iv + 6) * 60);
 }

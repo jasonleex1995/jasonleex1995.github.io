@@ -33,6 +33,7 @@ import { TAU } from './angle.js';
 const DEG2RAD = Math.PI / 180;
 const ANCHOR_SWAY_HZ = 0.35;   // §8.4 「좌우 소폭 왕복」의 주기. 진폭은 swayAmpPx 가 소유한다
 import { formationPos } from './formations.js';
+import { offThemeHpMul } from './elements.js';   // §8.2 ③ 테마 밖 속성 HP
 import { PHASE } from './stage.js';
 
 /** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 런 미구동(테스트) 시 폴백. */
@@ -201,11 +202,11 @@ function ensureSpawner(world) {
   return world.spawner;
 }
 
-/** §8.6 — hp = archetype.hp × band.hpMult × enemyHpScale[런포지션]. */
-function enemyHp(world, def) {
+/** §8.6 · §8.2 ③ — hp = archetype.hp × band.hpMult × enemyHpScale[런포지션] × offThemeHpMul(테마 밖 속성이면 < 1). 잡몹 HP 의 단일 입구. */
+function enemyHp(world, def, element) {
   const band = world.data.enemies.bands[def.band];
   const scale = world.data.stages.curve.enemyHpScale[world.spawner.curveIdx];
-  return def.hp * band.hpMult * scale;
+  return def.hp * band.hpMult * scale * offThemeHpMul(world.data, world.spawner.element, element);
 }
 
 /** §8.4 — moveId 별 하강 속도의 거처. dive.speed | weave.speed | anchor.enterSpeed … 를 유도한다. */
@@ -349,8 +350,6 @@ function spawnWave(world, s) {
   const def = s.archIndex[archetypeId];
   if (def === undefined) throw new Error(`enemies: 미지의 아키타입 "${archetypeId}" (§9.7)`);
   const introDef = s.archIndex[s.introId];
-  const hpShoot = enemyHp(world, def);
-  const hpChaff = enemyHp(world, introDef);
   // §8.19(v1.8) 도입 구간은 «탄을 쏘지 않는» 적만 서므로 별도 예산을 쓴다 — A층 상한은
   //   «위협»을 묶는 장치인데 무해한 벽은 성격이 다르다. 「화면을 가득 채운다」의 재료다.
   // §8.19(v1.10) 공격형 예산은 포지션 곡선을 탄다 — 비율 60~80% 를 42 로는 못 세운다(실측: 5·6 이 42·50% 에 멈췄다).
@@ -429,7 +428,7 @@ function spawnWave(world, s) {
     const elite = bakedElite || rerollElite;
     // 개체별로 종·체력이 갈린다 — 봉지가 정한 자리에 공격형(def) 또는 무공격(introDef).
     const born = spawnEnemy(world, shoot ? archetypeId : s.introId, element, _pos.x, _pos.y,
-      shoot ? hpShoot : hpChaff, shoot && elite);
+      enemyHp(world, shoot ? def : introDef, element), shoot && elite);   // §8.2 ③ 속성별 HP(테마 밖이면 약하다)
     // §12.1(v1.9) — 무공격 몸에 표식을 켠다. 이 한 줄이 「무해한 몸은 위협 예산을 먹지 않는다」다.
     if (born !== null && !shoot) born.introBody = true;
   }
@@ -464,14 +463,14 @@ function spawnCrisisSubWave(world, s, subWave) {
   const swarmMax = world.data.rules.fairness.swarmConcurrentMax;
   const el = crisisElement(s, subWave);
   const shooter = s.archIndex[ph.crisisShooterId];
-  const hpShoot = enemyHp(world, shooter);
+  const hpShoot = enemyHp(world, shooter, el);
   const ratio = world.data.stages.curve.shooterRatio[s.curveIdx];
 
   for (let i = 0; i < recs.length; i += 1) {
     const r = recs[i];
     if (r.subWave !== subWave) continue;
     const body = s.archIndex[r.bodyId];             // v1.10 ⑫ 서브웨이브의 몸 종(arc 새떼 / vWedge 화살)
-    const hpBody = enemyHp(world, body);
+    const hpBody = enemyHp(world, body, el);
     const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(사이클 총량 보존)
     const nShoot = Math.round(count * ratio);
     const bag = s.cbag;

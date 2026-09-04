@@ -58,7 +58,9 @@ suite('crisis/§8.10 새떼', () => {
         let wantShoot = 0;
         for (let i = 0; i < w.spawner.crisisPlan.length; i += 1) wantShoot += Math.round(w.spawner.crisisPlan[i] * ratio[pos]);
         assert.eq(st.lancer, wantShoot, `pos${pos} 공격형 = Σ round(count × ${ratio[pos]})`);
-        assert.gt(st.lancer, 0, `pos${pos} 공격형 > 0`);
+        // v1.10 ㉔(사용자): 스테이지 1 의 위기는 «아예 안 쏜다» — ratio 0 이면 공격형 0, 그 뒤부터 > 0
+        if (ratio[pos] === 0) assert.eq(st.lancer, 0, `pos${pos} 공격형 0 (ratio 0)`);
+        else assert.gt(st.lancer, 0, `pos${pos} 공격형 > 0`);
         if (ratio[pos] < 0.5) assert.gt(st.chaff, st.lancer, `pos${pos} 몸이 다수 (ratio ${ratio[pos]})`);
       }
     }
