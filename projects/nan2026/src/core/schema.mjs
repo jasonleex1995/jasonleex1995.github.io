@@ -499,7 +499,7 @@ function checkStages(c, s) {
     'waveIntervalSec', 'waveClearAdvance',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
     'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisShooterId',
-    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
+    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'drainRampSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {

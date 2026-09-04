@@ -530,7 +530,13 @@ function sectionSpeedMul(world) {
   if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) {
     // §8.19 ①(v1.10 ⑪) 배수 — 스폰이 멈춘 뒤 남은 무리는 «빠르게 흘러 나간다»(drain 2.2). 초기 속도(0.72)로는
     //   벽 한 벌이 19.5초 걸려 중간보스가 올 때 200기가 남았다(플레이 피드백: 「초반 몹이 다 안 사라졌는데 중간보스」).
-    if (run.phaseT >= mbAt[0] - ph.earlyDrainSec) return m.drain;
+    //   ★ ⑭ 배율은 drainRampSec(2.0) 동안 early → drain 으로 «서서히» 오른다 — 한 틱에 3배가 되면 「갑자기 빨라진다」로
+    //     읽힌다(플레이 피드백, 늪 1스테이지). 가속이 보이면 「무리가 무너져 흘러간다」로 읽힌다.
+    const t0 = mbAt[0] - ph.earlyDrainSec;
+    if (run.phaseT >= t0) {
+      const k = ph.drainRampSec > 0 ? Math.min(1, (run.phaseT - t0) / ph.drainRampSec) : 1;
+      return m.early + (m.drain - m.early) * k;
+    }
     return m.early;
   }
   return m.mid;

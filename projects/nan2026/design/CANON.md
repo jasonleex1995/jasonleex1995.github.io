@@ -2003,7 +2003,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 | 구간 | 언제 | 웨이브 | 그 밖에 | 속도 |
 |---|---|---|---|---|
 | **초기** | 0 ~ `midBossAtSec[pos][0] − earlyDrainSec` | 간격 `earlyWaveIntervalSec`(1.4) · 편대 `introFormationId`(wall) — «우루루» | — | `sectionSpeedMul.early` 0.72 |
-| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | ★ `sectionSpeedMul.drain` **2.2** (v1.10 ⑪) — 스폰이 멈춘 무리가 «빠르게 흘러 나간다». early 0.72 로는 벽 한 벌이 19.5초라 중간보스가 올 때 200기가 남았다(피드백: 「초반 몹이 다 안 사라졌는데 중간보스」). 실측 30초 잔존 포지션 1: 0 · 5: 9. S54 ⑦ = `earlyDrainSec × 하강속도 × drain ≥ arena.h + 2r` |
+| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | ★ `sectionSpeedMul.drain` **2.2** (v1.10 ⑪) — 스폰이 멈춘 무리가 «빠르게 흘러 나간다». early 0.72 로는 벽 한 벌이 19.5초라 중간보스가 올 때 200기가 남았다(피드백: 「초반 몹이 다 안 사라졌는데 중간보스」). ★ ⑭ 배율은 `phase.drainRampSec`(2.0) 동안 early → drain 으로 **서서히** 오른다 — 한 틱에 3배면 「갑자기 빨라진다」로 읽혔다(늪 1스테이지 피드백); 가속이 보이면 「무리가 무너져 흘러간다」다. 테마 효과가 아니라 전 테마 공통의 구간 규칙이다. 실측 30초 잔존 포지션 1: 0 · 5: 9. S54 ⑦ = `(earlyDrainSec − 램프) × 하강속도 × drain + 램프 × 하강속도 × early ≥ arena.h + 2r` |
 | **중간보스** | `midBossAtSec[pos][0]` ~ 위기 | **0** (`midBossSuspendsWaves`) — 몹이 적어야 «피할 수» 있다 | 첫 마리 = 소환자(`midBossFirstId`) → 유령이 «적당히» 흐른다(실측 13~20). 나머지는 다른 형태. 타이머 이탈 없음 | `sectionSpeedMul.mid` 1.0 |
 | **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | **0** (`crisisSuspendsWaves` true) — 대신 **새떼 사이클 반복**(`crisisSwarmLoop`, §8.10): 1.5초마다 호·쐐기 25기(× `swarmTotalScale`), 반지름 6~7, 속도 128·102 × 1.45, 테마 속성 100%, 공격형 = `shooterRatio[pos]` | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
 | **보스** | `mobPhaseSec` 이후 | — | §8.11~ | — |

@@ -838,7 +838,7 @@ function S2_files() {
     'waveClearAdvance', 'phaseEndAutocollect',
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
-    'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
+    'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'drainRampSec', 'midBossSuspendsWaves',
     'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
     'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec', 'statusStunMaxPerStage'], 'stages.phase');
   if (has(D.stages.phase, 'bossEntrySec')) {
@@ -3132,9 +3132,11 @@ function S54_sectionsAndRatio() {
       for (const s2 of st.stages) {
         const x = arch2[s2.introArchetypeId]; if (!x) continue;
         const sp = x.moveParams && x.moveParams.speed; if (!num(sp)) continue;
-        const travel = ph.earlyDrainSec * sp * sm.drain;
+        // v1.10 ⑭ 램프(drainRampSec) 동안은 보수적으로 early 배율로 센다
+        const ramp = num(ph.drainRampSec) ? Math.min(ph.drainRampSec, ph.earlyDrainSec) : 0;
+        const travel = (ph.earlyDrainSec - ramp) * sp * sm.drain + ramp * sp * (num(sm.early) ? sm.early : 1);
         const need = a2.h + 2 * x.radius;
-        if (travel < need) V('S54', `stages[${s2.id}]: 배수 ${ph.earlyDrainSec}초 × ${x.id} ${sp}px/s × drain ${sm.drain} = ${travel.toFixed(0)}px < 아레나 ${need}px — 중간보스가 올 때 벽이 남는다 (§8.19 ① 배수)`);
+        if (travel < need) V('S54', `stages[${s2.id}]: 배수 (${ph.earlyDrainSec} − 램프 ${ramp})초 × ${x.id} ${sp}px/s × drain ${sm.drain} + 램프 = ${travel.toFixed(0)}px < 아레나 ${need}px — 중간보스가 올 때 벽이 남는다 (§8.19 ① 배수)`);
       }
     }
   }

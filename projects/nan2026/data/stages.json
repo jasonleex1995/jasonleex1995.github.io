@@ -45,6 +45,7 @@
     "sectionSpeedMul": { "early": 0.72, "drain": 2.2, "mid": 1.0, "crisis": 1.45 },
     "earlyWaveIntervalSec": 1.4,
     "earlyDrainSec": 9,
+    "drainRampSec": 2.0,
     "midBossSuspendsWaves": true,
     "crisisWaves": [
       { "subWave": 1, "formationId": "arc",     "bodyId": "swarmChaff", "count": 37, "spawnEdge": "top" },
