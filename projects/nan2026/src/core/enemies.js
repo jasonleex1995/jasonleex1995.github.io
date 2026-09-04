@@ -147,9 +147,28 @@ function buildSpawner(world, stageId, curveIdx) {
   if (shooters.length === 0) throw new Error(`enemies: 스테이지 "${stageId}" 로스터에 공격형이 없다 (§8.19)`);
   // 봉지 — 웨이브마다 «공격형 자리»를 섞어 뽑는다. 크기는 풀 상한(caps.enemies), 핫패스 0 alloc.
   const bag = new Uint8Array(world.data.rules.caps.enemies);
+  // §8.2(v1.10 ④) 속성 봉지 — 비율의 출처는 «해금된 저작 리스트»의 count 가중 속성 분포(S8 이 mix ±3%p 를 지킨다).
+  //   v1.10 ①~③ 은 웨이브 레코드의 element 를 몸 전부에 찍었는데, 비율 모델이 몸 수를 밴드 하한(16)·예산으로
+  //   고쳐 쓰니 «작은 비테마 웨이브(2~6)» 가 16 이 되고 «큰 테마 웨이브(22~49)» 는 잘려 70/10/10/10 이
+  //   41/20/20/20 으로 무너졌다(실측 forest·bog 포지션 1). 개체 단위 봉지는 웨이브마다 정확히 mix 다.
+  const elemOrder = world.data.elements.order;
+  const elemW = new Float64Array(elemOrder.length);
+  let elemTot = 0;
+  for (let i = 0; i < waves.length; i += 1) {
+    const k = elemOrder.indexOf(waves[i].element);
+    if (k < 0) throw new Error(`enemies: 웨이브 element "${waves[i].element}" ∉ elements.order (§4.1)`);
+    elemW[k] += waves[i].count;
+    elemTot += waves[i].count;
+  }
+  if (elemTot <= 0) throw new Error(`enemies: "${stageId}" 해금 리스트의 count 합이 0 (§8.2)`);
+  for (let k = 0; k < elemW.length; k += 1) elemW[k] /= elemTot;
+  const ebag = new Uint8Array(world.data.rules.caps.enemies);
+  const equota = new Int32Array(elemOrder.length);
+  const erem = new Float64Array(elemOrder.length);
   return {
     stageId, curveIdx, waves, archIndex, roster,
     introId, ratio, shooters, bag,             // §8.19(v1.10) 무공격 칸 · 공격형 비율 · 공격형 로스터 · 봉지
+    elemOrder, elemW, ebag, equota, erem,      // §8.2(v1.10 ④) 속성 봉지 — 리스트 파생 가중치 · 몫 · 나머지
     waveIndex: 0, wavesSpawned: 0, nextWaveT: 0,
     element: stage.element,                    // §8.10 themePure 위기 속성
     crisisRule: stage.crisisElementRule,       // "themePure" | "finaleRotating"
@@ -216,6 +235,39 @@ function placement(world, wave, i, count, out, def, formOverride) {
   const formId = formOverride === undefined ? wave.formationId : formOverride;
   return formationPos(world, formId, i, count,
     a.x + a.w / 2, world.data.rules.view.spawnLineY, out);
+}
+
+/**
+ * §8.2(v1.10 ④) 속성 봉지 — count 칸에 스포너의 속성 가중치(elemW, 해금 리스트 파생)대로 속성 인덱스를 채우고
+ *   rng.spawn 으로 섞는다. 몫은 최대 나머지법(Hamilton): floor 합이 count 에 모자란 만큼 나머지가 큰 순으로 +1.
+ *   → 웨이브마다 각 속성의 마릿수가 «정확히» round 수준으로 맞고(σ 0), 자리만 매 판 다르다(§8.19 봉지와 같은 원리).
+ *   ★ 결정성 — 동률 나머지는 elements.order 순으로 깬다(순회 순서 고정). 0 alloc(§10.3).
+ */
+function fillElementBag(world, s, count) {
+  const n = s.elemOrder.length;
+  const quota = s.equota; const rem = s.erem; const ebag = s.ebag;
+  let used = 0;
+  for (let k = 0; k < n; k += 1) {
+    const exact = count * s.elemW[k];
+    quota[k] = Math.floor(exact);
+    rem[k] = exact - quota[k];
+    used += quota[k];
+  }
+  for (let left = count - used; left > 0; left -= 1) {     // 최대 나머지 순으로 +1
+    let best = -1;
+    for (let k = 0; k < n; k += 1) if (rem[k] > 0 && (best < 0 || rem[k] > rem[best])) best = k;
+    if (best < 0) {                                         // 방어(부동소수: 나머지 합 ≈ left) — 최대 가중치에 준다
+      best = 0;
+      for (let k = 1; k < n; k += 1) if (s.elemW[k] > s.elemW[best]) best = k;
+    }
+    quota[best] += 1; rem[best] = 0;
+  }
+  let w = 0;
+  for (let k = 0; k < n; k += 1) for (let q = 0; q < quota[k]; q += 1) ebag[w++] = k;
+  for (let i = count - 1; i > 0; i -= 1) {                  // Fisher–Yates
+    const j = Math.floor(world.rng.spawn.f() * (i + 1));
+    const t = ebag[i]; ebag[i] = ebag[j]; ebag[j] = t;
+  }
 }
 
 const _pos = { x: 0, y: 0 };   // 재사용(핫패스 0 alloc)
@@ -326,6 +378,9 @@ function spawnWave(world, s) {
     const j = Math.floor(world.rng.spawn.f() * (i + 1));
     const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
   }
+  // §8.2(v1.10 ④) 속성 봉지 — count 칸을 mix 로 나눈다(최대 나머지법 → 합이 정확히 count). 그 다음 셔플.
+  //   몸마다 속성이 다르므로 «한 웨이브 = 한 색»이 아니라 «매 순간 화면 ≈ mix» 다(테마가 항상 다수).
+  fillElementBag(world, s, count);
 
   // §12.1(v1.9) — 예산은 «자기 몫»을 센다: 도입 구간의 몸은 introConcurrentMax, 그 밖은
   //   enemyConcurrentMax(위협). 루프 진입 전 1회 계산 후 지역 증분(0 alloc·결정적).
@@ -345,7 +400,8 @@ function spawnWave(world, s) {
     //       곡선은 포지션(초반 0 → 최종 1.0)으로 오른다 → 테마가 셔플돼도 «초반 헐거움·후반 전면 엘리트».
     //       ★ 단락평가로 자격 개체만 rng.elite 를 뽑는다(결정성: 같은 시드 = 같은 엘리트열, §10.2).
     const el = world.data.rules.elite;
-    const eligible = el.bandAllowed.indexOf(def.band) >= 0 && el.elementAllowed.indexOf(wave.element) >= 0;
+    const element = s.elemOrder[s.ebag[i]];               // §8.2(v1.10 ④) 몸의 속성 = 속성 봉지
+    const eligible = el.bandAllowed.indexOf(def.band) >= 0 && el.elementAllowed.indexOf(element) >= 0;
     const chance = world.data.stages.curve.elitePerWaveChance[s.curveIdx];
     // §8.6(v1.7) — ★ 곡선이 «유일한 권위»다. v1.6 까지 베이크된 eliteIndex 는 곡선을 통째로
     //   무시했다: 스테이지 1 은 곡선이 0.0 인데도 웨이브의 34% 가 엘리트를 낳았고, 엘리트는
@@ -363,7 +419,7 @@ function spawnWave(world, s) {
     //   (실측: 걸었더니 스테이지 6 엘리트율이 1.2% 로 주저앉았다).
     const elite = bakedElite || rerollElite;
     // 개체별로 종·체력이 갈린다 — 봉지가 정한 자리에 공격형(def) 또는 무공격(introDef).
-    const born = spawnEnemy(world, shoot ? archetypeId : s.introId, wave.element, _pos.x, _pos.y,
+    const born = spawnEnemy(world, shoot ? archetypeId : s.introId, element, _pos.x, _pos.y,
       shoot ? hpShoot : hpChaff, shoot && elite);
     // §12.1(v1.9) — 무공격 몸에 표식을 켠다. 이 한 줄이 「무해한 몸은 위협 예산을 먹지 않는다」다.
     if (born !== null && !shoot) born.introBody = true;

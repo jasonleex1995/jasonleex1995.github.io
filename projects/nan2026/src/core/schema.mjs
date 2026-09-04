@@ -514,7 +514,7 @@ function checkStages(c, s) {
     const t = s.stages[i];
     const p = `stages.stages[${t && t.id}]`;
     if (!c.closed(p, t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'introArchetypeId', 'roster', 'mix', 'mixGranularity', 'waves'])) continue;
+      'introArchetypeId', 'roster', 'mix', 'waves'])) continue;
     if (c.arr(`${p}.roster`, t.roster)) {
       for (let j = 0; j < t.roster.length; j += 1) {
         c.closed(`${p}.roster[${j}]`, t.roster[j], ['archetypeId', 'unlockStageMin']);

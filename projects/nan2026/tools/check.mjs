@@ -859,7 +859,7 @@ function S2_files() {
   for (const t of rowsQuiet(D.stages.stages)) {
     if (!isObj(t)) continue;
     closedKeys('S2', t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'introArchetypeId', 'roster', 'mix', 'mixGranularity', 'waves'], `stages.stages[${t.id}]`);
+      'introArchetypeId', 'roster', 'mix', 'waves'], `stages.stages[${t.id}]`);
     for (const [dead, why] of [
       ['skinId', 'id 와 같다 → 삭제 (§9.9-⑥)'],
       ['elitesAtSec', '죽은 키 → 삭제 (§8.7)'],

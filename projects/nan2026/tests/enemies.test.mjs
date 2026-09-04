@@ -89,21 +89,47 @@ suite('enemies · 결정성 (§10.2 — rng.spawn 만 사용)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────
 suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
-  test('첫 웨이브: element 는 웨이브가 주입, 아키타입은 «공격형[0] ∨ 무공격 칸» (v1.10 비율 모델)', () => {
+  test('첫 웨이브: element 는 «속성 봉지»(mix 비율, 개체 단위)가 주입, 아키타입은 «공격형[0] ∨ 무공격 칸» (v1.10 ④)', () => {
     const w = mk(7);
     silence(w);
     const stage = w.data.stages.stages.find((s) => s.id === 'sea');
-    const wave0 = stage.waves.find((v) => v.unlockStageMin <= 1);
     const roster = sliceRoster(w);
     const shooters = roster.filter((id) => arch(w, id).attack !== null);
     for (let i = 0; i < 30; i += 1) step(w, makeInput(), dt);
     const alive = w.enemies.items.filter((e) => e.alive);
     assert.gt(alive.length, 0, '스폰됐다');
     for (const e of alive) {
-      assert.eq(e.element, wave0.element, 'element 는 웨이브가 주입한다');
       assert.ok(e.archetypeId === shooters[0] || e.archetypeId === stage.introArchetypeId,
         `아키타입 ${e.archetypeId} ∈ {공격형[0]=${shooters[0]}, 무공격=${stage.introArchetypeId}}`);
     }
+    // ★ 한 웨이브 안에서 각 속성의 마릿수 = count × 가중치 (최대 나머지법) — 「한 웨이브 = 한 색」이 아니다.
+    //   가중치의 출처 = 해금된 저작 리스트의 count 가중 분포(스포너 elemW). 테마(물)가 다수다.
+    const s = w.spawner;
+    const n = alive.length;
+    const byEl = {};
+    for (const e of alive) byEl[e.element] = (byEl[e.element] || 0) + 1;
+    for (let k = 0; k < s.elemOrder.length; k += 1) {
+      const el = s.elemOrder[k];
+      const got = byEl[el] || 0;
+      assert.ok(Math.abs(got - n * s.elemW[k]) < 1 + 1e-9, `${el}: ${got} ≈ ${n} × ${s.elemW[k].toFixed(3)} (반올림 이내)`);
+    }
+    assert.eq(Object.entries(byEl).sort((a, b) => b[1] - a[1])[0][0], stage.element, '테마 속성이 다수');
+    assert.gte(Object.keys(byEl).length, 2, '한 웨이브 안에 ≥2 속성 (개체 단위 봉지)');
+  });
+
+  test('속성 봉지의 가중치 = 해금 리스트의 count 가중 분포 (stages[].mix ±3%p 를 S8 이 지킨다)', () => {
+    const w = mk(3);
+    silence(w);
+    step(w, makeInput(), dt);
+    const s = w.spawner;
+    const stage = w.data.stages.stages.find((x) => x.id === s.stageId);
+    let sum = 0;
+    for (let k = 0; k < s.elemOrder.length; k += 1) {
+      sum += s.elemW[k];
+      const want = stage.mix[s.elemOrder[k]];
+      assert.ok(Math.abs(s.elemW[k] - want) <= 0.05 + 1e-9, `${s.elemOrder[k]}: 가중치 ${s.elemW[k].toFixed(3)} ≈ mix ${want}`);
+    }
+    assert.ok(Math.abs(sum - 1) < 1e-9, '가중치 합 1');
   });
 
   test('서로 다른 element 가 섞여 내려온다 (스탠스를 바꿀 이유)', () => {
