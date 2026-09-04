@@ -2,11 +2,53 @@
   "schemaVersion": 1,
   "maxLevel": 5,
   "traits": [
-    { "id":"regen",     "name":"자연 재생",  "desc":"초당 N HP 가 회복된다",
-      "effect": { "kind":"regenHpPerSec",  "values":[0.5, 0.75, 1.0, 1.25, 1.5] } },
-    { "id":"lifesteal", "name":"흡혈",      "desc":"적에게 준 피해의 N% 가 HP 로 돌아온다",
-      "effect": { "kind":"lifestealPct",   "values":[0.008, 0.011, 0.014, 0.017, 0.020] } },
-    { "id":"shield",    "name":"쉴드 생성",  "desc":"N초마다 피격 1회를 통째로 막는 쉴드가 생긴다",
-      "effect": { "kind":"shieldEverySec", "values":[20, 16, 13, 11, 9] } }
+    {
+      "id": "regen",
+      "name": "자연 재생",
+      "grant": "pick",
+      "desc": "초당 N HP 가 회복된다",
+      "effect": {
+        "kind": "regenHpPerSec",
+        "values": [
+          0.5,
+          0.75,
+          1.0,
+          1.25,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "shield",
+      "name": "쉴드 생성",
+      "grant": "pick",
+      "desc": "N초마다 피격 1회를 통째로 막는 쉴드가 생긴다",
+      "effect": {
+        "kind": "shieldEverySec",
+        "values": [
+          20,
+          16,
+          13,
+          11,
+          9
+        ]
+      }
+    },
+    {
+      "id": "lifesteal",
+      "name": "흡혈",
+      "grant": "boss",
+      "desc": "적에게 준 피해의 N% 가 HP 로 돌아온다 — 보스를 잡을 때마다 저절로 한 단계",
+      "effect": {
+        "kind": "lifestealPct",
+        "values": [
+          0.002,
+          0.003,
+          0.004,
+          0.005,
+          0.006
+        ]
+      }
+    }
   ]
 }

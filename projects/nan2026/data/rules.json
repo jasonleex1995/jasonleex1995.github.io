@@ -30,7 +30,7 @@
   },
 
   "caps": {
-    "playerBullets": 256,
+    "playerBullets": 512,
     "enemyBullets": 384,
     "enemies": 576,
     "pickups": 384,
@@ -357,6 +357,8 @@
     "playerFxCompositeAlpha": 0.45,
     "killFxCompositeAlpha": 0.55,
     "playerBulletMaxAlpha": 0.80,
+    "playerBulletDensityRef": 64,
+    "playerBulletMinAlpha": 0.20,
     "playerBulletMaxRadiusPx": 10,
     "particleMaxAlpha": 0.60,
     "particleMaxLifeSec": 0.35,

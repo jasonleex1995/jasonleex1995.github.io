@@ -20,7 +20,7 @@ import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
-import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx } from '../src/render/draw.js';
+import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
 import { drawPanels, drawResults, drawDraft } from '../src/render/hud.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
@@ -87,5 +87,23 @@ suite('render — 한 판 전 프레임이 던지지 않는다 (회귀망)', () 
     drawDraft(ctx, w, pal, draft, 0);
     drawResults(ctx, w, pal, tally(w), 'seed-3');
     assert.ok(true, '두 화면 모두 예외 없이 통과');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('render · §7.4 밀도 알파 (v1.10 ㉖ — 만렙 빌드의 백지 화면 회귀)', () => {
+  test('탄 수 ≤ densityRef 면 상한, 그 위로는 상한 × ref / live, minAlpha 아래로는 안 간다 — 총 밝기(수 × 알파)가 늘지 않는다', () => {
+    const d = loadData(); const r = d.rules.render;
+    assert.ok(r.playerBulletDensityRef > 0 && r.playerBulletMinAlpha > 0 && r.playerBulletMinAlpha < r.playerBulletMaxAlpha, '키가 있고 순서가 맞다');
+    assert.eq(bulletDensityAlpha(r, 0), r.playerBulletMaxAlpha, '0발 = 상한');
+    assert.eq(bulletDensityAlpha(r, r.playerBulletDensityRef), r.playerBulletMaxAlpha, 'ref 발 = 상한');
+    const a2 = bulletDensityAlpha(r, r.playerBulletDensityRef * 2);
+    assert.near(a2, r.playerBulletMaxAlpha / 2, 1e-12, '2배면 절반');
+    assert.near(2 * r.playerBulletDensityRef * a2, r.playerBulletDensityRef * r.playerBulletMaxAlpha, 1e-9, '수 × 알파 = 일정');
+    assert.eq(bulletDensityAlpha(r, 100000), r.playerBulletMinAlpha, '바닥 = minAlpha');
+    for (let n = 1; n < 600; n += 7) assert.ok(bulletDensityAlpha(r, n) >= bulletDensityAlpha(r, n + 7) - 1e-12, `단조 비증가 @${n}`);
+    // 풀 상한(caps.playerBullets)에서의 총 밝기가 ref × 상한의 몇 배인가 — 바닥 때문에 조금 넘지만 4배는 안 넘는다
+    const cap = d.rules.caps.playerBullets;
+    assert.ok(cap * bulletDensityAlpha(r, cap) <= 4 * r.playerBulletDensityRef * r.playerBulletMaxAlpha, `풀 상한 ${cap}발의 총 밝기 ≤ 4 × 기준`);
   });
 });

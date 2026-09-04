@@ -309,6 +309,7 @@ export function buildTraitDraft(world) {
   const cards = [];
   for (let i = 0; i < td.traits.length; i += 1) {
     const t = td.traits[i];
+    if (t.grant !== 'pick') continue;                       // §11.6 ㉖ — boss 획득(흡혈)은 고르는 게 아니다
     const lv = world.traits[t.id];
     if (lv >= td.maxLevel) continue;
     cards.push({

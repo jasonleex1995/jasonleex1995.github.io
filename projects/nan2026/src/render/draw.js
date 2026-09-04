@@ -681,13 +681,25 @@ function drawPickups(ctx, world, pal, interp, alpha) {
 // ---------------------------------------------------------------------------
 // 레이어 4 — 플레이어 탄 (§7.4: additive · 알파 ≤ playerBulletMaxAlpha · 외곽선 금지 · 속성 글리프)
 // ---------------------------------------------------------------------------
+/**
+ * §7.4(v1.10 ㉖) 밀도 알파 — 플레이어 탄의 알파는 «무대의 탄 수»의 함수다: live ≤ densityRef 면 상한(0.80), 그 위로는
+ *   상한 × densityRef / live 로 내려가되 minAlpha 아래로는 안 간다. 가산 합성(lighter)에서 탄이 200~500 발이면 겹친 자리가
+ *   전부 흰색으로 포화돼 화면이 «백지»가 됐다(플레이테스트 Lv99 최종 스테이지 — 만렙 6무기 + 다중 장전이 탄 풀 256 을 채웠다).
+ *   총 밝기 ≈ 일정(탄 수 × 알파 ≈ 상수)이 되어 «많이 쏘면 얇아진다». 순수 함수(테스트 가능).
+ */
+export function bulletDensityAlpha(r, live) {
+  if (live <= r.playerBulletDensityRef) return r.playerBulletMaxAlpha;
+  const a = r.playerBulletMaxAlpha * r.playerBulletDensityRef / live;
+  return a < r.playerBulletMinAlpha ? r.playerBulletMinAlpha : a;
+}
+
 function drawPlayerBullets(ctx, world, pal, interp, alpha) {
   const r = world.data.rules.render;
   const vb = world.data.rules.visual.playerBullet;
   const items = world.playerBullets.items;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';                  // §7.4 — additive
-  ctx.globalAlpha = r.playerBulletMaxAlpha;                  // §7.4 · §12.3 — 0.80 상한
+  ctx.globalAlpha = bulletDensityAlpha(r, world.playerBullets.live);   // §7.4 · §12.3 — 0.80 상한, 밀도로 내려간다(㉖)
   for (let i = 0; i < items.length; i += 1) {
     const b = items[i];
     if (!b.alive) continue;
@@ -1321,12 +1333,15 @@ function drawLance(ctx, world, pal, px, py) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const n = eff.count;
+    // §7.4(v1.10 ㉖) 빔 «다발»의 총 밝기는 한 줄과 같다 — 줄마다 알파를 √n 으로 나눈다(가산 합성에서 7줄이 흰 기둥이 됐다:
+    //   count 3 + 다중 장전 4, 폭 12 × 1.54 = 130px 의 백색 기둥). 폭·판정은 그대로(연출만).
+    const bundle = 1 / Math.sqrt(n);
     let bx = px - (n - 1) * eff.beamWidthPx * 0.5;
     for (let i = 0; i < n; i += 1) {
       let a; let w;
       if (firing) { const t = slot.a1 / eff.chargeSec; a = 0.75 * t; w = eff.beamWidthPx; }        // 섬광(감쇠)
       else { const c = 1 - slot.a0 / eff.chargeSec; a = 0.28 * c; w = eff.beamWidthPx * (0.35 + 0.65 * c); } // 차지
-      ctx.fillStyle = rgba(col, Math.min(a, cap));
+      ctx.fillStyle = rgba(col, Math.min(a * bundle, cap));
       ctx.fillRect(bx - w * 0.5, topY, w, length);
       bx += eff.beamWidthPx;
     }

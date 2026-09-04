@@ -22,6 +22,8 @@
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
   'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
 export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 v1.10 ㉒ — 특성 3종과 1:1(재생·흡혈·쉴드)
+/** §11.6 ㉖ 획득 경로 — pick = 구슬 드래프트에서 고른다 · boss = 스테이지 보스를 잡을 때마다 저절로 한 단계(고르지 않는다) */
+export const TRAIT_GRANTS = ['pick', 'boss'];
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -303,7 +305,7 @@ function checkRules(c, r) {
   }
 
   c.closed('rules.render', r.render, ['playerFxCompositeAlpha', 'killFxCompositeAlpha',
-    'playerBulletMaxAlpha', 'playerBulletMaxRadiusPx', 'particleMaxAlpha', 'particleMaxLifeSec',
+    'playerBulletMaxAlpha', 'playerBulletMaxRadiusPx', 'playerBulletDensityRef', 'playerBulletMinAlpha', 'particleMaxAlpha', 'particleMaxLifeSec',
     'fxMinRealMs', 'targetFps', 'degradeOnFrameMs', 'degradeRecoverFrames']);
   c.closed('rules.audio', r.audio, ['busGain', 'cueRateLimitPerSec']);
   if (isObj(r.audio)) c.closed('rules.audio.busGain', r.audio.busGain, ['sfx', 'bgm']);
@@ -566,7 +568,8 @@ function checkTraits(c, t) {
   for (let i = 0; i < t.traits.length; i += 1) {
     const x = t.traits[i];
     const p = `traits.traits[${i}]`;
-    c.closed(p, x, ['id', 'name', 'desc', 'effect']);
+    c.closed(p, x, ['id', 'name', 'grant', 'desc', 'effect']);
+    c.vocab(`${p}.grant`, x.grant, TRAIT_GRANTS);
     if (typeof x.id !== 'string' || x.id === '') c.fail(`${p}.id`, '빈 문자열');
     if (ids.has(x.id)) c.fail(`${p}.id`, `중복 id "${x.id}"`);
     ids.add(x.id);

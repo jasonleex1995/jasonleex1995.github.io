@@ -23,7 +23,7 @@ import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } f
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
-import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext, applyTrait } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 import { DEG2RAD, wrapAngle } from './angle.js';
 
@@ -708,6 +708,9 @@ function killBossEntity(world, e) {
     if (world.run !== undefined && !world.run.won && !isFinaleStage(world)) {
       const q = spawnPickup(world, 'trait', 1, e.x, e.y);
       if (q !== null) q.magnet = true;
+      // §11.6 ㉖ — grant "boss" 특성(흡혈)은 구슬과 «같은 순간» 저절로 한 단계. 고르지 않는다, 한 런 5보스 = 5레벨.
+      const defs = world.data.traits.traits;
+      for (let i = 0; i < defs.length; i += 1) if (defs[i].grant === 'boss') applyTrait(world, defs[i].id);
     }
     return;
   }

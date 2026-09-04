@@ -4,8 +4,9 @@
  * 커버:
  *   구슬   — 스테이지 보스 코어 격파 → 금색 구슬(kind 'trait') 이 자석으로 날아와 먹히면 traitQueue+1 · 그동안 STAGE_CLEAR 는 기다린다
  *            최종(테마 없음)은 구슬 없음
- *   드래프트 — 항상 세 특성 전부(데이터 순서, 무작위 없음) · 카드가 현재 레벨과 다음 값을 든다 · applyCard 가 레벨 +1 · traitQueue 소비
- *            · maxLevel 이면 그 카드는 빠진다 · 다섯 번 고르면 레벨 합 = 5
+ *   드래프트 — grant "pick" 특성 전부(데이터 순서, 무작위 없음) · 카드가 현재 레벨과 다음 값을 든다 · applyCard 가 레벨 +1 · traitQueue 소비
+ *            · maxLevel 이면 그 카드는 빠진다 · 다섯 번 고르면 pick 레벨 합 = 5
+ *   자동   — grant "boss"(흡혈)는 카드에 없고, 스테이지 보스 코어를 잡을 때마다 저절로 +1(최종은 아니다) (㉖)
  *   효과   — 자연 재생(레벨마다 초당 HP ↑) · 흡혈(실제로 깎은 HP × %, 오버킬 제외, 보스에도) · 쉴드(레벨마다 주기 ↓, 피격 1회 무효 + 재충전)
  *   봇     — 자연 재생을 올린다
  */
@@ -68,29 +69,45 @@ suite('traits — 구슬 (§11.6)', () => {
 });
 
 suite('traits — 드래프트 (§11.6 ㉒)', () => {
-  test('항상 세 특성 전부, 데이터 순서 그대로 · 카드는 현재 레벨과 다음 값 · applyCard 가 레벨 +1 · traitQueue 소비', () => {
+  test('pick 특성 전부, 데이터 순서 그대로 · boss 특성은 카드에 없다 · 카드는 현재 레벨과 다음 값 · applyCard 가 레벨 +1 · traitQueue 소비', () => {
     const w = mkRun(5, 'sea', 0);
     const td = w.data.traits;
+    const picks = td.traits.filter((t) => t.grant === 'pick');
+    assert.gte(picks.length, 2, 'pick ≥ 2');
+    assert.ok(td.traits.some((t) => t.grant === 'boss' && t.id === 'lifesteal'), '흡혈은 boss 획득');
     w.traitQueue = 1;
     const d1 = buildTraitDraft(w);
-    assert.eq(d1.cards.length, td.traits.length, '세 장');
-    assert.deepEq(d1.cards.map((c) => c.traitId), td.traits.map((t) => t.id), '데이터 순서(무작위 없음)');
+    assert.eq(d1.cards.length, picks.length, `${picks.length}장`);
+    assert.deepEq(d1.cards.map((c) => c.traitId), picks.map((t) => t.id), '데이터 순서(무작위 없음)');
+    assert.ok(!d1.cards.some((c) => c.traitId === 'lifesteal'), '흡혈 카드 없음');
     for (let i = 0; i < d1.cards.length; i += 1) {
       const c = d1.cards[i];
       assert.eq(c.category, 'trait'); assert.eq(c.level, 0, 'Lv0'); assert.eq(c.from, null, '처음엔 from 없음');
-      assert.eq(c.to, td.traits[i].effect.values[0], 'to = Lv1 값'); assert.eq(c.kind, td.traits[i].effect.kind);
+      assert.eq(c.to, picks[i].effect.values[0], 'to = Lv1 값'); assert.eq(c.kind, picks[i].effect.kind);
     }
     applyCard(w, d1.cards[1]);
     assert.eq(w.traitQueue, 0, '큐 소비');
-    assert.eq(w.traits[td.traits[1].id], 1, '레벨 1');
+    assert.eq(w.traits[picks[1].id], 1, '레벨 1');
     const d2 = buildTraitDraft(w);
-    assert.eq(d2.cards.length, td.traits.length, '여전히 세 장(같은 특성을 또 고를 수 있다)');
+    assert.eq(d2.cards.length, picks.length, '여전히 같은 수(같은 특성을 또 고를 수 있다)');
     const c1 = d2.cards[1];
-    assert.eq(c1.level, 1); assert.eq(c1.from, td.traits[1].effect.values[0]); assert.eq(c1.to, td.traits[1].effect.values[1], 'from → to = Lv1 → Lv2');
-    // 결정성 — rng 를 안 쓴다: 같은 상태 = 같은 제안, 그리고 draft 스트림이 안 움직인다
-    const before = w.rng.draft.f(); const w2 = mkRun(5, 'sea', 0); buildTraitDraft(w2); buildTraitDraft(w2);
-    void before;
-    assert.eq(buildTraitDraft(w2).cards.map((c) => c.traitId).join(','), td.traits.map((t) => t.id).join(','), '결정적');
+    assert.eq(c1.level, 1); assert.eq(c1.from, picks[1].effect.values[0]); assert.eq(c1.to, picks[1].effect.values[1], 'from → to = Lv1 → Lv2');
+    // 결정성 — rng 를 안 쓴다: 같은 상태 = 같은 제안
+    const w2 = mkRun(5, 'sea', 0); buildTraitDraft(w2); buildTraitDraft(w2);
+    assert.eq(buildTraitDraft(w2).cards.map((c) => c.traitId).join(','), picks.map((t) => t.id).join(','), '결정적');
+  });
+
+  test('흡혈은 스테이지 보스 코어를 잡을 때마다 저절로 +1 · 최종(테마 없음)은 아니다 · maxLevel 에서 멈춘다 (㉖)', () => {
+    const w = mkRun(3, 'sea', 0);
+    assert.eq(w.traits.lifesteal, 0, '처음 0');
+    const kill = (w2) => { w2.run.phase = PHASE.BOSS; w2.run.bossSpawned = false; w2.run.bossTimer = w2.data.stages.phase.bossTimerSec; tick(w2, 2); const c = core(w2); assert.ne(c, null); killEnemy(w2, c); };
+    kill(w);
+    assert.eq(w.traits.lifesteal, 1, '보스 1 → Lv1');
+    assert.eq(w.traitFx.lifestealPct, def(w, 'lifesteal').effect.values[0], 'fx 갱신');
+    assert.eq(w.traits.regen + w.traits.shield, 0, '고르는 특성은 그대로');
+    const f = mkRun(3, 'finale', 5);
+    kill(f);
+    assert.eq(f.traits.lifesteal, 0, '최종 보스는 구슬도 흡혈도 없다');
   });
 
   test('다섯 번 고르면 레벨 합 = 5 · maxLevel 인 특성은 카드에서 빠진다 · applyTrait 는 maxLevel 에서 false', () => {
@@ -105,7 +122,7 @@ suite('traits — 드래프트 (§11.6 ㉒)', () => {
     assert.eq(w.traits[id], td.maxLevel, '만렙');
     assert.eq(Object.values(w.traits).reduce((a, b) => a + b, 0), td.maxLevel, '레벨 합 = 구슬 수');
     assert.ok(!buildTraitDraft(w).cards.some((c) => c.traitId === id), '만렙 특성은 카드에서 빠진다');
-    assert.eq(buildTraitDraft(w).cards.length, td.traits.length - 1, '나머지 둘은 남는다');
+    assert.eq(buildTraitDraft(w).cards.length, td.traits.filter((t) => t.grant === 'pick').length - 1, '나머지 pick 은 남는다');
     assert.eq(applyTrait(w, id), false, 'maxLevel 초과 = false');
     assert.throws(() => applyTrait(w, 'nope'), '미지의 id 는 던진다');
   });

@@ -333,7 +333,7 @@ function drawLeftPanel(ctx, world, pal) {
     const state = def.effect.kind === 'shieldEverySec' ? (world.traitState.shieldReady ? ' · 준비됨' : ' · 충전 중') : '';
     ctx.fillStyle = rgba(pal.hud.accent, 0.9);
     ctx.beginPath(); ctx.arc(pad + 5, ty, 4, 0, Math.PI * 2); ctx.fill();
-    text(ctx, world, pal, `${def.name} Lv.${lv}`, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
+    text(ctx, world, pal, `${def.name} Lv.${lv}${def.grant === 'boss' ? ' · 보스마다 +1' : ''}`, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
     text(ctx, world, pal, `${val}${state}`, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
     ty += 34;
   }
