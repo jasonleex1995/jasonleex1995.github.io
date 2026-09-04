@@ -216,11 +216,15 @@ suite('midboss — 구간 (§8.19 v1.10 · 첫 마리 소환자 · 격파 = 위�
     const d = loadData(); const ph = d.stages.phase;
     const pos = ph.midBossAtSec.length - 1;                          // 최종 포지션 = 가장 많은 마릿수
     const at = ph.midBossAtSec[pos];
+    // 첫 시각에 «함께» 나오는 수 = at[0] 과 같은 시각의 칸 수 (v1.10 ③: 첫 둘은 동시)
+    let firstBatch = 0;
+    for (const t of at) if (t === at[0]) firstBatch += 1;
     for (let seed = 1; seed <= 12; seed += 1) {
       const w = mkDirected(seed, pos);
       tickTo(w, at[0] + 0.5);
       const first = liveMids(w);
-      assert.eq(first.length, 1, `시드 ${seed}: 첫 시각엔 1마리`);
+      assert.eq(first.length, firstBatch, `시드 ${seed}: 첫 시각엔 ${firstBatch}마리`);
+      // ★ 스폰 순서 = items 순서(빈 칸부터 채움) — 첫 칸이 소환자다
       assert.eq(first[0].midBossId, ph.midBossFirstId, `시드 ${seed}: 첫 마리 = ${ph.midBossFirstId}`);
       tickTo(w, at[at.length - 1] + 0.5);
       const all = liveMids(w);
@@ -231,24 +235,44 @@ suite('midboss — 구간 (§8.19 v1.10 · 첫 마리 소환자 · 격파 = 위�
     }
   });
 
+  test('첫 둘은 같은 시각에 함께 서고, 진입 x 슬롯이 다르다 (v1.10 ③ 시각표)', () => {
+    const d = loadData(); const ph = d.stages.phase;
+    for (let pos = 0; pos < ph.midBossAtSec.length; pos += 1) {
+      const at = ph.midBossAtSec[pos];
+      assert.ok(at.length >= 2, `포지션 ${pos + 1}: 하한 2마리 — 「소환자 하나 + 다른 형태」가 성립하려면 최소 둘`);
+      assert.eq(at[0], at[1], `포지션 ${pos + 1}: 첫 둘은 동시`);
+      const w = mkDirected(7, pos);
+      tickTo(w, at[0] + 0.5);
+      const mids = liveMids(w);
+      assert.eq(mids.length, 2, `포지션 ${pos + 1}: 첫 시각에 2마리`);
+      assert.ne(Math.round(mids[0].x), Math.round(mids[1].x), `포지션 ${pos + 1}: 같은 자리에 겹치지 않는다`);
+    }
+  });
+
   test('crisisOnMidBossClear — 예정 전원이 등장하고 전부 죽으면 «그 즉시» 위기, 원점은 그 시각', () => {
     const d = loadData(); const ph = d.stages.phase;
     assert.eq(ph.crisisOnMidBossClear, true, '정본이 격파 앞당김을 켜 뒀다');
-    const pos = 1;                                                    // 2마리(30, 35)
+    // 셋째가 «나중에» 예정된 포지션을 고른다 — 「전원 등장」 조건이 실제로 검사되게
+    let pos = -1;
+    for (let i = 0; i < ph.midBossAtSec.length; i += 1) {
+      const at = ph.midBossAtSec[i];
+      if (at.length >= 3 && at[at.length - 1] > at[0]) { pos = i; break; }
+    }
+    assert.ok(pos >= 0, '늦게 오는 마리가 있는 포지션이 있다');
     const at = ph.midBossAtSec[pos];
     const w = mkDirected(3, pos);
     tickTo(w, at[0] + 0.5);
     let mids = liveMids(w);
-    assert.eq(mids.length, 1, '첫 마리 등장');
-    killEnemy(w, mids[0]);
+    assert.ok(mids.length >= 1 && mids.length < at.length, '첫 시각엔 일부만 등장');
+    for (const e of mids) killEnemy(w, e);
     step(w, makeInput(), dt);
-    assert.eq(w.run.crisis, false, '둘째가 아직 예정이라 위기가 아니다 (전원 «등장» 조건)');
-    tickTo(w, at[1] + 0.5);
+    assert.eq(w.run.crisis, false, '아직 예정된 마리가 남아 위기가 아니다 (전원 «등장» 조건)');
+    tickTo(w, at[at.length - 1] + 0.5);
     mids = liveMids(w);
-    assert.eq(mids.length, 1, '둘째 등장');
-    assert.ne(mids[0].midBossId, ph.midBossFirstId, '둘째는 소환자가 아니다');
+    assert.ok(mids.length >= 1, '늦은 마리 등장');
+    for (const e of mids) assert.ne(e.midBossId, ph.midBossFirstId, '늦은 마리는 소환자가 아니다');
     const tKill = w.run.phaseT;
-    killEnemy(w, mids[0]);
+    for (const e of mids) killEnemy(w, e);
     step(w, makeInput(), dt);
     assert.eq(w.run.crisis, true, '전원 격파 = 즉시 위기 (crisisStartSec 보다 훨씬 이르다)');
     assert.lt(w.run.crisisAtSec, ph.crisisStartSec, '앞당겨졌다');
@@ -262,7 +286,7 @@ suite('midboss — 구간 (§8.19 v1.10 · 첫 마리 소환자 · 격파 = 위�
     const w = mkDirected(5, 0);
     tickTo(w, ph.crisisStartSec - dt);
     assert.eq(w.run.crisis, false, '상한 직전은 아직 중간보스 구간');
-    assert.eq(liveMids(w).length, 1, '살아 있다');
+    assert.eq(liveMids(w).length, ph.midBossAtSec[0].length, '전원 살아 있다');
     tickTo(w, ph.crisisStartSec + 0.5);
     assert.eq(w.run.crisis, true, '상한에서 위기');
     assert.eq(Math.abs(w.run.crisisAtSec - ph.crisisStartSec) <= dt, true, '원점 = 상한');
