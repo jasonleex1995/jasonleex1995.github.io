@@ -137,6 +137,25 @@ suite('draft/build', () => {
     const dr = buildDraft(w);
     assert.eq(catCount(dr.cards, 'newWeapon'), 0, 'newWeapon 카드 0');
   });
+
+  test('회귀(v1.10 ㉓ · 플레이테스트 「Lv13 에 보급 3장」) — 무기를 1개부터 만석까지 채우는 동안 후보가 있으면 폴백은 0장, 가중치는 전부 유한', () => {
+    const w = mkWorld();
+    const rp = w.data.rules.player;
+    assert.eq(w.data.meta.draft.newWeaponSlotScale.length, rp.weaponSlots, 'newWeaponSlotScale 길이 = weaponSlots');
+    const ids = w.data.weapons.weapons.map((x) => x.id);
+    w.draftsSeen = 5;
+    let owned = w.slots.filter((s) => s.weaponId !== null).length;
+    for (;;) {
+      const pool = candidates(w);
+      for (const c of pool) assert.ok(Number.isFinite(c.weight) && c.weight > 0, `${c.key}: 가중치 ${c.weight} 유한·양수 (무기 ${owned}개)`);
+      const dr = buildDraft(w);
+      assert.eq(catCount(dr.cards, 'resupply'), 0, `무기 ${owned}개: 유효 후보 ${pool.length}개인데 폴백이 나오면 안 된다`);
+      const next = ids.find((id) => !w.slots.some((s) => s.weaponId === id) && w.slots.some((s) => s.weaponId === null));
+      if (next === undefined || !giveWeapon(w, next)) break;
+      owned += 1;
+    }
+    assert.eq(owned, rp.weaponSlots, `만석(${rp.weaponSlots})까지 채웠다`);
+  });
 });
 
 suite('draft/pity', () => {

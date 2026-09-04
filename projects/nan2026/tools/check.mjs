@@ -2072,7 +2072,10 @@ function S20_formationExclusivity() {
 
 // ===========================================================================
 //  S21 — 드래프트 보장 상한 (§11.1)
-//  guarantee* 키의 동시 발동 최대 개수 ≤ optionCount − 1 (= 2)
+//  ① guarantee* 키의 동시 발동 최대 개수 ≤ optionCount − 1 (= 2)
+//  ② (v1.10 ㉓) newWeaponSlotScale 길이 = player.weaponSlots, 전부 양수 — 인덱스 = 보유 무기 수 − 1 이라 슬롯 수만큼 있어야 한다.
+//     ⑱ 이 슬롯을 4→6 으로 늘리며 이 배열을 안 늘렸고, 무기 5개째부터 가중치 NaN → weighted() 합이 NaN → 유효 후보가 있는데도
+//     폴백 3장(플레이테스트 2026-09-05 «Lv13 에 보급 3장»). 값의 «존재»는 게이트가 지킨다.
 // ===========================================================================
 function S21_draftGuarantees() {
   const d = D.meta.draft;
@@ -2083,6 +2086,13 @@ function S21_draftGuarantees() {
   if (gk.length > cap) {
     V('S21', `meta.draft: guarantee* 키 ${gk.length}개 [${gk.join(', ')}] > optionCount − 1 = ${cap} `
       + `— 보장이 optionCount 가 되면 3장 전부 카테고리 고정 = 선택 0 (§11.1/S21)`);
+  }
+  const ws = D.rules && D.rules.player && D.rules.player.weaponSlots;
+  const sc = d.newWeaponSlotScale;
+  if (!Array.isArray(sc) || !num(ws) || sc.length !== ws) {
+    V('S21', `meta.draft.newWeaponSlotScale 길이 ${Array.isArray(sc) ? sc.length : '?'} ≠ player.weaponSlots ${ws} — 인덱스 = 보유 무기 수 − 1, 모자라면 NaN 가중치가 드래프트 전체를 폴백으로 만든다 (§11.1 ②)`);
+  } else {
+    for (let i = 0; i < sc.length; i += 1) if (!num(sc[i]) || sc[i] <= 0) V('S21', `meta.draft.newWeaponSlotScale[${i}] = ${sc[i]} — 양수여야 한다 (§11.1 ②)`);
   }
 }
 

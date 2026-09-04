@@ -95,6 +95,9 @@ export function candidates(world) {
     //   §13.5.1 이 "무기 1개 보유 시 newWeapon 실효 가중치 60"(= 20 × 3.0)이라 검산했다
     //   → 인덱스 = 보유 무기 수 − 1.
     const scale = d.newWeaponSlotScale[nWeapons - 1];
+    // §9.3 폴백 금지 — 배열이 슬롯 수보다 짧으면 가중치가 NaN 이 되고, NaN 하나가 weighted() 의 합을 삼켜 «전 카테고리»가
+    //   추첨에서 사라진다(v1.10 ⑱ 회귀: 6칸으로 늘리며 이 배열을 안 늘려 무기 5개째부터 폴백 3장). 조용히 죽지 말고 던진다.
+    if (typeof scale !== 'number' || !(scale > 0)) throw new Error(`draft: meta.draft.newWeaponSlotScale[${nWeapons - 1}] 가 없다 — 길이는 player.weaponSlots(${rp.weaponSlots}) 여야 한다 (§11.1 · S21)`);
     const ws = world.data.weapons.weapons;
     for (let i = 0; i < ws.length; i += 1) {
       // §11.1 — 이미 보유한 무기는 newWeapon 후보에서 제외 (id == family 1:1)

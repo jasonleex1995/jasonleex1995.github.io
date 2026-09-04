@@ -3697,7 +3697,7 @@ weight(item) = categoryWeights[item.category] × modifier(item)
   "optionCount": 3,
   "slotAssign": "append",
   "categoryWeights": { "newWeapon":20, "weaponLevel":40, "elementLevel":20, "passive":20 },
-  "newWeaponSlotScale": [3.0, 1.5, 1.0],
+  "newWeaponSlotScale": [3.0, 1.5, 1.0, 1.0, 1.0, 1.0],   // ★ 길이 = player.weaponSlots(6) — v1.10 ㉓ (⑱ 이 6칸으로 늘리며 안 늘렸던 회귀 · S21 ②)
   "weaponLevelEvolutionBonus": 2.0,
   "elementFirstLevelBonus": 1.5,
   "passiveNewBonus": 1.3,
@@ -4785,7 +4785,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S18** ★ | **`mobility`의 진실성** — `movePattern == "holdCenter"` 인 보스는 `mobility` 부위 금지 |
 | **S19** ★ | **`zone`의 탄** — `emitterType == "zone"` ⟺ `bulletId == null` |
 | **S20** ★ | **편대 전용성** — `pincer` ⟺ `moveId == "strafe"` / `columnV` ⟺ `moveId == "column"` (**양방향** — §9.9.2) |
-| **S21** ★ | **드래프트 보장 상한** — `guarantee*` 키의 동시 발동 최대 개수 ≤ `optionCount − 1` (= 2) |
+| **S21** ★ | **드래프트 보장 상한** — `guarantee*` 키의 동시 발동 최대 개수 ≤ `optionCount − 1` (= 2) · ★ ㉓ ② `newWeaponSlotScale` 길이 = `player.weaponSlots`, 전부 양수(모자라면 NaN 가중치 → 후보가 있어도 폴백 3장 — 플레이테스트 「Lv13 에 보급」) |
 | **S22** ★ | **새떼 XP 상한** — ★ **v1.10 ⑥ «율» 기준**: `crisisTotal × swarmTotalScale[i] × swarmXp ÷ crisisCycleSec`(새떼 XP/초) ÷ `chaff.minPerWave × introXp ÷ earlyWaveIntervalSec`(초기 XP/초) ≤ **0.30**, 정의역 = 모든 `(theme, stage)` 쌍. 이유: 새떼는 위기 내내 반복되고 위기 길이는 격파 시각의 함수라 총량을 정적으로 못 세며, 비율 모델(§8.19)에서 실제 웨이브 몸 수는 저작 count 가 아니라 `chaff.minPerWave` 다 — 옛 분모(저작 리스트 Σ XP)는 두 번 낡았다. 실측 최악 0.19(finale s6). ~~지분 기준 `… ÷ (스테이지 i 저작 리스트 Σ XP)` ≤ 0.30~~ |
 | **S23** ★ | **코인원 균질성** — ★ **`themeDraw.pool`에 속한 테마**의 `roster` 4종 중 `turret`+`bruiser` 밴드가 **1~2종** (v1.3: `finale`은 15종이라 정의역 밖 — §13.2-⑪) |
 | **S24** ★ | **HP 배분** — 각 보스의 `Σ(armor 부위 hp) == core.hp × armorCoreRatio` (±1%) · 선택 부위 hp `== armor 부위 1개 hp × boss.optionalPartArmorRatio` (±5%) |
@@ -4947,7 +4947,7 @@ XP 곡선 (meta.json > xp: base 6, exp 1.32, levelUpsPerRunTarget 54):
 > - **판정 불변**: 화력 값이 이미 §13.5.1과 같으므로 **`dpsRef`도 `runFarmDpsRatio`도 안 움직인다.** 사다리와 누적 XP만 정합해진다.
 > - ★ **03-N3·N4가 이것을 minor로 정본에 올렸으나 §19/§20에 심사 행이 없었다 = 미심사**였다. **v1.3이 §19.6에 심사 행을 신설해 두 건 다 「채택」으로 처리**한다 — 정본의 규약(C-6 · §19의 전건 심사 · C-1)상 섹션 요청은 **채택/수정채택/기각 중 하나**여야 하고, v1.1(57건)·v1.2(23건)는 전건 심사했다.
 > - **폐기값 `27,029`를 전 문서 grep했다**(§21.4의 강화된 C-11).
-**스테이지 1 보스전 진입 시점의 픽 수 = 11.** 그리고 `guaranteeNewWeaponUntilSlots: 2` + `newWeaponSlotScale [3.0, 1.5, 1.0]`(= 무기 1개 보유 시 `newWeapon` 실효 가중치 60 > `weaponLevel` 40)에 의해 **11픽이면 무기 4칸이 이미 찬다** — 정본 §11.1이 직접 그렇게 말한다("4칸이 차기 전에는 `newWeaponSlotScale`이 획득을 강하게 밀어주므로 **만석 도달은 정상 진행**"). **「1무기 Lv2~3」은 정본의 드래프트 규칙과 모순이다.**
+**스테이지 1 보스전 진입 시점의 픽 수 = 11.** 그리고 `guaranteeNewWeaponUntilSlots: 2` + `newWeaponSlotScale [3.0, 1.5, 1.0, 1.0, 1.0, 1.0]`(= 무기 1개 보유 시 `newWeapon` 실효 가중치 60 > `weaponLevel` 40)에 의해 **11픽이면 무기 4칸이 이미 찬다** — 정본 §11.1이 직접 그렇게 말한다("4칸이 차기 전에는 `newWeaponSlotScale`이 획득을 강하게 밀어주므로 **만석 도달은 정상 진행**"). **「1무기 Lv2~3」은 정본의 드래프트 규칙과 모순이다.**
 
 **정본의 재산출 (같은 방법 = 실제 무기 수치, 03의 로스터 그대로)**
 ```
