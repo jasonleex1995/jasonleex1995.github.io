@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "maxLevel": 8,
+  "maxLevel": 10,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul"],
   "passives": [
-    { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40] },
-    { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40] },
-    { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",    "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] },
-    { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·바라지·노바·리턴에는 무효",    "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4] },
-    { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",    "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3] },
-    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×2.8까지 증폭 (×1·×0.5는 불변)",    "stat":"elementBonusMul",     "values":[1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8] },
-    { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",         "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8] },
-    { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255] },
-    { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",    "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48] },
-    { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",  "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26] },
-    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] }
+    { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
+    { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40,0.43,0.46] },
+    { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",    "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
+    { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·바라지·노바·리턴에는 무효",    "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4,5,5] },
+    { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",    "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3,3,4] },
+    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×3.0까지 증폭 (×1·×0.5는 불변)",    "stat":"elementBonusMul",     "values":[1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0] },
+    { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",         "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8,4.2,4.6] },
+    { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
+    { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",    "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
+    { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",  "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26,0.28,0.30] },
+    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] }
   ]
 }

@@ -9,7 +9,8 @@
                 "spreadDeg":0, "jitterDeg":1.5, "burstCount":1, "burstIntervalSec":0.07 },
       "levels": [ {}, {"dmg":7}, {"burstCount":2}, {"dmg":7},
                   {"count":2,"spreadDeg":6}, {"dmg":12,"cooldownSec":0.44},
-                  {"dmg":13,"pierce":1}, {"burstCount":3,"cooldownSec":0.40} ],
+                  {"dmg":13,"pierce":1}, {"burstCount":3,"cooldownSec":0.40},
+                  {"dmg":15}, {"dmg":17,"burstCount":4} ],
       "evolution": { "name":"오버드라이브", "desc":"맞지 않고 버틸수록 빨라진다",
                      "params": { "evoRampSec":3.0, "evoRampFireRateMul":1.55 },
                      "requiresPassive": { "id":"overclock", "level":3 } }
@@ -22,7 +23,8 @@
                 "arcDeg":40 },
       "levels": [ {}, {"dmg":4}, {"count":5,"arcDeg":50}, {"dmg":6},
                   {"count":7,"arcDeg":62,"cooldownSec":0.62}, {"dmg":9},
-                  {"dmg":11,"pierce":1}, {"count":11,"arcDeg":90,"dmg":13} ],
+                  {"dmg":11,"pierce":1}, {"count":11,"arcDeg":90,"dmg":13},
+                  {"dmg":15}, {"dmg":17,"count":13} ],
       "evolution": { "name":"플레어 팬", "desc":"탄이 사라진 자리에서 작게 터진다",
                      "params": { "evoBlastRadius":40, "evoSecondaryDmgMul":0.5 },
                      "requiresPassive": { "id":"autoload", "level":3 } }
@@ -36,7 +38,8 @@
                 "targetMode":"nearest" },
       "levels": [ {}, {"dmg":7}, {"count":2,"dmg":9}, {"dmg":12,"turnRateDegSec":320},
                   {"count":3}, {"dmg":13,"cooldownSec":0.75}, {"pierce":1},
-                  {"count":4,"dmg":14} ],
+                  {"count":4,"dmg":14},
+                  {"dmg":16}, {"dmg":18,"count":5} ],
       "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
                      "requiresPassive": { "id":"autoload", "level":3 } }
@@ -49,7 +52,8 @@
                 "beamWidthPx":10, "chargeSec":0.35, "rangePx":420 },
       "levels": [ {}, {"dmg":15}, {"pierce":5,"rangePx":520}, {"dmg":22,"cooldownSec":1.45},
                   {"dmg":32}, {"count":2,"beamWidthPx":12}, {"dmg":46,"pierce":8},
-                  {"count":3,"dmg":60,"cooldownSec":1.30} ],
+                  {"count":3,"dmg":60,"cooldownSec":1.30},
+                  {"dmg":70}, {"dmg":80,"cooldownSec":1.15} ],
       "evolution": { "name":"레일건", "desc":"화면 끝까지 뚫고, 앞의 적을 전부 꿴다",
                      "params": { "evoFullHeight":true },
                      "requiresPassive": { "id":"coating", "level":3 } }
@@ -61,7 +65,8 @@
                 "orbitRadius":90, "angularSpeedDegSec":90, "bodyCount":2 },
       "levels": [ {}, {"dmg":7}, {"bodyCount":3}, {"dmg":10,"angularSpeedDegSec":120},
                   {"bodyCount":4}, {"dmg":14,"hitCooldownSec":1.00},
-                  {"dmg":18}, {"bodyCount":5,"dmg":20,"hitCooldownSec":0.90} ],
+                  {"dmg":18}, {"bodyCount":5,"dmg":20,"hitCooldownSec":0.90},
+                  {"dmg":24}, {"dmg":28,"bodyCount":6} ],
       "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다",
                      "params": { "evoBulletClearCooldownSec":1.0 },
                      "requiresPassive": { "id":"reactive", "level":3 } }
@@ -71,7 +76,8 @@
       "elementStampMode": "live",
       "base": { "radius":70, "slowMul":0.50 },
       "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
-                  {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148} ],
+                  {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148},
+                  {"radius":162}, {"radius":176,"slowMul":0.40} ],
       "evolution": { "name":"싱귤래리티", "desc":"적 탄이 아예 멈추고, 잡몹이 끌려온다",
                      "params": { "evoPullForce":90 },
                      "requiresPassive": { "id":"coil", "level":3 } }
@@ -84,7 +90,8 @@
                 "outRangePx":240, "returnSpeed":320, "canRehit":true, "bounceLeft":2, "spacingDeg":12 },
       "levels": [ {}, {"dmg":6}, {"count":2,"outRangePx":300}, {"dmg":9,"returnSpeed":380},
                   {"dmg":12,"cooldownSec":1.00}, {"count":3,"dmg":13},
-                  {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95} ],
+                  {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95},
+                  {"dmg":24}, {"dmg":28,"count":4} ],
       "evolution": { "name":"체인 리턴", "desc":"돌아오는 길에 가까운 적들을 들른다",
                      "params": { "evoChainCount":3 },
                      "requiresPassive": { "id":"autoload", "level":3 } }
@@ -98,7 +105,8 @@
       "levels": [ {}, {"dmg":34}, {"strikesPerVolley":2,"cooldownSec":2.05},
                   {"dmg":44,"blastRadius":52}, {"strikesPerVolley":3,"dmg":74},
                   {"dmg":72,"cooldownSec":1.90}, {"dmg":110,"blastRadius":58,"telegraphSec":0.45},
-                  {"dmg":77,"cooldownSec":2.40,"targetMode":"densest"} ],
+                  {"dmg":77,"cooldownSec":2.40,"targetMode":"densest"},
+                  {"dmg":90}, {"dmg":105,"strikesPerVolley":4} ],
       "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
                      "params": { "evoRadiusMul":2.0 },
                      "requiresPassive": { "id":"coil", "level":3 } }
@@ -116,7 +124,8 @@
                   {"droneCount":3,"anchorOffsets":[[-40,-18],[40,-18],[0,-52]]},
                   {"dmg":14,"pierce":1},
                   {"droneCount":4,"dmg":16,"droneFireSec":0.46,
-                   "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]} ],
+                   "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]},
+                  {"dmg":19}, {"dmg":22,"droneFireSec":0.42} ],
       "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라와 궤적을 넓게 쓴다",
                      "params": { "evoTrailDelaySec": 2.5 },
                      "requiresPassive": { "id":"afterimage", "level":3 } }
@@ -128,7 +137,8 @@
                 "actionSlowSec":1.20 },
       "levels": [ {}, {"dmg":40}, {"radius":150,"intervalSec":4.50}, {"dmg":60},
                   {"radius":180,"dmg":75}, {"dmg":110,"intervalSec":4.00},
-                  {"dmg":150,"radius":210}, {"dmg":230,"intervalSec":3.20,"radius":240} ],
+                  {"dmg":150,"radius":210}, {"dmg":230,"intervalSec":3.20,"radius":240},
+                  {"dmg":280}, {"dmg":340,"intervalSec":2.9} ],
       "evolution": { "name":"슈퍼노바", "desc":"폭발이 더 멀리 퍼지고, 더 오래 늦춘다",
                      "params": { "evoRing2Radius":320, "evoSecondaryDmgMul":0.5, "evoActionSlowSec":2.40 },
                      "requiresPassive": { "id":"coil", "level":3 } }

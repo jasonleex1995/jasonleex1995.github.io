@@ -1620,13 +1620,14 @@ function S9_structure() {
   for (const w of rowsQuiet(D.weapons.weapons)) {
     if (!isObj(w)) continue;
     if (!Array.isArray(w.levels)) { V('S9', `weapons[${w.id}].levels: 배열이 아니다 (§9.5)`); continue; }
-    if (w.levels.length !== 8) V('S9', `weapons[${w.id}].levels: ${w.levels.length}행 ≠ 8행 (§9.5)`);
+    if (w.levels.length !== 10) V('S9', `weapons[${w.id}].levels: ${w.levels.length}행 ≠ 10행 (§9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 강화)`);
   }
 
   // (3) 4 ≤ elementCapTotal < 3 × elementCapPerElement (§4.2)
   if (isObj(pl) && num(pl.elementCapTotal) && num(pl.elementCapPerElement)) {
-    if (!(pl.elementCapTotal >= 4 && pl.elementCapTotal < 3 * pl.elementCapPerElement)) {
-      V('S9', `player.elementCapTotal(${pl.elementCapTotal}) ∉ [4, 3 × elementCapPerElement(${pl.elementCapPerElement}) = ${3 * pl.elementCapPerElement}) (§4.2)`);
+    if (!(pl.elementCapTotal >= 4 && pl.elementCapTotal <= 3 * pl.elementCapPerElement)) {
+      // v1.10 ⑱ — 사용자 결정 「속성은 모두 다 채울 수 있게」: 합계 상한이 3 × 개별 상한과 «같을 수» 있다(전 속성 만렙 허용). ~~<~~
+      V('S9', `player.elementCapTotal(${pl.elementCapTotal}) ∉ [4, 3 × elementCapPerElement(${pl.elementCapPerElement}) = ${3 * pl.elementCapPerElement}] (§4.2)`);
     }
   }
 
@@ -1694,7 +1695,7 @@ function S9_structure() {
 //  S10 — 성장 예산 (§11.1 · §13.1 static.growthBudget)
 //  ★ v1.3 문면 수정: 선언 상수 비교 + 유도 검사
 //     maxLevelUps(60) < minTotalSink(67) ∧ minTotalSink 가 실제 데이터 유도값과 일치
-//     (= 3 신규 무기 + Σ(무기 maxLevel−1) 28 + elementCapTotal 6 + Σ(패시브 maxLevel) 30 = 67)
+//     (v1.10 ⑱: 5 신규 무기 + Σ(무기 maxLevel−1) 54 + elementCapTotal 12 + Σ(패시브 maxLevel) 60 = 131)
 // ===========================================================================
 function S10_growthBudget() {
   const g = D.meta.certify && D.meta.certify.static && D.meta.certify.static.growthBudget;
@@ -1707,8 +1708,8 @@ function S10_growthBudget() {
   const pl = D.rules.player;
   if (isObj(pl) && num(D.passives.maxLevel) && num(pl.weaponSlots)
       && num(pl.elementCapTotal) && num(pl.passiveSlots)) {
-    const newWeapon = pl.weaponSlots - 1;                    // 시작 무기 1 지급 → 4칸 중 3칸
-    const weaponLevel = pl.weaponSlots * 7;                  // Σ(무기 maxLevel−1) = 4무기 × (8−1)
+    const newWeapon = pl.weaponSlots - 1;                    // 시작 무기 1 지급 → 6칸 중 5칸
+    const weaponLevel = pl.weaponSlots * 9;                  // Σ(무기 maxLevel−1) = 6무기 × (10−1) (v1.10 ⑱)
     const elementLevel = pl.elementCapTotal;                 // elementCapTotal
     const passive = pl.passiveSlots * D.passives.maxLevel;   // Σ(패시브 maxLevel) = 6칸 × Lv5
     const derived = newWeapon + weaponLevel + elementLevel + passive;

@@ -258,7 +258,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 반응 시상수 | `player.moveResponseTau` | **0.0** (Sec) — ★ v1.10 ⑦: 물 지형(`inertia`) 위에서는 이 항 대신 `rules.terrain.inertia.responseTauSec`(0.35)가 쓰인다(§8.21). «항은 존재하고 값이 0»이 처음으로 값을 가진 자리 |
 | 대각선 정규화 | `player.diagonalNormalize` | **true** (×0.70710678) |
 | SOCD (반대키 동시) | `input.socd` | **`"lastInput"`** — 마지막에 눌린 키 우선 |
-| 이동 속도 상한 | (파생: 패시브 `moveSpeedMul` 최대 **26%** — v1.10 ⑯ 8레벨 · ~~상점 3스택~~ 은 v1.5 에 폐지) | 280 × 1.26 = **352.8** · ~~280 × 1.18 × 1.20 = 396.5~~ |
+| 이동 속도 상한 | (파생: 패시브 `moveSpeedMul` 최대 **30%** — v1.10 ⑱ 10레벨 · ~~상점 3스택~~ 은 v1.5 에 폐지) | 280 × 1.30 = **364** · ~~352.8~~ ~~396.5~~ |
 
 - `velocity = dir × moveSpeed`. **가속/감속 없음, 즉시 정지.** 관성 = 미세 조작 실패 = 트위치 = 기둥 위반.
 - 코드에 지수 스무딩 항이 **존재하고** 기본값이 0이다 → "살짝 미끄럽게"가 필요해도 **숫자만** 바뀐다.
@@ -443,11 +443,12 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 항목 | 키 | 값 |
 |---|---|---|
 | 투자 가능 속성 | `elements.investable` | **`["fire", "water", "grass"]`** — **노말은 투자축이 아니다.** 드래프트에 `노말 +1` 카드는 존재하지 않는다 |
-| 개별 상한 | `player.elementCapPerElement` | **3** (= `player.elementSlots`, 속성 슬롯 수) |
-| **합계 상한** | `player.elementCapTotal` | **6** (튜너블) |
-| 합계 상한 제약 | check.mjs | `4 ≤ elementCapTotal < 3 × elementCapPerElement` |
+| 개별 상한 | `player.elementCapPerElement` | **4** (= `player.elementSlots`, 속성 슬롯 수) — v1.10 ⑱ · ~~3~~ |
+| **합계 상한** | `player.elementCapTotal` | **12** (= 3 × 4, **전 속성 만렙 가능**) — v1.10 ⑱ · ~~6~~ |
+| 합계 상한 제약 | check.mjs S9 | `4 ≤ elementCapTotal ≤ 3 × elementCapPerElement` (v1.10 ⑱: 등호 허용 · ~~<~~) |
 
-- **합계 6의 근거**: 개별 4만 있으면 `불4·물4·풀4` = 항상 최적 매칭 = 문서가 막으려던 붕괴. 합계 6이면 `4/2/0`·`3/3/0`·`2/2/2` 같은 **진짜 다이얼**이 생기고, `4/2/0` 빌드는 남은 한 속성의 테마 스테이지를 전부 무속성(×1)으로 싸운다 = 설계된 대가.
+- ★ **v1.10 ⑱ (사용자 결정 2026-09-04) — 「속성은 모두 4개 다 채울 수 있는 방향으로」**: 합계 상한이 3 × 4 = 12 로 열렸다. 아래 「합계 6의 근거」는 v1.0~v1.10 ⑰ 의 기록이다 — 몸을 두 배로 늘린 뒤(§8.19 ⑤) 레벨업이 예산의 1.5배가 됐고 XP 를 줄이지 않기로 했으므로, 성장 «칸»을 넓히는 쪽(속성 12 · 무기 6칸 Lv10 · 패시브 6칸 Lv10 = 131칸)을 택했다. 최종 보스의 3속성 커버리지 시험은 «만렙 여부»가 아니라 «스탠스 전환의 타이밍»으로 남는다(§4.3 부여 = 슬롯 1..N 이라 N=4 여도 유틸 2칸은 노말).
+- ~~**합계 6의 근거**~~: 개별 4만 있으면 `불4·물4·풀4` = 항상 최적 매칭 = 문서가 막으려던 붕괴. 합계 6이면 `4/2/0`·`3/3/0`·`2/2/2` 같은 **진짜 다이얼**이 생기고, `4/2/0` 빌드는 남은 한 속성의 테마 스테이지를 전부 무속성(×1)으로 싸운다 = 설계된 대가.
 - 초안 C의 8은 **`4/4/0`을 허용**해 3속성 중 2개를 만렙으로 만든다 → 최종 보스(3속성 armor 관)의 커버리지 시험이 무뎌진다. **6 채택.**
 
 ### 4.3 부여 (스탠스)
@@ -2387,8 +2388,8 @@ data/bosses.json     data/stages.json     data/meta.json
                "lowHpThreshold":0.30, "lowHpCriticalThreshold":0.15,
                "magnetRadius":90, "startStance":"normal",
                "stanceSwitchCooldown":0.0, "stancePersistAcrossStages":true,
-               "elementCapPerElement":3, "elementCapTotal":6,
-               "weaponSlots":5, "elementSlots":3, "passiveSlots":5, "lives":0 },
+               "elementCapPerElement":4, "elementCapTotal":12,
+               "weaponSlots":6, "elementSlots":4, "passiveSlots":6, "lives":0 },
   "status":  { "slowMoveSpeedMul":0.55, "stackMode":"refresh", "resistAffects":"duration" },
   "bomb":    { "stockStart":1, "stockMax":3, "iframeSec":1.5,
                "mobDmg":9999, "clearsEnemyBullets":true, "clearsDuringBoss":true,
@@ -2678,7 +2679,7 @@ data/bosses.json     data/stages.json     data/meta.json
 | `family` 변경 | **금지.** 진화해도 슬롯의 패밀리 정체성은 유지된다. 초안 F의 `evolution.family` 변경(seeker→drone)은 폐기 — 계약이 두 개 겹치고 슬롯 정체성이 몰래 바뀐다 |
 | 진화 `flags` | **폐기.** 초안 C의 `flags: ["distinct_targets", ...]` 임의 문자열은 AI가 발명할 수 있다 → `evolution.params`의 선언된 `evo*` 키로만 |
 | 불가역 / 슬롯 | 진화체는 **같은 슬롯 인덱스 유지** → 슬롯 순서·임뷰 계산에 특별 취급 없음. 스탠스 임뷰도 동일하게 받는다 |
-| Lv 종료 | Lv8에서 종료. Lv9 없음 → `weaponLevel` 풀에서 제외 |
+| Lv 종료 ★v1.10 ⑱ | **Lv10 에서 종료.** Lv8 = 진화(`WEAPON_EVOLVE_LEVEL`, 짝 패시브 Lv3) · **Lv9·10 = 진화체 강화**(같은 `levels[]` 행, 기본 키만 — 진화 뒤에만 올 수 있으므로 구조상 «진화체»를 키운다). `WEAPON_MAX_LEVEL` 10 은 `schema.mjs` 가 소유하고 draft·state·hud 가 읽는다. 사용자(2026-09-04) 「무기 10레벨」 — 진화를 10으로 미루는 대신 8에 두고 9·10 을 후반 성장 칸으로(진화가 중반의 보상 순간이라). ~~Lv8에서 종료. Lv9 없음~~ |
 
 **★★ 진화 짝 패시브 표 (v1.5 확정 · 값은 `weapons[].evolution.requiresPassive` 소유 · `check.mjs` S41)**
 
@@ -2818,35 +2819,35 @@ data/bosses.json     data/stages.json     data/meta.json
 
 ### 9.6 `passives.json` — 폐쇄 스탯 어휘 (12종, 12 패시브와 1:1)
 
-> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×8 = 88값**(v1.10 ⑯ · ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
+> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
 ```json
-{ "schemaVersion": 1, "maxLevel": 8,
+{ "schemaVersion": 1, "maxLevel": 10,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul","coinGainMul"],
   "passives": [
     { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",
-      "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40] },
+      "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
     { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",
-      "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40] },
+      "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40,0.43,0.46] },
     { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",
-      "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] },
+      "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
     { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·마인필드·바라지·노바·리턴에는 무효",
-      "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4] },
+      "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4,5,5] },
     { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",
-      "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3] },
-    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×2.8까지 증폭 (×1·×0.5는 불변)",
-      "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50,1.60,1.70,1.80] },
+      "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3,3,4] },
+    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×3.0까지 증폭 (×1·×0.5는 불변)",
+      "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50,1.60,1.70,1.80,1.90,2.00] },
     { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",
-      "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8] },
+      "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8,4.2,4.6] },
     { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",
-      "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255] },
+      "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",
-      "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48] },
+      "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
     { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",
-      "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26] },
+      "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26,0.28,0.30] },
     { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",
-      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] },
+      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
     { "id":"salvage",    "name":"노획 프로토콜","desc":"획득 코인 증가",
       "stat":"coinGainMul",         "values":[0.12,0.22,0.30,0.37,0.43] }
   ]
@@ -2867,7 +2868,7 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 | **각 패시브 = 엔진 훅 정확히 1개** | `stat` 필드 하나. 엔진에 훅이 없는 스탯은 존재할 수 없다 |
 | ★ **필드 집합 = `{id, name, desc, stat, values}`** | **5개, 동결** (v1.3: `desc` 추가). `levels`·`maxLevel`은 **개체 필드가 아니다** — `maxLevel`은 파일 루트의 스칼라이고 레벨 표현은 `values` 5칸이 전담한다(§9.3의 부분 오버라이드 예외는 **`weapons[].levels[i]` 하나뿐**) |
 | **`values` 의미** | ★ **각 레벨의 절대 총량이지 증분이 아니다.** `coating` Lv3 = `pierce +2` (누적 +4 아님) |
-| ★ **`values`의 길이** | **정확히 `maxLevel`(**8** — v1.10 ⑯, ~~5~~)행.** `check.mjs` **S35**: 11행 전부 `len(values) == maxLevel`. ★ v1.10 ⑯(사용자 2026-09-04): 몸을 두 배로 늘려 레벨업이 예산(46~60)의 1.5배가 됐고 XP 는 줄이지 않기로 했다 → 패시브를 **8레벨**로 늘려 성장 칸을 85(=4+35+6+40)로. 6~8레벨은 5레벨까지의 체감 곡선을 이어 붙였다(오버클럭 0.32/0.36/0.40 · 탄두 0.34/0.37/0.40 · 코일 0.40/0.44/0.48 · 관통 3/4/4 · 장전 2/2/3 · 증폭 1.6/1.7/1.8 · 잔광 3.0/3.4/3.8 · 반응 205/230/255 · 격벽 36/42/48 · 프레임 0.22/0.24/0.26 · 학습 0.40/0.44/0.48) |
+| ★ **`values`의 길이** | **정확히 `maxLevel`(**10** — v1.10 ⑱, ~~8~~ ~~5~~)행.** `check.mjs` **S35**: 11행 전부 `len(values) == maxLevel`. ★ v1.10 ⑯·⑱(사용자 2026-09-04): 몸을 두 배로 늘려 레벨업이 예산(46~60)의 1.5배가 됐고 XP 는 줄이지 않기로 했다 → 패시브 **10레벨** · 6칸, 성장 칸 131(=5+54+12+60). 6~10레벨은 5레벨까지의 체감 곡선을 이어 붙였다(오버클럭 …0.28/0.32/0.36/0.40/0.43/0.46 · 탄두 …0.30/0.34/0.37/0.40/0.43/0.46 · 코일 …0.36/0.40/0.44/0.48/0.51/0.54 · 관통 3/3/4/4/5/5 · 장전 2/2/2/3/3/4 · 증폭 1.5→2.0 · 잔광 2.6→4.6 · 반응 180→305 · 격벽 30→60 · 프레임 0.20→0.30 · 학습 0.36→0.54) |
 | `*Mul` | **가산 풀** — Σ 후 1회 적용 (곱연산 스택 없음, §3.1의 `dmgMul` 항) |
 | `*Add` | 단순 가산 |
 | 패시브 카드 | **획득과 레벨업이 같은 `passive` 카테고리.** 5번째 카테고리 만들지 않음 |
@@ -4304,7 +4305,7 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
     "killTimeMedianBalanced": { "min":120, "max":150 }
   },
   "static": {
-    "growthBudget": { "maxLevelUps":60, "minTotalSink":85 },
+    "growthBudget": { "maxLevelUps":60, "minTotalSink":131 },
     "capHits":      { "max":0 },
     "fairnessViolations": { "max":0 }
   }
@@ -4549,7 +4550,7 @@ dustRunner:     passive 0 (초고속 이탈)  /  maxFarm 대부분 × XP 5배   
 
 **⑥ `growthBudget` (정적)**
 ```
-minTotalSink = 4(새 무기) + 35(무기 레벨) + 6(속성) + 40(패시브) = 85    // certify.static.growthBudget.minTotalSink (v1.10 ⑯ 패시브 8레벨 · ~~67~~ ~~70~~)
+minTotalSink = 5(새 무기) + 54(무기 레벨 6×9) + 12(속성) + 60(패시브 6×10) = 131    // certify.static.growthBudget.minTotalSink (v1.10 ⑱ · ~~85~~ ~~67~~)
 maxLevelUps = 60  <  67   ✔   (충족률 상한 90%, 목표 54 → 81%)
 ```
 **결론: 통과 ✔** — 이 부등식이 **"전부 못 찍는다 = 선택이 의미를 가진다"**의 산술적 성립이다. XP 곡선을 바꿔 레벨업이 60을 넘기면 **인증 실패.**
@@ -4741,7 +4742,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S32** ★ | **`themeId`의 적법성** (v1.3) — `tier == "stage"` ⟺ `themeId != null` (S15와 대칭) |
 | ~~**S33**~~ | ~~아이콘 어휘의 충분성 (v1.3) — `shop`의 전 항목의 `iconId` ∈ `hud.icons`~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 | **S34** ★ | **패밀리별 `base`·`evolution.params` 필수 키 집합** (v1.3 · **문면 정정 v1.4**) — §9.5 12행 표를 **두 검사로** 적용한다: ① `weapons[i].base`의 키 집합 == 그 `family`의 행이 ✔한 공통 키 **∪ (고유 파라미터 중 `evo*`가 아닌 것)** ② `weapons[i].evolution.params`의 키 집합 == **그 행의 고유 파라미터 중 `evo*`인 것**. ★ **표의 `+`는 거처 구분자**(§9.5 읽는 법 4번째 규칙) — v1.3의 문면 「∪ 고유 파라미터」는 `evo*`의 거처가 `evolution.params`라는 **같은 절의 확정**과 충돌해 **12행 전부를 실패시켰다**(데이터·검증기는 옳았고 문장이 틀렸다). **이 표가 없으면 S2의 「필수 키」가 무엇인지 검증기가 알 수 없다** |
-| **S35** ★ | **`values`의 길이** (v1.3) — `passives[]` 11행 전부 `len(values) == maxLevel`(**8**, v1.10 ⑯ · ~~5~~) |
+| **S35** ★ | **`values`의 길이** (v1.3) — `passives[]` 11행 전부 `len(values) == maxLevel`(**10**, v1.10 ⑱ · ~~8~~ ~~5~~) |
 | **S36** ★ | **보스 이미터 id 규칙** (v1.3) — `bosses[].parts[i].patternSet[j].emitterIds[0] == {bossId}{PartIdPascal}P{j+1}` (§9.8.1) |
 | **S37** ★ | **보스 이미터의 존재** (v1.3) — 위 66개가 `enemies.json > emitters`에 전부 존재(참조 무결성의 정적 판본) |
 | **S38** ★ | **중간보스 이탈의 단일 소유자** (v1.3) — `tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재 |

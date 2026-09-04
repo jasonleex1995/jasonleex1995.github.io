@@ -112,6 +112,8 @@ const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'e
   'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
 export const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];   // §8.21 — 지형 장판 3종(속성당 하나: 풀·물·불)
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
+export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
+export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)
 
 // ---------------------------------------------------------------------------
 // 검증 원시 함수
@@ -352,9 +354,9 @@ function checkWeapons(c, w) {
     if (modes !== null && isObj(it.base) && own(it.base, 'targetMode')) {
       c.vocab(`${p}.base.targetMode`, it.base.targetMode, modes);
     }
-    // §9.3 — levels 는 정확히 8행. 유일한 부분 오버라이드 예외
-    if (c.arr(`${p}.levels`, it.levels, 8)) {
-      for (let j = 0; j < 8; j += 1) {
+    // §9.3 — levels 는 정확히 10행(v1.10 ⑱ · ~~8~~). 유일한 부분 오버라이드 예외. Lv8 = 진화, Lv9·10 = 진화체 강화
+    if (c.arr(`${p}.levels`, it.levels, WEAPON_MAX_LEVEL)) {
+      for (let j = 0; j < WEAPON_MAX_LEVEL; j += 1) {
         const row = it.levels[j];
         if (!isObj(row)) { c.fail(`${p}.levels[${j}]`, '객체가 아니다 (빈 객체 {} 허용)'); continue; }
         const rk = Object.keys(row);

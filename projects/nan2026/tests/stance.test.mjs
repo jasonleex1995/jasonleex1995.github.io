@@ -191,11 +191,14 @@ suite('stance/invest-caps', () => {
     const w = mkWorld();
     const [FIRE, WATER, GRASS] = w.data.elements.investable;
     const total = w.data.rules.player.elementCapTotal;
-    // 2/2/2 = 6 으로 합계 상한 채우기 (개별 상한 4 미도달)
-    const order = [FIRE, WATER, GRASS, FIRE, WATER, GRASS];
-    for (let i = 0; i < order.length; i += 1) investElement(w, order[i]);
+    const per = w.data.rules.player.elementCapPerElement;
+    // 돌아가며 합계 상한까지 채운다 (v1.10 ⑱: 합계 12 = 3 × 4 — 전 속성 만렙이 «가능»하다)
+    const cyc = [FIRE, WATER, GRASS];
+    let n = 0;
+    for (let i = 0; n < total && i < total * 2; i += 1) { if (investElement(w, cyc[i % 3])) n += 1; }
     assert.eq(investTotal(w), total, `합계 = ${total}`);
     assert.eq(investElement(w, FIRE), false, '합계 상한 초과 = false');
+    if (total === 3 * per) for (const e of cyc) assert.eq(w.player.invest[e], per, `${e} 만렙 ${per}`);
   });
 });
 

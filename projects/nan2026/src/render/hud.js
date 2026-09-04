@@ -21,6 +21,7 @@
  */
 
 import { rgba, glyphPath } from './draw.js';
+import { WEAPON_MAX_LEVEL } from '../core/schema.mjs';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
@@ -425,7 +426,7 @@ function drawRightPanel(ctx, world, pal) {
       text(ctx, world, pal, name, x + 26, y + (rowH - 4) / 2, h.fontBodyPx, pal.hud.textPrimary, 'left', 600);
       // §9.5(v1.5) — Lv7 은 «진화 임박»(짝 패시브 필요). 강조색으로 유추를 유도(짝은 안 밝힌다).
       const nearEvo = s.level === 7 && !s.evolved;
-      text(ctx, world, pal, s.evolved ? 'EVO' : `Lv.${s.level}/8`, x + w - 46, y + (rowH - 4) / 2,
+      text(ctx, world, pal, s.evolved ? `EVO ${s.level}/${WEAPON_MAX_LEVEL}` : `Lv.${s.level}/${WEAPON_MAX_LEVEL}`, x + w - 46, y + (rowH - 4) / 2,
         h.fontSmallPx, (s.evolved || nearEvo) ? pal.element.normal : pal.hud.textDim, 'right', 600);
     }
     // 부여 칩 — 기체의 슬롯 스트립(§7.5 ②)과 **같은 어휘**. 두 표면이 같은 것을 말한다
@@ -754,12 +755,12 @@ function cardBody(world, c) {
     const def = world.weaponDefs[c.weaponId];
     if (c.isEvolution) {
       return { glyph: null, title: def.evolution.name, sub: def.evolution.desc,
-        desc: `${def.name} 진화 · Lv.7/8 → 8/8` };
+        desc: `${def.name} 진화 · Lv.${c.from}/${WEAPON_MAX_LEVEL} → ${c.to}/${WEAPON_MAX_LEVEL}` };
     }
     // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
     const util = def.slotClass === 'utility';
     return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc,
-      desc: `Lv.${c.from}/8 → ${c.to}/8` };   // 계열은 칩이 말한다(중복 제거)
+      desc: `Lv.${c.from}/${WEAPON_MAX_LEVEL} → ${c.to}/${WEAPON_MAX_LEVEL}` };   // 계열은 칩이 말한다(중복 제거)
   }
   if (c.category === 'elementLevel') {
     // ★ §11.1 — 키 문자 대신 속성명+결과. prey(먹이)는 draft.js 가 matrix 에서 유도해 실어 보낸다.

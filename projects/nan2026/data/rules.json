@@ -71,11 +71,11 @@
     "startStance": "normal",
     "stanceSwitchCooldown": 0.0,
     "stancePersistAcrossStages": true,
-    "elementCapPerElement": 3,
-    "elementCapTotal": 6,
-    "weaponSlots": 5,
-    "elementSlots": 3,
-    "passiveSlots": 5,
+    "elementCapPerElement": 4,
+    "elementCapTotal": 12,
+    "weaponSlots": 6,
+    "elementSlots": 4,
+    "passiveSlots": 6,
     "lives": 0
   },
 

@@ -304,23 +304,31 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
   test('giveWeapon — 가장 앞의 빈 슬롯에 append, 만석 = -1', () => {
     const w = mk();                                       // slot0 = forward (startWeapon)
     assert.eq(w.slots[0].family, 'forward', '시작 무기');
-    // §11.1(v1.6) 슬롯은 계열로 나뉜다 — 속성 0..2 · 유틸 3..4.
+    // §11.1(v1.6) 슬롯은 계열로 나뉜다 — 속성 0..eSlots-1 · 유틸 eSlots..weaponSlots-1 (v1.10 ⑱: 4 + 2 = 6).
+    const eSlots = w.data.rules.player.elementSlots;
+    const nSlots = w.data.rules.player.weaponSlots;
     assert.eq(giveWeapon(w, 'fan'), 1, '속성 append slot1');
     assert.eq(giveWeapon(w, 'seeker'), 2, '속성 append slot2');
-    assert.eq(giveWeapon(w, 'lance'), -1, '속성 3칸 만석 → -1 (유틸칸으로 새지 않는다)');
-    assert.eq(giveWeapon(w, 'orbit'), 3, '유틸은 유틸칸 첫 자리');
-    assert.eq(giveWeapon(w, 'aura'), 4, '유틸 append slot4');
+    if (eSlots > 3) assert.eq(giveWeapon(w, 'lance'), 3, '속성 append slot3');
+    assert.eq(giveWeapon(w, 'boomerang'), -1, `속성 ${eSlots}칸 만석 → -1 (유틸칸으로 새지 않는다)`);
+    assert.eq(giveWeapon(w, 'orbit'), eSlots, '유틸은 유틸칸 첫 자리');
+    assert.eq(giveWeapon(w, 'aura'), eSlots + 1, '유틸 append');
+    assert.eq(nSlots - eSlots, 2, '유틸 2칸');
     assert.eq(giveWeapon(w, 'nova'), -1, '유틸 2칸 만석 → -1');
     assert.throws(() => giveWeapon(w, 'no-weapon'), '미지 무기 throw');
   });
 
-  test('levelUpWeapon — Lv8 에서 evolved, Lv9 없음, 빈 슬롯 throw', () => {
+  test('levelUpWeapon — Lv8 에서 evolved, Lv9·10 은 진화체 강화, Lv10 종료, 빈 슬롯 throw (v1.10 ⑱)', () => {
     const w = mk();
-    for (let k = 1; k < 8; k += 1) assert.ok(levelUpWeapon(w, 0), `Lv${k}→${k + 1}`);
+    for (let k = 1; k < 8; k += 1) { assert.ok(levelUpWeapon(w, 0), `Lv${k}→${k + 1}`); if (k < 7) assert.eq(w.slots[0].evolved, false, `Lv${k + 1} 은 아직 진화 전`); }
     assert.eq(w.slots[0].level, 8, 'Lv8 도달');
     assert.ok(w.slots[0].evolved, 'Lv8 = evolved');
-    assert.eq(levelUpWeapon(w, 0), false, 'Lv8 에서 종료 (Lv9 없음)');
-    assert.throws(() => levelUpWeapon(w, 3), '빈 슬롯 레벨업 throw');
+    assert.ok(levelUpWeapon(w, 0), 'Lv9 (진화체 강화)');
+    assert.ok(levelUpWeapon(w, 0), 'Lv10');
+    assert.eq(w.slots[0].level, 10, 'Lv10 도달');
+    assert.ok(w.slots[0].evolved, '여전히 evolved');
+    assert.eq(levelUpWeapon(w, 0), false, 'Lv10 에서 종료 (Lv11 없음)');
+    assert.throws(() => levelUpWeapon(w, 5), '빈 슬롯 레벨업 throw');
   });
 
   test('givePassive — 획득/레벨업 같은 카테고리, maxLevel 상한, 만석 = false', () => {
@@ -345,7 +353,8 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     const w = mk();
     assert.ok(giveWeapon(w, 'orbit') >= 0, '유틸 무기 획득');
     const before = w.slots.map((s) => s.weaponId);
-    assert.eq(swapSlots(w, 0, 3), false, '속성칸 ↔ 유틸칸 = false');
+    const eSlots = w.data.rules.player.elementSlots;
+    assert.eq(swapSlots(w, 0, eSlots), false, '속성칸 ↔ 유틸칸 = false');
     assert.eq(JSON.stringify(w.slots.map((s) => s.weaponId)), JSON.stringify(before), '거부되면 배치 불변');
   });
 

@@ -18,6 +18,7 @@
  */
 
 import { makeStreams } from './rng.js';
+import { WEAPON_MAX_LEVEL, WEAPON_EVOLVE_LEVEL } from './schema.mjs';
 import { recomputeStamps, NORMAL } from './stance.js';
 import { makeScore } from './score.js';
 
@@ -540,9 +541,9 @@ export function giveWeapon(world, weaponId) {
 export function levelUpWeapon(world, slotIndex) {
   const s = world.slots[slotIndex];
   if (s.weaponId === null) throw new Error(`state: 빈 슬롯 ${slotIndex} 의 레벨업 (§9.5)`);
-  if (s.level >= 8) return false;   // Lv8 에서 종료. Lv9 없음
+  if (s.level >= WEAPON_MAX_LEVEL) return false;   // Lv10 에서 종료 (v1.10 ⑱)
   s.level += 1;
-  if (s.level === 8) s.evolved = true;
+  if (s.level === WEAPON_EVOLVE_LEVEL) s.evolved = true;   // Lv8 = 진화. Lv9·10 은 진화체 강화
   s.effDirty = true;
   return true;
 }
