@@ -312,6 +312,40 @@ suite('midboss — 이동 (§9.8.2 moveId)', () => {
     assert.lte(maxX - minX, mp.swayAmpPx * 2 + 1e-6, '진폭은 swayAmpPx 를 넘지 않는다');
   });
 
+  test('§8.20(v1.10 ⑨) 몸 전체가 아레나 안 — anchor 왕복은 모서리를 넘지 않고, charge 복귀는 반지름만큼 안쪽이다', () => {
+    const w = mkRun(4);
+    const a = w.data.rules.view.arena;
+    // (1) 파쇄추(anchor, sway 190)를 «우 슬롯»에 강제로 세운다 → 왕복 중심이 조여져 몸이 아레나 안에 남는다
+    const hammer = defOf(w, 'mbHammer');
+    const e = spawnMidBoss(w, hammer, 'fire', hammer.hp, a.x + a.w / 2 + a.w / 4, w.data.rules.view.spawnLineY);
+    let maxX = -Infinity; let minX = Infinity;
+    for (let i = 0; i < 60 * 30; i += 1) {
+      tickMob(w, 1);
+      if (!e.alive) break;
+      if (e.mp0 === 1) { if (e.x > maxX) maxX = e.x; if (e.x < minX) minX = e.x; }
+    }
+    assert.ok(maxX + e.radius <= a.x + a.w + 1e-6, `오른쪽 끝 ${(maxX + e.radius).toFixed(1)} ≤ 아레나 ${a.x + a.w}`);
+    assert.ok(minX - e.radius >= a.x - 1e-6, `왼쪽 끝 ${(minX - e.radius).toFixed(1)} ≥ 아레나 ${a.x}`);
+    assert.gt(maxX - minX, hammer.moveParams.swayAmpPx, '왕복은 그대로 크다(진폭을 줄인 게 아니라 중심을 옮겼다)');
+    // (2) 창병(charge) — 돌진해 빠져나간 뒤 복귀 x 가 모서리가 아니라 반지름만큼 안쪽
+    const w2 = mkRun(5);
+    const lancer = defOf(w2, 'mbLancer');
+    const l = spawnMidBoss(w2, lancer, 'water', lancer.hp, a.x + a.w / 2, w2.data.rules.view.spawnLineY);
+    w2.player.x = a.x + a.w - 5; w2.player.y = a.y + a.h - 5;     // 우하단 구석을 조준하게 → 대각 돌진으로 우측으로 빠져나간다
+    let returned = false;
+    for (let i = 0; i < 60 * 20; i += 1) {
+      const before = l.mp0;
+      tickMob(w2, 1);
+      if (before === 2 && l.mp0 === 0) {                           // 관통 → 복귀 순간
+        returned = true;
+        assert.ok(l.x - l.radius >= a.x - 1e-6 && l.x + l.radius <= a.x + a.w + 1e-6, `복귀 x ${l.x.toFixed(1)} — 몸 전체가 안`);
+        assert.near(l.y, a.y + l.radius, 1e-6, '복귀 y = 위 모서리 + 반지름');
+        break;
+      }
+    }
+    assert.ok(returned, '한 번은 관통해 복귀했다');
+  });
+
   test('회귀: charge — 스폰 라인(아레나 밖 위쪽)에서 시작해도 돌진이 성립한다', () => {
     const w = mkRun(1);
     const def = defOf(w, 'mbLancer');

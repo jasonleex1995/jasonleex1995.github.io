@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -3268,6 +3268,33 @@ function S57_entryWipe() {
   EX('S57', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S58 — 오빗 반경 = 자석 점선 원 (§7.8 · §9.5, v1.10 ⑨)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자(2026-09-04): 「오빗 사거리가 너무 짧다 — 비행기 주변 점선(자석 반경)과 일치시켜야」. 화면에 상시 보이는
+ *   원이 하나뿐이라(§7.8 자석 반경, 알파 0.12) 오빗의 공이 그 원 위를 돌아야 «내 영역»이 하나로 읽힌다.
+ *   ① weapons.orbit.base.orbitRadius == player.magnetRadius ② 어느 레벨도 orbitRadius 를 바꾸지 않는다(항상 일치)
+ *   ★ 면적 패시브(areaKeys)는 둘 다 안 건드린다 — 점선은 자석 반경 그대로, 공은 areaMul 을 탄다. 그 어긋남은 «업그레이드가
+ *     보인다»는 뜻이라 허용한다(§9.6 areaKeys 의 의도).
+ */
+function S58_orbitRadius() {
+  const ws = D.weapons && D.weapons.weapons;
+  const rp = D.rules && D.rules.player;
+  if (!Array.isArray(ws) || !isObj(rp)) { V('S58', 'weapons / rules.player 가 없다'); return; }
+  const o = ws.find((w) => isObj(w) && w.id === 'orbit');
+  if (!o) { V('S58', 'weapons: orbit 이 없다 (§9.5)'); return; }
+  let n = 1;
+  if (!isObj(o.base) || !num(o.base.orbitRadius) || o.base.orbitRadius !== rp.magnetRadius) {
+    V('S58', `weapons.orbit.base.orbitRadius = ${o.base && o.base.orbitRadius} ≠ player.magnetRadius ${rp.magnetRadius} — 공이 점선 원 위를 돌아야 한다 (§7.8)`);
+  }
+  for (const lv of rowsQuiet(o.levels)) {
+    n += 1;
+    if (isObj(lv) && has(lv, 'orbitRadius')) V('S58', `weapons.orbit.levels: orbitRadius 를 바꾸는 레벨 — 점선 원과의 일치가 레벨에서 깨진다 (§7.8)`);
+  }
+  EX('S58', n);
+}
+
 
 
 
@@ -3813,7 +3840,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S57 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S58 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3878,6 +3905,7 @@ function main() {
   S55_midBossSection();      // §8.19 v1.10 중간보스 구간 — 첫 마리 소환자 · 시계 · 앞당김⇒웨이브 계속
   S56_terrain();             // §8.21 v1.10 ⑦ 지형 장판 — 종·속성당 하나·값·통로·구간
   S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
+  S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

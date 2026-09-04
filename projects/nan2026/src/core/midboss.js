@@ -142,7 +142,15 @@ function leave(world, e) {
 function moveAnchor(world, e, mp, dt) {
   if (e.mp0 === 0) {
     e.y += mp.enterSpeed * dt;
-    if (e.y >= mp.yHoldPx) { e.y = mp.yHoldPx; e.mp0 = 1; e.mp2 = e.x; }
+    if (e.y >= mp.yHoldPx) {
+      e.y = mp.yHoldPx; e.mp0 = 1;
+      // §8.20(v1.10 ⑨) 왕복 중심은 «몸 전체가 아레나 안»에 남는 범위로 조인다 — 우/좌 슬롯(±w/4) + swayAmpPx(파쇄추 190)
+      //   이면 x 가 아레나 밖 45px 까지 나가 몸이 통째로 숨었다(플레이 피드백: 「중간보스가 화면 밖에 숨는다」).
+      const a = world.data.rules.view.arena;
+      const lo = a.x + e.radius + mp.swayAmpPx;
+      const hi = a.x + a.w - e.radius - mp.swayAmpPx;
+      e.mp2 = lo > hi ? a.x + a.w / 2 : Math.min(hi, Math.max(lo, e.x));
+    }
     return;
   }
   const w = mp.swayAmpPx > 0 ? mp.enterSpeed / mp.swayAmpPx : 0;   // 각속도 = 선속도 / 진폭
@@ -175,8 +183,10 @@ function moveCharge(world, e, mp, dt) {
   if (inside) { e.mp0 = 2; return; }
   if (e.mp0 !== 2) return;                            // 아직 한 번도 안 들어왔다 = 진입 중
   // 관통해 빠져나갔다 → 스폰 라인으로 복귀해 다시 조준한다(추격 금지 — 리셋이지 추적이 아니다)
-  if (e.x < a.x) e.x = a.x;
-  if (e.x > a.x + a.w) e.x = a.x + a.w;
+  // §8.20(v1.10 ⑨) x 도 «몸 전체가 안»으로 — 모서리(a.x, a.x+a.w)에 세우면 반지름 28 의 절반이 화면 밖에서
+  //   조준한다(플레이 피드백 실물: 우측 모서리에 반쯤 잘린 창병). y 와 같은 이유로 반지름만큼 안쪽이다.
+  if (e.x < a.x + e.radius) e.x = a.x + e.radius;
+  if (e.x > a.x + a.w - e.radius) e.x = a.x + a.w - e.radius;
   // §8.20(v1.8) — 복귀 지점은 아레나 «안»이다. spawnLineY(−40)로 되돌리면 반지름 28 짜리
   //   창병의 몸이 한 픽셀도 안 보이는 곳에서 windUpSec 1.2초를 조준한다(실측: 생존의 32.8%).
   //   §8.20 이 그 시간을 무적으로 바꾸므로, 안 고치면 창병만 실효 체력 ×1.5 가 된다.
