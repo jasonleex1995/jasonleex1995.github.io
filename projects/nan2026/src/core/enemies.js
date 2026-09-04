@@ -527,18 +527,9 @@ function sectionSpeedMul(world) {
   const m = ph.sectionSpeedMul;
   if (run.crisis) return m.crisis;
   const mbAt = ph.midBossAtSec[world.spawner.curveIdx];
-  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) {
-    // §8.19 ①(v1.10 ⑪) 배수 — 스폰이 멈춘 뒤 남은 무리는 «빠르게 흘러 나간다»(drain 2.2). 초기 속도(0.72)로는
-    //   벽 한 벌이 19.5초 걸려 중간보스가 올 때 200기가 남았다(플레이 피드백: 「초반 몹이 다 안 사라졌는데 중간보스」).
-    //   ★ ⑭ 배율은 drainRampSec(2.0) 동안 early → drain 으로 «서서히» 오른다 — 한 틱에 3배가 되면 「갑자기 빨라진다」로
-    //     읽힌다(플레이 피드백, 늪 1스테이지). 가속이 보이면 「무리가 무너져 흘러간다」로 읽힌다.
-    const t0 = mbAt[0] - ph.earlyDrainSec;
-    if (run.phaseT >= t0) {
-      const k = ph.drainRampSec > 0 ? Math.min(1, (run.phaseT - t0) / ph.drainRampSec) : 1;
-      return m.early + (m.drain - m.early) * k;
-    }
-    return m.early;
-  }
+  // §8.19 ① 배수는 «속도를 올리지 않는다»(v1.10 ⑮, 사용자: 「천천히 잡으면서 파밍하는 구간인데 왜 빨라지나」) —
+  //   스폰만 멈추고 무리는 초기 속도 그대로 흘러 나간다. 그래서 earlyDrainSec 이 벽 한 벌의 통과 시간(≈ 23초)만큼 길다(S54 ⑦).
+  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) return m.early;
   return m.mid;
 }
 

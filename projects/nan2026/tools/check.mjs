@@ -320,7 +320,7 @@ const FAMILY_OWN_BASE = {
   aura:      ['slowMul'],
   boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
-  drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
+  drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 // §9.5 고유 파라미터 — evolution.params 거처 (evo* 접두)
@@ -333,7 +333,7 @@ const FAMILY_OWN_EVO = {
   aura:      ['evoPullForce'],
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
-  drone:     ['evoTrailDelaySec', 'evoHealFullRangePx'],
+  drone:     ['evoTrailDelaySec'],
   nova:      ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 // §9.5 허용 targetMode (패밀리별). null = targetMode 키 자체가 없다
@@ -521,7 +521,7 @@ function S2_schema() {
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   // §8.21(v1.10 ⑦) 지형 장판
-  if (isObj(D.stages && D.stages.phase) && isObj(D.stages.phase.sectionSpeedMul)) closedKeys('S2', D.stages.phase.sectionSpeedMul, ['early', 'drain', 'mid', 'crisis'], 'stages.phase.sectionSpeedMul');   // v1.10 ⑪ drain
+  if (isObj(D.stages && D.stages.phase) && isObj(D.stages.phase.sectionSpeedMul)) closedKeys('S2', D.stages.phase.sectionSpeedMul, ['early', 'mid', 'crisis'], 'stages.phase.sectionSpeedMul');   // v1.10 ⑪ drain
   closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat'], 'rules.terrain');
   if (isObj(r.terrain)) {
     closedKeys('S2', r.terrain.inertia, ['responseTauSec'], 'rules.terrain.inertia');
@@ -585,7 +585,7 @@ function S2_schema() {
   // §9.4.3 — visual 전 키 인쇄. ★ v1.3: statusBulletSpeedMul 이 빠졌다(→ fairness)
   closedKeys('S2', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet',
     'glyph', 'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
-  if (isObj(r.visual)) closedKeys('S2', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz'], 'rules.visual.terrain');   // §7.13(v1.10 ⑦)
+  if (isObj(r.visual)) closedKeys('S2', r.visual.terrain, ['fillAlpha', 'patternAlpha', 'iconAlpha', 'iconPx', 'heatPulseHz', 'heatWarnAt'], 'rules.visual.terrain');   // §7.13(v1.10 ⑦)
   if (isObj(r.visual)) closedKeys('S2', r.visual.wipe, ['bandPx', 'flashAlpha'], 'rules.visual.wipe');                                        // §8.22(v1.10 ⑧)
   if (has(r.visual, 'statusBulletSpeedMul')) {
     V('S2', 'rules.visual.statusBulletSpeedMul: 이사한 키 → rules.fairness.statusBulletSpeedMul (§23.3) — visual 키가 게임플레이 속도를 바꾸면 §9.4.3의 경계가 깨진다');
@@ -838,7 +838,7 @@ function S2_files() {
     'waveClearAdvance', 'phaseEndAutocollect',
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
-    'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'drainRampSec', 'midBossSuspendsWaves',
+    'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
     'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
     'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec', 'statusStunMaxPerStage'], 'stages.phase');
   if (has(D.stages.phase, 'bossEntrySec')) {
@@ -3121,22 +3121,28 @@ function S54_sectionsAndRatio() {
     const got = new Set(c.map((id) => el[id]));
     if (got.size < els.size) V('S54', `themeDraw ${k}/${pool.length} 조합 [${c.join(',')}] 에 속성 ${[...els].filter((e) => !got.has(e)).join('·')} 이 없다 — 스테이지 1~5 에서 물·불·풀을 다 겪어야 한다 (§8.1)`);
   }
-  // ⑦ (v1.10 ⑪) 배수가 무리를 비운다: earlyDrainSec × 도입종 하강속도 × sectionSpeedMul.drain ≥ arena.h + 2r
-  //    — 배수 시작 직전에 스폰된 줄이 중간보스 등장 전에 아레나 아래로 «나간다». 안 그러면 중간보스 구간이 «중간보스 + 벽»이다.
+  // ⑦ (v1.10 ⑪·⑮) 배수가 무리를 비운다: earlyDrainSec × 도입종 하강속도 × sectionSpeedMul.early ≥ arena.h + spawnPad + 벽 줄 높이 + 2r
+  //    — 배수는 «속도를 올리지 않는다»(파밍 구간). 배수 시작 직전에 스폰된 벽(최대 줄 수 만큼 위에서 시작)이 중간보스 등장 전에
+  //    아레나 아래로 «나간다». 안 그러면 중간보스 구간이 «중간보스 + 벽»이다.
   n += 1;
   {
     const sm = ph.sectionSpeedMul;
     const a2 = D.rules.view && D.rules.view.arena;
+    const v2 = D.rules.view;
+    const wall = st.formations && st.formations.wall;
     const arch2 = {}; for (const x of (D.enemies.archetypes || [])) arch2[x.id] = x;
-    if (isObj(sm) && num(sm.drain) && num(ph.earlyDrainSec) && isObj(a2)) {
+    if (isObj(sm) && num(sm.early) && num(ph.earlyDrainSec) && isObj(a2) && isObj(wall)) {
+      const bands2 = D.enemies.bands || {};
       for (const s2 of st.stages) {
         const x = arch2[s2.introArchetypeId]; if (!x) continue;
         const sp = x.moveParams && x.moveParams.speed; if (!num(sp)) continue;
-        // v1.10 ⑭ 램프(drainRampSec) 동안은 보수적으로 early 배율로 센다
-        const ramp = num(ph.drainRampSec) ? Math.min(ph.drainRampSec, ph.earlyDrainSec) : 0;
-        const travel = (ph.earlyDrainSec - ramp) * sp * sm.drain + ramp * sp * (num(sm.early) ? sm.early : 1);
-        const need = a2.h + 2 * x.radius;
-        if (travel < need) V('S54', `stages[${s2.id}]: 배수 (${ph.earlyDrainSec} − 램프 ${ramp})초 × ${x.id} ${sp}px/s × drain ${sm.drain} + 램프 = ${travel.toFixed(0)}px < 아레나 ${need}px — 중간보스가 올 때 벽이 남는다 (§8.19 ① 배수)`);
+        const perRow = wall.perRow - wall.laneSlots;
+        const minPer = bands2[x.band] && bands2[x.band].minPerWave;
+        const rows = num(minPer) && perRow > 0 ? Math.ceil(minPer / perRow) : 1;
+        const above = (num(v2.spawnLineY) ? a2.y - v2.spawnLineY : 0) + (rows - 1) * wall.rowGapPx + (num(wall.jitterY) ? wall.jitterY * wall.rowGapPx : 0);
+        const travel = ph.earlyDrainSec * sp * sm.early;
+        const need = a2.h + above + 2 * x.radius;
+        if (travel < need) V('S54', `stages[${s2.id}]: 배수 ${ph.earlyDrainSec}초 × ${x.id} ${sp}px/s × early ${sm.early} = ${travel.toFixed(0)}px < 필요 ${need.toFixed(0)}px(아레나 ${a2.h} + 위 ${above.toFixed(0)} + 2r) — 중간보스가 올 때 벽이 남는다 (§8.19 ① 배수)`);
       }
     }
   }

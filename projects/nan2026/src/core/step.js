@@ -635,38 +635,6 @@ function applyStatus(world, status, durSec) {
  * ★ 진입 시 `if (!e.alive) return` 으로 **멱등** — 같은 틱에 두 피해원이 부르면 두 번째는 무해.
  * ★ S11 안전: world.rng.drop 텍스트가 이 파일(step.js)에 잔류하므로 weapons 파일 스캔에 안 걸림.
  */
-/**
- * §9.5(v1.7) 옵션(드론)의 회수 — «처치 시에만», 그리고 «가까이서 죽일수록 많이».
- *   사용자 결정: 원거리에서 짤짤이로 계속 회복하는 것은 이 게임의 원데스 긴박함과 맞지 않는다.
- *   그래서 거리 가중이 구조다 — healFullRangePx 안이면 만액, healZeroRangePx 밖이면 0.
- *   그 사이는 선형. 원거리 딜러가 회복으로 버티는 빌드가 «구조적으로» 불가능해진다.
- *   ★ 내부 쿨다운(slot.a1)이 위기 웨이브의 몰살 회복을 막는다(VS Bloody Tear 선례).
- *   ★ killEnemy 안에서만 불린다 = 유일·멱등 깔때기. 데미지 경로 밖이라 RNG·결정성 무영향.
- */
-function droneSalvage(world, e) {
-  const p = world.player;
-  if (p.hp >= p.hpMax) return;
-  const slots = world.slots;
-  for (let i = 0; i < slots.length; i += 1) {
-    const slot = slots[i];
-    if (slot.weaponId === null || slot.family !== 'drone') continue;
-    if (slot.a1 > 0) return;                                  // 내부 쿨다운 중
-    const eff = recomputeEff(world, slot);
-    const full = slot.evolved ? eff.evoHealFullRangePx : eff.healFullRangePx;
-    const dx = e.x - p.x;
-    const dy = e.y - p.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist >= eff.healZeroRangePx) return;                  // 너무 멀리서 죽였다 = 회수 없음
-    let w = 1;
-    if (dist > full) w = (eff.healZeroRangePx - dist) / (eff.healZeroRangePx - full);
-    const heal = eff.healOnKill * w;
-    if (heal <= 0) return;
-    p.hp = Math.min(p.hpMax, p.hp + heal);
-    slot.a1 = eff.healCooldownSec;
-    return;
-  }
-}
-
 export function killEnemy(world, e) {
   if (!e.alive) return;                                             // D3 멱등 가드
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
@@ -674,7 +642,6 @@ export function killEnemy(world, e) {
   addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
   // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
   if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  if (!e.ghost) droneSalvage(world, e);                             // §9.5(v1.7) 옵션의 회수 — 유령몹은 제외(파밍 불가)
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }

@@ -487,10 +487,45 @@ function drawBackground(ctx, world, pal, fx) {
 // 레이어 1 — 지면 장판 · 지면 텔레그래프 (§12.3)
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-// 레이어 1 — 지형 장판 (§8.21 v1.10 ⑦ · §7.13). 피해 0 이라 위협색(자홍)을 쓰지 않는다 — 테마 속성색을 낮은 알파로.
-//   종마다 무늬가 다르다: slow = 동심 물결(웅덩이) · inertia = 사선 결(빙판/해류) · heat = 맥동하는 열기 링.
-//   예고가 없다(피해가 없으니 §2.1 ① 의 대상이 아니다) — 항상 보이고, 항상 같은 모양이다.
+// 레이어 1 — 지형 장판 (§8.21 · §7.13 v1.10 ⑮). «공격 장판»과 한눈에 갈리는 문법:
+//   · 공격 장판(drawGroundZones) = 위협색(자홍) + 검은 외곽선 + 단단한 테두리 + 예고 링 → 「곧/지금 아프다」
+//   · 지형 = 테마 속성색의 **부드러운 방사 그라데이션**(테두리 없음, 가장자리에서 0 으로 사라진다) + 가운데
+//     **상태 아이콘** = 그 지형이 플레이어에게 주는 상태 배지와 같은 글리프(∿ 둔화 · ≋ 미끄러움 · ✳ 과열 정지, §7.12.4-②)
+//   → 「테두리가 있으면 위협, 없으면 지형」 · 「아이콘 = 여기 서면 내게 붙는 배지」. 피해가 없으니 예고도 없다.
 // ---------------------------------------------------------------------------
+function terrainIcon(ctx, kind, x, y, px, t) {
+  const h = px / 2;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  if (kind === 0) {                                     // ∿ 둔화 — 상태 배지와 같은 파형
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i += 1) {
+      const sx = x - h + (i / 16) * px;
+      const sy = y + Math.sin((i / 16) * Math.PI * 2) * (px * 0.18);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  } else if (kind === 1) {                              // ≋ 미끄러움 — 파형 두 줄(흘러가는 결)
+    for (let row = -1; row <= 1; row += 2) {
+      ctx.beginPath();
+      for (let i = 0; i <= 16; i += 1) {
+        const sx = x - h + (i / 16) * px;
+        const sy = y + row * px * 0.16 + Math.sin((i / 16) * Math.PI * 2 + t * 2) * (px * 0.1);
+        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    }
+  } else {                                              // ✳ 과열 정지 — 스턴 배지와 같은 별
+    for (let i = 0; i < 3; i += 1) {
+      const a = (i * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(x - Math.cos(a) * h * 0.8, y - Math.sin(a) * h * 0.8);
+      ctx.lineTo(x + Math.cos(a) * h * 0.8, y + Math.sin(a) * h * 0.8);
+      ctx.stroke();
+    }
+  }
+}
+
 function drawTerrain(ctx, world, pal) {
   const it = world.terrain.items;
   if (world.terrain.live === 0) return;
@@ -512,21 +547,24 @@ function drawTerrain(ctx, world, pal) {
     const r = t.radius * k;
     if (r <= 0.5) continue;
     ctx.globalAlpha = k;
-    ctx.fillStyle = rgba(col, vt.fillAlpha);
+    // 부드러운 방사 채움 — 테두리가 없다(= 위협이 아니다)
+    const g = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r);
+    g.addColorStop(0, rgba(col, vt.fillAlpha));
+    g.addColorStop(0.72, rgba(col, vt.fillAlpha * 0.6));
+    g.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = rgba(col, vt.edgeAlpha);
-    ctx.stroke();
+    // 옅은 무늬 — 종의 «질감»(둔화 = 동심 물결 · 미끄러움 = 사선 결 · 과열 = 안에서 밖으로 맥동하는 열기 링)
     ctx.strokeStyle = rgba(col, vt.patternAlpha);
     ctx.lineWidth = 1.5;
-    if (t.kind === 0) {                                   // slow — 동심 물결(웅덩이)
-      for (let k = 1; k <= 3; k += 1) {
-        const rr = r * (k / 3.5) + Math.sin(world.time * 1.2 + k) * 2;
+    if (t.kind === 0) {
+      for (let q = 1; q <= 2; q += 1) {
+        const rr = r * (q / 3) + Math.sin(world.time * 1.2 + q) * 2;
         ctx.beginPath(); ctx.arc(t.x, t.y, rr, 0, Math.PI * 2); ctx.stroke();
       }
-    } else if (t.kind === 1) {                            // inertia — 사선 결(미끄러짐)
+    } else if (t.kind === 1) {
       ctx.save();
-      ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.clip();
+      ctx.beginPath(); ctx.arc(t.x, t.y, r * 0.92, 0, Math.PI * 2); ctx.clip();
       const step = 14;
       const off = (world.time * 24) % step;
       for (let d = -r * 2; d <= r * 2; d += step) {
@@ -536,14 +574,18 @@ function drawTerrain(ctx, world, pal) {
         ctx.stroke();
       }
       ctx.restore();
-    } else {                                              // heat — 맥동하는 열기 링(안쪽에서 바깥으로)
+    } else {
       const ph = (world.time * vt.heatPulseHz) % 1;
-      for (let k = 0; k < 2; k += 1) {
-        const f = (ph + k * 0.5) % 1;
-        ctx.strokeStyle = rgba(col, vt.patternAlpha * (1 - f));
-        ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.25 + 0.75 * f), 0, Math.PI * 2); ctx.stroke();
+      for (let q = 0; q < 2; q += 1) {
+        const f = (ph + q * 0.5) % 1;
+        ctx.strokeStyle = rgba(col, vt.patternAlpha * 1.6 * (1 - f));
+        ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.3 + 0.62 * f), 0, Math.PI * 2); ctx.stroke();
       }
     }
+    // 가운데 상태 아이콘 — 「여기 서면 이 배지가 붙는다」
+    ctx.strokeStyle = rgba(col, vt.iconAlpha);
+    const pulse = t.kind === 2 ? 1 + 0.12 * Math.sin(world.time * Math.PI * 2 * vt.heatPulseHz) : 1;
+    terrainIcon(ctx, t.kind, t.x, t.y, vt.iconPx * pulse, world.time);
     ctx.globalAlpha = 1;
   }
 }
@@ -886,15 +928,32 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
     ctx.fillStyle = pal.status.band;
     ctx.fillRect(x - 6, by + 7, 12 * Math.min(1, dur), 2);
   }
-  // §8.21(v1.10 ⑦) 과열 게이지 — 불 지형 안에서 차는 열. 배지 바로 아래, 호박 채널(«내 상태가 나쁘다», §7.12.4-②).
+  // §8.21(v1.10 ⑦·⑮) 과열 게이지 — 불 지형 안에서 차는 열. 기체 «둘레의 호»가 시계 방향으로 차오르고(호박 채널 §7.12.4-②),
+  //   heatWarnAt(0.6) 부터는 굵어지며 4Hz 로 깜빡이고 ✳(정지 예고)가 기체 위에 뜬다 — 「오래 있으면 안 된다」가 몸에 보인다.
   //   0 이면 안 그린다(평소엔 없다). 다 차면 stallSec 스턴 → 위의 ✳ 배지가 이어받는다.
   if (p.heat > 0) {
-    const gy = y - 16 + 11;
-    ctx.strokeStyle = rgba(pal.status.band, 0.55);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - 7, gy, 14, 3);
-    ctx.fillStyle = pal.status.band;
-    ctx.fillRect(x - 6, gy + 1, 12 * Math.min(1, p.heat), 1);
+    const vt2 = world.data.rules.visual.terrain;
+    const warn = p.heat >= vt2.heatWarnAt;
+    const blink = warn ? (Math.sin(world.time * Math.PI * 2 * 4) > 0 ? 1 : 0.45) : 1;
+    const rr = rp.spriteRadius + 7;
+    ctx.strokeStyle = rgba(pal.status.band, 0.25);
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = rgba(pal.status.band, blink);
+    ctx.lineWidth = warn ? 5 : 3;
+    ctx.beginPath(); ctx.arc(x, y, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, p.heat)); ctx.stroke();
+    if (warn && st === null) {                             // 정지 예고 ✳ — 실제 스턴 배지와 같은 글리프, 깜빡임
+      ctx.strokeStyle = rgba(pal.status.band, blink);
+      ctx.lineWidth = 2;
+      const by = y - 16;
+      for (let i = 0; i < 3; i += 1) {
+        const a = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(x - Math.cos(a) * 6, by - Math.sin(a) * 6);
+        ctx.lineTo(x + Math.cos(a) * 6, by + Math.sin(a) * 6);
+        ctx.stroke();
+      }
+    }
   }
   ctx.restore();
 

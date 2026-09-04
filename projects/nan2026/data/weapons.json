@@ -30,11 +30,11 @@
     {
       "id": "seeker", "slotClass": "element", "family": "seeker", "name": "시커", "desc": "가장 가까운 적을 찾아서 때린다",
       "elementStampMode": "spawn",
-      "base": { "dmg":5, "cooldownSec":0.85, "count":1, "projSpeed":190, "projRadius":5,
-                "lifetimeSec":2.4, "pierce":0, "hitCooldownSec":0.2,
-                "turnRateDegSec":125, "acquireRadius":210, "retargetSec":0.3,
+      "base": { "dmg":5, "cooldownSec":0.85, "count":1, "projSpeed":250, "projRadius":5,
+                "lifetimeSec":3.0, "pierce":0, "hitCooldownSec":0.2,
+                "turnRateDegSec":240, "acquireRadius":460, "retargetSec":0.12,
                 "targetMode":"nearest" },
-      "levels": [ {}, {"dmg":7}, {"count":2,"dmg":9}, {"dmg":12,"turnRateDegSec":160},
+      "levels": [ {}, {"dmg":7}, {"count":2,"dmg":9}, {"dmg":12,"turnRateDegSec":320},
                   {"count":3}, {"dmg":13,"cooldownSec":0.75}, {"pierce":1},
                   {"count":4,"dmg":14} ],
       "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
@@ -104,13 +104,12 @@
                      "requiresPassive": { "id":"coil", "level":3 } }
     },
     {
-      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다. 가까이서 잡으면 회복한다",
+      "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
                 "hitCooldownSec":0.0, "targetMode":"nearest",
                 "droneCount":1, "anchorOffsets":[[0,-38]],
-                "droneFireSec":0.55, "droneRangePx":260,
-                "healOnKill":1, "healFullRangePx":120, "healZeroRangePx":400, "healCooldownSec":1.00 },
+                "droneFireSec":0.55, "droneRangePx":260 },
       "levels": [ {}, {"dmg":5},
                   {"droneCount":2,"anchorOffsets":[[-34,-22],[34,-22]]},
                   {"dmg":7,"droneFireSec":0.50}, {"dmg":10},
@@ -118,8 +117,8 @@
                   {"dmg":14,"pierce":1},
                   {"droneCount":4,"dmg":16,"droneFireSec":0.46,
                    "anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]} ],
-      "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라오고, 더 멀리서도 회복한다",
-                     "params": { "evoTrailDelaySec":2.5, "evoHealFullRangePx":200 },
+      "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라와 궤적을 넓게 쓴다",
+                     "params": { "evoTrailDelaySec": 2.5 },
                      "requiresPassive": { "id":"afterimage", "level":3 } }
     },
     {

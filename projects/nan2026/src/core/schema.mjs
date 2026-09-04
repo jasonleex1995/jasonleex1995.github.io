@@ -56,7 +56,7 @@ const FAMILY_BASE_KEYS = {
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
     'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
-    'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx', 'healOnKill', 'healFullRangePx', 'healZeroRangePx', 'healCooldownSec'],
+    'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
 };
 
@@ -70,7 +70,7 @@ const FAMILY_EVO_KEYS = {
   aura: ['evoPullForce'],
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
-  drone: ['evoTrailDelaySec', 'evoHealFullRangePx'],
+  drone: ['evoTrailDelaySec'],
   nova: ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
 };
 
@@ -266,7 +266,7 @@ function checkRules(c, r) {
   c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet', 'glyph',
     'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
   if (isObj(r.visual)) {
-    c.closed('rules.visual.terrain', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz']);   // §7.13(v1.10 ⑦)
+    c.closed('rules.visual.terrain', r.visual.terrain, ['fillAlpha', 'patternAlpha', 'iconAlpha', 'iconPx', 'heatPulseHz', 'heatWarnAt']);   // §7.13(v1.10 ⑦)
     c.closed('rules.visual.wipe', r.visual.wipe, ['bandPx', 'flashAlpha']);                                          // §8.22(v1.10 ⑧)
     c.closed('rules.visual.hpBar', r.visual.hpBar,
       ['hPx', 'wPx', 'gapPx', 'trackAlpha', 'gatePostWPx', 'gatePostOverhangPx']);
@@ -499,7 +499,7 @@ function checkStages(c, s) {
     'waveIntervalSec', 'waveClearAdvance',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
     'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisShooterId',
-    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'drainRampSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
+    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {
@@ -509,7 +509,7 @@ function checkStages(c, s) {
     }
   }
   // §9.9.2 — 편대 6종 + 파라미터
-  if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'drain', 'mid', 'crisis']);
+  if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'mid', 'crisis']);
   c.closed('stages.formations', s.formations, FORMATION_IDS);
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],

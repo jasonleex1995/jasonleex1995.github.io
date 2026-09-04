@@ -305,10 +305,12 @@
       "flashAlpha": 0.35
     },
     "terrain": {
-      "fillAlpha": 0.14,
-      "edgeAlpha": 0.35,
-      "patternAlpha": 0.30,
-      "heatPulseHz": 0.8
+      "fillAlpha": 0.22,
+      "patternAlpha": 0.16,
+      "iconAlpha": 0.80,
+      "iconPx": 22,
+      "heatPulseHz": 0.8,
+      "heatWarnAt": 0.6
     },
     "timer": {
       "warnScale": 1.15,

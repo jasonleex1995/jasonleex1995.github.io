@@ -218,50 +218,6 @@ suite('weapons/drone — 옵션 (§9.5)', () => {
   // §9.5(v1.7) 회수(흡혈) — 사용자 결정 2건이 «구조»여야 한다:
   //   ① 처치 시에만  ② 근/원거리 가중 — 원거리 짤짤이 회복은 원데스 긴박함과 맞지 않는다.
   //   거리 가중이 없으면 원거리 딜러가 회복으로 버티는 빌드가 성립해 그 결정이 무너진다.
-  test('회수는 «처치 시에만», 그리고 가까이서 죽일수록 많다 (§9.5 v1.7)', () => {
-    const mk = () => {
-      const w = createWorld({ data: loadData(), seed: 2, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
-      giveWeapon(w, 'drone');
-      w.player.hp = 1;
-      return w;
-    };
-    const healAt = (dist) => {
-      const w = mk(); const p = w.player;
-      const e = spawnEnemy(w, 'drifter', 'normal', p.x, p.y - dist, 10, false, false);
-      killEnemy(w, e);
-      return p.hp - 1;
-    };
-    const w0 = mk();
-    const eff = recomputeEff(w0, w0.slots.find((x) => x.family === 'drone'));
-
-    // ① 피해만 줘서는 회복하지 않는다 — killEnemy 를 안 거치면 0
-    const wDmg = mk(); const pd = wDmg.player;
-    const alive = spawnEnemy(wDmg, 'drifter', 'normal', pd.x, pd.y - 10, 999, false, false);
-    alive.hp -= 1;
-    assert.eq(pd.hp, 1, '처치가 아니면 회복 0 — «처치 시에만»');
-
-    // ② 거리 가중
-    assert.eq(healAt(eff.healFullRangePx - 10), eff.healOnKill, '만액 반경 안 = 전액');
-    const mid = healAt((eff.healFullRangePx + eff.healZeroRangePx) / 2);
-    assert.gt(mid, 0, '중간 거리 = 일부');
-    assert.lt(mid, eff.healOnKill, '중간 거리 < 전액');
-    assert.eq(healAt(eff.healZeroRangePx + 10), 0, '★ 원거리 처치 = 회복 0 (짤짤이 회복 불가)');
-  });
-
-  test('회수 내부 쿨다운이 몰살 회복을 막는다 (§9.5 v1.7)', () => {
-    const w = createWorld({ data: loadData(), seed: 2, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
-    giveWeapon(w, 'drone');
-    const p = w.player; p.hp = 1;
-    const slot = w.slots.find((x) => x.family === 'drone');
-    const eff = recomputeEff(w, slot);
-    for (let k = 0; k < 5; k += 1) {
-      const e = spawnEnemy(w, 'drifter', 'normal', p.x, p.y - 20, 10, false, false);
-      killEnemy(w, e);
-    }
-    assert.eq(p.hp - 1, eff.healOnKill, '★ 5연속 근접 처치도 쿨다운 안에서는 1회분 — 위기 웨이브 몰살 회복 차단');
-    assert.gt(slot.a1, 0, '쿨다운이 서 있다');
-  });
-
   test('anchorOffsets 자리에 droneCount 개가 배치된다', () => {
     const w = mkWorld();
     const [s, eff] = setup(w, 'drone', 1, false);

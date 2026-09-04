@@ -258,7 +258,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 반응 시상수 | `player.moveResponseTau` | **0.0** (Sec) — ★ v1.10 ⑦: 물 지형(`inertia`) 위에서는 이 항 대신 `rules.terrain.inertia.responseTauSec`(0.35)가 쓰인다(§8.21). «항은 존재하고 값이 0»이 처음으로 값을 가진 자리 |
 | 대각선 정규화 | `player.diagonalNormalize` | **true** (×0.70710678) |
 | SOCD (반대키 동시) | `input.socd` | **`"lastInput"`** — 마지막에 눌린 키 우선 |
-| 이동 속도 상한 | (파생: 상점 3스택 ×6% + 패시브 `moveSpeedMul` 최대 20%) | 280 × 1.18 × 1.20 = **396.5** |
+| 이동 속도 상한 | (파생: 패시브 `moveSpeedMul` 최대 **26%** — v1.10 ⑯ 8레벨 · ~~상점 3스택~~ 은 v1.5 에 폐지) | 280 × 1.26 = **352.8** · ~~280 × 1.18 × 1.20 = 396.5~~ |
 
 - `velocity = dir × moveSpeed`. **가속/감속 없음, 즉시 정지.** 관성 = 미세 조작 실패 = 트위치 = 기둥 위반.
 - 코드에 지수 스무딩 항이 **존재하고** 기본값이 0이다 → "살짝 미끄럽게"가 필요해도 **숫자만** 바뀐다.
@@ -1202,6 +1202,28 @@ v1.1: 「`view.spawnLineY`(**−40**) **바로 아래**」. 그러나 **`spawnLi
 
 - **0.45인 근거**: `render.playerBulletMaxRadiusPx`(10)에서 코어 r = 4.5 → **§7.3이 계약한 「어두운 풀(L\*40)도 배경(≤0.22) 위에서 확실히 보인다」가 최소 탄(`minBulletRadiusPx` 4 → 코어 1.8px)에서도 성립**하는 하한. 0.45보다 작으면 코어가 1px 아래로 내려가 **cvd에서 소실**되고, 크면 글리프 실루엣(●▲◆✚)을 코어가 덮어 **§7.3의 「글리프가 주(主)」가 거짓**이 된다.
 - **`areaMul` 클램프와의 관계**: H3(§9.6.1)이 `projRadius`를 10으로 클램프하므로 코어도 자동으로 4.5에서 멈춘다 — **비율이라 별도 클램프가 필요 없다.**
+
+
+### 7.13 ★ 지형 장판의 시각 문법 — 「테두리가 있으면 위협, 없으면 지형」 (v1.10 ⑮ 신설)
+
+> **사용자(2026-09-04)**: 「이 지대가 공격 지대가 아니라 특수한 지대라는 걸 알기 위해 뭔가 다르게 표현해야 … 공격과
+> 공격이 아닌 것을 구분하는 무언가를 어떻게 딱 쉽게 보여줄 수 있을까?」 · 「화산지대에서 갑자기 멈추는 느낌 — 오래
+> 있으면 안 된다는 인식을 줘야」
+
+| | 공격 장판 (§8.5 `zone`·`mortar`) | 지형 장판 (§8.21) |
+|---|---|---|
+| 색 | 위협색 자홍(`threat.enemyBullet`) | 테마 **속성색** 저알파 |
+| 테두리 | 검은 외곽선 + 단단한 링 + 1Hz 맥동 | **없다** — 방사 그라데이션이 가장자리에서 0 으로 사라진다 |
+| 예고 | 착탄 표적 링·수축 링 | **없다**(피해 0 = §2.1 ① 대상 아님) |
+| 가운데 | 비어 있다 | **상태 아이콘** — 이 지형이 플레이어에게 붙이는 배지와 **같은 글리프**: ∿ 둔화 · ≋ 미끄러움 · ✳ 과열 정지 |
+| 질감 | — | 종마다 옅은 무늬(동심 물결 / 흐르는 사선 / 안→밖 열기 링) |
+
+두 규칙으로 읽힌다: **「테두리 = 위협」**, **「아이콘 = 여기 서면 내게 붙는 것」**(§7.12.4-② 배지의 글리프를 재사용하므로
+새 어휘 0). `visual.terrain { fillAlpha 0.22, patternAlpha 0.16, iconAlpha 0.80, iconPx 22, heatPulseHz 0.8, heatWarnAt 0.6 }` · ~~edgeAlpha~~ 삭제.
+
+**과열의 되먹임 (②채널 안에서).** 열이 0 보다 크면 기체 **둘레의 호**가 시계 방향으로 차오른다(호박, 반지름 `spriteRadius + 7`).
+`heatWarnAt`(0.6)부터 호가 굵어지며 **4Hz 로 깜빡이고** 기체 위에 **✳ 정지 예고**가 뜬다 — 「오래 있으면 안 된다」가 몸에
+보인다. 다 차면 실제 ✳ 스턴 배지(§7.12.4-②)가 이어받는다. ~~작은 12×2 바~~ 는 안 보였다.
 
 ---
 
@@ -2732,7 +2754,7 @@ data/bosses.json     data/stages.json     data/meta.json
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|---|
 | `forward` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `spreadDeg jitterDeg burstCount burstIntervalSec` + `evoRampSec evoRampFireRateMul` |
 | `fan` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `arcDeg` + `evoBlastRadius evoSecondaryDmgMul` |
-| `seeker` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `turnRateDegSec acquireRadius retargetSec` + `evoDistinctTargets evoRetargetOnKill` |
+| `seeker` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `turnRateDegSec acquireRadius retargetSec` + `evoDistinctTargets evoRetargetOnKill` · ★ v1.10 ⑯ 「유도탄이 너무 멍청하다」 → `projSpeed` 190→**250** · `lifetimeSec` 2.4→**3.0** · `turnRateDegSec` 125→**240**(Lv4 160→320) · `acquireRadius` 210→**460** · `retargetSec` 0.3→**0.12**. 실측(정지 표적 8자리): 명중 2/8 → 7/8(남은 1 은 화면 밖 = §8.20 대로 조준 불가) |
 | `lance` | ✔ | ✔ | ✔ | ✖ | ✖ | ✖ | ✔ | ✔ | ✔ | `beamWidthPx chargeSec rangePx` + `evoFullHeight` |
 | `orbit` | ✔ | ✖ | ✖ | ✖ | ✔ | ✖ | ✖ | ✔ | ✖ | `orbitRadius angularSpeedDegSec bodyCount` + `evoBulletClearCooldownSec` |
 | `aura` | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | `radius tickIntervalSec falloff` + `evoPullForce` |
@@ -2740,7 +2762,7 @@ data/bosses.json     data/stages.json     data/meta.json
 | `boomerang` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `outRangePx returnSpeed canRehit` + `evoChainCount` |
 | `barrage` | ✔ | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✔ | `strikeIntervalSec strikesPerVolley blastRadius telegraphSec` + `evoRadiusMul` |
 | `omni` | ✔ | ✔ | ✖ | ✔ | ✔ | ✔ | ✔ | ✔ | ✖ | `dirCount dirOffsetDeg rearBias` + `evoRingRotDeg` |
-| `drone` | ✔ | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `droneCount anchorOffsets droneFireSec droneRangePx` + `evoTrailDelaySec` |
+| `drone` | ✔ | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `droneCount anchorOffsets droneFireSec droneRangePx` + `evoTrailDelaySec` · ★ v1.10 ⑯ ~~`healOnKill healFullRangePx healZeroRangePx healCooldownSec` + `evoHealFullRangePx`~~ **폐지** — 사용자(2026-09-04) 「위성 무기의 피 회복 옵션은 빼는 게 좋겠다」. v1.7 «옵션의 회수»(가까이서 처치하면 회복)와 `step.droneSalvage` 를 함께 지웠다. 회복원은 다시 스테이지 클리어·보급 카드뿐 |
 | `nova` | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | `intervalSec radius expandSec telegraphSec` + `evoRing2Radius evoClearBullets evoSecondaryDmgMul` |
 
 **★ 읽는 법 (규칙 3개)**
@@ -2796,35 +2818,35 @@ data/bosses.json     data/stages.json     data/meta.json
 
 ### 9.6 `passives.json` — 폐쇄 스탯 어휘 (12종, 12 패시브와 1:1)
 
-> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **12×5 = 60값** · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
+> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×8 = 88값**(v1.10 ⑯ · ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
 ```json
-{ "schemaVersion": 1, "maxLevel": 5,
+{ "schemaVersion": 1, "maxLevel": 8,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul","coinGainMul"],
   "passives": [
     { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",
-      "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28] },
+      "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40] },
     { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",
-      "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30] },
+      "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40] },
     { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",
-      "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36] },
+      "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] },
     { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·마인필드·바라지·노바·리턴에는 무효",
-      "stat":"pierceAdd",           "values":[1,1,2,2,3] },
+      "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4] },
     { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",
-      "stat":"projCountAdd",        "values":[0,1,1,1,2] },
-    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×2.5까지 증폭 (×1·×0.5는 불변)",
-      "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50] },
+      "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3] },
+    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×2.8까지 증폭 (×1·×0.5는 불변)",
+      "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50,1.60,1.70,1.80] },
     { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",
-      "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6] },
+      "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8] },
     { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",
-      "stat":"hitBulletClearRadius","values":[60,90,120,150,180] },
+      "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",
-      "stat":"maxHpAdd",            "values":[6,12,18,24,30] },
+      "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48] },
     { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",
-      "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20] },
+      "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26] },
     { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",
-      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36] },
+      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48] },
     { "id":"salvage",    "name":"노획 프로토콜","desc":"획득 코인 증가",
       "stat":"coinGainMul",         "values":[0.12,0.22,0.30,0.37,0.43] }
   ]
@@ -2845,7 +2867,7 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 | **각 패시브 = 엔진 훅 정확히 1개** | `stat` 필드 하나. 엔진에 훅이 없는 스탯은 존재할 수 없다 |
 | ★ **필드 집합 = `{id, name, desc, stat, values}`** | **5개, 동결** (v1.3: `desc` 추가). `levels`·`maxLevel`은 **개체 필드가 아니다** — `maxLevel`은 파일 루트의 스칼라이고 레벨 표현은 `values` 5칸이 전담한다(§9.3의 부분 오버라이드 예외는 **`weapons[].levels[i]` 하나뿐**) |
 | **`values` 의미** | ★ **각 레벨의 절대 총량이지 증분이 아니다.** `coating` Lv3 = `pierce +2` (누적 +4 아님) |
-| ★ **`values`의 길이** | **정확히 `maxLevel`(5)행.** `check.mjs` **S35**: 12행 전부 `len(values) == maxLevel` |
+| ★ **`values`의 길이** | **정확히 `maxLevel`(**8** — v1.10 ⑯, ~~5~~)행.** `check.mjs` **S35**: 11행 전부 `len(values) == maxLevel`. ★ v1.10 ⑯(사용자 2026-09-04): 몸을 두 배로 늘려 레벨업이 예산(46~60)의 1.5배가 됐고 XP 는 줄이지 않기로 했다 → 패시브를 **8레벨**로 늘려 성장 칸을 85(=4+35+6+40)로. 6~8레벨은 5레벨까지의 체감 곡선을 이어 붙였다(오버클럭 0.32/0.36/0.40 · 탄두 0.34/0.37/0.40 · 코일 0.40/0.44/0.48 · 관통 3/4/4 · 장전 2/2/3 · 증폭 1.6/1.7/1.8 · 잔광 3.0/3.4/3.8 · 반응 205/230/255 · 격벽 36/42/48 · 프레임 0.22/0.24/0.26 · 학습 0.40/0.44/0.48) |
 | `*Mul` | **가산 풀** — Σ 후 1회 적용 (곱연산 스택 없음, §3.1의 `dmgMul` 항) |
 | `*Add` | 단순 가산 |
 | 패시브 카드 | **획득과 레벨업이 같은 `passive` 카테고리.** 5번째 카테고리 만들지 않음 |
@@ -4282,7 +4304,7 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
     "killTimeMedianBalanced": { "min":120, "max":150 }
   },
   "static": {
-    "growthBudget": { "maxLevelUps":60, "minTotalSink":67 },
+    "growthBudget": { "maxLevelUps":60, "minTotalSink":85 },
     "capHits":      { "max":0 },
     "fairnessViolations": { "max":0 }
   }
@@ -4527,7 +4549,7 @@ dustRunner:     passive 0 (초고속 이탈)  /  maxFarm 대부분 × XP 5배   
 
 **⑥ `growthBudget` (정적)**
 ```
-minTotalSink = 3(새 무기) + 28(무기 레벨) + 6(속성) + 30(패시브) = 67    // certify.static.growthBudget.minTotalSink
+minTotalSink = 4(새 무기) + 35(무기 레벨) + 6(속성) + 40(패시브) = 85    // certify.static.growthBudget.minTotalSink (v1.10 ⑯ 패시브 8레벨 · ~~67~~ ~~70~~)
 maxLevelUps = 60  <  67   ✔   (충족률 상한 90%, 목표 54 → 81%)
 ```
 **결론: 통과 ✔** — 이 부등식이 **"전부 못 찍는다 = 선택이 의미를 가진다"**의 산술적 성립이다. XP 곡선을 바꿔 레벨업이 60을 넘기면 **인증 실패.**
@@ -4719,7 +4741,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S32** ★ | **`themeId`의 적법성** (v1.3) — `tier == "stage"` ⟺ `themeId != null` (S15와 대칭) |
 | ~~**S33**~~ | ~~아이콘 어휘의 충분성 (v1.3) — `shop`의 전 항목의 `iconId` ∈ `hud.icons`~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 | **S34** ★ | **패밀리별 `base`·`evolution.params` 필수 키 집합** (v1.3 · **문면 정정 v1.4**) — §9.5 12행 표를 **두 검사로** 적용한다: ① `weapons[i].base`의 키 집합 == 그 `family`의 행이 ✔한 공통 키 **∪ (고유 파라미터 중 `evo*`가 아닌 것)** ② `weapons[i].evolution.params`의 키 집합 == **그 행의 고유 파라미터 중 `evo*`인 것**. ★ **표의 `+`는 거처 구분자**(§9.5 읽는 법 4번째 규칙) — v1.3의 문면 「∪ 고유 파라미터」는 `evo*`의 거처가 `evolution.params`라는 **같은 절의 확정**과 충돌해 **12행 전부를 실패시켰다**(데이터·검증기는 옳았고 문장이 틀렸다). **이 표가 없으면 S2의 「필수 키」가 무엇인지 검증기가 알 수 없다** |
-| **S35** ★ | **`values`의 길이** (v1.3) — `passives[]` 12행 전부 `len(values) == maxLevel`(5) |
+| **S35** ★ | **`values`의 길이** (v1.3) — `passives[]` 11행 전부 `len(values) == maxLevel`(**8**, v1.10 ⑯ · ~~5~~) |
 | **S36** ★ | **보스 이미터 id 규칙** (v1.3) — `bosses[].parts[i].patternSet[j].emitterIds[0] == {bossId}{PartIdPascal}P{j+1}` (§9.8.1) |
 | **S37** ★ | **보스 이미터의 존재** (v1.3) — 위 66개가 `enemies.json > emitters`에 전부 존재(참조 무결성의 정적 판본) |
 | **S38** ★ | **중간보스 이탈의 단일 소유자** (v1.3) — `tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재 |
@@ -4888,6 +4910,13 @@ XP 곡선 (meta.json > xp: base 6, exp 1.32, levelUpsPerRunTarget 54):
 - ★ **사용자의 「대략 ×1.36」과의 관계**: `708/520 = 1.36`은 두 수가 **같은 단위**라는 전제의 비율이다. 실제로는 04의 520이 *실효*, 03의 708이 *명목*이었으므로 `708 × 0.60 = 425` vs `520` → **보스 HP는 오히려 약 18% 내려가야 한다.** 사용자의 지시("**단 실제로 계산해서** 3분 타이머 대비 균형 ~2~2.5분에 죽도록")를 따라 **비율이 아니라 목표 격파시간에서 역산**했다. → §13.6의 결과: **테마 보스의 ×1환산 총 HP가 04의 값과 거의 그대로**이고(예: 최종 83,100 vs 04의 83,950 = **1% 차이**), **바뀐 것은 배분과 스테이지 곡선**이다.
 
 ### 13.6 ★ 보스 HP — 정본이 소유한다 (v1.1 신설)
+
+> ★ **v1.10 ⑯ (2026-09-04, 플레이 피드백 「레벨업을 하다 보니 중간보스·보스가 좀 쉽게 잡힌다 — 체력 1.2배」)**:
+> `bossHpScale` 은 스테이지 1 기준 base 라 `[0] == 1.00` 이 게이트(CERT)다. 그래서 곡선이 아니라 **base HP 를 ×1.2** 했다 —
+> 스테이지 보스 6종의 core·전 부위, 중간보스 3종, 최종(tier final, 배율 없음)의 core·전 부위 전부. 아래 §13.6.x 의 절대 HP
+> 수치는 v1.2 산출 그대로이므로 **읽을 때 ×1.2** 다(그 절들은 «왜 그 비율인가»의 기록이다). 실측 예: manta core 732→878,
+> mbNest 587→704, tetrarch coffin 19350→23220.
+
 
 #### 13.6.1 `bossHpScale` — 왜 필요하고 왜 이 값인가
 
