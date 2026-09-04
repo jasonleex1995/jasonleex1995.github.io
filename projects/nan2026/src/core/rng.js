@@ -3,7 +3,7 @@
  *
  * 정본 v1.4 구현 절:
  *   §10.2  시드 RNG — sfc32, 정수 연산만 → 모든 엔진에서 비트 동일
- *   §10.2  독립 스트림 8종 (동결): theme draft spawn elite drop pattern boss bot
+ *   §10.2  독립 스트림 9종 (동결): theme draft spawn elite drop pattern boss bot terrain(v1.10 ⑦)
  *   §10.3  L1 콘텐츠 결정성 — "RNG가 정수 연산뿐"이 엔진 무관 보장의 근거
  *   §9.1   core 순수성 — 금지 식별자 0, core 밖 import 0
  *
@@ -11,8 +11,8 @@
  * 이 파일은 시드를 만들지 않는다 — 만들 수단(시계)이 core에 없다.
  */
 
-/** §10.2 — 독립 스트림 8종. 동결. */
-export const RNG_STREAMS = ['theme', 'draft', 'spawn', 'elite', 'drop', 'pattern', 'boss', 'bot'];
+/** §10.2 — 독립 스트림 9종. 동결(v1.10 ⑦ terrain 추가). */
+export const RNG_STREAMS = ['theme', 'draft', 'spawn', 'elite', 'drop', 'pattern', 'boss', 'bot', 'terrain'];   // v1.10 ⑦ terrain(§8.21 지형 장판 위치)
 
 const TWO_POW_32 = 4294967296;
 
@@ -139,6 +139,7 @@ export function makeStreams(masterSeed) {
     pattern: stream(seed, 'pattern'),
     boss: stream(seed, 'boss'),
     bot: stream(seed, 'bot'),
+    terrain: stream(seed, 'terrain'),   // v1.10 ⑦ — §8.21 지형 장판의 x 위치
   };
 }
 

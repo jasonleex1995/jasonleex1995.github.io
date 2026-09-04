@@ -37,6 +37,7 @@
     "zones": 64,
     "drones": 8,
     "particles": 400,
+    "terrain": 16,
     "telegraphs": 128,
     "damageNumbers": 10,
     "effectMarkers": 12,
@@ -50,7 +51,7 @@
       "telegraph": "deferAttack",
       "particle": "evictOldest",
       "damageNumber": "evictOldest",
-      "effectMarker": "evictOldest"
+      "effectMarker": "evictOldest", "terrain": "rejectSpawn"
     }
   },
 
@@ -152,6 +153,14 @@
     "playerWeaponsExempt": true
   },
 
+  "terrain": {
+    "radiusPx": 72,
+    "scrollSpeedPx": 42,
+    "everySec": 3.2,
+    "maxOnScreen": 3,
+    "inertia": { "responseTauSec": 0.35 },
+    "heat": { "fullSec": 1.5, "stallSec": 0.6, "coolSec": 1.0 }
+  },
   "hud": {
     "hitboxAlwaysVisible": true,
     "showElementBudget": true,
@@ -286,6 +295,12 @@
     "zone": {
       "fillAlpha": 0.30,
       "pulseHz": 1.0
+    },
+    "terrain": {
+      "fillAlpha": 0.14,
+      "edgeAlpha": 0.35,
+      "patternAlpha": 0.30,
+      "heatPulseHz": 0.8
     },
     "timer": {
       "warnScale": 1.15,

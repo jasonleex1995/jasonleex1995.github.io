@@ -255,7 +255,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 항목 | 키 | 값 |
 |---|---|---|
 | 기본 속도 | `player.moveSpeed` | **280** (PxSec) |
-| 반응 시상수 | `player.moveResponseTau` | **0.0** (Sec) |
+| 반응 시상수 | `player.moveResponseTau` | **0.0** (Sec) — ★ v1.10 ⑦: 물 지형(`inertia`) 위에서는 이 항 대신 `rules.terrain.inertia.responseTauSec`(0.35)가 쓰인다(§8.21). «항은 존재하고 값이 0»이 처음으로 값을 가진 자리 |
 | 대각선 정규화 | `player.diagonalNormalize` | **true** (×0.70710678) |
 | SOCD (반대키 동시) | `input.socd` | **`"lastInput"`** — 마지막에 눌린 키 우선 |
 | 이동 속도 상한 | (파생: 상점 3스택 ×6% + 패시브 `moveSpeedMul` 최대 20%) | 280 × 1.18 × 1.20 = **396.5** |
@@ -2133,6 +2133,48 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 만족시켜 게이트가 공허해진다(중괄호 짝으로 본문을 잘라 검사한다).
 ★ **① 은 «증명»이 아니라 관용구(`X.hp -=` · `X.hp = X.hp − …`)에 대한 철사다** — 그렇게 정직하게 읽어라.
 
+### 8.21 ★ 지형 장판 — 피해가 아니라 조작을 방해한다 (v1.10 ⑦ 신설)
+
+> **설계 문제 (사용자 요구, 2026-09-04)**: 「각 스테이지마다 특이한 장애물 (늪이면 독지대나 속도가 느려지는 지대)을
+> 기획했던 것 같은데 … 개인적으로는 공격과 관련된 거라기보다는 **유틸을 방해하는** 느낌이 좋을 것 같아. 늪에 있는
+> 웅덩이는 속도를 느리게 만든다던가, 빙원은 가속도가 붙는다던가, 화산은 … 갑자기 과열돼서 멈추는 것도 재밌을 것 같아.」
+>
+> 그 전까지 «테마 장애물»은 **적 공격**으로만 있었고(마그마 장판 `magmaBomb`·둔화 벽 `frostLance`·둔화 나선 `bogHexer`)
+> 대부분 2스테이지부터 열려, 1스테이지에서는 테마가 보이지 않았다. 지형은 만든 적이 없었다(밸런스 실험 팔에만 있었다).
+
+**① 피해 0.** 피해 장판은 적 공격(§8.5 `zone`·`mortar`)이 이미 한다. 지형이 피해까지 주면 두 층이 겹쳐 «장판 = 아프다»가
+흐려진다. 지형은 **오직 조작(이동)**을 건드린다 → §2.1 ①(완벽한 조작이면 탄·빔·장판에 안 맞는다)의 대상이 **아니고**,
+그래서 **예고가 없다** — 항상 보이고, 항상 같은 모양이다(§12.3 레이어 1, 위협색 자홍이 아니라 테마 속성색 저알파).
+
+**② 기계는 3종, 속성당 하나. 테마는 겉모습만 다르다.**
+
+| 속성 | kind | 테마(겉모습) | 기계 | 재사용한 것 |
+|---|---|---|---|---|
+| 풀 | `slow` | 늪(진흙 웅덩이) · 숲(덩굴) | 안에 있으면 둔화 | `status.slowMoveSpeedMul`(0.55) — 기존 둔화 상태를 **매 틱 `slowSec = dt` 로 갱신**한다. 배율·배지(∿)·타이머 규약(§2.7)이 그대로고, 밖으로 나가면 다음 틱에 풀린다. 새 키 0 |
+| 물 | `inertia` | 빙원(빙판) · 바다(해류) | 안에서는 방향을 바꿔도 미끄러진다 | §2.2 의 **지수 스무딩 항**(`moveResponseTau`, «항은 존재하고 값이 0») — 지형이 그 항을 `rules.terrain.inertia.responseTauSec`(0.35)로 켠다. 뒤집는 데 τ·ln2 ≈ 0.24초(15틱) |
+| 불 | `heat` | 화산(열기) · 사막(신기루 열기) | 안에 있는 동안 **열 게이지**가 차고, 다 차면 **과열 정지** | §2.7 스턴 — `player.heat ∈ [0,1]` 이 `fullSec`(1.5)에 차면 `stallSec`(0.6) 스턴 + 열 0. 스턴 중엔 안 찬다(연쇄 정지 방지). 밖에서는 `coolSec`(1.0)에 식는다. 게이지는 기체 위 호박 바(§7.12.4-② 채널) |
+
+**③ 거처와 값.** `stages[].terrainKind` ∈ `{slow, inertia, heat}` \| null(finale — 테마가 없으니 지형도 없다).
+`rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 3.2, maxOnScreen 3, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }`.
+`caps.terrain 16`(overflow `rejectSpawn`) · `visual.terrain { fillAlpha 0.14, edgeAlpha 0.35, patternAlpha 0.30, heatPulseHz 0.8 }`.
+`rules.json` 루트는 **17개**가 됐다(`terrain` 추가 — `RULES_ROOT_17`).
+
+**④ 시각표와 흐름.** 잡몹 페이즈(MOB)에서 `everySec` 마다, 무대에 `maxOnScreen` 미만일 때 하나. x 는 아레나 안 균일 —
+**`rng.terrain`**(§10.2 스트림 9번째, 다른 스트림을 밀지 않는다) · y 는 스폰 라인 위. `scrollSpeedPx` 로 내려오다 아레나
+아래로 완전히 나가면 반납. 스테이지 전이(`advanceStage`)가 무대와 열을 비운다. 흐름·반납은 페이즈 무관(보스전 중 남은
+장판은 흘러 나간다), 스폰은 MOB 만. 소유: `src/core/terrain.js`(시각표·흐름·술어 `terrainUnder`) · 효과의 «적용»은
+`step.movePlayer`(이동의 단일 소유자, §2.2) · 그림은 `draw.drawTerrain`(레이어 1) + 과열 바(`drawPlayer`).
+
+**⑤ 계측.** 봇(§10.4)은 지형을 «모른다» — 그 위에서 잰 강제% 는 지형이 만든 정지·둔화까지 포함한다. 이것은 결함이 아니라
+정직한 계측이다(지형이 플레이어를 탄 속에 붙잡으면 그건 «맞은 것»이다). 봇에 회피를 가르치는 것은 다음 패스.
+
+**게이트 S56 (§13.4)** — ① 테마마다 kind ∈ 어휘, finale null ② 같은 속성 = 같은 kind ③ 3종 전부 쓰인다 ④ 값의 범위
+(`radiusPx ∈ [24, arena.w/4]` · `stallSec ≤ fairness.maxStunSec` · `fullSec > stallSec` · `maxOnScreen ≤ caps.terrain` …)
+⑤ 통로: 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 폭이 남는다).
+
+**실측(헤드리스, 시드 5, 60초).** 늪: 스폰 9 · 동시 최대 3 · 안에 서면 둔화. 화산: 열 1.0 도달 → 정지, 안에 계속 서면
+2.1초마다 0.6초 정지. 최종: 0. 테스트 8건(스폰·흐름·전이·결정성·둔화·관성 τ·ln2·과열·무해).
+
 ## 9. 데이터 아키텍처
 
 ### 9.1 파일 레이아웃 · 모듈 경계
@@ -2258,12 +2300,12 @@ data/bosses.json     data/stages.json     data/meta.json
   "collide": { "gridCellPx": 64 },
   "caps":    { "playerBullets":256, "enemyBullets":384, "enemies":96, "pickups":256,
                "zones":64, "drones":8, "particles":400, "telegraphs":96,
-               "damageNumbers":10, "effectMarkers":12,
+               "damageNumbers":10, "effectMarkers":12, "terrain":16,
                "overflow": { "playerBullet":"rejectSpawn", "enemyBullet":"rejectSpawn",
                              "enemy":"defer", "pickup":"merge", "zone":"rejectSpawn",
                              "drone":"rejectSpawn", "telegraph":"deferAttack",
                              "particle":"evictOldest", "damageNumber":"evictOldest",
-                             "effectMarker":"evictOldest" } },
+                             "effectMarker":"evictOldest", "terrain":"rejectSpawn" } },
   "player":  { "hpMax":100, "spriteRadius":14, "hitboxRadius":4,
                "moveSpeed":280, "moveResponseTau":0.0, "diagonalNormalize":true,
                "iframeSec":1.0, "defenseBase":0, "damageFloorRatio":0.25,
@@ -2313,6 +2355,8 @@ data/bosses.json     data/stages.json     data/meta.json
                "telegraphConcurrentMaxPerEntity":2,
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
+  "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":3.2, "maxOnScreen":3,
+               "inertia":{ "responseTauSec":0.35 }, "heat":{ "fullSec":1.5, "stallSec":0.6, "coolSec":1.0 } },   // §8.21 v1.10 ⑦
   "hud":     { "...§9.4.1 전 키..." },
   "passiveHooks": { "...§9.6.1 전 키..." },
   "input":   { "layout":"code", "socd":"lastInput", "pauseOnBlur":true,
@@ -2351,7 +2395,7 @@ data/bosses.json     data/stages.json     data/meta.json
 
 - `fairness.*`는 **로더가 강제하는 기계 검사 조건**이다. "느리고 큰 텔레그래프"라는 정성적 기둥이 여기서 처음으로 **검증 가능한 수치**가 된다. AI가 트위치 탄막을 생성하면 **빌드가 깨진다.**
 - `palette`가 **속성 색의 단일 진실**이다. 적 외곽선·아군 탄·HUD·드래프트 카드·데미지 FX가 전부 이 키를 읽는다.
-- ★ **`rules.json`의 블록 목록 = 정확히 16개** (+ `schemaVersion`): `loop` `view` `collide` `caps` `player` `status` `elite` `boss` `fairness` **`hud`** **`passiveHooks`** `input` `palette` `visual` **`render`** `audio`. ★ v1.5 가 `bomb` 을 삭제해 17→16 이 됐다(`RULES_ROOT_16`). 로더는 이 목록 밖의 루트 키를 **에러**로 거부한다.
+- ★ **`rules.json`의 블록 목록 = 정확히 17개** (+ `schemaVersion`): `loop` `view` `collide` `caps` `player` `status` `elite` `boss` `fairness` **`terrain`** **`hud`** **`passiveHooks`** `input` `palette` `visual` **`render`** `audio`. ★ v1.5 가 `bomb` 을 삭제해 17→16, v1.10 ⑦ 이 `terrain`(§8.21)을 더해 다시 17(`RULES_ROOT_17`). 로더는 이 목록 밖의 루트 키를 **에러**로 거부한다.
 - ★ **v1.2: 목록은 17개 그대로다.** 감사(§21)가 찾아낸 **거처 없는 확정 키 전부**를 기존 스코프에 편입했다 — `stance` 2키 → **`player`**(§4.3) · `midBossSummonsAllowed` → **`boss`**(§8.9) · `telegraphConcurrentMaxGlobal` → **`fairness`**(§12.4가 이미 `fairness` 키라 불렀다) · `neutralGray`·`hud.*` → **`palette`** · `visual` 축약 해제 → **§9.4.3**. **새 루트 스코프 0.**
 - ★ **`enemy.contactPush`(§2.2) · `pickup.lifetimeSec`(§7.8)은 키가 아니다 (v1.2 명문화)**: 루트 17개에 `enemy`·`pickup` 스코프가 없고, **둘 다 구조이지 값이 아니다**(C-4) — 「적과 겹쳐도 밀리지 않는다」·「픽업은 만료되지 않는다」는 **규칙이며 밸런싱 대상이 아니다.** v1.1은 이 둘을 백틱 키 형식으로 인쇄해 **존재하지 않는 스코프를 시사**했다 → 백틱을 벗기고 규칙으로 되돌린다. **새 키 0.** ★ **v1.3이 같은 처분을 3건에 더 적용했다**: `boss.healDrop` · `bosses[].core.xp`/`parts[].xp` · `crisisFailCondition`(§8.11 · §8.10).
 
@@ -3181,7 +3225,7 @@ tetrarchThroneP1  ...
              "statusStunMaxPerStage":2 },
   // 예시 — stages[] 원소 2개(sea·finale)의 형태만 확정한다 (C-7.1). 값의 소유자 = 04 §8~§9 (C-2.1)
   "stages": [{ "id":"sea", "name":"바다", "element":"water", "introOk":true,
-               "bossId":"manta", "crisisElementRule":"themePure",
+               "bossId":"manta", "crisisElementRule":"themePure", "terrainKind":"inertia",   // §8.21 v1.10 ⑦ (finale 은 null)
                "roster":[{"archetypeId":"drifter","unlockStageMin":1}, "..."],
                "mix":{"water":0.70,"fire":0.10,"grass":0.10,"normal":0.10},
                "waves":[{ "formationId":"vWedge","archetypeId":"drifter","count":7,
@@ -3396,7 +3440,7 @@ export function stream(masterSeed, name)   // → makeRng(hash32(masterSeed, nam
 - **확정**: `weighted(weights)`는 **가중치 배열**(인덱스 오름차순, `weights[i] = i번째 후보의 가중치`)을 받아 **뽑힌 인덱스**를 돌려준다(총합 ≤ 0이면 `-1`). 호출자(§11.1 드래프트)는 후보 배열과 병렬인 `weights[]`를 만들어 넘기고, 반환된 인덱스로 후보를 집는다 — **`Map` 없음, 순회는 인덱스 오름차순, 결정성 규칙과 정합.**
 - 새 값 0 · 새 키 0 — 시그니처의 인자 이름 하나(`map` → `weights[]`)가 §10.3과 일치하도록 정정된다.
 
-**독립 스트림 (8종, 동결)** — 한 스트림에 draw를 추가해도 다른 스트림이 밀리지 않는다. 이것이 없으면 **콘텐츠를 하나 고칠 때마다 이전 시뮬 인증이 전부 무효**가 된다.
+**독립 스트림 (9종, 동결 — v1.10 ⑦: 8 + `terrain`)** — 한 스트림에 draw를 추가해도 다른 스트림이 밀리지 않는다. 이것이 없으면 **콘텐츠를 하나 고칠 때마다 이전 시뮬 인증이 전부 무효**가 된다.
 
 | 스트림 | 용도 |
 |---|---|
@@ -3408,6 +3452,7 @@ export function stream(masterSeed, name)   // → makeRng(hash32(masterSeed, nam
 | `pattern` | 탄막 jitter — ★ **적 이미터와 플레이어 무기가 공유**(§9.5) |
 | `boss` | 보스 페이즈 내 선택 |
 | ★ **`bot`** | **봇의 반응 지터**(`bot.reactionJitterMs`) — **인간 런에서는 draw가 0회** |
+| ★ **`terrain`** (v1.10 ⑦) | **지형 장판의 x 위치**(§8.21) — 스폰·적 스트림을 밀지 않는다. `hash32(20260822, 'terrain') = 3750226928`(골든) |
 
 - ★ **`shop` 스트림은 존재하지 않는다** — 상점은 **전체 목록 상시**이며 랜덤 진열이 없다(§11.2).
 - ★ **8번째 `bot` 스트림 신설 (05-⑤ 채택)**: v1.0은 봇을 `tools/` 안에 두고 스트림을 7종으로 동결했다. **`src/core/bot.js`로 승격**하고 스트림을 8종으로 연다.
@@ -3972,11 +4017,12 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 
 | 키 | 값 | 초과 시 정책 |
 |---|---|---|
-| `enemies` | **128** · ~~96~~ | **`defer`** — 스포너가 다음 틱 재시도 (웨이브가 공짜로 사라지지 않음) |
+| `enemies` | **576** (v1.10 ⑤) · ~~320~~ ~~128~~ ~~96~~ | **`defer`** — 스포너가 다음 틱 재시도 (웨이브가 공짜로 사라지지 않음) |
 | `enemyBullets` | **384** | **`rejectSpawn`** |
 | `playerBullets` | **256** | **`rejectSpawn`** |
 | `pickups` | **384** · ~~256~~ | **`merge`** — 신규 픽업 값을 최근접 기존 픽업에 합산 (**손실 0 = 무-노가다 기둥 보존**) |
 | `zones` | 64 | `rejectSpawn` |
+| ★ `terrain` (v1.10 ⑦) | **16** | `rejectSpawn` — 지형 장판(§8.21). 무대 상한은 `rules.terrain.maxOnScreen`(3)이 따로 잡는다 |
 | `drones` | 8 | `rejectSpawn` |
 | `particles` | 400 | `evictOldest` |
 | **`telegraphs`** | ★ **128** (v1.0의 8은 폐기) · ~~96~~ | ★ **`deferAttack` — 공격 자체를 연기** (I-3) |
@@ -4594,7 +4640,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S8** | **혼합 비율** — ★ **저작 리스트**(= `stages[].waves[]` 중 **`unlockStageMin ≤ s`인 레코드**, v1.3)의 **원시 개체 수**(= `count` 그대로, ★ **v1.4: 엘리트를 빼지 않는다** — §8.2) 기준 속성 비율이 `mix`에 **±3%p** (**중간보스·새떼·보스 제외** — 셋 다 `waves[]` 밖이라 동어반복이다). `mix`가 counter/prey 규칙(70/10/10/10)을 따르는지. ★ **실측: 전 31셀 0.0000%p** |
 | **S9** | **구조** — `stages[].element ∈ {water,fire,grass,null}` 이고 `null`은 `finale`만 · 무기 `levels` 정확히 8행 · `4 ≤ elementCapTotal < 3 × elementCapPerElement` · `rearIn`/`spawnEdge:"bottom"`은 `rearSpawnAllowed[stage]`일 때만 · 새떼에 `swarm*` 외 아키타입 금지 · ★ **`crisisElementRule == "finaleRotating"` ⟺ `stages[].id == "finale"`** (v1.3 — 불리언이 어휘값이 됐다) |
 | **S10** | **성장 예산** — ★ **v1.3 문면 수정**: 「XP 곡선으로 계산한 최대 레벨업 횟수」는 **정적 검사가 불가능**하다(파밍 정책의 함수다) → ★ **선언 상수 비교 + 유도 검사**로 바꾼다: `certify.static.growthBudget.maxLevelUps`(60) `<` `certify.static.growthBudget.minTotalSink`(67) ∧ **`minTotalSink`가 실제 데이터에서 유도된 값과 일치**(= 3 신규 무기 + Σ(무기 `maxLevel`−1) 28 + `elementCapTotal` 6 + Σ(패시브 `maxLevel`) 30 = **67**). **선언과 데이터가 갈라지면 실패** |
-| **S11** | **RNG 스트림** — ★ **명명된 8 스트림만** 사용, 스트림 간 공유 금지. `rng.pattern`만 적·플레이어 양쪽 접근 허용 |
+| **S11** | **RNG 스트림** — ★ **명명된 9 스트림만**(v1.10 ⑦: 8 + `terrain`, §8.21) 사용, 스트림 간 공유 금지. `rng.pattern`만 적·플레이어 양쪽 접근 허용 |
 | **S12** | **2층 캡** — A층 오써링 예산 < B층 안전망 캡. ★ **`telegraphConcurrentMaxGlobal == enemyConcurrentMax × telegraphConcurrentMaxPerEntity`** (파생값 무결성) |
 | **S13** ★ | **스턴의 거처** — `bullets[].status == "stun"`인 탄을 쓰는 이미터는 **보스 부위의 `patternSet[2]`(페이즈 3)에만** 존재(= id가 `{bossId}{PartIdPascal}P3` 형태, §9.8.1). 스테이지당 그런 개체 ≤ `statusStunMaxPerStage`(2) |
 | **S14** ★ | **`shape ↔ status` 동치** — `(bullets[].status === null) === (bullets[].shape === "circle")` |
@@ -4635,6 +4681,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
 | **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
 | **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
+| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale null ② 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) |
 | ~~**S46**~~ | ~~공격 기호 어휘의 완결성 (v1.7)~~ — ★ **v1.8 삭제.** 기호 자체를 폐지했다(§7.6.1). 번호는 재사용하지 않는다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 

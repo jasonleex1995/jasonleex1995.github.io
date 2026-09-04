@@ -20,6 +20,7 @@
  */
 
 import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } from './damage.js';
+import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
 import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
@@ -130,6 +131,18 @@ function movePlayer(world, dt) {
   const rp = world.data.rules.player;
   const b = world.bounds;
 
+  // §8.21(v1.10 ⑦) 지형 장판 — 피해 0, 조작만 건드린다. 어느 장판 위인가는 terrain.js 의 술어가 답한다.
+  //   슬라이스(런 없음)는 지형이 없다(풀이 비어 -1). 효과의 «적용»은 여기가 단일 소유자다(§2.2 이동).
+  const tr = world.data.rules.terrain;
+  const tk = world.run === undefined ? -1 : terrainUnder(world, p.x, p.y);
+  //   slow — 기존 둔화 상태를 «이 틱만큼» 갱신한다: 배율·배지·타이머 규약(§2.7)을 그대로 재사용, 밖으로 나가면 다음 틱에 풀린다.
+  if (tk === T_SLOW && p.slowSec < dt) p.slowSec = dt;
+  //   heat — 안에서 차고(스턴 중엔 안 찬다: 연쇄 정지 방지) 밖에서 식는다. 다 차면 stallSec 스턴(«과열 정지») 후 0.
+  if (tk === T_HEAT && p.stunSec <= 0) p.heat += dt / tr.heat.fullSec;
+  else if (tk !== T_HEAT) p.heat -= dt / tr.heat.coolSec;
+  if (p.heat < 0) p.heat = 0;
+  if (p.heat >= 1) { if (p.stunSec < tr.heat.stallSec) p.stunSec = tr.heat.stallSec; p.heat = 0; }
+
   let dx = p.dirX;
   let dy = p.dirY;
   if (p.stunSec > 0) { dx = 0; dy = 0; }          // §2.7 — 스턴 중 이동 입력 무시
@@ -142,7 +155,8 @@ function movePlayer(world, dt) {
 
   const tvx = dx * v;
   const tvy = dy * v;
-  const tau = rp.moveResponseTau;
+  //   inertia — 지형이 §2.2 의 지수 스무딩 항을 켠다(기본 0 = 즉시 응답). 값은 rules.terrain.inertia 가 소유한다.
+  const tau = tk === T_INERTIA ? tr.inertia.responseTauSec : rp.moveResponseTau;
   if (tau > 0) {
     // ★ 항은 존재하고 값이 0이다 — "살짝 미끄럽게"가 필요해도 숫자만 바뀐다 (§2.2 · C-4)
     const k = 1 - Math.exp(-dt / tau);

@@ -10,7 +10,7 @@
  *   그리고:
  *     · 같은 시드 = 비트 재현   — 동일 시드 두 번 = 표본 열 동일 / 다른 시드 = 상이
  *     · 핫패스 할당 0(힙증가0)  — 풀 items 배열이 재할당되지 않는다(동일 참조·길이)
- *     · 8스트림 독립           — 한 스트림을 뽑아도 다른 스트림이 밀리지 않는다
+ *     · 9스트림 독립           — 한 스트림을 뽑아도 다른 스트림이 밀리지 않는다
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
@@ -181,7 +181,7 @@ suite('invariants/결정성', () => {
     assert.ne(JSON.stringify(a.fingerprints), JSON.stringify(b.fingerprints), '다른 시드 = 다른 궤적');
   });
 
-  test('8스트림 독립 — 한 스트림을 뽑아도 다른 스트림이 밀리지 않는다', () => {
+  test('9스트림 독립 — 한 스트림을 뽑아도 다른 스트림이 밀리지 않는다', () => {
     const s1 = makeStreams(555);
     for (let i = 0; i < 500; i += 1) s1.draft.u32();     // draft 를 500회 소모
     const s2 = makeStreams(555);                          // 갓 만든 동일 시드

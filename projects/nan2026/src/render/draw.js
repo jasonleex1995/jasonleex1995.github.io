@@ -485,6 +485,62 @@ function drawBackground(ctx, world, pal, fx) {
 // ---------------------------------------------------------------------------
 // 레이어 1 — 지면 장판 · 지면 텔레그래프 (§12.3)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// 레이어 1 — 지형 장판 (§8.21 v1.10 ⑦ · §7.13). 피해 0 이라 위협색(자홍)을 쓰지 않는다 — 테마 속성색을 낮은 알파로.
+//   종마다 무늬가 다르다: slow = 동심 물결(웅덩이) · inertia = 사선 결(빙판/해류) · heat = 맥동하는 열기 링.
+//   예고가 없다(피해가 없으니 §2.1 ① 의 대상이 아니다) — 항상 보이고, 항상 같은 모양이다.
+// ---------------------------------------------------------------------------
+function drawTerrain(ctx, world, pal) {
+  const it = world.terrain.items;
+  if (world.terrain.live === 0) return;
+  const vt = world.data.rules.visual.terrain;
+  const run = world.run;
+  const stageId = run === undefined ? null : run.order[run.stageIndex];
+  let element = 'normal';
+  if (stageId !== null) {
+    const list = world.data.stages.stages;
+    for (let i = 0; i < list.length; i += 1) if (list[i].id === stageId) { element = list[i].element === null ? 'normal' : list[i].element; break; }
+  }
+  const col = pal.element[element];
+  for (let i = 0; i < it.length; i += 1) {
+    const t = it[i];
+    if (!t.alive) continue;
+    const r = t.radius;
+    ctx.fillStyle = rgba(col, vt.fillAlpha);
+    ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = rgba(col, vt.edgeAlpha);
+    ctx.stroke();
+    ctx.strokeStyle = rgba(col, vt.patternAlpha);
+    ctx.lineWidth = 1.5;
+    if (t.kind === 0) {                                   // slow — 동심 물결(웅덩이)
+      for (let k = 1; k <= 3; k += 1) {
+        const rr = r * (k / 3.5) + Math.sin(world.time * 1.2 + k) * 2;
+        ctx.beginPath(); ctx.arc(t.x, t.y, rr, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (t.kind === 1) {                            // inertia — 사선 결(미끄러짐)
+      ctx.save();
+      ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.clip();
+      const step = 14;
+      const off = (world.time * 24) % step;
+      for (let d = -r * 2; d <= r * 2; d += step) {
+        ctx.beginPath();
+        ctx.moveTo(t.x + d + off - r, t.y - r);
+        ctx.lineTo(t.x + d + off + r, t.y + r);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else {                                              // heat — 맥동하는 열기 링(안쪽에서 바깥으로)
+      const ph = (world.time * vt.heatPulseHz) % 1;
+      for (let k = 0; k < 2; k += 1) {
+        const f = (ph + k * 0.5) % 1;
+        ctx.strokeStyle = rgba(col, vt.patternAlpha * (1 - f));
+        ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.25 + 0.75 * f), 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+  }
+}
+
 function drawGroundZones(ctx, world, pal) {
   const vz = world.data.rules.visual.zone;
   const items = world.zones.items;
@@ -795,6 +851,16 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
     const dur = st === 'stun' ? p.stunSec : p.slowSec;
     ctx.fillStyle = pal.status.band;
     ctx.fillRect(x - 6, by + 7, 12 * Math.min(1, dur), 2);
+  }
+  // §8.21(v1.10 ⑦) 과열 게이지 — 불 지형 안에서 차는 열. 배지 바로 아래, 호박 채널(«내 상태가 나쁘다», §7.12.4-②).
+  //   0 이면 안 그린다(평소엔 없다). 다 차면 stallSec 스턴 → 위의 ✳ 배지가 이어받는다.
+  if (p.heat > 0) {
+    const gy = y - 16 + 11;
+    ctx.strokeStyle = rgba(pal.status.band, 0.55);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 7, gy, 14, 3);
+    ctx.fillStyle = pal.status.band;
+    ctx.fillRect(x - 6, gy + 1, 12 * Math.min(1, p.heat), 1);
   }
   ctx.restore();
 
@@ -1211,6 +1277,7 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   ctx.clip();                                                 // §1.1 — 아레나 밖으로 새지 않는다
 
   drawArenaBands(ctx, world, pal);                            // 1 — 띠 (내용의 소유자는 hud.js)
+  drawTerrain(ctx, world, pal);                               // 1 — 지형 장판(§8.21, 피해 0 = 위협색 아님)
   drawGroundZones(ctx, world, pal);                           // 1
   drawPickups(ctx, world, pal, interp, alpha);                // 2
   drawPlayerBullets(ctx, world, pal, interp, alpha);          // 4

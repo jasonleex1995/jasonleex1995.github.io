@@ -75,6 +75,7 @@
       "bossId": "manta",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "inertia",
       "roster": [
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "spitter", "unlockStageMin": 1 },
@@ -115,6 +116,7 @@
       "bossId": "frostCrown",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "inertia",
       "roster": [
         { "archetypeId": "spitter", "unlockStageMin": 1 },
         { "archetypeId": "turretPod", "unlockStageMin": 2 },
@@ -157,6 +159,7 @@
       "bossId": "kiln",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "heat",
       "roster": [
         { "archetypeId": "spitter", "unlockStageMin": 1 },
         { "archetypeId": "magmaBomb", "unlockStageMin": 2 },
@@ -198,6 +201,7 @@
       "bossId": "scarab",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "heat",
       "roster": [
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "dustRunner", "unlockStageMin": 1 },
@@ -239,6 +243,7 @@
       "bossId": "thornKing",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "slow",
       "roster": [
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "thornWeaver", "unlockStageMin": 1 },
@@ -279,6 +284,7 @@
       "bossId": "mire",
       "crisisElementRule": "themePure",
       "introArchetypeId": "drifter",
+      "terrainKind": "slow",
       "roster": [
         { "archetypeId": "hexer", "unlockStageMin": 1 },
         { "archetypeId": "flanker", "unlockStageMin": 1 },
@@ -319,6 +325,7 @@
       "bossId": "tetrarch",
       "crisisElementRule": "finaleRotating",
       "introArchetypeId": "drifter",
+      "terrainKind": null,
       "roster": [
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "spitter", "unlockStageMin": 1 },

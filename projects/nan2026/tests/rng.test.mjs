@@ -3,7 +3,7 @@
  *
  * 단언 대상:
  *   - 결정성 (L1): 같은 시드 → 비트 동일 수열. 다른 시드 → 상이.
- *   - 8스트림 독립 (동결): makeStreams가 8종 전부 만든다 · 스트림 간 상태 공유 없음 ·
+ *   - 9스트림 독립 (동결): makeStreams가 9종 전부 만든다 · 스트림 간 상태 공유 없음 ·
  *     ★ 회귀: 한 스트림에 draw를 추가해도 다른 스트림이 밀리지 않는다 (이전 인증 무효화 방지).
  *   - 분포 sanity: f∈[0,1) · int∈[lo,hi] 양끝포함 · weighted 인덱스/음성 · pick · shuffle 순열.
  *   - hash32: 결정적 · 이름 민감 · 시드 민감 · uint32.
@@ -65,10 +65,10 @@ suite('rng.golden', () => {
     for (let i = 0; i < want.length; i += 1) assert.eq(r.f(), want[i], `f[${i}]`);
   });
 
-  test('hash32(20260822, 스트림 8종) = 고정값 (스트림 분기 자체를 고정)', () => {
+  test('hash32(20260822, 스트림 9종) = 고정값 (스트림 분기 자체를 고정 — v1.10 ⑦ terrain 추가)', () => {
     const want = [587995892, 977572039, 4166709955, 3508841613,
-                  1403557567, 3818239070, 145623808, 4082211005];
-    assert.eq(RNG_STREAMS.length, want.length, '스트림 8종');
+                  1403557567, 3818239070, 145623808, 4082211005, 3750226928];
+    assert.eq(RNG_STREAMS.length, want.length, '스트림 9종');
     for (let i = 0; i < want.length; i += 1) {
       assert.eq(hash32(20260822, RNG_STREAMS[i]), want[i], `hash32(${RNG_STREAMS[i]})`);
     }
@@ -113,10 +113,10 @@ suite('rng.determinism', () => {
   });
 });
 
-// ── 8스트림 독립 (동결) ─────────────────────────────────────────────────────
+// ── 9스트림 독립 (동결) ─────────────────────────────────────────────────────
 suite('rng.streams.independence', () => {
-  test('makeStreams는 8종 전부를 만든다 (동결 목록 = RNG_STREAMS)', () => {
-    assert.eq(RNG_STREAMS.length, 8, '스트림 8종 동결');
+  test('makeStreams는 9종 전부를 만든다 (동결 목록 = RNG_STREAMS — v1.10 ⑦ terrain)', () => {
+    assert.eq(RNG_STREAMS.length, 9, '스트림 9종 동결(8 + terrain)');
     const s = makeStreams(1);
     for (const name of RNG_STREAMS) {
       assert.ok(typeof s[name] === 'object' && typeof s[name].u32 === 'function', `${name} 존재`);
@@ -153,7 +153,7 @@ suite('rng.streams.independence', () => {
     }
   });
 
-  test('8스트림은 서로 다른 수열을 낸다 (같은 master에서도 이름별 분기)', () => {
+  test('9스트림은 서로 다른 수열을 낸다 (같은 master에서도 이름별 분기)', () => {
     const s = makeStreams(2026);
     const firsts = RNG_STREAMS.map((n) => s[n].u32());
     const uniq = new Set(firsts);

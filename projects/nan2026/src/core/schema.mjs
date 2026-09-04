@@ -108,8 +108,9 @@ const TELEGRAPH_FLOOR_BY_TYPE = {
 };
 
 /** §9.4 — rules.json 루트 = schemaVersion + 정확히 16 블록 (v1.5: bomb 제거 = 경제·소비아이템 폐지) */
-const RULES_ROOT_16 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
-  'boss', 'fairness', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];
+const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
+  'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
+export const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];   // §8.21 — 지형 장판 3종(속성당 하나: 풀·물·불)
 
 // ---------------------------------------------------------------------------
 // 검증 원시 함수
@@ -175,7 +176,7 @@ function collector() {
 // 파일별 검증
 // ---------------------------------------------------------------------------
 function checkRules(c, r) {
-  c.closed('rules', r, ['schemaVersion', ...RULES_ROOT_16]);
+  c.closed('rules', r, ['schemaVersion', ...RULES_ROOT_17]);
   c.closed('rules.loop', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate']);
   c.closed('rules.view', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW',
     'bandTopH', 'bandHpH', 'bandXpH', 'playerBoundsInset', 'spawnLineY', 'spawnPadPx', 'minViewportW',
@@ -186,10 +187,10 @@ function checkRules(c, r) {
   }
   c.closed('rules.collide', r.collide, ['gridCellPx']);
   c.closed('rules.caps', r.caps, ['playerBullets', 'enemyBullets', 'enemies', 'pickups', 'zones',
-    'drones', 'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'overflow']);
+    'drones', 'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'terrain', 'overflow']);
   if (isObj(r.caps)) {
     c.closed('rules.caps.overflow', r.caps.overflow, ['playerBullet', 'enemyBullet', 'enemy',
-      'pickup', 'zone', 'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker']);
+      'pickup', 'zone', 'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker', 'terrain']);
   }
   // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
@@ -209,6 +210,12 @@ function checkRules(c, r) {
   if (isObj(r.boss)) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',
       'allowNormalPeripheral']);
+  }
+  // §8.21(v1.10 ⑦) 지형 장판 — 피해 0, 조작만 건드린다. 3종의 파라미터. 둔화는 status.slowMoveSpeedMul 을 재사용(새 키 0).
+  c.closed('rules.terrain', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'inertia', 'heat']);
+  if (isObj(r.terrain)) {
+    c.closed('rules.terrain.inertia', r.terrain.inertia, ['responseTauSec']);
+    c.closed('rules.terrain.heat', r.terrain.heat, ['fullSec', 'stallSec', 'coolSec']);
   }
   c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
@@ -253,8 +260,9 @@ function checkRules(c, r) {
   }
 
   c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet', 'glyph',
-    'telegraph', 'band', 'zone', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
+    'telegraph', 'band', 'zone', 'terrain', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
   if (isObj(r.visual)) {
+    c.closed('rules.visual.terrain', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz']);   // §7.13(v1.10 ⑦)
     c.closed('rules.visual.hpBar', r.visual.hpBar,
       ['hPx', 'wPx', 'gapPx', 'trackAlpha', 'gatePostWPx', 'gatePostOverhangPx']);
     c.closed('rules.visual.stance', r.visual.stance, ['ringExpandSec', 'ringMaxRadiusPx',
@@ -514,7 +522,8 @@ function checkStages(c, s) {
     const t = s.stages[i];
     const p = `stages.stages[${t && t.id}]`;
     if (!c.closed(p, t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'introArchetypeId', 'roster', 'mix', 'waves'])) continue;
+      'introArchetypeId', 'terrainKind', 'roster', 'mix', 'waves'])) continue;
+    if (own(t, 'terrainKind') && t.terrainKind !== null) c.vocab(`stages.stages[${i}].terrainKind`, t.terrainKind, TERRAIN_KINDS);
     if (c.arr(`${p}.roster`, t.roster)) {
       for (let j = 0; j < t.roster.length; j += 1) {
         c.closed(`${p}.roster[${j}]`, t.roster[j], ['archetypeId', 'unlockStageMin']);

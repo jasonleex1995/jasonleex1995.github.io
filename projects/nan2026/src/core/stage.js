@@ -23,6 +23,7 @@
  */
 
 import { midBoss, clearMidBoss, midBossSectionCleared } from './midboss.js';
+import { terrainTick, clearTerrain } from './terrain.js';
 import { addBossClear, addRunClear } from './score.js';
 
 export const PHASE = {
@@ -77,6 +78,7 @@ export function initRun(world) {
     phaseT: 0,                      // 현재 페이즈 경과(게임초)
     crisis: false,                  // 잡몹 페이즈 마지막 서브구간(§8.10) — v1.10: 한 번 켜지면 페이즈 끝까지(sticky)
     crisisAtSec: -1,                // v1.10 — 위기가 «실제로» 켜진 phaseT. 새떼 스케줄(spawnCrisis)의 원점. -1 = 아직
+    terrainNextT: 0,                // §8.21(v1.10 ⑦) — 다음 지형 장판 스폰 시각(world.time)
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
@@ -116,6 +118,8 @@ export function tickRun(world, dt) {
   const ph = world.data.stages.phase;
   const boss = world.data.rules.boss;
   run.phaseT += dt;
+  // §8.21(v1.10 ⑦) — 지형 장판: 흐름·반납은 매 페이즈, 스폰은 MOB 에서만(terrain.js 가 가른다)
+  terrainTick(world, dt);
 
   if (run.phase === PHASE.MOB) {
     // 위기 서브구간(§8.10) — 독립 상태 아님(§6.5). v1.10: 시작은 둘 중 «먼저 오는 쪽»이고 한 번 켜지면 페이즈 끝까지다.
@@ -204,6 +208,7 @@ export function applyStageClearHeal(world) {
  */
 export function advanceStage(world) {
   const run = world.run;
+  clearTerrain(world);             // §8.21 — 이전 테마의 지형은 넘어가지 않는다
   run.stageIndex += 1;
   run.phase = PHASE.MOB;
   run.phaseT = 0;

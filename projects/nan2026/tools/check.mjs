@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -286,7 +286,7 @@ const BULLET_SHAPES = ['circle', 'hex'];                                        
 const BULLET_STATUS = [null, 'slow', 'stun'];                                                                    // §9.7
 const SPAWN_EDGES = ['top', 'left', 'right', 'bottom'];                                                          // §8.7
 const BOSS_TIERS = ['stage', 'mid', 'final'];                                                                    // §9.8
-const RNG_STREAMS = ['theme', 'draft', 'spawn', 'elite', 'drop', 'pattern', 'boss', 'bot'];                      // §10.2 (8)
+const RNG_STREAMS = ['theme', 'draft', 'spawn', 'elite', 'drop', 'pattern', 'boss', 'bot', 'terrain'];           // §10.2 (9 — v1.10 ⑦ terrain)
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];                                                            // §8.6 (4)
 // ★ v1.3 신설 어휘 (§13.4-S3)
 const FROM_VALUES = ['self', 'part'];                                                                            // §8.5 (2)
@@ -451,17 +451,18 @@ function S1_corePurity() {
 // ===========================================================================
 //  S2 — 스키마 (§9.3 · §9.4~§9.9)
 //  타입 · 필수 키 · 미지 키 거부 · 참조 무결성
-//  ★ rules.json 루트 키 = 16개 목록 (§9.4 — v1.5에서 bomb 제거 = 경제·소비아이템 폐지)
+//  ★ rules.json 루트 키 = 17개 목록 (§9.4 — v1.5에서 bomb 제거 = 경제·소비아이템 폐지 · v1.10 ⑦ terrain 추가)
 // ===========================================================================
-const RULES_ROOT_16 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
-  'boss', 'fairness', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];
+const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
+  'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
+const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];
 
 function S2_schema() {
   const r = D.rules;
 
   // --- rules.json 루트 = schemaVersion + 정확히 16 블록 (§9.4) --------------
-  closedKeys('S2', r, ['schemaVersion', ...RULES_ROOT_16], 'rules');
-  if (RULES_ROOT_16.length !== 16) C('S2', `내부 오류: 루트 목록이 ${RULES_ROOT_16.length}개 (정본은 16)`);
+  closedKeys('S2', r, ['schemaVersion', ...RULES_ROOT_17], 'rules');
+  if (RULES_ROOT_17.length !== 17) C('S2', `내부 오류: 루트 목록이 ${RULES_ROOT_17.length}개 (정본은 17 — v1.10 ⑦ terrain)`);
 
   closedKeys('S2', r.loop, ['tickHz', 'maxStepsPerFrame', 'maxFrameGapMs', 'interpolate'], 'rules.loop');
   closedKeys('S2', r.view, ['logicalW', 'logicalH', 'arena', 'panelLeftW', 'panelRightW', 'bandTopH',
@@ -473,10 +474,10 @@ function S2_schema() {
   closedKeys('S2', r.collide, ['gridCellPx'], 'rules.collide');
 
   closedKeys('S2', r.caps, ['playerBullets', 'enemyBullets', 'enemies', 'pickups', 'zones', 'drones',
-    'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'overflow'], 'rules.caps');
+    'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'terrain', 'overflow'], 'rules.caps');
   if (isObj(r.caps)) {
     closedKeys('S2', r.caps.overflow, ['playerBullet', 'enemyBullet', 'enemy', 'pickup', 'zone',
-      'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker'], 'rules.caps.overflow');
+      'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker', 'terrain'], 'rules.caps.overflow');
     // §12.1 "모든 캡에 정책이 있다" — 10 캡 ⟺ 10 정책
     const capNames = Object.keys(r.caps).filter((k) => k !== 'overflow');
     if (isObj(r.caps.overflow) && capNames.length !== Object.keys(r.caps.overflow).length) {
@@ -518,6 +519,12 @@ function S2_schema() {
   }
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
+  // §8.21(v1.10 ⑦) 지형 장판
+  closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'inertia', 'heat'], 'rules.terrain');
+  if (isObj(r.terrain)) {
+    closedKeys('S2', r.terrain.inertia, ['responseTauSec'], 'rules.terrain.inertia');
+    closedKeys('S2', r.terrain.heat, ['fullSec', 'stallSec', 'coolSec'], 'rules.terrain.heat');
+  }
   closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
     'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax', 'swarmConcurrentMax',
@@ -575,7 +582,8 @@ function S2_schema() {
 
   // §9.4.3 — visual 전 키 인쇄. ★ v1.3: statusBulletSpeedMul 이 빠졌다(→ fairness)
   closedKeys('S2', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet',
-    'glyph', 'telegraph', 'band', 'zone', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
+    'glyph', 'telegraph', 'band', 'zone', 'terrain', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
+  if (isObj(r.visual)) closedKeys('S2', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz'], 'rules.visual.terrain');   // §7.13(v1.10 ⑦)
   if (has(r.visual, 'statusBulletSpeedMul')) {
     V('S2', 'rules.visual.statusBulletSpeedMul: 이사한 키 → rules.fairness.statusBulletSpeedMul (§23.3) — visual 키가 게임플레이 속도를 바꾸면 §9.4.3의 경계가 깨진다');
   }
@@ -859,7 +867,7 @@ function S2_files() {
   for (const t of rowsQuiet(D.stages.stages)) {
     if (!isObj(t)) continue;
     closedKeys('S2', t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'introArchetypeId', 'roster', 'mix', 'waves'], `stages.stages[${t.id}]`);
+      'introArchetypeId', 'terrainKind', 'roster', 'mix', 'waves'], `stages.stages[${t.id}]`);
     for (const [dead, why] of [
       ['skinId', 'id 와 같다 → 삭제 (§9.9-⑥)'],
       ['elitesAtSec', '죽은 키 → 삭제 (§8.7)'],
@@ -1746,7 +1754,7 @@ function S11_rngStreams() {
     for (const m of raw.matchAll(/\bstream\s*\(\s*[^,]+,\s*['"]([^'"]+)['"]\s*\)/g)) {
       const name = m[1];
       if (!RNG_STREAMS.includes(name)) {
-        V('S11', `${rel}: 미등록 RNG 스트림 "${name}" — 동결 8종 = [${RNG_STREAMS.join(', ')}] (§10.2)`);
+        V('S11', `${rel}: 미등록 RNG 스트림 "${name}" — 동결 9종 = [${RNG_STREAMS.join(', ')}] (§10.2)`);
       }
     }
     // rng.pattern 만 적·플레이어 양쪽 접근 허용 (§9.5 · §10.2)
@@ -3162,6 +3170,60 @@ function S55_midBossSection() {
   EX('S55', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S56 — 지형 장판 (§8.21 v1.10 ⑦)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자 결정: 「공격이 아니라 유틸을 방해하는 지형 — 늪은 느리게, 빙원은 관성, 화산은 과열 정지」.
+ *   ① 테마(finale 제외)마다 `terrainKind` ∈ TERRAIN_KINDS · finale 은 null(테마가 없으니 지형도 없다)
+ *   ② «속성당 하나»: 같은 element 의 테마는 같은 kind (기계는 3종, 테마는 겉모습만 다르다 — §8.21)
+ *   ③ 3종이 전부 쓰인다 — 안 쓰이는 종은 죽은 어휘다
+ *   ④ rules.terrain 의 값: radiusPx ∈ [24, arena.w ÷ 4] · scrollSpeedPx > 0 · everySec > 0 · 1 ≤ maxOnScreen ≤ caps.terrain
+ *      · inertia.responseTauSec ∈ (0, 1] · heat.stallSec ∈ (0, fairness.maxStunSec] ∧ fullSec > stallSec ∧ coolSec > 0
+ *      — 과열 정지는 스턴이므로 스턴 상한(§2.7)을 그대로 따른다. 지형은 피해 0 이라 텔레그래프 하한의 대상이 아니다
+ *   ⑤ 지형이 화면을 «막지» 않는다: 2 × radiusPx < arena.w − 2 × radiusPx (한 장판이 서 있어도 좌우로 돌아갈 폭이 남는다)
+ */
+function S56_terrain() {
+  const st = D.stages && D.stages.stages;
+  const tr = D.rules && D.rules.terrain;
+  const caps = D.rules && D.rules.caps;
+  const fa = D.rules && D.rules.fairness;
+  const a = D.rules && D.rules.view && D.rules.view.arena;
+  if (!Array.isArray(st) || !isObj(tr) || !isObj(caps) || !isObj(a) || !isObj(fa)) { V('S56', 'stages / rules.terrain / caps / view.arena / fairness 가 없다'); return; }
+  let n = 0;
+  const FINAL_ID = FINAL();
+  const byElement = {};
+  const used = new Set();
+  for (const t of st) {
+    if (!isObj(t)) continue;
+    n += 1;
+    if (t.id === FINAL_ID) {
+      if (t.terrainKind !== null) V('S56', `stages[${t.id}].terrainKind = "${t.terrainKind}" — 최종 스테이지는 테마가 없으니 지형도 null (§8.21)`);
+      continue;
+    }
+    if (TERRAIN_KINDS.indexOf(t.terrainKind) < 0) { V('S56', `stages[${t.id}].terrainKind = ${JSON.stringify(t.terrainKind)} ∉ ${JSON.stringify(TERRAIN_KINDS)} (§8.21)`); continue; }
+    used.add(t.terrainKind);
+    if (byElement[t.element] === undefined) byElement[t.element] = t.terrainKind;
+    else if (byElement[t.element] !== t.terrainKind) V('S56', `stages[${t.id}] (${t.element}): terrainKind "${t.terrainKind}" ≠ 같은 속성의 다른 테마 "${byElement[t.element]}" — 기계는 속성당 하나 (§8.21 ②)`);
+  }
+  for (const k of TERRAIN_KINDS) if (!used.has(k)) V('S56', `terrainKind "${k}" 를 쓰는 테마가 0 — 죽은 어휘 (§8.21 ③)`);
+  // ④ 값
+  n += 1;
+  if (!num(tr.radiusPx) || tr.radiusPx < 24 || tr.radiusPx > a.w / 4) V('S56', `rules.terrain.radiusPx = ${tr.radiusPx} ∉ [24, arena.w/4 = ${a.w / 4}]`);
+  if (!num(tr.scrollSpeedPx) || tr.scrollSpeedPx <= 0) V('S56', `rules.terrain.scrollSpeedPx = ${tr.scrollSpeedPx} — 양수여야 지형이 «흐른다»`);
+  if (!num(tr.everySec) || tr.everySec <= 0) V('S56', `rules.terrain.everySec = ${tr.everySec} — 양수`);
+  if (!Number.isInteger(tr.maxOnScreen) || tr.maxOnScreen < 1 || !num(caps.terrain) || tr.maxOnScreen > caps.terrain) V('S56', `rules.terrain.maxOnScreen = ${tr.maxOnScreen} ∉ [1, caps.terrain = ${caps.terrain}]`);
+  const inr = tr.inertia, ht = tr.heat;
+  if (!isObj(inr) || !num(inr.responseTauSec) || inr.responseTauSec <= 0 || inr.responseTauSec > 1) V('S56', `rules.terrain.inertia.responseTauSec = ${inr && inr.responseTauSec} ∉ (0, 1]`);
+  if (!isObj(ht) || !num(ht.stallSec) || ht.stallSec <= 0 || (num(fa.maxStunSec) && ht.stallSec > fa.maxStunSec)) V('S56', `rules.terrain.heat.stallSec = ${ht && ht.stallSec} ∉ (0, fairness.maxStunSec = ${fa.maxStunSec}] — 과열 정지는 스턴이다 (§2.7)`);
+  if (isObj(ht) && (!num(ht.fullSec) || !(ht.fullSec > ht.stallSec))) V('S56', `rules.terrain.heat.fullSec = ${ht.fullSec} ≤ stallSec ${ht.stallSec} — 정지보다 빨리 차면 연쇄 정지`);
+  if (isObj(ht) && (!num(ht.coolSec) || ht.coolSec <= 0)) V('S56', `rules.terrain.heat.coolSec = ${ht.coolSec} — 양수`);
+  // ⑤ 통로
+  n += 1;
+  if (num(tr.radiusPx) && !(2 * tr.radiusPx < a.w - 2 * tr.radiusPx)) V('S56', `rules.terrain.radiusPx = ${tr.radiusPx}: 장판 하나가 아레나 폭 ${a.w} 의 절반을 넘는다 — 돌아갈 폭이 없다 (§8.21 ⑤)`);
+  EX('S56', n);
+}
+
 
 
 
@@ -3707,7 +3769,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S55 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S56 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3770,6 +3832,7 @@ function main() {
   S50_minPerWave();          // §8.7.1 v1.8 웨이브 몸 수 하한
   S54_sectionsAndRatio();    // §8.19 v1.10 구간·비율·겹침·차선·속성3종
   S55_midBossSection();      // §8.19 v1.10 중간보스 구간 — 첫 마리 소환자 · 시계 · 앞당김⇒웨이브 계속
+  S56_terrain();             // §8.21 v1.10 ⑦ 지형 장판 — 종·속성당 하나·값·통로
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

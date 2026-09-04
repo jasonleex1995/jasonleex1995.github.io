@@ -181,6 +181,11 @@ function makeZone() {
   return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, dmg: 0, activeSec: 0, warnSec: 0, age: 0, fromPlayer: false, srcArch: '' };
 }
 
+function makeTerrain() {
+  // §8.21 — 지형 장판. kind = TERRAIN_KINDS 인덱스(0 slow · 1 inertia · 2 heat). 위에서 아래로 흘러 내려간다(scrollSpeedPx).
+  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, kind: 0 };
+}
+
 function makeDrone() {
   // §5.3 — family 로 식별한다(slot.index 는 슬롯 재정렬 swapSlots 에 불안정). orbit/mine 과 같은 규약.
   return { alive: false, idx: 0, gen: 0, family: '', x: 0, y: 0, ox: 0, oy: 0, fireT: 0 };
@@ -436,6 +441,7 @@ export function createWorld(opts) {
       invest,                               // §2.6 — fire 0 / water 0 / grass 0 (§4.2 investable)
       level: 1, xp: 0, xpToNext: 0,
       slowSec: 0, stunSec: 0, ghostSec: 0,
+      heat: 0,                              // §8.21(v1.10 ⑦) 과열 게이지 [0,1] — 불 지형 안에서 차고 밖에서 식는다
       dirX: 0, dirY: 0,
       lastHorizontal: 0, lastVertical: 0,   // §2.2 SOCD = lastInput
       hit: false,                           // 이번 틱에 피격했는가 (렌더/점수용)
@@ -462,6 +468,7 @@ export function createWorld(opts) {
     enemyBullets: makePool(caps.enemyBullets, makeEnemyBullet),
     pickups: makePool(caps.pickups, makePickup),
     zones: makePool(caps.zones, makeZone),
+    terrain: makePool(caps.terrain, makeTerrain),   // §8.21(v1.10 ⑦) 지형 장판 — 피해 0, 조작만 건드린다
     drones: makePool(caps.drones, makeDrone),
     telegraphs: makePool(caps.telegraphs, makeTelegraph),
 
