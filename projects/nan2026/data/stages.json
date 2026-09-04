@@ -16,7 +16,7 @@
     "mobFireRateScale": [0.42, 0.42, 0.62, 0.85, 1.05, 1.25],
     "mobBulletDmgScale": [0.65, 0.8, 0.95, 1.1, 1.25, 1.4],
     "spawnDensityScale": [1.4, 1.6, 2.0, 2.5, 3.05, 3.6],
-    "midBossCount": [2, 2, 3, 3, 4, 5],
+    "midBossCount": [3, 3, 3, 4, 5, 5],
     "elitePerWaveChance": [0.0, 0.05, 0.15, 0.40, 0.70, 1.0],
     "swarmTotalScale": [0.8, 0.85, 0.9, 0.95, 1.0, 1.0],
     "rearSpawnAllowed": [false, false, true, true, true, true],
@@ -54,7 +54,7 @@
       { "subWave": 5, "formationId": "arc",     "bodyId": "swarmChaff", "count": 37, "spawnEdge": "top" },
       { "subWave": 6, "formationId": "vWedge",  "bodyId": "swarmDart",  "count": 36, "spawnEdge": "top" }
     ],
-    "midBossAtSec": [[48, 48], [48, 48], [48, 48, 56], [48, 48, 56], [48, 48, 56, 64], [48, 48, 56, 64, 72]],
+    "midBossAtSec": [[48, 48, 56], [48, 48, 56], [48, 48, 56], [48, 48, 56, 64], [48, 48, 56, 64, 72], [48, 48, 56, 64, 72]],
     "midBossFirstId": "mbNest",
     "midBossElementRule": "themeElseNonTheme",
     "midBossForcedLeaveOnCrisis": true,

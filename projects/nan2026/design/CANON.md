@@ -647,10 +647,10 @@ render(world, acc / tickDur);                         // alpha 보간은 위치�
 | 잡몹 페이즈 | `stages.phase.mobPhaseSec` | **120** |
 | 웨이브 기본 간격 | `stages.phase.waveIntervalSec` | **9.0** |
 | 웨이브 상한 ★v1.10 | `stages.phase.mobPhaseMaxWaves` | **56** — S54 ③ 이 포지션마다 «초기 + 최장 위기»로 하한을 잡는다(포지션 1 = 16 + 34 = 50) · ~~14~~ ~~24~~ ~~48~~ |
-| 위기 세션 시작 ★v1.10 | `stages.phase.crisisStartSec` | **80** = **상한**. 실제 시작 = `min(중간보스 전원 격파, 80)` (`crisisOnMidBossClear`, §8.19 ①) · ~~95 (= 마지막 25초)~~ |
+| 위기 세션 시작 ★v1.10 ⑮ | `stages.phase.crisisStartSec` | **88**(~~80~~) = **상한**. 실제 시작 = `min(중간보스 전원 격파, 80)` (`crisisOnMidBossClear`, §8.19 ①) · ~~95 (= 마지막 25초)~~ |
 | 새떼 사이클 ★v1.10 ⑥ | `stages.phase.crisisCycleSec` | **9** — 6파 한 사이클. `crisisSwarmLoop` 로 페이즈 끝까지 반복. 위기 «구간»은 `mobPhaseSec` 까지(가변, 최장 70초) · ~~`crisisDurationSec` 25 → 14~~ (개명) |
 | ~~위기 세션 예고~~ | ~~`stages.phase.crisisWarnSec`~~ | **폐지(v1.10)** — 읽는 곳 0 + 격파 앞당김은 예고 불가 |
-| 중간보스 진입 창 ★v1.10 ③ | ★ `stages.phase.midBossAtSec` | **`[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`** — 첫 둘은 30초에 함께, 나머지는 10초 간격 (스테이지 인덱스 배열, §8.9) |
+| 중간보스 진입 창 ★v1.10 ⑰ | ★ `stages.phase.midBossAtSec` | **`[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]]`** — 첫 둘은 48초에 함께, 셋째 56초, 그 뒤 8초 간격 (스테이지 인덱스 배열, §8.9) |
 | ~~**중간보스 이탈**~~ | ~~`stages.phase.midBossLeaveAfterSec`~~ | **폐지(v1.10)** — 격파 아니면 위기 상한까지 선다(§8.9 «선택적» 개정) |
 | **중간보스 첫 마리** ★v1.10 | `stages.phase.midBossFirstId` | **`"mbNest"`** (소환자, §8.19 · S55) |
 | ~~페이즈 종료 페이드~~ ★v1.10 ⑧ | ~~`stages.phase.mobPhaseExitFadeSec`~~ | **폐지** — 읽는 곳이 0 이었다. 전환 연출은 `boss.entryWipeSec`(0.7, §8.22 쓸어내기)가 한다 |
@@ -1583,8 +1583,8 @@ v1.2는 이 값을 `stages.themes[].midBossAtSec`(= **테마별** 필드)로 인
 
 | 키 | 값 |
 |---|---|
-| `stages.curve.midBossCount` ★v1.10 ③ | **`[2,2,3,3,4,5]`** — **하한 2**(사용자 결정 2026-09-04): 중간보스 구간은 웨이브가 서므로 「소환자 하나 + 다른 형태」가 성립하려면 최소 둘. 상한 5 는 유지 — 진입 x 슬롯이 3개라 6이면 세 번째로 겹치고, 예산(적탄 384·텔레그래프)도 5 로 실측했다. ~~v1.5 `[1,2,2,3,4,5]`~~ ~~v1.4 `[1,2,2,3,3,2]`~~ |
-| ★ `stages.phase.midBossAtSec` ★v1.10 ③ | **`[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`** — 전 포지션 **첫 둘은 30초에 함께**(소환자 + 다른 형태가 처음부터 한 쌍, 초기 구간 길이는 포지션에 무관하게 21초 + 배수 9초, §8.19), 셋째부터 **10초 간격**으로 합류(사용자 결정 2026-09-04: 시각표로 «꾸준히», 격파 시 보충 안은 보류). 마지막 마리(60초)도 상한 80초 전 20초는 선다. len == midBossCount · 전 시각 < crisisStartSec 80 (S29). 같은 시각의 둘은 스폰 순번 슬롯(중앙·우)이 달라 겹치지 않는다. 거처는 `stages.phase`(v1.3). ~~v1.10 ② 5초 간격 `[[30],[30,35],…]`~~ ~~v1.5 `[[35],[30,45],…,[20,35,50,65,80]]`~~ |
+| `stages.curve.midBossCount` ★v1.10 ⑰ | **`[3,3,3,4,5,5]`** — **하한 3**(사용자 2026-09-04: 「중간보스 구간이 너무 쉽다 — 기본 3마리」). 중간보스는 발사 배율(mobFireRateScale)을 안 받아 이미 최대 세기로 쏘므로 세기가 아니라 «수»가 손잡이다. 소환자 + 다른 형태 둘. 상한 5 는 유지 — 진입 x 슬롯이 3개라 6이면 세 번째로 겹친다. ~~③ `[2,2,3,3,4,5]`~~ ~~v1.5 `[1,2,2,3,4,5]`~~ |
+| ★ `stages.phase.midBossAtSec` ★v1.10 ⑰ | **`[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]]`** — ⑮ 가 첫 마리를 48초로(배수 24초 = 벽이 초기 속도로 다 빠지는 시간), ⑰ 이 기본 3. ~~③ `[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`~~ — 전 포지션 **첫 둘은 30초에 함께**(소환자 + 다른 형태가 처음부터 한 쌍, 초기 구간 길이는 포지션에 무관하게 21초 + 배수 9초, §8.19), 셋째부터 **10초 간격**으로 합류(사용자 결정 2026-09-04: 시각표로 «꾸준히», 격파 시 보충 안은 보류). 마지막 마리(60초)도 상한 80초 전 20초는 선다. len == midBossCount · 전 시각 < crisisStartSec 80 (S29). 같은 시각의 둘은 스폰 순번 슬롯(중앙·우)이 달라 겹치지 않는다. 거처는 `stages.phase`(v1.3). ~~v1.10 ② 5초 간격 `[[30],[30,35],…]`~~ ~~v1.5 `[[35],[30,45],…,[20,35,50,65,80]]`~~ |
 | ★ **몸 전체가 아레나 안 (§8.20 · v1.10 ⑨)** | 플레이 피드백 「중간보스가 화면 밖에 숨는다」 실물 2건 정정: ① `anchor` 왕복 중심(mp2)을 `[a.x + r + swayAmpPx, a.x + a.w − r − swayAmpPx]` 로 조인다 — 우/좌 슬롯(±w/4)에 선 파쇄추(sway 190)가 x 아레나 밖 45px 까지 나가 통째로 숨었다 ② `charge` 복귀 x 를 모서리가 아니라 **반지름만큼 안쪽**으로 — 모서리에 세우면 창병(r 28)의 절반이 화면 밖에서 조준했다(스크린샷). 실측 36런(6시드 × 6포지션) 대기·왕복 중 «중심이 밖»인 틱 **0 / 233,622** |
 | ★ **동시 다수 (§8.9 v1.5)** | ★ **v1.4의 「동시 1마리」(등장 스케줄이 보장)를 폐기.** midboss.js 는 스케줄 시각마다 등장(타 개체 생존 무관), 살아있는 각 중간보스를 개체별로 처리(퇴장·이동·소환). v1.10: 타이머 이탈이 없으므로 **예정 전원이 함께 선다**(포지션 6 = 5마리, 보스 구간처럼). 진입 x 를 **스폰 순번 %3**(중앙·우·좌)으로 순환 — 연속 3스폰이 3슬롯이라 겹치지 않는다. 결정적·capHits 0·crash 0 |
 | ★ **첫 마리 = 소환자 (§8.19 v1.10)** | **`stages.phase.midBossFirstId = "mbNest"`** — 사용자(2026-09-04): 「무조건 유령/몬스터를 소환하는 중간보스 하나 + 다른 형태의 중간보스들, 마치 보스 구간처럼」. 첫 마리는 rng 소비 0(고정), 둘째부터 소환자를 **뺀** 종에서 `rng.spawn`. 이유: 중간보스 구간은 웨이브가 서므로(`midBossSuspendsWaves`) 소환자가 없으면 무대에 몹이 0 — 「몹이 적당히 나와야 중간보스를 피할 수 있다」. S55 ①② |
@@ -1635,7 +1635,7 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | 키 | 값 |
 |---|---|
 | `stages.phase.crisisPerStage` | **1** (매 스테이지 필수) — ★ **v1.3: 인쇄 자리를 줬다**(§9.9). v1.2는 백틱 키로 참조하면서 `phase` 블록에 넣지 않았다 |
-| `stages.phase.crisisStartSec` ★v1.10 | **80** = **상한**. 위기의 «시작»은 **`min(중간보스 전원 격파 시각, crisisStartSec)`** (`crisisOnMidBossClear`, §8.19 ①), 원점은 `run.crisisAtSec`. 위기 자체는 **`mobPhaseSec` 까지**(길이 가변, 최장 70초) · ~~95~~ ~~106~~ |
+| `stages.phase.crisisStartSec` ★v1.10 ⑮ | **88**(~~80~~) = **상한**. 위기의 «시작»은 **`min(중간보스 전원 격파 시각, crisisStartSec)`** (`crisisOnMidBossClear`, §8.19 ①), 원점은 `run.crisisAtSec`. 위기 자체는 **`mobPhaseSec` 까지**(길이 가변, 최장 70초) · ~~95~~ ~~106~~ |
 | ~~`crisisWarnSec`~~ ★v1.10 | **폐지** — 읽는 곳이 0 이었고(죽은 키), 격파로 앞당겨지는 시작은 시계로 예고할 수 없다. HUD 는 `run.crisis` 로 «위기» 표식을 켠다 |
 | ★ **`stages.phase.crisisCycleSec`** ★v1.10 ⑥ | **9** — 새떼 **한 사이클**(`crisisSubWaves` 6파, 균등 간격 1.5초)의 길이. ~~`crisisDurationSec` 25 → 14~~ 를 **개명** — 위기의 «길이»가 아니라 사이클의 길이이므로 이름이 거짓이었다 |
 | ★ **`stages.phase.crisisSwarmLoop`** ★v1.10 ⑥ | **true** — 사이클을 **페이즈 끝까지 반복**한다. 사용자(2026-09-04): 「위기 구간은 거의 날아오는 적 피하기 — 빠른 무리가 쭈르륵 내려오면서 피하거나, 부숴서 길을 내야만 하는 느낌」. false 면 한 사이클(옛 v1.3~v1.10 ⑤). S55 ④: `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)` |
@@ -2025,7 +2025,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 | 구간 | 언제 | 웨이브 | 그 밖에 | 속도 |
 |---|---|---|---|---|
 | **초기** | 0 ~ `midBossAtSec[pos][0] − earlyDrainSec` | 간격 `earlyWaveIntervalSec`(1.4) · 편대 `introFormationId`(wall) — «우루루» | — | `sectionSpeedMul.early` 0.72 |
-| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | ★ `sectionSpeedMul.drain` **2.2** (v1.10 ⑪) — 스폰이 멈춘 무리가 «빠르게 흘러 나간다». early 0.72 로는 벽 한 벌이 19.5초라 중간보스가 올 때 200기가 남았다(피드백: 「초반 몹이 다 안 사라졌는데 중간보스」). ★ ⑭ 배율은 `phase.drainRampSec`(2.0) 동안 early → drain 으로 **서서히** 오른다 — 한 틱에 3배면 「갑자기 빨라진다」로 읽혔다(늪 1스테이지 피드백); 가속이 보이면 「무리가 무너져 흘러간다」다. 테마 효과가 아니라 전 테마 공통의 구간 규칙이다. 실측 30초 잔존 포지션 1: 0 · 5: 9. S54 ⑦ = `(earlyDrainSec − 램프) × 하강속도 × drain + 램프 × 하강속도 × early ≥ arena.h + 2r` |
+| **배수** | ~ `midBossAtSec[pos][0]` (24초, `earlyDrainSec`) | **0** — 벽이 **초기 속도 그대로** 흘러 나가는 시간. ★ ⑮ 속도를 올리지 않는다 — 사용자: 「천천히 잡으면서 파밍하는 구간인데 왜 빨라지나」(⑪·⑭의 drain 배율·램프 폐지). 그래서 배수가 벽 한 벌의 통과 시간(≈ 23초)만큼 길고, 첫 중간보스가 48초다. S54 ⑦ = `earlyDrainSec × 하강속도 × early ≥ arena.h + 위 여유 + 2r`. 실측 48초 잔존 포지션 1·5: 0 | — | early |
 | **중간보스** | `midBossAtSec[pos][0]` ~ 위기 | **0** (`midBossSuspendsWaves`) — 몹이 적어야 «피할 수» 있다 | 첫 마리 = 소환자(`midBossFirstId`) → 유령이 «적당히» 흐른다(실측 13~20). 나머지는 다른 형태. 타이머 이탈 없음 | `sectionSpeedMul.mid` 1.0 |
 | **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | **0** (`crisisSuspendsWaves` true) — 대신 **새떼 사이클 반복**(`crisisSwarmLoop`, §8.10): 1.5초마다 호·쐐기 25기(× `swarmTotalScale`), 반지름 6~7, 속도 128·102 × 1.45, 테마 속성 100%, 공격형 = `shooterRatio[pos]` | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
 | **보스** | `mobPhaseSec` 이후 | — | §8.11~ | — |
@@ -2070,7 +2070,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 (차선 순틈 64 ≥ 46) · `chaff.minPerWave 30` · `introConcurrentMax 400` · `caps.enemies 576`. 무공격 몸이 쏘는 적(6~7)보다 크면
 안 된다 — 위협의 크기 서열이 뒤집힌다. 실측 포지션 1: 21초 391기, 세로 덮임 100%, 최대 빈틈 0px.
 
-**⑥ 속도가 구간의 성격이다 — `phase.sectionSpeedMul`.** `{ early: 0.72, drain: 2.2, mid: 1.0, crisis: 1.45 }`(v1.10 ⑪ drain 추가). 사용자:
+**⑥ 속도가 구간의 성격이다 — `phase.sectionSpeedMul`.** `{ early: 0.72, mid: 1.0, crisis: 1.45 }`(~~⑪ drain 2.2~~ 는 ⑮ 폐지). 사용자:
 「초기 구간은 느려서 천천히 내려오는 느낌, 위기 구간은 전반적으로 속도가 좀 많이 빠른 느낌」. `applyMovement` 가
 하강·횡속도에 곱한다. 유령·중간보스·보스는 각자 소관이라 안 탄다.
 
@@ -3285,7 +3285,7 @@ tetrarchThroneP1  ...
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
              "waveListExhausted":"cycle",
              "crisisPerStage":1,
-             "crisisStartSec":80, "crisisCycleSec":9,
+             "crisisStartSec":88, "crisisCycleSec":9,
              "crisisSuspendsWaves":true, "crisisSwarmLoop":true, "crisisOnMidBossClear":true,
              "crisisTotal":220, "crisisSubWaves":6, "crisisShooterId":"swarmLancer",
              "crisisWaves":[
@@ -3295,7 +3295,7 @@ tetrarchThroneP1  ...
                { "subWave":4, "formationId":"vWedge", "bodyId":"swarmDart",  "count":37, "spawnEdge":"top" },
                { "subWave":5, "formationId":"arc",    "bodyId":"swarmChaff", "count":37, "spawnEdge":"top" },
                { "subWave":6, "formationId":"vWedge", "bodyId":"swarmDart",  "count":36, "spawnEdge":"top" } ],
-             "midBossAtSec":[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]],
+             "midBossAtSec":[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]],
              "midBossFirstId":"mbNest", "midBossElementRule":"themeElseNonTheme",
              "midBossForcedLeaveOnCrisis":true,
              "bossTimerSec":180, "timerWarnSec":60, "timerRedAlertSec":30,
