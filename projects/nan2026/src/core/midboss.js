@@ -150,7 +150,11 @@ function moveCharge(world, e, mp, dt) {
   // 관통해 빠져나갔다 → 스폰 라인으로 복귀해 다시 조준한다(추격 금지 — 리셋이지 추적이 아니다)
   if (e.x < a.x) e.x = a.x;
   if (e.x > a.x + a.w) e.x = a.x + a.w;
-  e.y = world.data.rules.view.spawnLineY;
+  // §8.20(v1.8) — 복귀 지점은 아레나 «안»이다. spawnLineY(−40)로 되돌리면 반지름 28 짜리
+  //   창병의 몸이 한 픽셀도 안 보이는 곳에서 windUpSec 1.2초를 조준한다(실측: 생존의 32.8%).
+  //   §8.20 이 그 시간을 무적으로 바꾸므로, 안 고치면 창병만 실효 체력 ×1.5 가 된다.
+  //   저작 결함은 §8.20 이 만든 것이 아니라 §8.20 이 드러낸 것이며, 고칠 자리가 여기다.
+  e.y = a.y + e.radius;
   e.mp0 = 0; e.mp1 = 0;
 }
 
@@ -174,7 +178,18 @@ export function summon(world, e, def, dt) {
   for (let i = 0; i < arch.length; i += 1) if (arch[i].id === sm.archetypeId) { a = arch[i]; break; }
   if (a === null) throw new Error(`midboss: 미지의 소환 아키타입 "${sm.archetypeId}" (§8.9-R9)`);
   const hp = a.hp * curve.enemyHpScale[idx];
+  // §12.1(v1.8) — 유령은 웨이브 예산 «밖»이므로 자기 예산을 갖는다. 새 키 0 —
+  //   telegraphConcurrentMaxGlobal = enemyConcurrentMax × perEntity 와 같은 재사용식 파생이다.
+  //   정적 산술: 웨이브 42 + 유령 42 + max(midBossCount) 5 = 89 ≤ caps.enemies 128 (S12 가 강제).
+  const ghostMax = world.data.rules.fairness.enemyConcurrentMax;
+  const it = world.enemies.items;
+  let ghostLive = 0;
+  if (sm.ghost === true) {
+    for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].ghost) ghostLive += 1;
+  }
   for (let i = 0; i < sm.count; i += 1) {
+    if (sm.ghost === true && ghostLive >= ghostMax) break;
+    if (sm.ghost === true) ghostLive += 1;
     formationPos(world, sm.formationId, i, sm.count, e.x, e.y, _pos);
     spawnEnemy(world, sm.archetypeId, e.element, _pos.x, _pos.y, hp, false, sm.ghost === true);   // §8.9 유령 소환
 

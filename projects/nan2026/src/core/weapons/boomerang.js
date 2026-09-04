@@ -30,6 +30,7 @@
  */
 
 import { spawnPlayerBullet } from '../state.js';
+import { onScreen } from '../damage.js';   // §8.20 가시 피해 — 체인 경유점도 보이는 적만
 import { DEG2RAD } from '../angle.js';
 
 const FORWARD = 'forward';
@@ -41,10 +42,11 @@ function nearest(world, x, y, exclude) {
   const en = world.enemies.items;
   let best = -1;
   let bestD = 0;
+  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     if (i === exclude) continue;                 // 직전 경유 적 제외 (체인이 다음 적으로 진행)
     const e = en[i];
-    if (!e.alive) continue;
+    if (!e.alive || !onScreen(arena, e)) continue;      // §8.20
     const dx = e.x - x;
     const dy = e.y - y;
     const d = dx * dx + dy * dy;

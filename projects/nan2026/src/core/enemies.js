@@ -44,6 +44,16 @@ const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbit
 const PLAYABLE_BANDS = ['chaff', 'line', 'turret', 'bruiser'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
+ * §8.19 도입 침묵 — 도입종이 쓸 수 있는 이동 동사.
+ * ★ 이 목록은 취향이 아니라 «계측이 정한 것»이다:
+ *   · strafe    — 화면 상단을 스쳐 지나가 대부분 이탈한다 → §8.7 이탈 몰수로 XP 가 증발한다(45초 XP 253 → 44).
+ *   · orbitDrift — 영영 떠나지 않아 rules.fairness.enemyConcurrentMax 를 먹고 뒤 웨이브를 굶긴다(처치는 올라도 XP 228 → 34).
+ *   · column     — 같은 이유(체류).
+ * 도입종은 «내려와서 떠나는» 동사여야 한다. 완화하려면 먼저 다시 재라. (S48-⑤ 가 강제한다)
+ */
+const INTRO_MOVES = ['dive', 'weave', 'anchor', 'bounce'];
+
+/**
  * 스폰 상태를 최초 1회만 만든다(§10.3 — 이후 핫패스는 0 alloc).
  * ★ 편성·아키타입 인덱스·간격을 전부 주입된 데이터에서 유도한다(하드코딩 매직넘버 0).
  */
@@ -115,8 +125,31 @@ function buildSpawner(world, stageId, curveIdx) {
   }
   if (roster.length === 0) throw new Error(`enemies: "${stageId}" 스테이지 ${stageNumber} 로스터 0종 (§8.6)`);
 
+  // ★ §8.19 도입 침묵 — 판의 «머리»는 탄이 없다.
+  //   도입종은 로스터 «밖»의 한 칸이다(stages[].introArchetypeId). 그래서 로스터는 4종 그대로이고
+  //   S8·S22·S23·S26·S39 의 정의역이 통째로 보존되며, 곡선이 0 인 포지션은 스폰이 기준선과 바이트 동일하다.
+  //   ★ 폴백 금지(§9.3) — 데이터가 어긋나면 조용히 로스터로 흐르지 않고 여기서 터진다.
+  const introId = stage.introArchetypeId;
+  const introDef = archIndex[introId];
+  if (introDef === undefined) throw new Error(`enemies: 도입종 미지 아키타입 "${introId}" (§8.19)`);
+  if (introDef.attack !== null) throw new Error(`enemies: 도입종 "${introId}" 이 쏜다 — attack !== null (§8.19)`);
+  if (crisisArch[introId]) throw new Error(`enemies: 도입종 "${introId}" 은 위기 전용이다 (§8.10 · §8.19)`);
+  if (world.data.enemies.bands[introDef.band].hpMult !== world.data.enemies.bands.chaff.hpMult) {
+    throw new Error(`enemies: 도입종 "${introId}" 의 밴드 "${introDef.band}" — 도입종은 chaff 여야 한다(밴드 클램프가 몸 수를 줄인다, §8.19)`);
+  }
+  if (INTRO_MOVES.indexOf(introDef.moveId) < 0) throw new Error(`enemies: 도입종 "${introId}" 의 이동 "${introDef.moveId}" ∉ 도입 어휘 (§8.19)`);
+  // §8.19(v1.10) — 스테이지가 «공격형 : 무공격» 비율을 소유한다(사용자 확정: 총량은 두고 섞이는 비율만 오른다).
+  const ratio = world.data.stages.curve.shooterRatio[curveIdx];
+  if (typeof ratio !== 'number' || ratio < 0 || ratio > 1) throw new Error(`enemies: curve.shooterRatio[${curveIdx}] 없음/범위 밖 (§8.19)`);
+  // 공격형 로스터 — 로스터에서 attack 이 있는 것만. 무공격은 introId(로스터 밖 칸)가 채운다.
+  const shooters = [];
+  for (let k = 0; k < roster.length; k += 1) if (archIndex[roster[k]].attack !== null) shooters.push(roster[k]);
+  if (shooters.length === 0) throw new Error(`enemies: 스테이지 "${stageId}" 로스터에 공격형이 없다 (§8.19)`);
+  // 봉지 — 웨이브마다 «공격형 자리»를 섞어 뽑는다. 크기는 풀 상한(caps.enemies), 핫패스 0 alloc.
+  const bag = new Uint8Array(world.data.rules.caps.enemies);
   return {
     stageId, curveIdx, waves, archIndex, roster,
+    introId, ratio, shooters, bag,             // §8.19(v1.10) 무공격 칸 · 공격형 비율 · 공격형 로스터 · 봉지
     waveIndex: 0, wavesSpawned: 0, nextWaveT: 0,
     element: stage.element,                    // §8.10 themePure 위기 속성
     crisisRule: stage.crisisElementRule,       // "themePure" | "finaleRotating"
@@ -161,7 +194,7 @@ function descentSpeed(mp) {
  * §9.9.2 — 편대별 i번째 개체의 스폰 좌표. 원점 = 스폰 라인 중앙.
  * spawnEdge 는 슬라이스에서 top 만 유효(sea stage-1 전량 top). base y = view.spawnLineY.
  */
-function placement(world, wave, i, count, out, def) {
+function placement(world, wave, i, count, out, def, formOverride) {
   // 편대의 원점 = 스폰 라인 중앙(웨이브). 모양 자체는 formations.js 가 소유한다(§9.9.2).
   const a = world.data.rules.view.arena;
   const mv = def === undefined ? '' : def.moveId;
@@ -178,35 +211,133 @@ function placement(world, wave, i, count, out, def) {
     out.y = a.y + mp.yPx;
     return out;
   }
-  return formationPos(world, wave.formationId, i, count,
+  // §8.19(v1.8) 도입 구간은 편대도 «벽»으로 강제한다 — 아키타입만 갈아 끼우면 웨이브 레코드의
+  //   scatter/arc 가 그대로 흩어 놓아 「빽빽하게 길을 뚫는」 그림이 되지 않는다(플레이 피드백).
+  const formId = formOverride === undefined ? wave.formationId : formOverride;
+  return formationPos(world, formId, i, count,
     a.x + a.w / 2, world.data.rules.view.spawnLineY, out);
 }
 
 const _pos = { x: 0, y: 0 };   // 재사용(핫패스 0 alloc)
 
+/**
+ * §12.1(v1.8) — A층 `enemyConcurrentMax` 가 «세는 것»은 웨이브가 낸 잡몹뿐이다.
+ *   보스·중간보스(§8.9)와 유령 소환(§8.9-R9)은 웨이브 예산 밖이다 — 유령은 자기 몫으로
+ *   같은 enemyConcurrentMax 를 갖는다(midboss.summon).
+ *   ★ v1.8 이전엔 소환에 예산 검사가 «아예 없었고» 웨이브 게이트가 유령까지 세어,
+ *     예산 있는 개체가 예산 없는 개체에 굶었다. 그리고 유령 때문에 live 가 0 이 되지 않아
+ *     §8.7 waveClearAdvance 가 중간보스 구간 내내 죽어 있었다.
+ *   ★ 결정성: 인덱스 오름차순 순회 · 0 alloc (§10.3).
+ */
+export function waveLive(world) {
+  const it = world.enemies.items;
+  let n = 0;
+  for (let i = 0; i < it.length; i += 1) {
+    const e = it[i];
+    if (!e.alive) continue;
+    if (e.isBoss || e.midBossId !== '' || e.ghost) continue;
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * §12.1(v1.9) — A층 «위협» 예산이 세는 것. 도입 구간의 몸(introBody)은 빠진다.
+ *   ★ 이것은 v1.8 이 유령에게 이미 한 처방과 «같은 것»이다: 예산 있는 개체가 예산 없는 개체에
+ *     굶으면 안 된다. v1.8 은 도입 구간에 introConcurrentMax(200)를 «주었지만» 웨이브 게이트는
+ *     여전히 enemyConcurrentMax(42)를 보고 있었다 — 그래서 도입 예산은 절반만 살아 있었고,
+ *     벽을 두껍게 하는 순간 창이 닫힌 뒤 정상 스포너가 20초 넘게 굶는다(실측: 무기 침묵 시
+ *     tests/emitters 결정성 2건이 그 자리에서 빨개진다). 이 함수가 그 절반을 마저 잇는다.
+ *   ★ 「무해한 몸은 위협이 아니다」의 근거: 도입종은 attack == null 이 S48 로 강제되고(쏘지 않는다),
+ *     벽에는 차선이 있어(§8.19.2) 언제나 비켜 갈 길이 있다. 접촉 피해는 남는다 — 예산에서 빠지는
+ *     것이지 무적이 되는 것이 아니다.
+ *   ★ 결정성: 인덱스 오름차순 순회 · 0 alloc (§10.3).
+ */
+export function threatLive(world) {
+  const it = world.enemies.items;
+  let n = 0;
+  for (let i = 0; i < it.length; i += 1) {
+    const e = it[i];
+    if (!e.alive) continue;
+    if (e.isBoss || e.midBossId !== '' || e.ghost || e.introBody) continue;
+    n += 1;
+  }
+  return n;
+}
+
+/** §8.19.1 — 도입 구간 몸의 자기 예산(introConcurrentMax)이 세는 것. */
+export function introLive(world) {
+  const it = world.enemies.items;
+  let n = 0;
+  for (let i = 0; i < it.length; i += 1) {
+    const e = it[i];
+    if (!e.alive) continue;
+    if (e.introBody) n += 1;
+  }
+  return n;
+}
+
 /** §8.7 — 한 웨이브를 편성대로 스폰한다. element 는 편성이 주입(§8.6). */
 function spawnWave(world, s) {
   const wave = s.waves[s.waveIndex];
+  const phase = world.data.stages.phase;
   // ★ 아키타입은 로스터 라운드로빈으로 다양화한다(웨이브 골격 = 편대·element·count·eliteIndex 는 그대로).
   //   wave 0 → roster[0](= drifter, 첫 필터 통과 아키타입)이라 element 테스트의 전제와 정합한다.
-  const archetypeId = s.roster[s.waveIndex % s.roster.length];
+  //   슬라이스(런 없음)는 구간이 없다 → 레코드 편대. 런이면 첫 중간보스 시각 «전»이 초기 구간.
+  const mbAt = phase.midBossAtSec[s.curveIdx];
+  const early = world.run != null && Array.isArray(mbAt) && mbAt.length > 0 && world.run.phaseT < mbAt[0];
+  // 주 아키타입 = «공격형» 로스터의 순환. 밴드·count 는 이것이 정한다.
+  const archetypeId = s.shooters[s.waveIndex % s.shooters.length];
   const def = s.archIndex[archetypeId];
   if (def === undefined) throw new Error(`enemies: 미지의 아키타입 "${archetypeId}" (§9.7)`);
-  const hp = enemyHp(world, def);
-  const concurrentMax = world.data.rules.fairness.enemyConcurrentMax;
+  const introDef = s.archIndex[s.introId];
+  const hpShoot = enemyHp(world, def);
+  const hpChaff = enemyHp(world, introDef);
+  // §8.19(v1.8) 도입 구간은 «탄을 쏘지 않는» 적만 서므로 별도 예산을 쓴다 — A층 상한은
+  //   «위협»을 묶는 장치인데 무해한 벽은 성격이 다르다. 「화면을 가득 채운다」의 재료다.
+  // §8.19(v1.10) 공격형 예산은 포지션 곡선을 탄다 — 비율 60~80% 를 42 로는 못 세운다(실측: 5·6 이 42·50% 에 멈췄다).
+  //   기본값 42 는 그대로 두고 배율만 곡선이라 S12·S26·S50 의 스칼라 계약은 안 건드린다.
+  const shootMax = Math.round(world.data.rules.fairness.enemyConcurrentMax
+    * world.data.stages.curve.threatBudgetScale[s.curveIdx]);
+  const chaffMax = world.data.rules.fairness.introConcurrentMax;
 
   // ★ count 는 밴드로 나눠 구조적으로 클램프한다(밸런스 매직넘버 아님 — effHP ∝ hpMult 이므로 탱커 웨이브가
   //   벽이 되지 않게 총 HP 예산을 대략 보존한다). chaff(hpMult 1.0)는 원본 count 유지, line(2.5)은 줄어든다.
-  const band = world.data.enemies.bands[def.band];
+  // §8.19(v1.10) 마리수는 «무공격 밴드»(chaff) 기준이다 — 사양이 「300마리 중 30이 쏜다」이므로
+  //   몸의 대부분은 무공격이고, 공격형은 비율만큼 섞인다. 공격형 밴드로 세면 line/turret 이
+  //   주 아키타입일 때 무공격까지 같이 줄어 «가득 찬 화면»이 무너진다(실측: forest 첫 웨이브 7기).
+  const band = world.data.enemies.bands[introDef.band];
   // §8.6 — 스테이지별 스폰 밀도(curve.spawnDensityScale). ★ 실측으로 발견된 누락: 이것이 없으면
   //   스테이지 1 이 저작 의도(0.7배)보다 30% 더 몰려오고 후반은 반대로 헐거워진다.
   const density = world.data.stages.curve.spawnDensityScale[s.curveIdx];
-  const count = Math.max(2, Math.round((wave.count / band.hpMult) * density));
+  // §8.7.1(v1.8) — 몸 수의 «하한»은 밴드가 소유한다(C-4). 하드코딩 2 는 안전망이 아니라
+  //   실제 값으로 돌고 있었다(실측: 전 웨이브의 43.8% 가 4마리 미만). 총 HP 예산은 여전히
+  //   hpMult 나눗셈이 보존하고, 하한은 「그 예산이 몇 개의 몸으로 쪼개지는가」만 정한다.
+  // ★ §8.19.1 — 초입 위기만 «몸 수»를 레코드에서 가져오지 않는다. 그 값은 밀도가 아니라 «장면»이다
+  //   (한 줄 18기 × N줄). 그래서 포지션 곡선을 곱하지 «않는다» — 곱하면 포지션 3 에서 450기가 되어
+  //   장면이 아니라 폭발이 된다(실측). 같은 벽이 뒤로 갈수록 무거워지는 것은 enemyHpScale 이 이미 한다.
+  const count = Math.max(band.minPerWave, Math.round((wave.count / band.hpMult) * density));
+  // §8.19(v1.10) 봉지 — count 칸 중 round(count × ratio) 칸이 공격형. rng.spawn 으로 섞는다(§10.2 시드 난수).
+  //   마리수 편차 0 · 배치만 매 판 다르다(독립 베르누이는 300마리 10%에서 σ 5.2 = ±40%).
+  const nShoot = Math.round(count * s.ratio);
+  const bag = s.bag;
+  for (let i = 0; i < count; i += 1) bag[i] = i < nShoot ? 1 : 0;
+  for (let i = count - 1; i > 0; i -= 1) {                  // Fisher–Yates
+    const j = Math.floor(world.rng.spawn.f() * (i + 1));
+    const t = bag[i]; bag[i] = bag[j]; bag[j] = t;
+  }
 
+  // §12.1(v1.9) — 예산은 «자기 몫»을 센다: 도입 구간의 몸은 introConcurrentMax, 그 밖은
+  //   enemyConcurrentMax(위협). 루프 진입 전 1회 계산 후 지역 증분(0 alloc·결정적).
+  let liveShoot = threatLive(world);
+  let liveChaff = introLive(world);
   for (let i = 0; i < count; i += 1) {
-    // §8.7 초과 정책 = defer. 동시 오써링 상한을 넘으면 나머지는 이번 웨이브에서 놓는다(풀 캡이 B층 안전망).
-    if (world.enemies.live >= concurrentMax) break;
-    placement(world, wave, i, count, _pos, def);
+    const shoot = bag[i] === 1;
+    const d = shoot ? def : introDef;
+    // §8.7 초과 정책 = defer — 예산은 «자기 몫»을 센다(공격형 = 위협, 무공격 = 도입).
+    if (shoot) { if (liveShoot >= shootMax) continue; liveShoot += 1; }
+    else { if (liveChaff >= chaffMax) continue; liveChaff += 1; }
+    placement(world, wave, i, count, _pos, d, early ? phase.introFormationId : undefined);
     // §8.6 — 엘리트 = 두 경로의 OR:
     //   (1) eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그(베이크된 스포트라이트, perWaveMax 1).
     //   (2) 엘리트 재롤(§8.6, 이제 구현 — 예약된 rng.elite 스트림): 자격 개체(밴드∈bandAllowed ∧
@@ -231,7 +362,11 @@ function spawnWave(world, s) {
     //   전원」으로 «후반 전면 엘리트화»를 확정했으므로, 상한을 걸면 그 설계가 통째로 죽는다
     //   (실측: 걸었더니 스테이지 6 엘리트율이 1.2% 로 주저앉았다).
     const elite = bakedElite || rerollElite;
-    spawnEnemy(world, archetypeId, wave.element, _pos.x, _pos.y, hp, elite);
+    // 개체별로 종·체력이 갈린다 — 봉지가 정한 자리에 공격형(def) 또는 무공격(introDef).
+    const born = spawnEnemy(world, shoot ? archetypeId : s.introId, wave.element, _pos.x, _pos.y,
+      shoot ? hpShoot : hpChaff, shoot && elite);
+    // §12.1(v1.9) — 무공격 몸에 표식을 켠다. 이 한 줄이 「무해한 몸은 위협 예산을 먹지 않는다」다.
+    if (born !== null && !shoot) born.introBody = true;
   }
 
   s.waveIndex = (s.waveIndex + 1) % s.waves.length;   // §8.7 waveListExhausted = "cycle"
@@ -294,10 +429,27 @@ function spawnCrisis(world, s) {
  *   그 외 : dive 폴백(슬라이스)
  * ★ e.moveT 는 step 이 적분 후 dt 만큼 올린다 → 여기서는 **현재 moveT** 로 속도를 산출한다.
  */
+/**
+ * §8.19(v1.10) 구간의 «속도» — 사용자 사양: 「초기 구간은 느리게 천천히, 위기 구간은 꽤 빠르게」.
+ *   구간은 사건 타이머가 가른다(새 시계 0): 초기 = 첫 중간보스 전 · 위기 = crisisStartSec 이후 · 그 사이 = mid.
+ *   슬라이스(런 없음)는 1.0 — 구간이 없다. 유령·중간보스·보스는 각자 소관이라 여기 안 온다.
+ */
+function sectionSpeedMul(world) {
+  const run = world.run;
+  if (run == null) return 1;
+  const ph = world.data.stages.phase;
+  const m = ph.sectionSpeedMul;
+  if (run.crisis) return m.crisis;
+  const mbAt = ph.midBossAtSec[world.spawner.curveIdx];
+  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) return m.early;
+  return m.mid;
+}
+
 function applyMovement(world) {
   const items = world.enemies.items;
   const arch = world.spawner.archIndex;
   const arena = world.data.rules.view.arena;
+  const sMul = sectionSpeedMul(world);
   for (let i = 0; i < items.length; i += 1) {
     const e = items[i];
     if (!e.alive) continue;
@@ -305,7 +457,7 @@ function applyMovement(world) {
     if (e.midBossId !== '') continue;    // 중간보스도 마찬가지 — 이동은 midboss.js 소관(§8.9)
     const def = arch[e.archetypeId];
     const mp = def.moveParams;
-    const speed = descentSpeed(mp);
+    const speed = descentSpeed(mp) * sMul;
     const mv = def.moveId;
 
     if (mv === 'bounce') {
@@ -314,7 +466,7 @@ function applyMovement(world) {
       //   ★ 진입 방향은 strafe 와 같은 규약으로 정한다 — 스폰 x 가 중앙보다 왼쪽인가. rng 금지(§10.2).
       //   ★ 반사는 여기서 «속도 부호»만 뒤집는다. 위치 되접기는 step 의 적 이동이 클램프로 처리한다.
       if (e.mp0 === 0) e.mp0 = e.x < (arena.x + arena.w * 0.5) ? 1 : -1;
-      const hx = typeof mp.hSpeed === 'number' ? mp.hSpeed : speed;
+      const hx = (typeof mp.hSpeed === 'number' ? mp.hSpeed : descentSpeed(mp)) * sMul;   // 좌우도 구간 속도를 탄다
       if (e.x <= arena.x + e.radius && e.mp0 < 0) e.mp0 = 1;
       else if (e.x >= arena.x + arena.w - e.radius && e.mp0 > 0) e.mp0 = -1;
       e.vx = hx * e.mp0;
@@ -400,14 +552,23 @@ export function enemies(world, dt) {
     return;
   }
 
-  const concurrentMax = world.data.rules.fairness.enemyConcurrentMax;
+  // §8.19(v1.10) 바깥 게이트도 «같은» 곡선 배율을 탄다 — 루프 안만 올리면 웨이브 시작이 42 에 막혀
+  //   간격이 2.65 → 8초로 벌어진다(실측 포지션 6: threatLive 49 에서 정지). 두 자리가 다른 값을 보면 안 된다.
+  const concurrentMax = Math.round(world.data.rules.fairness.enemyConcurrentMax
+    * world.data.stages.curve.threatBudgetScale[s.curveIdx]);
   const interval = world.data.stages.phase.waveIntervalSec;
   // §6.3 — 런 구동은 mobPhaseMaxWaves 상한. 슬라이스(테스트)는 무한 순환(상한 없음).
   const wavesLeft = !runMode || s.wavesSpawned < world.data.stages.phase.mobPhaseMaxWaves;
 
-  if (world.enemies.live < concurrentMax && wavesLeft) {
+  // §12.1(v1.9) — 두 셈이 «다른 일»을 한다:
+  //   · 예산(누가 더 설 수 있는가) = threatLive — 도입 구간의 무해한 몸은 위협 예산을 먹지 않는다.
+  //   · 케이던스(전멸이면 즉시 다음) = waveLive — 화면이 실제로 비었는가는 몸 전부를 세야 한다.
+  //   ★ 이 분리가 없으면 벽이 창을 넘어 내려오는 동안 정상 스포너가 통째로 굶는다.
+  const wLive = waveLive(world);
+  const tLive = threatLive(world);
+  if (tLive < concurrentMax && wavesLeft) {
     // §8.7 waveClearAdvance — 전멸(live 0)이면 즉시 다음, 아니면 waveIntervalSec 간격.
-    if (world.enemies.live === 0 || world.time >= s.nextWaveT) {
+    if (wLive === 0 || world.time >= s.nextWaveT) {
       spawnWave(world, s);
       s.nextWaveT = world.time + interval;
     }

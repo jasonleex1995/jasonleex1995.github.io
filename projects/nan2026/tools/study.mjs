@@ -166,7 +166,7 @@ function runScenario(d, sc) {
   const SAMPLE = 30;                                // 0.5초마다 회피 표본
   const backTicks = Math.round(sc.reaction / DT);
   const ring = [];
-  const out = { hits: 0, forced: 0, dirsSum: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, exit: 0, sec: 0, maxEn: 0, endLive: 0 };
+  const out = { hits: 0, forced: 0, forcedP: 0, dirsPSum: 0, zeroP: 0, dirsSum: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, exit: 0, sec: 0, maxEn: 0, endLive: 0 };
   const seen = new Set();
   let guard = 0;
   for (let t = 0; t < 60 * 200; t += 1) {
@@ -177,10 +177,12 @@ function runScenario(d, sc) {
     w.draftQueue = 0;                                // 빌드는 이미 심었다 — 중간 성장은 변수에서 뺀다
     if (t % SAMPLE === 0) {
       const dirs = escapeDirs(w, d, sc.horizon, ctxOf(d));
-      ring.push([t, dirs]);
+      const dirsP = escapeDirs(w, d, sc.horizon, ctxOf(d), undefined, undefined, undefined, false);   // 탄·빔·장판만
+      ring.push([t, dirs, dirsP]);
       if (ring.length > 40) ring.shift();
       out.dirsSum += dirs; out.dirsN += 1;
       if (dirs === 0) out.zero += 1;
+      out.dirsPSum += dirsP; if (dirsP === 0) out.zeroP += 1;
     }
     let live = 0;
     const en = w.enemies.items;
@@ -203,6 +205,9 @@ function runScenario(d, sc) {
       let d0 = null;
       for (let k = ring.length - 1; k >= 0; k -= 1) if (ring[k][0] <= want) { d0 = ring[k][1]; break; }
       if (d0 === 0) out.forced += 1;
+      let p0 = null;
+      for (let k = ring.length - 1; k >= 0; k -= 1) if (ring[k][0] <= want) { p0 = ring[k][2]; break; }
+      if (p0 === 0) out.forcedP += 1;                 // 탄·빔·장판만으로 막혔던 «진짜» 강제
     }
   }
   out.kills = Object.values(w.tele.kills).reduce((a, b) => a + b, 0);
@@ -261,7 +266,7 @@ function main() {
     if (r === null) continue;                         // 대상 테마가 아니다
     buf.push(JSON.stringify({
       idx, stage: sc.stage, theme: r.theme, weapon: sc.startWeapon, level: sc.level,
-      hits: r.hits, forced: r.forced, dirs: r.dirsN ? +(r.dirsSum / r.dirsN).toFixed(3) : null,
+      hits: r.hits, forced: r.forced, forcedP: r.forcedP, dirsP: r.dirsN ? +(r.dirsPSum / r.dirsN).toFixed(3) : null, zeroP: r.dirsN ? +(r.zeroP / r.dirsN).toFixed(4) : null, dirs: r.dirsN ? +(r.dirsSum / r.dirsN).toFixed(3) : null,
       zero: r.dirsN ? +(r.zero / r.dirsN).toFixed(4) : null,
       kills: r.kills, spawn: r.spawn, exit: r.exit, endLive: r.endLive, sec: +r.sec.toFixed(1), maxEn: r.maxEn,
     }));
@@ -293,24 +298,26 @@ function merge(dir) {
     for (const r of rows) {
       const k = keyFn(r);
       let a = m.get(k);
-      if (a === undefined) { a = { n: 0, hits: 0, forced: 0, dirs: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, sec: 0, exit: 0, maxEn: 0 }; m.set(k, a); }
+      if (a === undefined) { a = { n: 0, hits: 0, forced: 0, forcedP: 0, dirsP: 0, zeroP: 0, dirs: 0, dirsN: 0, zero: 0, kills: 0, spawn: 0, sec: 0, exit: 0, maxEn: 0 }; m.set(k, a); }
       a.n += 1; a.hits += r.hits; a.forced += r.forced; a.kills += r.kills; a.spawn += r.spawn; a.sec += r.sec;
       a.exit += r.exit; if (r.maxEn > a.maxEn) a.maxEn = r.maxEn;
-      if (r.dirs !== null) { a.dirs += r.dirs; a.dirsN += 1; a.zero += r.zero; }
+      a.forcedP += (r.forcedP || 0);
+      if (r.dirs !== null) { a.dirs += r.dirs; a.dirsN += 1; a.zero += r.zero; a.dirsP += (r.dirsP || 0); a.zeroP += (r.zeroP || 0); }
     }
     return m;
   };
   const show = (title, m, cols) => {
     line('');
     line(title);
-    line(`${cols.padEnd(14)}  판수    피격/분   강제%    평균길   「길0」   처치율`);
+    line(`${cols.padEnd(14)}  판수    피격/분   강제%   탄강제%   평균길   탄평균길  「길0」  탄「길0」  처치율`);
     const keys = [...m.keys()].sort();
     for (const k of keys) {
       const a = m.get(k);
       const perMin = a.sec > 0 ? a.hits / (a.sec / 60) : 0;
       line(`${String(k).padEnd(14)} ${String(a.n).padStart(6)} ${perMin.toFixed(1).padStart(8)} `
-        + `${pct(a.hits ? a.forced / a.hits : 0).padStart(8)} ${(a.dirsN ? a.dirs / a.dirsN : 0).toFixed(2).padStart(8)} `
-        + `${pct(a.dirsN ? a.zero / a.dirsN : 0).padStart(8)} ${pct(a.spawn ? a.kills / a.spawn : 0).padStart(8)}`);
+        + `${pct(a.hits ? a.forced / a.hits : 0).padStart(7)} ${pct(a.hits ? a.forcedP / a.hits : 0).padStart(8)} `
+        + `${(a.dirsN ? a.dirs / a.dirsN : 0).toFixed(2).padStart(8)} ${(a.dirsN ? a.dirsP / a.dirsN : 0).toFixed(2).padStart(8)} `
+        + `${pct(a.dirsN ? a.zero / a.dirsN : 0).padStart(7)} ${pct(a.dirsN ? a.zeroP / a.dirsN : 0).padStart(8)} ${pct(a.spawn ? a.kills / a.spawn : 0).padStart(8)}`);
     }
   };
   /**

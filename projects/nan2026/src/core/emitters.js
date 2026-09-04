@@ -291,13 +291,21 @@ export function emitters(world, dt) {
       e.emitT += dt * actMul;
       e.attackType = emA.type;                 // §7.6(v1.7) 중간보스도 같은 어휘
       const wantA = scheduledVolleys(e.emitT, emA, 0);
-      while (e.emitPhase < wantA) { fireVolley(world, e, emA, e.emitPhase, p, look); e.emitPhase += 1; }
+      while (e.emitPhase < wantA) {
+        fireVolley(world, e, emA, e.emitPhase, p, look); e.emitPhase += 1;
+        e.attackType = emA.type;               // ★ v1.8 — 방금 쏜 이미터를 싣는다(아래 B 와 대칭)
+      }
       if (ids.length > 1) {
         const emB = look.emitById[ids[1]];
         if (emB === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[1]}" (§8.9)`);
         e.emitT2 += dt * actMul;
         const wantB = scheduledVolleys(e.emitT2, emB, 0);
-        while (e.emitPhase2 < wantB) { fireVolley(world, e, emB, e.emitPhase2, p, look); e.emitPhase2 += 1; }
+        while (e.emitPhase2 < wantB) {
+          fireVolley(world, e, emB, e.emitPhase2, p, look); e.emitPhase2 += 1;
+          // ★ v1.8 결함 수정 — 기호가 emitterIds[0] 에 얼어붙어 mbHammer 가 폭탄을 던지는 내내
+          //   «부채»라고 거짓말했다. 방금 쏜 이미터를 싣는다(렌더 전용 필드 = 시뮬 불변).
+          e.attackType = emB.type;
+        }
       }
       continue;
     }

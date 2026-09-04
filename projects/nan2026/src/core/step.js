@@ -19,7 +19,7 @@
  * ★ tools/sim.mjs 는 이 파일을 그대로 import 한다 — 렌더·오디오·DOM 은 애초에 없다 (§10.4).
  */
 
-import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken } from './damage.js';
+import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } from './damage.js';
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
 import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
@@ -337,6 +337,7 @@ function collide(world, dt) {
 
   const pb = world.playerBullets.items;
   const en = world.enemies.items;
+  const arena = world.data.rules.view.arena;              // §8.20 판정 사각형 = 렌더 클립 사각형
 
   // (a) 플레이어 탄 → 적
   for (let i = 0; i < pb.length; i += 1) {
@@ -345,6 +346,10 @@ function collide(world, dt) {
     for (let j = 0; j < en.length; j += 1) {              // 인덱스 오름차순 (§10.3)
       const e = en[j];
       if (!e.alive) continue;
+      // §8.20 — 화면 밖은 때릴 수 없다. ★ 탄은 «통과»하고 관통을 소모하지 않는다
+      //   (§8.11 봉인의 「무적이되 탄은 통과」와 같은 계약). 흡수로 하면 스폰 라인의 안 보이는
+      //   적이 뒤의 전부를 가리는 엄폐물이 되어 DPS 벽을 겹으로 세운다.
+      if (!onScreen(arena, e)) continue;
       const dx = e.x - b.x;
       const dy = e.y - b.y;
       const rr = e.radius + b.radius;

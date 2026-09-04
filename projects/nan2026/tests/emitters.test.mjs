@@ -202,17 +202,35 @@ suite('emitters · attack:null 은 안 쏜다 (§8.5)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
+/**
+ * ★ §8.19 도입 침묵 — 첫 introQuietWaves[0] 개 웨이브는 «쏘지 않는» 도입종이다.
+ *   아래 두 결정성 테스트는 무기를 침묵시킨 채(silence) 도므로 아무도 죽지 않는다 →
+ *   waveClearAdvance 가 안 걸려 웨이브가 waveIntervalSec 간격으로만 넘어가고,
+ *   첫 «쏘는» 웨이브가 도입 침묵 뒤로 밀린다(실측 8.0초 → 36.5초).
+ *   ★ 틱 예산을 다른 매직넘버로 바꾸지 않고 «데이터에서 유도»한다 — 곡선을 고쳐도 안 깨진다.
+ *   +2 웨이브 여유: 로스터 라운드로빈이 도입 직후 자리에 무공격 종을 다시 놓을 수 있다
+ *   v1.10: 도입 침묵은 «비율»로 대체됐다 — 첫 웨이브부터 공격형이 섞인다.
+ */
+function ticksToFirstFire(w) {
+  // v1.10 비율 모델 — 공격형이 웨이브 0 부터 섞인다(shooterRatio[0] > 0). 두 웨이브 + 발사 유예면 충분하다.
+  const iv = w.data.stages.phase.waveIntervalSec;
+  return Math.ceil((2 * iv + 6) * 60);
+}
+
 suite('emitters · 결정성 (§10.2)', () => {
   test('같은 시드 → 같은 적-탄 시퀀스 (좌표·속도 비트 동일)', () => {
     const a = mkFull(20260718);
     const b = mkFull(20260718);
     silence(a); silence(b);
     const sa = []; const sb = [];
-    for (let i = 0; i < 900; i += 1) {
+    const N = ticksToFirstFire(a);                 // §8.19 고요 창을 넘긴다(데이터에서 유도)
+    for (let i = 0; i < N; i += 1) {
       step(a, makeInput(), dt); step(b, makeInput(), dt);
       if (i % 60 === 0) { sa.push(bulletSig(a)); sb.push(bulletSig(b)); }
     }
-    assert.ok(a.enemyBullets.live > 0, '적이 실제로 탄을 쐈다 (0행 아님)');
+    // ★ 비교한 «시퀀스 자체»에 탄이 들어 있었는지 본다 — 마지막 틱의 순간값(live)은 볼리 사이에
+    //   0 이 될 수 있어 공허 통과/오탐 둘 다 낸다. 이 형태가 원래 의도(0행 아님)보다 강하다.
+    assert.ok(sa.some((r) => r.length > 0), '적이 실제로 탄을 쐈다 (비교한 시퀀스가 0행 아님)');
     assert.deepEq(sa, sb, '같은 시드 = 비트 동일한 적-탄 시퀀스');
   });
 
@@ -220,11 +238,12 @@ suite('emitters · 결정성 (§10.2)', () => {
     const a = mkFull(11); const b = mkFull(29);
     silence(a); silence(b);
     const sa = []; const sb = [];
-    for (let i = 0; i < 900; i += 1) {
+    const N = ticksToFirstFire(a);                 // §8.19 고요 창을 넘긴다(데이터에서 유도)
+    for (let i = 0; i < N; i += 1) {
       step(a, makeInput(), dt); step(b, makeInput(), dt);
       if (i % 60 === 0) { sa.push(bulletSig(a)); sb.push(bulletSig(b)); }
     }
-    assert.ok(a.enemyBullets.live > 0 && b.enemyBullets.live > 0, '양쪽 다 쏨');
+    assert.ok(sa.some((r) => r.length > 0) && sb.some((r) => r.length > 0), '양쪽 다 쏨 (비교한 시퀀스 기준)');
     assert.ne(JSON.stringify(sa), JSON.stringify(sb), '다른 시드 = 다른 탄 시퀀스');
   });
 });

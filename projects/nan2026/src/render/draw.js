@@ -233,53 +233,6 @@ function regular(ctx, x, y, r, n, rot) {
   ctx.closePath();
 }
 
-/**
- * §7.6(v1.7) 공격 기호 — «이 적이 무엇을 하는가»를 모양과 «별개로» 말한다.
- *   문제: shapeId(종족)와 공격 타입이 대응하지 않았다. 같은 hexPod 이 aimed 와 spiral 을 쓰고,
- *   straight 는 claw·delta·spike·wedge 네 모양으로 나왔다 — 생김새로 패턴을 예측할 수 없었다.
- *   ★ 모양을 통일하는 대신 «기호»를 얹는다: 모양 = 누구인가, 기호 = 무엇을 하는가.
- *     종족의 다양성을 잃지 않으면서 예측 가능성만 얻는다.
- *   ★ 같은 어휘가 잡몹·중간보스·보스 부위에 그대로 간다(사용자 요구: 「보스 모듈에도 똑같이」).
- *   ★ §7.6 3층 분리 — 본체(중립)·속성(림/외곽)·위협(자홍) 위에 기호는 «중립 밝은 색»으로 얹어
- *     속성색과 다투지 않는다. 기호가 속성을 흉내내면 층이 무너진다.
- *   어휘는 §8.5 이미터 10종과 1:1 이다. 빠진 타입이 있으면 S46 이 정적으로 잡는다.
- */
-function attackGlyphPath(ctx, type, x, y, r) {
-  const a = r * 0.62;                 // 기호 반경 — 본체 안에 들어간다
-  ctx.beginPath();
-  if (type === 'straight') {          // 직사 — 아래로 뻗는 선
-    ctx.moveTo(x, y - a); ctx.lineTo(x, y + a);
-  } else if (type === 'aimed') {      // 조준 — 십자
-    ctx.moveTo(x - a, y); ctx.lineTo(x + a, y);
-    ctx.moveTo(x, y - a); ctx.lineTo(x, y + a);
-  } else if (type === 'fan') {        // 부채 — 갈라지는 세 선
-    ctx.moveTo(x, y - a); ctx.lineTo(x - a, y + a);
-    ctx.moveTo(x, y - a); ctx.lineTo(x, y + a);
-    ctx.moveTo(x, y - a); ctx.lineTo(x + a, y + a);
-  } else if (type === 'ring') {       // 원형 탄막 — 원
-    ctx.arc(x, y, a, 0, Math.PI * 2);
-  } else if (type === 'spiral') {     // 나선 — 반원 두 겹
-    ctx.arc(x, y, a, 0, Math.PI);
-    ctx.moveTo(x - a * 0.5, y);
-    ctx.arc(x, y, a * 0.5, Math.PI, Math.PI * 2);
-  } else if (type === 'wall') {       // 벽 — 가로 두 줄
-    ctx.moveTo(x - a, y - a * 0.4); ctx.lineTo(x + a, y - a * 0.4);
-    ctx.moveTo(x - a, y + a * 0.4); ctx.lineTo(x + a, y + a * 0.4);
-  } else if (type === 'mortar') {     // 포격 — 아래로 꽂히는 삼각
-    ctx.moveTo(x - a, y - a * 0.6); ctx.lineTo(x + a, y - a * 0.6); ctx.lineTo(x, y + a); ctx.closePath();
-  } else if (type === 'zone') {       // 장판 — 사각 테두리
-    ctx.rect(x - a * 0.8, y - a * 0.8, a * 1.6, a * 1.6);
-  } else if (type === 'laser') {      // 고정 빔 — 굵은 세로 + 양끝 표식
-    ctx.moveTo(x, y - a); ctx.lineTo(x, y + a);
-    ctx.moveTo(x - a * 0.45, y - a); ctx.lineTo(x + a * 0.45, y - a);
-  } else if (type === 'sweep') {      // 소사 빔 — 호 + 중심에서 뻗는 선
-    ctx.arc(x, y, a, Math.PI * 0.15, Math.PI * 0.85);
-    ctx.moveTo(x, y - a * 0.8); ctx.lineTo(x, y + a);
-  } else {
-    throw new Error(`draw: 어휘 밖의 공격 타입 "${type}" (§8.5 — 10종 동결)`);
-  }
-}
-
 function shapePath(ctx, shapeId, x, y, r) {
   switch (shapeId) {
     case 'wedge':  return poly(ctx, x, y, r, [0, 1, -0.9, -0.7, 0, -0.35, 0.9, -0.7]);
@@ -642,22 +595,26 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     shapePath(ctx, e.shapeId, x, y, r);
     ctx.fillStyle = pal.enemyBody;
     ctx.fill();
-    
-    // §7.6(v1.7) 공격 기호 — 본체 위에 «중립 밝은 색»으로. 속성색과 다투지 않게(3층 분리).
-    //   사격하지 않는 적('')은 기호가 없다 — 그 «없음»도 정보다(접촉만 하는 놈).
-    if (e.attackType !== '') {
+
+    // §8.11 봉인 — «무채화»는 여기서, 기호·외곽선보다 «먼저». 봉인 부위는 무적일 뿐 계속 쏘므로
+    //   판독 채널(기호·속성)을 덮으면 안 된다. 잠금은 흐림이 아니라 «자물쇠»가 말한다(아래).
+    if (e.isBoss && e.sealedNow) {
       ctx.save();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = rgba(pal.neutralGray, 0.85);
-      attackGlyphPath(ctx, e.attackType, x, y, r);
-      ctx.stroke();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = pal.neutralGray;
+      shapePath(ctx, e.shapeId, x, y, r);
+      ctx.fill();
       ctx.restore();
     }
 
-    // 림 라이트 — 진행 방향 **반대쪽**, 알파 0.35
+    // 림 라이트 — 진행 방향 **반대쪽**, 알파 0.35.
+    //   ★ clip() 은 «현재 경로»로 자른다 — 공격 기호를 여기보다 먼저 그리면 기호 경로로 잘린다
+    //     (v1.7 결함: straight 기호는 면적 0 이라 사격하는 잡몹의 림이 통째로 사라졌다).
+    //     그래서 기호는 외곽선 «뒤»로 옮기고, 여기서는 본체 경로를 직접 재발행한다.
     const sp = Math.sqrt(e.vx * e.vx + e.vy * e.vy);
     if (sp > 0) {
       ctx.save();
+      shapePath(ctx, e.shapeId, x, y, r);
       ctx.clip();
       ctx.fillStyle = rgba(color, 0.35);
       ctx.beginPath();
@@ -672,16 +629,11 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     shapePath(ctx, e.shapeId, x, y, r);
     ctx.stroke();
 
-    // §8.11(v1.5) 봉인된 파트 — 잠금 표시(무채색 차폐 + 점선 자물쇠 링). "앞 모듈을 부숴야 열린다"를 상시 신호.
+    // §8.11(v1.5·v1.8) 봉인된 파트 — 자물쇠 링. 무채화는 위(본체 직후)에서 이미 끝났다.
     if (e.isBoss && e.sealedNow) {
       ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle = pal.neutralGray;
-      shapePath(ctx, e.shapeId, x, y, r);
-      ctx.fill();
-      ctx.globalAlpha = 0.9;
       ctx.strokeStyle = pal.neutralGray;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.arc(x, y, r + 5, 0, Math.PI * 2);
@@ -714,12 +666,8 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       shapePath(ctx, e.shapeId, 0, 0, r * el.sizeMult * 0.82);
       ctx.stroke();
       ctx.restore();
-      // HP 바는 UI 요소 — 프리즈 팝에 흔들리지 않게 원본 e.radius 에 앵커
-      const bw = e.radius * 2;
-      ctx.fillStyle = rgba(pal.threat.outline, 0.8);
-      ctx.fillRect(x - bw / 2, y - e.radius - 8, bw, 3);
-      ctx.fillStyle = color;
-      ctx.fillRect(x - bw / 2, y - e.radius - 8, bw * (e.hp / e.hpMax), 3);
+      // ★ v1.8 — 엘리트 HP 바는 여기서 그리지 않는다. 아래 «단일 규격» 블록이 맡는다.
+      //   규격이 두 자리에 흩어져 있던 것이 3종 두께(3/4/6px)를 낳은 기전이다.
     }
 
     // §7.6(v1.7) 개체 위 HP 바 — «내가 때리고 있는 그것»의 남은 체력은 그것에 붙어 있어야 읽힌다.
@@ -727,19 +675,22 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     //   코어는 「이 판을 끝내는 것」이라 화면 어디를 보고 있든 알아야 하는 유일한 값이다.
     //   ★ armor 부위는 §8.13 소프트게이트를 쥐고 있다(부수면 코어가 열린다). 바를 두껍게 +
     //     밑줄을 그어 「이건 그냥 부위가 아니다」를 말한다 — 상단 세그먼트 없이도 게이트가 읽힌다.
-    const ownBar = e.midBossId !== '' || (e.isBoss && !e.isCore);
+    const ownBar = e.elite || e.midBossId !== '' || (e.isBoss && !e.isCore);
     if (ownBar) {
-      const isArmor = e.partType === 'armor';
-      const bh = isArmor ? 6 : 4;
-      const bw = e.radius * 2;
-      const byy = y - e.radius - 10;
-      ctx.fillStyle = rgba(pal.threat.outline, 0.85);
-      ctx.fillRect(x - bw / 2, byy, bw, bh);
+      const hb = world.data.rules.visual.hpBar;
+      const bw = hb.wPx;                                     // ★ 폭은 radius 에서 파생되지 않는다
+      const bx = x - bw / 2;
+      const byy = y - e.radius - hb.gapPx - hb.hPx;          // 바는 UI — 프리즈 팝(r) 아닌 e.radius 앵커
+      ctx.fillStyle = rgba(pal.threat.outline, hb.trackAlpha);
+      ctx.fillRect(bx, byy, bw, hb.hPx);
       ctx.fillStyle = color;
-      ctx.fillRect(x - bw / 2, byy, bw * (e.hp / e.hpMax), bh);
-      if (isArmor) {
-        ctx.fillStyle = rgba(pal.element.normal, 0.9);
-        ctx.fillRect(x - bw / 2, byy + bh + 1, bw, 1);       // 게이트 표식
+      ctx.fillRect(bx, byy, bw * (e.hp / e.hpMax), hb.hPx);
+      // §8.13(v1.8) 소프트게이트 = 두께가 아니라 «형태». 좌우 은색 기둥.
+      if (e.partType === 'armor') {
+        ctx.fillStyle = pal.element.normal;
+        const ph = hb.hPx + hb.gatePostOverhangPx * 2;
+        ctx.fillRect(bx - hb.gatePostWPx, byy - hb.gatePostOverhangPx, hb.gatePostWPx, ph);
+        ctx.fillRect(bx + bw, byy - hb.gatePostOverhangPx, hb.gatePostWPx, ph);
       }
     }
 

@@ -20,7 +20,7 @@
  */
 
 import { spawnTelegraph } from '../state.js';
-import { hitEnemy } from '../damage.js';
+import { hitEnemy, onScreen } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -45,7 +45,11 @@ function aim(world, slot, eff, r, out) {
     let bestN = 0;
     for (let i = 0; i < en.length; i += 1) {
       const e = en[i];
-      if (!e.alive) continue;
+      // §8.20 — 착탄 «중심»은 보이는 적이어야 한다. 가장 빽빽한 무리는 언제나 방금 태어난
+      //   편대이고 그 편대는 스폰 라인 = 화면 밖에 선다(실측: 볼리가 493.8px 밖 유령 편대
+      //   한복판에 떨어졌다). 이웃을 «세는» 안쪽 루프는 일부러 그대로 둔다 — 들어오는 웨이브
+      //   쪽으로 기우는 편향은 조준으로서 옳다.
+      if (!e.alive || !onScreen(a, e)) continue;
       let n = 0;
       for (let j = 0; j < en.length; j += 1) {
         const o = en[j];

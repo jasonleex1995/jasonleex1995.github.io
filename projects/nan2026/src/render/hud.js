@@ -122,7 +122,7 @@ function drawTopBand(ctx, world, pal) {
     //   기존 6px 은색 실오라기 + magenta 카운트 핍이라 «남은 체력이 안 보였다».
     const barW = a.w - pad * 2;
     const bx = a.x + pad;
-    const coreH = 12;
+    const coreH = h.bossHpBarH;
     const coreY = a.y + topH - coreH;
     // §7.6(v1.7) armor 세그먼트 스트립 폐지 — 이제 부위마다 «자기 위»에 바가 있다(draw.js).
     //   같은 값을 두 곳에 그리면 어느 쪽을 봐야 하는지가 사라진다. §8.13 게이트는 armor 부위의

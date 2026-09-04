@@ -19,7 +19,7 @@
  *   발사 시 a1 = chargeSec 로 세워 drawLance 가 그 동안 밝은 빔을 그린다(즉발 무기의 가시화).
  */
 
-import { hitEnemy } from '../damage.js';
+import { hitEnemy, onScreen } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -36,6 +36,7 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
   const p = world.player;
   const en = world.enemies.items;
   const halfW = eff.beamWidthPx * 0.5;
+  const arena = world.data.rules.view.arena;             // §8.20
   const topY = p.y - length;
   // ★ 커서 = (boundY, boundIdx). y 만으로 진행하면 **같은 y 의 적을 한 명만 맞히고 나머지를 배제**했다
   //   (편대는 한 줄이 정확히 같은 y — lineH/arc 대칭쌍/vWedge 동랭크). idx 동점 처리로 같은 y 안에서
@@ -50,7 +51,9 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
     let bestIdx = -1;
     for (let i = 0; i < en.length; i += 1) {
       const e = en[i];
-      if (!e.alive) continue;
+      // §8.20 — 오늘의 기하로는 도달 불가지만(빔은 위로 나가고 화면 밖은 항상 더 멀다),
+      //   진화(레일건)는 limit = enemies.size 라 매 발 스폰 라인까지 스캔한다. 무예외가 값이다.
+      if (!e.alive || !onScreen(arena, e)) continue;
       if (!(e.y < boundY || (e.y === boundY && i > boundIdx))) continue;   // 이미 지난 (y,idx)
       if (e.y < topY) continue;                                            // 사거리 밖
       if (e.x < bx - halfW - e.radius || e.x > bx + halfW + e.radius) continue;

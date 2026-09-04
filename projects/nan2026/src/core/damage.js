@@ -16,6 +16,22 @@
 import { elementTerm, hitTier } from './elements.js';
 
 /**
+ * §8.20(v1.8) ★ 가시 피해 — 화면 밖은 때릴 수 없다.
+ *   판정 사각형은 render/draw.drawWorld 의 ctx.clip() 사각형(= rules.view.arena)과 «같은 것»이다.
+ *   한 픽셀이라도 그려지면 맞고, 안 그려지면 안 맞는다(WYSIWYG).
+ *   ★ 중심이 아니라 «몸»(중심 ± radius) 기준인 이유: 중심 기준은 반지름만큼 「보이는데 안 맞는」
+ *     띠를 만들어 정반대 불평을 낳고, 몸 기준만이 렌더 클립과 같은 사각형이다.
+ *   ★ 파생 필드가 아니라 순수 함수인 이유: 피해가 들어오는 시점이 셋(탄 충돌=틱 후반 ·
+ *     직접피해=틱 전반 · 조준 스캔)이고 서로 다른 훅에 산다. 캐시하면 셋 중 하나는 반드시
+ *     한 틱 낡은 값을 읽는다.
+ *   ★ 밸런스 손잡이가 아니다 — 새 데이터 키 0개, 순수 기하 (§9.3 무관).
+ */
+export function onScreen(a, e) {
+  return e.x + e.radius > a.x && e.x - e.radius < a.x + a.w
+      && e.y + e.radius > a.y && e.y - e.radius < a.y + a.h;
+}
+
+/**
  * §3.1 — 플레이어 → 적. float 를 돌려준다 (적용은 float 누산, 표시만 반올림 — 6항).
  *
  * @param ctx   { matrix, dmgMulSum, elementBonusMul, coreGateMul }
@@ -65,6 +81,10 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
   // §9.5 D3 — slotIndex 는 §8.12 장갑 게이트의 «키»다. 조용히 undefined 를 색인하면
   //   floorAt[undefined] 가 NaN 비교로 항상 통과해 게이트가 죽는다. 죽은 게이트는 통과가 아니므로 던진다.
   if (slotIndex === undefined) throw new Error('damage.hitEnemy: slotIndex 누락 — §8.12 장갑 게이트의 키다 (§9.5 D3)');
+  // ①''' §8.20 가시 피해 — 화면 밖은 때릴 수 없다. 직접피해 4무기(nova·lance·barrage·fan 진화)는
+  //   탄을 만들지 않아 step.collide 를 지나가지 않는다. v1.5 봉인·v1.7 장갑이 정확히 이 자리에서
+  //   «한쪽만 막는» 사고를 두 번 냈다 — 세 번째를 만들지 않는다.
+  if (!onScreen(world.data.rules.view.arena, e)) return 0;                                // ①'''
   if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) return 0;   // ①
   if (e.isBoss && !e.isCore && e.sealedNow) return 0;                                    // ①' §8.11
   // ①'' §8.17(v1.7) 장갑 — 이 파일의 존재 이유가 「모든 직접피해가 공유하는 단 하나의 입구」다.

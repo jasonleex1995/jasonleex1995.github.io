@@ -35,7 +35,7 @@ const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCou
   'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul',
   'xpGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
-const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];
+const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep'];
 const BOSS_TIERS = ['stage', 'mid', 'final'];
 
@@ -204,7 +204,7 @@ function checkRules(c, r) {
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio',
+    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
     'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale']);
   if (isObj(r.boss)) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',
@@ -212,7 +212,7 @@ function checkRules(c, r) {
   }
   c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
-    'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax',
+    'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax',
     'swarmConcurrentMax', 'crisisWaveResidualMax', 'telegraphConcurrentMaxPerEntity',
     'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt']);
   c.closed('rules.hud', r.hud, ['hitboxAlwaysVisible', 'showElementBudget', 'fontHeroPx',
@@ -252,9 +252,11 @@ function checkRules(c, r) {
       'parallaxLayers', 'maxScrollSpeed']);
   }
 
-  c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'stance', 'playerBullet', 'glyph',
+  c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet', 'glyph',
     'telegraph', 'band', 'zone', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
   if (isObj(r.visual)) {
+    c.closed('rules.visual.hpBar', r.visual.hpBar,
+      ['hPx', 'wPx', 'gapPx', 'trackAlpha', 'gatePostWPx', 'gatePostOverhangPx']);
     c.closed('rules.visual.stance', r.visual.stance, ['ringExpandSec', 'ringMaxRadiusPx',
       'ringStrokePx', 'emptyDesatSec', 'dotRadiusPx', 'dotRingPx', 'auraAlpha', 'pipPx', 'pipPxCvd',
       'pipGapPx', 'pipOffsetYPx', 'hintPulseHz', 'hintPulseAlpha']);
@@ -411,7 +413,7 @@ function checkEnemies(c, e) {
       if (!own(e.bands, bn)) continue;
       // §9.7 — xpRef 는 chaff 밴드 전용 필드다
       c.closed(`enemies.bands.${bn}`, e.bands[bn],
-        bn === 'chaff' ? ['hpMult', 'xpRef'] : ['hpMult']);
+        bn === 'chaff' ? ['hpMult', 'xpRef', 'minPerWave'] : ['hpMult', 'minPerWave']);
     }
   }
   if (c.arr('enemies.archetypes', e.archetypes)) {
@@ -478,12 +480,13 @@ function checkStages(c, s) {
   c.closed('stages', s, ['schemaVersion', 'themeDraw', 'curve', 'phase', 'stages', 'formations']);
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
   c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed']);
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',
+    'shooterRatio', 'threatBudgetScale']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
     'crisisStartSec', 'crisisDurationSec', 'crisisWarnSec', 'crisisSuspendsWaves', 'crisisTotal',
-    'crisisSubWaves', 'crisisWaves', 'midBossAtSec', 'midBossLeaveAfterSec', 'midBossElementRule',
+    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'midBossAtSec', 'midBossLeaveAfterSec', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {
@@ -493,10 +496,12 @@ function checkStages(c, s) {
     }
   }
   // §9.9.2 — 편대 6종 + 파라미터
+  if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'mid', 'crisis']);
   c.closed('stages.formations', s.formations, FORMATION_IDS);
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
     arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols'],
   };
   if (isObj(s.formations)) {
     for (let i = 0; i < FORMATION_IDS.length; i += 1) {
@@ -509,7 +514,7 @@ function checkStages(c, s) {
     const t = s.stages[i];
     const p = `stages.stages[${t && t.id}]`;
     if (!c.closed(p, t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'roster', 'mix', 'mixGranularity', 'waves'])) continue;
+      'introArchetypeId', 'roster', 'mix', 'mixGranularity', 'waves'])) continue;
     if (c.arr(`${p}.roster`, t.roster)) {
       for (let j = 0; j < t.roster.length; j += 1) {
         c.closed(`${p}.roster[${j}]`, t.roster[j], ['archetypeId', 'unlockStageMin']);
@@ -605,6 +610,8 @@ function checkRefs(c, d) {
     const t = d.stages.stages[i];
     if (!isObj(t)) continue;
     need(bossIds, t.bossId, `stages.stages[${t.id}].bossId`);
+    // §8.19 — 도입 침묵의 «내용». 없는 아키타입을 가리키면 로드 실패(폴백 금지)
+    need(archIds, t.introArchetypeId, `stages.stages[${t.id}].introArchetypeId`);
     for (let j = 0; Array.isArray(t.roster) && j < t.roster.length; j += 1) {
       need(archIds, t.roster[j].archetypeId, `stages.stages[${t.id}].roster[${j}].archetypeId`);
     }

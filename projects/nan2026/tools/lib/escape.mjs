@@ -130,7 +130,13 @@ const _p1 = { x: 0, y: 0 };
  * 8방향 중 «경로 전체»가 horizon 초 동안 안전한 방향의 수 (0..8).
  * blame 이 주어지면 막은 주체를 누적한다. ox/oy 로 기체 아닌 임의 지점을 잴 수 있다(pressure).
  */
-export function escapeDirs(w, d, horizon, ctx, blame, ox, oy) {
+/**
+ * bodies=false 이면 적 «몸통»을 차단물에서 뺀다 — v1.10 사용자 결정: 초기 구간의 몸은 «쏴서 길을 내는
+ *   자원»이고 철학 ①(완벽하면 안 맞는다)은 «탄·빔·장판»에 한정한다. 몸 포함 지표는 «밀도»를, 몸 제외 지표는
+ *   «공정성»을 잰다. 둘을 나란히 내야 서로를 가리지 않는다.
+ */
+export function escapeDirs(w, d, horizon, ctx, blame, ox, oy, bodies) {
+  const useBodies = bodies !== false;
   const p = w.player;
   const b = w.bounds;
   const arena = d.rules.view.arena;
@@ -177,7 +183,7 @@ export function escapeDirs(w, d, horizon, ctx, blame, ox, oy) {
       if (y1 < b.minY) y1 = b.minY; else if (y1 > b.maxY) y1 = b.maxY;
       const pvx = (x1 - x0) / dt; const pvy = (y1 - y0) / dt;
 
-      for (let i = 0; i < en.length && tag[k] === null; i += 1) {
+      for (let i = 0; useBodies && i < en.length && tag[k] === null; i += 1) {
         const e = en[i];
         if (!e.alive) continue;
         const m = e.slowSec > 0 ? ctx.slowMul : 1;           // step.js:309 — 감속된 적은 덜 간다

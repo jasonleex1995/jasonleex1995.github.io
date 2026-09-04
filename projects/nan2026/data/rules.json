@@ -32,7 +32,7 @@
   "caps": {
     "playerBullets": 256,
     "enemyBullets": 384,
-    "enemies": 128,
+    "enemies": 320,
     "pickups": 384,
     "zones": 64,
     "drones": 8,
@@ -96,7 +96,7 @@
   },
 
   "boss": {
-    "partCount": 7,
+    "partCount": 4,
     "partRegen": false,
     "partHitPriority": "outermostFirst",
     "phaseThresholds": [0.6, 0.3],
@@ -119,10 +119,11 @@
     "armorPartCountRange": [2, 2],
     "armorCoreRatioBandPct": [0.85, 1.0],
     "optionalPartArmorRatio": 0.20,
+    "partReachMinPx": 32,
     "midBossSummonsAllowed": ["mbNest"],
     "bossSummonsAllowed": ["thornKing", "tetrarch"],
     "finale": {
-      "partCount": 8,
+      "partCount": 5,
       "armorPartCount": 3,
       "exemptRules": ["R4", "R6"],
       "allowNormalPeripheral": true
@@ -144,7 +145,7 @@
     "minSpawnRadiusPx": 140,
     "maxSimultaneousEnemyBullets": 320,
     "maxBulletAgeSec": 6,
-    "enemyConcurrentMax": 42,
+    "enemyConcurrentMax": 42, "introConcurrentMax": 216,
     "swarmConcurrentMax": 100,
     "crisisWaveResidualMax": 10,
     "telegraphConcurrentMaxPerEntity": 2,
@@ -162,7 +163,7 @@
     "fontSmallPx": 14,
     "panelPadPx": 16,
     "keycapBoxPx": 28,
-    "bossHpBarH": 8,
+    "bossHpBarH": 12,
     "hpBarSegGapPx": 5,
     "xpBarH": 6,
     "hpBarSegCount": 5,
@@ -236,6 +237,14 @@
 
   "visual": {
     "iframeBlinkHz": 8.0,
+    "hpBar": {
+      "hPx": 5,
+      "wPx": 48,
+      "gapPx": 5,
+      "trackAlpha": 0.85,
+      "gatePostWPx": 2,
+      "gatePostOverhangPx": 3
+    },
     "stance": {
       "ringExpandSec": 0.18,
       "ringMaxRadiusPx": 28,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S46 + §9.3 로더 규칙)
+ *  PRISM WING — check.mjs   (정본 v1.5 §13.4 정적 게이트 S1~S47 + §9.3 로더 규칙)
  * ============================================================================
  *
  *  사용법
@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -274,7 +274,7 @@ function census() {
 // ---------------------------------------------------------------------------
 const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'bounce'];              // §8.4 (8 — v1.7: bounce 신설 · rearIn 폐지)
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep']; // §8.5 (10, v1.5 mortar·sweep)
-const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter'];                                // §8.7 · §9.9.2 (6)
+const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];                        // §8.7 · §9.9.2 (7 — v1.8 wall)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena'];                             // §9.5 (5)
@@ -506,7 +506,7 @@ function S2_schema() {
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio',
+    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
     'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale'], 'rules.boss');
   if (isObj(r.boss)) {
     // ★ v1.3: finale.armorCoreRatio 삭제 — 유일 소유자 = bosses[].armorCoreRatio (§23.3)
@@ -520,7 +520,7 @@ function S2_schema() {
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
-    'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
+    'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');
 
   // ★ v1.5: hud.icons 14 → 3 (§9.4.1 — 상점·소비아이템 폐지로 살아있는 어휘 = xp + 상태이상 2종)
@@ -574,12 +574,14 @@ function S2_schema() {
   }
 
   // §9.4.3 — visual 전 키 인쇄. ★ v1.3: statusBulletSpeedMul 이 빠졌다(→ fairness)
-  closedKeys('S2', r.visual, ['iframeBlinkHz', 'stance', 'playerBullet',
+  closedKeys('S2', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet',
     'glyph', 'telegraph', 'band', 'zone', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
   if (has(r.visual, 'statusBulletSpeedMul')) {
     V('S2', 'rules.visual.statusBulletSpeedMul: 이사한 키 → rules.fairness.statusBulletSpeedMul (§23.3) — visual 키가 게임플레이 속도를 바꾸면 §9.4.3의 경계가 깨진다');
   }
   if (isObj(r.visual)) {
+    closedKeys('S2', r.visual.hpBar, ['hPx', 'wPx', 'gapPx', 'trackAlpha', 'gatePostWPx',
+      'gatePostOverhangPx'], 'rules.visual.hpBar');
     closedKeys('S2', r.visual.stance, ['ringExpandSec', 'ringMaxRadiusPx', 'ringStrokePx', 'emptyDesatSec',
       'dotRadiusPx', 'dotRingPx', 'auraAlpha', 'pipPx', 'pipPxCvd', 'pipGapPx', 'pipOffsetYPx',
       'hintPulseHz', 'hintPulseAlpha'], 'rules.visual.stance');
@@ -665,8 +667,8 @@ function S2_files() {
     for (const [bn, bv] of Object.entries(D.enemies.bands)) {
       // §9.7: xpRef 는 chaff 밴드 전용 필드다 (v1.3)
       const allowed = bn === 'chaff'
-        ? ['hpMult', 'xpRef']
-        : ['hpMult'];
+        ? ['hpMult', 'xpRef', 'minPerWave']
+        : ['hpMult', 'minPerWave'];
       closedKeys('S2', bv, allowed, `enemies.bands.${bn}`);
       if (bn !== 'chaff' && has(bv, 'xpRef')) {
         V('S2', `enemies.bands.${bn}.xpRef: chaff 전용 필드다 (§9.7/§23.3) — 두 파생식(swarmXp · 중간보스 xp)이 chaff만 참조한다`);
@@ -818,12 +820,14 @@ function S2_files() {
   }
   closedKeys('S2', D.stages.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId'], 'stages.themeDraw');
   closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed'], 'stages.curve');
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',
+    'shooterRatio', 'threatBudgetScale'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisDurationSec',
     'crisisWarnSec', 'crisisSuspendsWaves', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
+    'introFormationId', 'sectionSpeedMul',
     'midBossAtSec', 'midBossLeaveAfterSec', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
     'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec', 'statusStunMaxPerStage'], 'stages.phase');
   if (has(D.stages.phase, 'bossEntrySec')) {
@@ -844,6 +848,7 @@ function S2_files() {
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
     arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols'],
   };
   if (isObj(D.stages.formations)) {
     for (const [f, params] of Object.entries(FORM_PARAMS)) {
@@ -854,7 +859,7 @@ function S2_files() {
   for (const t of rowsQuiet(D.stages.stages)) {
     if (!isObj(t)) continue;
     closedKeys('S2', t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
-      'roster', 'mix', 'mixGranularity', 'waves'], `stages.stages[${t.id}]`);
+      'introArchetypeId', 'roster', 'mix', 'mixGranularity', 'waves'], `stages.stages[${t.id}]`);
     for (const [dead, why] of [
       ['skinId', 'id 와 같다 → 삭제 (§9.9-⑥)'],
       ['elitesAtSec', '죽은 키 → 삭제 (§8.7)'],
@@ -973,6 +978,7 @@ function refIntegrity() {
     '§9.9 — 참조 무결성이 0행에 대해 공허 통과하면 bossId·archetypeId·formationId 를 아무도 안 본다')) {
     if (!isObj(t)) continue;
     need(bossIds, t.bossId, `stages.stages[${t.id}].bossId`);
+    need(archIds, t.introArchetypeId, `stages.stages[${t.id}].introArchetypeId`);   // §8.19
     for (const r of rowsQuiet(t.roster)) need(archIds, r && r.archetypeId, `stages.stages[${t.id}].roster.archetypeId`);
     rowsQuiet(t.waves).forEach((w, i) => {
       need(archIds, w && w.archetypeId, `stages.stages[${t.id}].waves[${i}].archetypeId`);
@@ -1757,6 +1763,14 @@ function S11_rngStreams() {
 // ===========================================================================
 //  S12 — 2층 캡 (§12.1) — A층 오써링 예산 < B층 안전망 캡 + 파생값 무결성
 // ===========================================================================
+function maxMidBoss() {
+  const mc = D.stages && D.stages.curve && D.stages.curve.midBossCount;
+  if (!Array.isArray(mc) || mc.length === 0) return 0;
+  let m = 0;
+  for (let i = 0; i < mc.length; i += 1) if (num(mc[i]) && mc[i] > m) m = mc[i];
+  return m;
+}
+
 function S12_twoLayerCaps() {
   const f = D.rules.fairness, caps = D.rules.caps;
   if (!isObj(f) || !isObj(caps)) return;
@@ -1773,6 +1787,15 @@ function S12_twoLayerCaps() {
     // §12.1 정정: 위기 중 = 새떼 70 + 웨이브 잔존 10 = 80 이 A층 enemies 합
     ['enemies', (f.swarmConcurrentMax || 0) + (f.crisisWaveResidualMax || 0),
       `swarmConcurrentMax(${f.swarmConcurrentMax}) + crisisWaveResidualMax(${f.crisisWaveResidualMax})`, caps.enemies],
+    // §12.1(v1.8) — 잡몹 페이즈의 A층 enemies 합. 웨이브 예산과 유령 예산은 «다른 몫»이고
+    //   유령은 새 키 없이 같은 enemyConcurrentMax 를 자기 상한으로 재사용한다(midboss.summon).
+    // §12.1(v1.9) — 도입 구간의 몸(introBody)은 «위협» 예산에서 빠지고 자기 몫을 쓴다.
+    //   그 몫은 웨이브 예산과 «배타가 아니다»: 벽이 창을 넘어 내려오는 동안 정상 웨이브가 함께 선다.
+    //   그래서 A층 합은 max 가 아니라 **덧셈**이고, 이 행이 그 덧셈을 B층 아래로 묶는다.
+    ['enemies-mobPhase',
+      (f.enemyConcurrentMax || 0) * 2 + (f.introConcurrentMax || 0) + maxMidBoss(),
+      `enemyConcurrentMax(${f.enemyConcurrentMax}) 웨이브 + 같은 값 유령 + introConcurrentMax(${f.introConcurrentMax}) 도입 + max(midBossCount)(${maxMidBoss()})`,
+      caps.enemies],
     ['enemyBullets', f.maxSimultaneousEnemyBullets, `maxSimultaneousEnemyBullets(${f.maxSimultaneousEnemyBullets})`, caps.enemyBullets],
     ['telegraphs', f.telegraphConcurrentMaxGlobal, `telegraphConcurrentMaxGlobal(${f.telegraphConcurrentMaxGlobal})`, caps.telegraphs],
   ];
@@ -2643,8 +2666,8 @@ function S36_bossEmitterIdRule() {
     }
   }
   EX('S36', n);
-  if (n && n !== 129) {
-    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1(v1.5) 은 129개(테마 6종 × 부위 6 + 최종 7, × 페이즈 3)라 인쇄했다. `
+  if (n && n !== 66) {
+    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1(v1.8) 은 66개(테마 6종 × 부위 3 + 최종 4, × 페이즈 3)라 인쇄했다. `
       + `개수가 다르면 §23.1-D4 의 저작 범위가 바뀐 것이다`);
   }
 }
@@ -2758,24 +2781,373 @@ function S39_waveUnlockCoherence() {
  *   테스트로는 안 잡힌다(렌더는 던지지 않는다) — 그래서 정적으로 강제한다.
  *   ★ 불리언 진화 파라미터는 표기에서 빠지므로 이름표가 필요 없다.
  */
-/**
- * §13.4-S46 (v1.7) — 이미터 10종 전부가 «공격 기호»를 갖는다.
- *   기호는 「생김새로 공격을 예측할 수 없다」의 답이다(§7.6). 새 이미터 타입을 어휘에 넣고
- *   기호를 안 그리면 draw.attackGlyphPath 가 **런타임에 던진다** — 게임 중에, 그 적이 처음
- *   화면에 뜨는 순간에. 테스트로는 안 잡힌다(그 조합이 나와야 터진다). 그래서 정적으로 막는다.
- */
 
-function S46_attackGlyphs() {
-  const drawPath = join(ROOT, 'src', 'render', 'draw.js');
-  if (!existsSync(drawPath)) { V('S46', 'src/render/draw.js 가 없다'); return; }
-  const src = readFileSync(drawPath, 'utf8');
-  const m = src.match(/function attackGlyphPath\([\s\S]*?\n\}/);
-  if (m === null) { V('S46', 'src/render/draw.js 에서 attackGlyphPath 를 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라'); return; }
-  for (const t of EMITTER_TYPES) {
-    if (m[0].indexOf(`'${t}'`) < 0) {
-      V('S46', `이미터 타입 "${t}" 에 공격 기호가 없다 — 그 적이 화면에 뜨는 순간 draw 가 던진다 (src/render/draw.js attackGlyphPath, §7.6)`);
+// ===========================================================================
+//  S49 — ★ 부위 도달 가능성 (§8.11 · v1.8)
+//  플레이어는 화면 «아래»에서 위로만 쏜다. 부위가 코어보다 위에 있으면 그 부위로 가는
+//  모든 사선이 코어에 먼저 막힌다 — partHitPriority:"outermostFirst" 는 「겹치면 부위 우선」
+//  이지 「뒤를 뚫어준다」가 아니다.
+//  노출폭 = dx 1px 격자에서 yFirst(P,dx) > yFirst(core,dx) 인 dx 의 개수.
+//           yFirst(E,dx) = E.ay + √(E.r² − (E.ax−dx)²)     (+y = 아래 = 플레이어 쪽)
+//  ★ 정직하게 — 이 게이트가 재는 것은 «코어에 가리는가»뿐이다. 형제 부위 차폐도 sealedNow 도
+//    세지 않는다(실제 도달폭은 이 값 이하일 수 있다). 그래도 v1.8 이전의 위반 5건은 전부 0px
+//    이었고 통과 부위의 최소는 41px 이라, 이 눈금만으로 그 사고를 영구히 막는다.
+// ===========================================================================
+function S49_partReach() {
+  const minPx = D.rules.boss && D.rules.boss.partReachMinPx;
+  if (!num(minPx)) { V('S49', 'rules.boss.partReachMinPx 가 없다 — §8.11 이 요구하는 문턱 (§9.4)'); return; }
+  let n = 0;
+  for (const b of rows('S49', D.bosses.bosses, 'bosses.bosses',
+    '§8.11 — 부위가 0행이면 「보이는 것은 때릴 수 있다」를 아무도 검사하지 않는다')) {
+    if (!isObj(b)) continue;
+    if (b.tier !== 'stage' && b.tier !== 'final') continue;
+    const core = b.core;
+    if (!isObj(core) || !num(core.radius)) continue;
+    const rc = core.radius;
+    for (const p of rowsQuiet(b.parts)) {
+      if (!isObj(p) || !Array.isArray(p.anchor) || !num(p.radius)) continue;
+      const ax = p.anchor[0], ay = p.anchor[1], r = p.radius;
+      if (!num(ax) || !num(ay)) continue;
+      n += 1;
+      let w = 0;
+      for (let dx = Math.ceil(ax - r); dx <= Math.floor(ax + r); dx += 1) {
+        const tp = r * r - (ax - dx) * (ax - dx);
+        if (tp < 0) continue;
+        const yPart = ay + Math.sqrt(tp);
+        const tc = rc * rc - dx * dx;
+        const yCore = tc < 0 ? -Infinity : Math.sqrt(tc);
+        if (yPart > yCore) w += 1;
+      }
+      if (w < minPx) {
+        V('S49', `bosses[${b.id}].parts[${p.id}]: 노출폭 ${w}px < boss.partReachMinPx ${minPx} `
+          + `(anchor [${ax}, ${ay}] · r ${r} · core r ${rc}) — 아래에서 위로 쏘는 탄이 코어에 먼저 막힌다. `
+          + '부위는 코어보다 «아래»(anchor[1] > 0 쪽)에 있어야 한다 (§8.11)');
+      }
     }
   }
+  EX('S49', n);
+}
+
+// ===========================================================================
+//  S50 — 웨이브 몸 수 하한의 정합 (§8.7.1 · v1.8)
+//  ① 4밴드 전부 선언 · 정수 ≥ 1
+//  ② hpMult 오름차순으로 minPerWave 단조 «비증가» (총 HP 예산 보존과 같은 방향)
+//  ③ minPerWave ≤ enemyConcurrentMax ÷ 2 (한 웨이브가 A층 예산 절반을 혼자 먹지 않는다)
+//  ★ 이 게이트는 «값의 정합»만 본다 — effHP 가 감당 가능한가는 계측이 답할 몫이다.
+// ===========================================================================
+function S50_minPerWave() {
+  const bands = D.enemies && D.enemies.bands;
+  if (!isObj(bands)) { V('S50', 'enemies.bands 가 없다 (§9.7)'); return; }
+  const cap = D.rules.fairness && D.rules.fairness.enemyConcurrentMax;
+  let n = 0;
+  const seen = [];
+  for (const bn of BANDS) {
+    const bv = bands[bn];
+    if (!isObj(bv)) { V('S50', `enemies.bands.${bn} 가 없다`); continue; }
+    n += 1;
+    const v = bv.minPerWave;
+    if (!Number.isInteger(v) || v < 1) {
+      V('S50', `enemies.bands.${bn}.minPerWave = ${v}: 정수 ≥ 1 이어야 한다 — `
+        + '하드코딩 2 를 대체한 «값»이고 값은 데이터가 소유한다 (C-4 · §8.7.1)');
+      continue;
+    }
+    if (!num(bv.hpMult)) { V('S50', `enemies.bands.${bn}.hpMult 가 수가 아니다`); continue; }
+    if (cap !== undefined && num(cap) && v > cap / 2) {
+      V('S50', `enemies.bands.${bn}.minPerWave = ${v} > enemyConcurrentMax(${cap}) ÷ 2 — `
+        + '한 웨이브가 A층 예산의 절반을 혼자 먹는다 (§12.1)');
+    }
+    seen.push([bn, bv.hpMult, v]);
+  }
+  seen.sort((a, b) => a[1] - b[1]);
+  for (let i = 1; i < seen.length; i += 1) {
+    if (seen[i][2] > seen[i - 1][2]) {
+      V('S50', `enemies.bands: hpMult 가 큰 밴드의 몸 수 하한이 더 클 수 없다 — `
+        + `${seen[i - 1][0]}(hpMult ${seen[i - 1][1]}) minPerWave ${seen[i - 1][2]} → `
+        + `${seen[i][0]}(hpMult ${seen[i][1]}) minPerWave ${seen[i][2]} (§8.7.1)`);
+    }
+  }
+  EX('S50', n);
+}
+
+// ===========================================================================
+//  S51 — ★ 가시 피해 (§8.20 · v1.8)
+//  ① src/core 에서 hp 를 «깎는» 자리는 정확히 셋이고 그 주소가 정본이다.
+//     ★ 정직하게 — 이것은 증명이 아니라 관용구(`X.hp -=` · `X.hp = X.hp - …`)에 대한 철사다.
+//  ② hitEnemy · collide 의 «함수 본문 안»에 onScreen( 이 있다.
+//     ★ 파일 단위로 세면 안 된다 — damage.js 는 술어를 «선언»하는 파일이라 선언 자체가
+//       토큰을 만족시켜 게이트가 공허해진다.
+//  ③ world.enemies.items 를 순회하는 무기는 onScreen( 을 부르거나 이유와 함께 AIM_EXEMPT 에 오른다.
+//  ④ min(view.playerBoundsInset) > player.hitboxRadius — 대칭(맞지 않는 적은 때리지도 못한다)의 부등식.
+// ===========================================================================
+const S51_HP_SITES = ['src/core/damage.js', 'src/core/step.js', 'src/core/step.js'];
+const AIM_EXEMPT = {
+  'aura.js': '피해가 없다(슬로우+끌어당김) — 오히려 화면 밖 chaff 를 «안»으로 데려온다',
+  'nova.js': '조준하지 않는다(플레이어 중심 반경 전체) — 피해는 hitEnemy 가 게이트한다',
+  'fan.js': '조준하지 않는다(정면 부채) — 피해는 hitEnemy·collide 가 게이트한다',
+};
+function S51_visibleDamage() {
+  let n = 0;
+  // ① hp 감산 자리
+  const found = [];
+  const walk = (dir) => {
+    for (const f of readdirSync(dir)) {
+      const p = join(dir, f);
+      if (statSync(p).isDirectory()) { walk(p); continue; }
+      if (!f.endsWith('.js') && !f.endsWith('.mjs')) continue;
+      const lines = readFileSync(p, 'utf8').split('\n');
+      for (let i = 0; i < lines.length; i += 1) {
+        const L = lines[i];
+        if (/\.hp\s*-=/.test(L) || /\.hp\s*=[^;]*\.hp\s*-/.test(L)) {
+          found.push(`${relative(ROOT, p).split('\\').join('/')}:${i + 1}`);
+        }
+      }
+    }
+  };
+  walk(join(SRC_DIR, 'core'));
+  n += found.length;
+  const files = found.map((s) => s.split(':')[0]).sort();
+  const want = S51_HP_SITES.slice().sort();
+  if (files.length !== want.length || files.some((f, i) => f !== want[i])) {
+    V('S51', `src/core 의 hp 감산 자리가 [${found.join(' · ')}] — 정본은 `
+      + `[${S51_HP_SITES.join(' · ')}] 셋이다. 새 피해원은 §8.20 가시 게이트를 지나야 한다 (§13.4-S51)`);
+  }
+  // ② 두 함수 «본문 안»의 onScreen
+  const body = (src, sig) => {
+    const at = src.indexOf(sig);
+    if (at < 0) return null;
+    let i = src.indexOf('{', at);
+    if (i < 0) return null;
+    let depth = 0;
+    for (let k = i; k < src.length; k += 1) {
+      if (src[k] === '{') depth += 1;
+      else if (src[k] === '}') { depth -= 1; if (depth === 0) return src.slice(i, k + 1); }
+    }
+    return null;
+  };
+  const pairs = [
+    ['src/core/damage.js', 'export function hitEnemy('],
+    ['src/core/step.js', 'function collide('],
+  ];
+  for (const [rel, sig] of pairs) {
+    const p = join(ROOT, rel);
+    if (!existsSync(p)) { V('S51', `${rel} 가 없다`); continue; }
+    const bd = body(readFileSync(p, 'utf8'), sig);
+    if (bd === null) {
+      V('S51', `${rel} 에서 ${sig} 의 본문을 찾지 못했다 — 개명했으면 이 게이트도 함께 고쳐라 (§13.4-S51)`);
+      continue;
+    }
+    n += 1;
+    if (bd.indexOf('onScreen(') < 0) {
+      V('S51', `${rel} 의 ${sig} 본문에 onScreen( 이 없다 — §8.20 가시 게이트가 «두 경로 모두»에 있어야 한다. `
+        + 'v1.5 봉인·v1.7 장갑이 정확히 이 자리에서 한쪽만 막는 사고를 두 번 냈다');
+    }
+  }
+  // ③ 조준 스캔
+  const wdir = join(SRC_DIR, 'core', 'weapons');
+  if (existsSync(wdir)) {
+    for (const f of readdirSync(wdir)) {
+      if (!f.endsWith('.js')) continue;
+      const src = readFileSync(join(wdir, f), 'utf8');
+      if (src.indexOf('enemies.items') < 0) continue;
+      n += 1;
+      if (src.indexOf('onScreen(') >= 0) continue;
+      if (Object.prototype.hasOwnProperty.call(AIM_EXEMPT, f)) continue;
+      V('S51', `src/core/weapons/${f}: world.enemies.items 를 순회하면서 onScreen( 을 부르지 않는다 — `
+        + '§8.20 조준 필터. 조준하지 않는 무기라면 check.mjs 의 AIM_EXEMPT 에 «이유와 함께» 올려라');
+    }
+  }
+  // ④ 대칭 부등식
+  const v = D.rules.view, pl = D.rules.player;
+  if (isObj(v) && isObj(v.playerBoundsInset) && isObj(pl) && num(pl.hitboxRadius)) {
+    const ins = Object.values(v.playerBoundsInset).filter(num);
+    if (ins.length > 0) {
+      n += 1;
+      const mn = Math.min(...ins);
+      if (!(mn > pl.hitboxRadius)) {
+        V('S51', `min(view.playerBoundsInset) = ${mn} ≤ player.hitboxRadius ${pl.hitboxRadius} — `
+          + '§8.20 대칭(아레나와 겹치지 않는 적은 몸통 충돌도 못 준다)의 증명이 «적 반지름과 무관하게» 성립하려면 '
+          + '이 부등식이 필요하다');
+      }
+    }
+  }
+  EX('S51', n);
+}
+
+
+
+
+
+/** §8.4 — «화면을 세로로 지나가는» 이동 동사. strafe(yPx 고정)·anchor(정지)·orbitDrift(추적)는 안 지나간다. */
+const DESCENT_MOVES = ['dive', 'weave', 'column', 'bounce'];
+
+/**
+ * §13.4-S54 (v1.10) — 구간과 비율의 강제 (§8.19).
+ *   사용자 확정 사양: 스테이지 진행의 축은 «쏘는 적의 비율»이고, 총량은 대체로 그대로다.
+ *   v1.9 의 도입 침묵(S48)·초입 위기(S52)·벽시계(S53)는 이 비율 모델이 «흡수»했다 — 지킬 대상이
+ *   사라진 게이트는 남기지 않고, 아직 참인 조항만 여기로 옮겼다(②·③·④).
+ *   ① 비율 곡선: 길이 6 · [0,1] · 포지션 단조 비감소 («갈수록 탄이 많아진다») · [0] < 1 (초반은 섞인다)
+ *   ② 겹침(구 S53-②): 2 × waveIntervalSec ≤ 정상 로스터 최속 «하강»종의 화면 통과 시간
+ *      — 「한 벌이 다 지나간 뒤 다음이 온다 = 끊긴다」를 산술로 막는다
+ *   ③ 공급(구 S53-①): ceil(crisisStartSec ÷ waveIntervalSec) ≤ mobPhaseMaxWaves
+ *   ④ 벽의 차선(구 S52): wall 편대의 차선 순틈 ≥ fairness.minGapWidthPx — 못 지나가는 벽은 ①(완벽하면 안 맞는다) 위반
+ *   ⑤ 무공격 칸: stages[].introArchetypeId 가 실재 ∧ attack == null ∧ 위기 전용 아님
+ *   ⑥ 속성 3종 보장: themeDraw.count 개를 pool 에서 어떻게 뽑아도 물·불·풀이 전부 나온다
+ *      — 2×3 구조가 «우연히» 보장하던 것을 못박는다(테마를 늘리면 조용히 깨진다)
+ */
+function S54_sectionsAndRatio() {
+  const st = D.stages; const cu = st && st.curve; const ph = st && st.phase;
+  if (!isObj(cu) || !isObj(ph)) { V('S54', 'stages.curve / phase 가 없다'); return; }
+  let n = 0;
+  // ① 비율 곡선
+  const r = cu.shooterRatio;
+  if (!Array.isArray(r) || r.length !== 6) { V('S54', `stages.curve.shooterRatio: 길이 6 배열이어야 한다 (§8.19)`); }
+  else {
+    for (let i = 0; i < 6; i += 1) {
+      n += 1;
+      if (typeof r[i] !== 'number' || r[i] < 0 || r[i] > 1) V('S54', `shooterRatio[${i}] = ${r[i]}: [0,1] 이어야 한다`);
+      if (i > 0 && r[i] < r[i - 1]) V('S54', `shooterRatio: [${i - 1}]=${r[i - 1]} → [${i}]=${r[i]} 로 «내려갔다» — 갈수록 탄이 많아져야 한다 (§2.1 ③)`);
+    }
+    if (typeof r[0] === 'number' && r[0] >= 1) V('S54', `shooterRatio[0] = ${r[0]}: 초반은 무공격이 섞여야 한다 (< 1)`);
+  }
+  // ② 겹침 — 정상 로스터에 서는 «하강»종의 최속 통과 시간
+  const a = D.rules.view.arena; const iv = ph.waveIntervalSec;
+  const arch = {}; for (const x of D.enemies.archetypes) arch[x.id] = x;
+  const crisisOnly = {}; for (const c of (ph.crisisWaves || [])) crisisOnly[c.archetypeId] = 1;
+  let fastest = Infinity; let who = '';
+  for (const s2 of st.stages) for (const ro of (s2.roster || [])) {
+    const x = arch[ro.archetypeId]; if (!x || crisisOnly[x.id]) continue;
+    if (DESCENT_MOVES.indexOf(x.moveId) < 0) continue;
+    const sp = x.moveParams && x.moveParams.speed; if (typeof sp !== 'number' || sp <= 0) continue;
+    const t = (a.h + 2 * x.radius) / sp;
+    if (t < fastest) { fastest = t; who = x.id; }
+  }
+  n += 1;
+  if (typeof iv === 'number' && fastest < Infinity && 2 * iv > fastest + 1e-9) {
+    V('S54', `2 × waveIntervalSec = ${(2 * iv).toFixed(2)}초 > 최속 하강종 통과 ${fastest.toFixed(2)}초 [${who}] — 한 벌이 다 지나간 뒤 다음이 온다 = 끊긴다 (§8.7.3)`);
+  }
+  // ③ 공급
+  n += 1;
+  const need = Math.ceil(ph.crisisStartSec / iv);
+  if (need > ph.mobPhaseMaxWaves) V('S54', `위기까지 ${need}웨이브가 필요한데 mobPhaseMaxWaves = ${ph.mobPhaseMaxWaves} — 재고가 마르면 스폰이 0 이 된다 (§8.7.3)`);
+  // ④ 벽의 차선
+  const w = st.formations && st.formations.wall;
+  const chaff = arch[(st.stages[0] || {}).introArchetypeId];
+  if (isObj(w) && chaff) {
+    n += 1;
+    const lane = (w.laneSlots + 1) * w.gapPx - 2 * chaff.radius;
+    const minGap = D.rules.fairness.minGapWidthPx;
+    if (lane < minGap) V('S54', `wall 차선 순틈 ${lane.toFixed(1)}px < fairness.minGapWidthPx ${minGap} — 못 지나가는 벽은 §2.1 ① 위반`);
+  }
+  // ⑤ 무공격 칸
+  for (const s2 of st.stages) {
+    n += 1;
+    const x = arch[s2.introArchetypeId];
+    if (!x) { V('S54', `stages[${s2.id}].introArchetypeId "${s2.introArchetypeId}" 미지 (§9.9)`); continue; }
+    if (x.attack !== null) V('S54', `stages[${s2.id}].introArchetypeId "${x.id}" 가 쏜다 — 무공격 칸이어야 한다 (§8.19)`);
+    if (crisisOnly[x.id]) V('S54', `stages[${s2.id}].introArchetypeId "${x.id}" 은 위기 전용이다 (§8.10)`);
+  }
+  // ⑥ 속성 3종 보장 — 전수 조합
+  const td = st.themeDraw; const el = {};
+  for (const s2 of st.stages) if (s2.element) el[s2.id] = s2.element;
+  const pool = (td.pool || []).filter((id) => el[id]);
+  const k = td.count; const els = new Set(Object.values(el));
+  const combos = (arr, m, from, cur, out) => {
+    if (cur.length === m) { out.push(cur.slice()); return; }
+    for (let i = from; i < arr.length; i += 1) { cur.push(arr[i]); combos(arr, m, i + 1, cur, out); cur.pop(); }
+  };
+  const all = []; combos(pool, k, 0, [], all);
+  for (const c of all) {
+    n += 1;
+    const got = new Set(c.map((id) => el[id]));
+    if (got.size < els.size) V('S54', `themeDraw ${k}/${pool.length} 조합 [${c.join(',')}] 에 속성 ${[...els].filter((e) => !got.has(e)).join('·')} 이 없다 — 스테이지 1~5 에서 물·불·풀을 다 겪어야 한다 (§8.1)`);
+  }
+  EX('S54', n);
+}
+
+
+
+
+/**
+ * §13.4-S47 (v1.8) — 형태 ↔ 이미터 법칙 (§7.6.1).
+ *   「모듈의 생김새로 무슨 무기를 쓰는지 알 수 있어야 한다」(플레이 피드백)의 정적 강제.
+ *   v1.7 은 모양을 통일하지 않고 기호만 얹었고, 플레이테스트가 그 기호를 「희미한 무언가」라
+ *   불렀다. 법칙을 산문으로 두면 다음 저작이 즉시 깬다 — 그래서 게이트로 못 박는다.
+ *   ★ 새 키 0. 두 기존 필드(shapeId · 참조된 이미터의 type) 사이의 «관계»만 검사한다.
+ *   ★ cross 는 보스 코어 전용이다 — grass 속성 글리프(✚)와 같은 실루엣이라, 부위·잡몹이
+ *     cross 를 쓰면 §7.3 이 「100% 커버」라 부른 글리프 채널이 본체에 먹힌다. 코어는
+ *     rules.boss.coreElement 가 항상 normal(● 원)이라 이 충돌이 구조적으로 불가능하다.
+ */
+const SHAPE_BY_TYPE = {          // §7.6.1 12행표 (straight 만 밴드로 갈린다)
+  aimed: 'dart', fan: 'claw', ring: 'ring', spiral: 'ring', wall: 'slab',
+  laser: 'fin', sweep: 'spike', zone: 'hexPod', mortar: 'bulb',
+};
+const SHAPE_UNARMED = 'orb';     // 사격하지 않는 적 — 그 «없음»도 정보다(§7.6.1)
+const SHAPE_CORE = 'cross';      // 보스 코어 전용 = 「이것은 무기가 아니라 목표다」
+const SHAPE_LAW_EXEMPT_MID = new Set(['mbHammer']);  // fan+mortar 두 가족 — §8.9 문서화된 예외
+
+function shapeForType(type, band) {
+  if (type === 'straight') return band === 'chaff' ? 'delta' : 'wedge';
+  return SHAPE_BY_TYPE[type];
+}
+
+function S47_shapeLaw() {
+  const emitById = new Map();
+  for (const e of EMITTERS()) if (isObj(e)) emitById.set(e.id, e);
+  const typeOf = (id) => { const e = emitById.get(id); return e === undefined ? '' : e.type; };
+  let n = 0;
+
+  // ① 잡몹 아키타입 — attack 이 곧 형태를 정한다
+  for (const a of ARCHETYPES()) {
+    if (!isObj(a)) continue;
+    n += 1;
+    let want;
+    if (a.attack === null || a.attack === undefined) want = SHAPE_UNARMED;
+    else want = shapeForType(typeOf(a.attack.emitterId), a.band);
+    if (want === undefined) { V('S47', `archetypes[${a.id}]: 이미터 타입을 읽지 못했다`); continue; }
+    if (a.shapeId !== want) {
+      V('S47', `archetypes[${a.id}].shapeId = "${a.shapeId}" ≠ "${want}" — §7.6.1 형태↔이미터 법칙. `
+        + `저작자는 shapeId 를 고를 수 없다: 이미터가 고른다`);
+    }
+  }
+
+  // ②③④ 보스 — 코어는 cross 고정, 부위·중간보스는 P1 이 정한다
+  for (const b of BOSSES()) {
+    if (!isObj(b)) continue;
+    if (b.tier === 'mid') {
+      n += 1;
+      if (SHAPE_LAW_EXEMPT_MID.has(b.id)) continue;
+      const ids = rowsQuiet(b.patternSet && b.patternSet[0] && b.patternSet[0].emitterIds);
+      if (!ids.length) continue;
+      const want = shapeForType(typeOf(ids[0]), '');
+      if (want !== undefined && b.shapeId !== want) {
+        V('S47', `bosses[${b.id}].shapeId = "${b.shapeId}" ≠ "${want}" (§7.6.1 · 중간보스는 patternSet[0].emitterIds[0])`);
+      }
+      continue;
+    }
+    if (isObj(b.core)) {
+      n += 1;
+      if (b.core.shapeId !== SHAPE_CORE) {
+        V('S47', `bosses[${b.id}].core.shapeId = "${b.core.shapeId}" ≠ "${SHAPE_CORE}" — §7.6.1 코어는 법칙의 유일한 예외이며 `
+          + `전 보스가 같은 형태다(「가운데 그것이 이 판을 끝낸다」가 7보스에 걸쳐 한 문장)`);
+      }
+    }
+    for (const p of rowsQuiet(b.parts)) {
+      if (!isObj(p)) continue;
+      n += 1;
+      const ids = rowsQuiet(p.patternSet && p.patternSet[0] && p.patternSet[0].emitterIds);
+      if (!ids.length) continue;
+      const want = shapeForType(typeOf(ids[0]), '');
+      if (want === undefined) continue;
+      if (p.shapeId !== want) {
+        V('S47', `bosses[${b.id}].parts[${p.id}].shapeId = "${p.shapeId}" ≠ "${want}" — §7.6.1. `
+          + `형태는 P1 이 정한다(플레이어가 처음 만나는 페이즈). P2·P3 의 타입 전환은 기호가 말한다`);
+      }
+      if (p.shapeId === SHAPE_CORE) {
+        V('S47', `bosses[${b.id}].parts[${p.id}].shapeId = "cross" — cross 는 코어 전용이다(§7.6.1 · §7.3 grass 글리프 ✚ 와 같은 실루엣)`);
+      }
+    }
+  }
+  EX('S47', n);
 }
 
 function S45_draftParamLabels() {
@@ -2967,6 +3339,8 @@ function certifyStatic() {
     ['stages.curve.elitePerWaveChance', D.stages.curve && D.stages.curve.elitePerWaveChance],
     ['stages.curve.swarmTotalScale', D.stages.curve && D.stages.curve.swarmTotalScale],
     ['stages.curve.rearSpawnAllowed', D.stages.curve && D.stages.curve.rearSpawnAllowed],
+    ['stages.curve.introQuietWaves', D.stages.curve && D.stages.curve.introQuietWaves],   // §8.19
+    ['stages.curve.introSurgeWaves', D.stages.curve && D.stages.curve.introSurgeWaves],   // §8.19.1
     ['stages.phase.midBossAtSec', D.stages.phase && D.stages.phase.midBossAtSec],
     ['meta.flow.stagePar', D.meta.flow && D.meta.flow.stagePar],
     ['certify.dpsProbe.balancedPass.min', c.dpsProbe && c.dpsProbe.balancedPass && c.dpsProbe.balancedPass.min],
@@ -3166,7 +3540,7 @@ function print() {
   const bar = '─'.repeat(78);
 
   line();
-  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S46 + §9.3 로더 규칙)');
+  line('PRISM WING — check.mjs   (정본 v1.5 §13.4 S1~S47 + §9.3 로더 규칙)');
   line(`data: ${relative(process.cwd(), DATA_DIR) || DATA_DIR}   (${MANIFEST.length}파일)`);
   line(bar);
 
@@ -3235,7 +3609,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S46 · S33·S40 은 v1.5에서 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S54 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3293,7 +3667,11 @@ function main() {
   S43_bulletBounce();        // §8.5 v1.7 적 탄 반사 예산
   S44_weaponCurveMonotonic();// §9.5 v1.7 무기 레벨 곡선 단조성
   S45_draftParamLabels();    // §11.1 v1.7 드래프트 카드 이름표
-  S46_attackGlyphs();        // §7.6 v1.7 공격 기호 어휘 완결성
+  S47_shapeLaw();            // §7.6.1 v1.8 형태 ↔ 이미터 법칙
+  S49_partReach();           // §8.11 v1.8 부위 도달 가능성
+  S50_minPerWave();          // §8.7.1 v1.8 웨이브 몸 수 하한
+  S54_sectionsAndRatio();    // §8.19 v1.10 구간·비율·겹침·차선·속성3종
+  S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
   dynamicGateGrade();   // ★ D3 — report/summary.json 있으면 채점, 없으면 STUB

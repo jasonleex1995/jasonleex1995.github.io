@@ -14,16 +14,28 @@
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, spawnBeam, spawnZone } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
-import { enemies } from '../src/core/enemies.js';
+import { enemies, threatLive, introLive } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { TAU } from '../src/core/angle.js';
+import { formationPos } from '../src/core/formations.js';
+import { PHASE, initRun, tickRun } from '../src/core/stage.js';
+import { bossHook } from '../src/core/boss.js';
 
 const dt = TICK_DT;
 
 /** 훅을 주입한 월드 */
 function mk(seed = 1) {
   return createWorld({ data: loadData(), seed, weapons, hooks: { enemies } });
+}
+/** 런을 세운 월드(구간·비율은 런에서만 산다). 무기는 침묵 — 스포너만 관찰한다 */
+function mkRun(d, seed) {
+  const w = createWorld({ data: d, seed, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook } });
+  w.difficultyId = 'normal';
+  w.tele = { dmgByFamily: {}, dmgTakenByArch: {}, kills: {}, crisisKills: 0, xpGained: 0 };
+  initRun(w);
+  for (const sl of w.slots) sl.weaponId = null;
+  return w;
 }
 /** 자동 발사가 적을 죽이지 않게 무기를 침묵(스포너·이동만 관찰) */
 function silence(w) { for (const s of w.slots) s.weaponId = null; }
@@ -64,7 +76,12 @@ suite('enemies · 결정성 (§10.2 — rng.spawn 만 사용)', () => {
     const a = mk(1);
     const b = mk(2);
     silence(a); silence(b);
-    for (let i = 0; i < 200; i += 1) { step(a, makeInput(), dt); step(b, makeInput(), dt); }
+    // ★ §8.19(v1.8) 도입 구간은 «wall» 편대라 rng 를 안 탄다 — 창을 지나야 scatter 가 나온다.
+    //   틱 수를 데이터에서 «유도»한다(매직넘버 금지): (조용한 웨이브 + 2) × 간격.
+    // v1.10 — 도입 침묵은 비율로 대체됐다. 두 웨이브면 scatter 가 rng.spawn 을 탄다.
+    const ph = a.data.stages.phase;
+    const ticks = Math.ceil(3 * ph.waveIntervalSec * 60);
+    for (let i = 0; i < ticks; i += 1) { step(a, makeInput(), dt); step(b, makeInput(), dt); }
     assert.ok(a.enemies.live > 0 && b.enemies.live > 0, '양쪽 다 스폰됨');
     assert.ne(signature(a), signature(b), '다른 시드 = scatter 좌표가 갈린다');
   });
@@ -72,30 +89,21 @@ suite('enemies · 결정성 (§10.2 — rng.spawn 만 사용)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────
 suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
-  test('첫 웨이브: element 는 웨이브가 주입, 아키타입은 로스터[0]', () => {
+  test('첫 웨이브: element 는 웨이브가 주입, 아키타입은 «공격형[0] ∨ 무공격 칸» (v1.10 비율 모델)', () => {
     const w = mk(7);
     silence(w);
-    // sea stage-1 첫 해금 웨이브 = scatter water 16. 아키타입은 로스터[0](= drifter). 데이터에서 유도.
     const stage = w.data.stages.stages.find((s) => s.id === 'sea');
     const wave0 = stage.waves.find((v) => v.unlockStageMin <= 1);
     const roster = sliceRoster(w);
-    const expectId = roster[0];
-    const expectDef = arch(w, expectId);
-    const hpMult = w.data.enemies.bands[expectDef.band].hpMult;
-    // §8.6 — 밴드 클램프 × 스테이지 스폰 밀도(curve.spawnDensityScale). 슬라이스 = 스테이지 1.
-    const density = w.data.stages.curve.spawnDensityScale[0];
-    const expectCount = Math.max(2, Math.round((wave0.count / hpMult) * density));
-    step(w, makeInput(), dt);   // 첫 틱에 wave0 스폰
-    const items = w.enemies.items;
-    let n = 0;
-    for (let i = 0; i < items.length; i += 1) {
-      const e = items[i];
-      if (!e.alive) continue;
-      n += 1;
-      assert.eq(e.archetypeId, expectId, '아키타입 = 로스터[0] (골격은 웨이브, 종류는 로스터)');
-      assert.eq(e.element, wave0.element, 'element = 웨이브 레코드 (아키타입 필드 아님)');
+    const shooters = roster.filter((id) => arch(w, id).attack !== null);
+    for (let i = 0; i < 30; i += 1) step(w, makeInput(), dt);
+    const alive = w.enemies.items.filter((e) => e.alive);
+    assert.gt(alive.length, 0, '스폰됐다');
+    for (const e of alive) {
+      assert.eq(e.element, wave0.element, 'element 는 웨이브가 주입한다');
+      assert.ok(e.archetypeId === shooters[0] || e.archetypeId === stage.introArchetypeId,
+        `아키타입 ${e.archetypeId} ∈ {공격형[0]=${shooters[0]}, 무공격=${stage.introArchetypeId}}`);
     }
-    assert.eq(n, expectCount, `첫 웨이브 = 밴드 클램프 × 밀도(${expectCount})만큼 스폰`);
   });
 
   test('서로 다른 element 가 섞여 내려온다 (스탠스를 바꿀 이유)', () => {
@@ -172,7 +180,13 @@ suite('enemies · 캡 준수 (§12.1 · §10.3)', () => {
     const w = mk(11);
     silence(w);   // 아무도 안 죽으니 스포너가 최대 압박을 만든다
     const cap = w.data.rules.caps.enemies;
-    const concurrent = w.data.rules.fairness.enemyConcurrentMax;
+    // §12.1(v1.9) 도입 구간의 몸은 «위협»이 아니라서 자기 예산(introConcurrentMax)을 쓰고
+    //   웨이브 예산(enemyConcurrentMax)에서 «빠진다» — 유령(§8.9-R9)과 같은 처방이다.
+    //   두 예산은 배타가 아니라 «다른 몫»이므로 동시 상한은 max 가 아니라 **합**이다.
+    //   ★ v1.8 은 max 로 적었는데, 그때는 바깥 게이트가 여전히 enemyConcurrentMax 를 보고 있어서
+    //     도입 예산이 절반만 살아 있었다(합에 도달할 수 없었다). S12 가 같은 합을 증명한다.
+    const concurrent = w.data.rules.fairness.enemyConcurrentMax
+      + w.data.rules.fairness.introConcurrentMax;
     let peak = 0;
     for (let i = 0; i < 3000; i += 1) {
       step(w, makeInput(), dt);
@@ -182,7 +196,7 @@ suite('enemies · 캡 준수 (§12.1 · §10.3)', () => {
       if (p.live > peak) peak = p.live;
     }
     assert.gt(peak, 0, '실제로 스폰이 일어났다 (공허 통과 아님)');
-    assert.lte(peak, concurrent, '동시 오써링 상한(enemyConcurrentMax) 을 넘지 않는다');
+    assert.lte(peak, concurrent, '동시 오써링 상한(웨이브 42 ∨ 도입 introConcurrentMax) 을 넘지 않는다');
   });
 });
 
@@ -426,5 +440,94 @@ suite('enemies/§8.4 진입 위치 · §8.18 빔·장판 곡선 (v1.7)', () => {
     assert.eq(boss.dmg, RAW, '보스 빔(귀속 \'\')은 곡선 밖이다');
     const z = spawnZone(mk(0), 500, 300, 40, 12, 1, false, 'magmaBomb', 0.5);
     assert.lt(z.dmg, 12, '장판도 초반에 깎인다');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+/**
+ * §8.19 도입 침묵 — «파밍 구간».
+ * 정적 게이트(S48)는 데이터의 자격만 본다. 여기서는 스포너를 실제로 돌려
+ * «화면에 뜨는 것»을 검사한다 — 그것이 사용자가 요구한 것이다.
+ */
+suite('enemies · §8.19 구간과 비율 (v1.10 — 사용자 사양)', () => {
+  const ratioOf = (d, pos) => d.stages.curve.shooterRatio[pos];
+  const isShooter = (d, id) => (d.enemies.archetypes.find((a) => a.id === id) || {}).attack !== null;
+
+  test('① 첫 웨이브: 공격형 비율이 곡선을 «정확히» 따른다 (봉지 = 마리수 편차 0)', () => {
+    const d = loadData();
+    for (const seed of [1, 2, 3, 5, 8]) {
+      const w = mkRun(d, seed);
+      w.run.phase = PHASE.MOB; w.run.stageIndex = 0;
+      enemies(w, TICK_DT);
+      let n = 0; let sh = 0;
+      for (const e of w.enemies.items) if (e.alive) { n += 1; if (isShooter(d, e.archetypeId)) sh += 1; }
+      assert.gt(n, 0, '스폰됐다');
+      assert.eq(sh, Math.round(n * ratioOf(d, 0)), `시드 ${seed}: 공격형 ${sh}/${n} = round(n × ${ratioOf(d, 0)})`);
+    }
+  });
+
+  test('② 다른 시드 → 공격형의 «자리»는 갈리고 «수»는 같다', () => {
+    const d = loadData();
+    const sig = (seed) => {
+      const w = mkRun(d, seed); w.run.phase = PHASE.MOB; w.run.stageIndex = 0;
+      enemies(w, TICK_DT);
+      const rows = [];
+      for (const e of w.enemies.items) if (e.alive) rows.push(`${e.idx}:${isShooter(d, e.archetypeId) ? 'S' : '-'}`);
+      return { pat: rows.join('|'), n: rows.filter((r) => r.endsWith('S')).length };
+    };
+    const a = sig(11); const b = sig(22);
+    assert.eq(a.n, b.n, '공격형 «수»는 시드와 무관');
+    assert.ne(a.pat, b.pat, '공격형 «자리»는 시드마다 다르다 (rng.spawn)');
+  });
+
+  test('③ 같은 시드 → 비트 동일 (봉지 셔플도 시드 난수다, §10.2)', () => {
+    const d = loadData();
+    const run = (seed) => {
+      const w = mkRun(d, seed); w.run.phase = PHASE.MOB; w.run.stageIndex = 0;
+      for (let i = 0; i < 600; i += 1) { w.player.hp = w.player.hpMax; step(w, makeInput(), TICK_DT); }
+      return signature(w);
+    };
+    assert.eq(run(4242), run(4242), '같은 시드 = 같은 스폰');
+  });
+
+  test('④ 무공격 몸은 «위협» 예산을 먹지 않는다 (§12.1)', () => {
+    const d = loadData();
+    const w = mkRun(d, 9); w.run.phase = PHASE.MOB; w.run.stageIndex = 0;
+    enemies(w, TICK_DT);
+    let threat = 0; let chaff = 0;
+    for (const e of w.enemies.items) if (e.alive) { if (e.introBody) chaff += 1; else threat += 1; }
+    assert.gt(chaff, 0, '무공격 몸이 있다');
+    assert.lte(threat, d.rules.fairness.enemyConcurrentMax, '공격형 ≤ enemyConcurrentMax');
+    assert.lte(chaff, d.rules.fairness.introConcurrentMax, '무공격 ≤ introConcurrentMax');
+  });
+
+  test('⑤ 벽(wall)의 모든 줄에 fairness.minGapWidthPx 이상의 «차선»이 있다 (§2.1 ①)', () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 1, weapons, hooks: {} });
+    const A = d.rules.view.arena;
+    const N = d.stages.formations.wall.perRow * 3;                     // 세 줄짜리 벽으로 잰다
+    const rows = new Map();
+    const out = { x: 0, y: 0 };
+    for (let i = 0; i < N; i += 1) {
+      formationPos(w, d.stages.phase.introFormationId, i, N, A.x + A.w / 2, d.rules.view.spawnLineY, out);
+      const k = Math.round(out.y);
+      if (!rows.has(k)) rows.set(k, []);
+      rows.get(k).push(out.x);
+    }
+    let r = 0;
+    for (const t of d.stages.stages) {
+      const a = d.enemies.archetypes.find((x) => x.id === t.introArchetypeId);
+      if (a && a.radius > r) r = a.radius;
+    }
+    const need = d.rules.fairness.minGapWidthPx;
+    assert.gt(rows.size, 1, '벽이 여러 줄이다');
+    for (const [, raw] of rows) {
+      const xs = raw.slice().sort((a, b) => a - b);
+      let gap = xs[0] - r - A.x;
+      const right = (A.x + A.w) - (xs[xs.length - 1] + r);
+      if (right > gap) gap = right;
+      for (let i = 1; i < xs.length; i += 1) { const g = xs[i] - xs[i - 1] - 2 * r; if (g > gap) gap = g; }
+      assert.gte(gap, need, `줄의 최대 차선 ${gap.toFixed(1)}px ≥ ${need}px`);
+    }
   });
 });
