@@ -322,7 +322,7 @@
       "bossId": "tetrarch",
       "crisisElementRule": "finaleRotating",
       "introArchetypeId": "drifter",
-      "terrainKind": null,
+      "terrainKind": "mixed",
       "roster": [
         { "archetypeId": "drifter", "unlockStageMin": 1 },
         { "archetypeId": "spitter", "unlockStageMin": 1 },

@@ -303,7 +303,7 @@ function makeStats() {
   return {
     dmgMul: 0, fireRateMul: 0, areaMul: 0, pierceAdd: 0, projCountAdd: 0,
     elementBonusMul: 1, ghostSecOnHit: 0, hitBulletClearRadius: 0,
-    maxHpAdd: 0, moveSpeedMul: 0, xpGainMul: 0,
+    maxHpAdd: 0, terrainResist: 0, xpGainMul: 0,          // terrainResist: §8.21 ⑥ 지형 효과 ×(1 − Σ) — 이동 속도 배율은 v1.10 ⑳ 에 폐지
   };
 }
 

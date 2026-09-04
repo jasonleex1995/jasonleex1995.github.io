@@ -24,6 +24,8 @@ const SEGS = 10;                 // 구간 수 — 휩쓸기라 «구간 안»�
 const TAU = Math.PI * 2;
 const ANCHOR_SWAY_HZ = 0.35;     // enemies.js:34 와 같은 값이어야 한다
 
+import { speedCap } from '../../src/core/step.js';   // §2.2 상한의 단일 소유자(v1.10 ⑳)
+
 /** 아키타입 조회표 — 적 엔티티는 moveId 를 들고 있지 않으므로 여기서 유도한다(core 무수정). */
 export function makeCtx(d) {
   const bounce = Object.create(null);
@@ -74,12 +76,12 @@ function foldSpan(v, lo, hi) {
   return lo + (u <= span ? u : period - u);
 }
 
-/** §2.2 파생 상한 — step.js movePlayer 와 같은 식. 스턴이면 한 픽셀도 못 움직인다(step.js:135). */
+/** §2.2 상한 — step.speedCap 그대로(280 고정 + 위기 대응 특성). 스턴이면 한 픽셀도 못 움직인다. 지형 둔화의 «깊이»(저항)는
+ *  계측이 모른다 — 봇은 지형을 모르므로(§8.21 ⑤) 탄의 둔화 배율로 보수적으로 잰다. */
 export function playerSpeed(w, d) {
   const p = w.player;
   if (p.stunSec > 0) return 0;
-  const rp = d.rules.player;
-  let v = rp.moveSpeed * (1 + w.stats.moveSpeedMul);
+  let v = speedCap(w);
   if (p.slowSec > 0) v *= d.rules.status.slowMoveSpeedMul;
   return v;
 }

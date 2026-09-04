@@ -2,17 +2,18 @@
  * tests/terrain.test.mjs — 지형 장판 (§8.21, v1.10 ⑦)의 정본 계약.
  *
  * 커버:
- *   스폰   — MOB 에서 everySec 마다, 무대에 maxOnScreen 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 0
+ *   스폰   — MOB 에서 everySec 마다, 무대에 maxOnScreen 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 3종 순환(mixed)
  *   흐름   — scrollSpeedPx 로 내려가고 아레나 아래로 나가면 반납 / advanceStage 가 무대를 비운다
  *   효과   — slow: 안에서 둔화(status.slowMoveSpeedMul) · 밖으로 나가면 다음 틱에 풀림
  *            inertia: 안에서 방향을 뒤집으면 vx 가 «서서히» 뒤집힌다(tau) · 밖에서는 즉시
  *            heat: fullSec 만에 차고 → stallSec 스턴 → 0 · 밖에서 coolSec 에 식는다 · 스턴 중엔 안 찬다
  *   무해   — 어느 지형 안에 서 있어도 HP 가 줄지 않는다(피해 0 = 사용자 결정 「유틸 방해」)
+ *   저항   — 패시브 «자세 안정기»(terrainResist)가 세 지형의 효과를 (1 − Σ) 배로 줄인다 · 탄의 둔화는 그대로 (§8.21 ⑥ v1.10 ⑳)
  *   결정성 — 같은 시드 = 같은 위치(rng.terrain)
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld } from '../src/core/state.js';
+import { createWorld, givePassive } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { initRun, tickRun, advanceStage, PHASE } from '../src/core/stage.js';
@@ -20,7 +21,7 @@ import { terrainUnder, sectionOf, T_SLOW, T_INERTIA, T_HEAT } from '../src/core/
 import { enemies } from '../src/core/enemies.js';
 import { bossHook, wipeFrontY } from '../src/core/boss.js';
 import { spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
-import { TERRAIN_KINDS } from '../src/core/schema.mjs';
+import { TERRAIN_KINDS, TERRAIN_MIXED } from '../src/core/schema.mjs';
 
 const dt = TICK_DT;
 
@@ -76,17 +77,29 @@ suite('terrain — 스폰·흐름 (§8.21)', () => {
     assert.ok(!t.alive || t.gen !== gen, '아래로 나가면 반납');
   });
 
-  test('최종 스테이지(테마 없음)는 지형이 0 · advanceStage 는 무대를 비운다', () => {
+  test('최종 스테이지(mixed)는 3종이 slow→inertia→heat 순으로 돌아가며 나온다 · advanceStage 는 무대를 비운다', () => {
     const w = mkRun(3, 'bog', 4);
     w.run.order[5] = 'finale';
     tick(w, 60 * 8);
     assert.gt(live(w).length, 0, '스테이지 5(bog)엔 지형이 있다');
+    assert.ok(live(w).every((t) => t.kind === T_SLOW), 'bog 는 slow 만');
     w.player.heat = 0.7;
     advanceStage(w);
     assert.eq(live(w).length, 0, '전이에서 비운다');
     assert.eq(w.player.heat, 0, '열도 0');
-    tick(w, 60 * 10);
-    assert.eq(live(w).length, 0, 'finale 은 지형 0');
+    assert.eq(w.run.terrainSeq, 0, '순환 카운터 0');
+    const st = w.data.stages.stages.find((x) => x.id === 'finale');
+    assert.eq(st.terrainKind, TERRAIN_MIXED, 'finale = mixed (§8.21 ③)');
+    // 스폰 순서를 «놓인 순서»로 본다 — 풀 인덱스는 재사용될 수 있으니 gen 이 아니라 관찰 시각으로 기록한다
+    const seen = [];
+    const known = new Set();
+    for (let i = 0; i < 60 * 40 && seen.length < 4; i += 1) {          // 4번째는 첫 장판이 아래로 나가야(≈20s) 자리가 난다(maxOnScreen 3)
+      step(w, makeInput(), dt);
+      for (const t of live(w)) { const key = `${t.gen}:${w.terrain.items.indexOf(t)}`; if (!known.has(key)) { known.add(key); seen.push(t.kind); } }
+    }
+    assert.eq(seen.length, 4, `40초 안에 4개 (실제 ${seen.length})`);
+    assert.eq(seen.join(','), [T_SLOW, T_INERTIA, T_HEAT, T_SLOW].join(','), '순환 slow→inertia→heat→slow');
+    assert.eq(w.run.terrainSeq, 4, '카운터 = 놓은 수');
   });
 
   test('결정성 — 같은 시드 = 같은 위치, 다른 시드 = 다른 위치 (rng.terrain)', () => {
@@ -105,13 +118,13 @@ suite('terrain — 효과 (§8.21 · §2.2 · §2.7)', () => {
     const inp = makeInput(); inp.right = true;
     tick(w, 3, inp);
     assert.gt(w.player.slowSec, 0, '둔화 상태');
-    assert.near(Math.abs(w.player.vx), rp.moveSpeed * (1 + w.stats.moveSpeedMul) * mul, 1e-6, '속도 = 기준 × 둔화');
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6, '속도 = 기준 × 둔화 (이동 속도 배율은 없다 — v1.10 ⑳)');
     // 밖으로
     w.player.x = t.x + t.radius + 200; w.player.y = 600;
     tick(w, 2, inp);
     assert.eq(terrainUnder(w, w.player.x, w.player.y), -1, '밖');
     assert.eq(w.player.slowSec, 0, '풀렸다');
-    assert.near(Math.abs(w.player.vx), rp.moveSpeed * (1 + w.stats.moveSpeedMul), 1e-6, '속도 정상');
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed, 1e-6, '속도 정상 = moveSpeed 고정');
   });
 
   test('inertia — 안에서 방향을 뒤집으면 vx 가 서서히 뒤집힌다(responseTauSec), 밖에서는 즉시', () => {
@@ -169,6 +182,72 @@ suite('terrain — 효과 (§8.21 · §2.2 · §2.7)', () => {
       for (let i = 0; i < 60 * 12; i += 1) { w.player.x = t.x; w.player.y = t.y; step(w, makeInput(), dt); }
       assert.eq(w.player.hp, 100, `${id}: 12초 서 있어도 HP 100`);
     }
+  });
+});
+
+suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳)', () => {
+  /** Lv10 까지 올린 저항 배율 (1 − Σ) — 데이터에서 끌어온다 */
+  function maxOut(w) {
+    const ps = w.data.passives;
+    const def = ps.passives.find((x) => x.stat === 'terrainResist');
+    assert.ok(def !== undefined, 'terrainResist 를 쓰는 패시브가 있다');
+    for (let k = 0; k < ps.maxLevel; k += 1) assert.ok(givePassive(w, def.id), `${def.id} Lv${k + 1}`);
+    const r = def.values[ps.maxLevel - 1];
+    assert.near(w.stats.terrainResist, r, 1e-9, 'Σ = Lv10 값');
+    assert.ok(r > 0 && r < 1, `저항은 (0,1) — 면역이 아니다 (${r})`);
+    return 1 - r;
+  }
+
+  test('slow — 둔화 «깊이»가 (1 − Σ) 배로 준다 · 탄의 둔화(slowSec 직접)는 그대로', () => {
+    const w = mkRun(3, 'bog');
+    const rp = w.data.rules.player; const mul = w.data.rules.status.slowMoveSpeedMul;
+    const tm = maxOut(w);
+    const t = standInFirst(w);
+    const inp = makeInput(); inp.right = true;
+    tick(w, 3, inp);
+    assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '장판 안');
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed * (1 - (1 - mul) * tm), 1e-6, `속도 = 기준 × (1 − (1 − ${mul}) × ${tm.toFixed(2)})`);
+    // 밖에서 탄의 둔화 — 지형 저항의 대상이 아니다
+    w.player.x = t.x + t.radius + 200; w.player.y = 600;
+    tick(w, 2, inp);
+    w.player.slowSec = 1.0;
+    step(w, inp, dt);
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6, '탄 둔화는 전부 받는다');
+  });
+
+  test('inertia — τ 가 (1 − Σ) 배로 짧아진다(뒤집히는 데 τ·tm·ln2)', () => {
+    const w = mkRun(4, 'glacier');
+    const tr = w.data.rules.terrain;
+    const tm = maxOut(w);
+    const t = standInFirst(w);
+    const right = makeInput(); right.right = true;
+    const left = makeInput(); left.left = true;
+    tick(w, 30, right);
+    w.player.x = t.x; w.player.y = t.y;
+    assert.gt(w.player.vx, 0, '오른쪽');
+    let n = 0;
+    while (w.player.vx > 0 && n < 600) { w.player.x = t.x; w.player.y = t.y; step(w, left, dt); n += 1; }
+    const expect = Math.log(2) * tr.inertia.responseTauSec * tm / dt;
+    assert.ok(Math.abs(n - expect) <= 2, `뒤집히는 데 ${n}틱 ≈ τ·tm·ln2 = ${expect.toFixed(1)}틱`);
+  });
+
+  test('heat — 충전이 (1 − Σ) 배로 느려진다: 정지까지 fullSec ÷ (1 − Σ)', () => {
+    const w = mkRun(5, 'volcano');
+    const tr = w.data.rules.terrain;
+    const tm = maxOut(w);
+    const t = standInFirst(w);
+    let stunAt = -1; let n = 0;
+    while (stunAt < 0 && n < 60 * 20) { w.player.x = t.x; w.player.y = t.y; step(w, makeInput(), dt); n += 1; if (w.player.stunSec > 0) stunAt = n; }
+    assert.ok(stunAt > 0, '정지가 온다 (저항이지 면역이 아니다)');
+    const expect = tr.heat.fullSec / tm;
+    assert.ok(Math.abs(stunAt * dt - expect) <= 2 * dt, `fullSec/(1−Σ) = ${expect.toFixed(2)}s 만에 정지 (실제 ${(stunAt * dt).toFixed(2)})`);
+  });
+
+  test('이동 속도 배율은 어휘에 없다 — stats 에 moveSpeedMul 이 없고 자석은 moveSpeed 그대로', () => {
+    const w = mkRun(7, 'bog');
+    assert.eq(w.stats.moveSpeedMul, undefined, 'stats.moveSpeedMul 없음');
+    assert.ok(!w.data.passives.stats.includes('moveSpeedMul'), 'passives.stats 에 없음');
+    assert.ok(w.data.passives.passives.every((x) => x.stat !== 'moveSpeedMul'), '어느 패시브도 안 쓴다');
   });
 });
 
@@ -273,13 +352,16 @@ suite('boss — 등장 쓸어내기 (§8.22 v1.10 ⑧)', () => {
     assert.gte(a.liveNow, 1, '보스 구간에도 지형이 있다');
   });
 
-  test('finale — 쓸어내기는 하되 지형 무리는 0', () => {
+  test('finale(mixed) — 쓸어내기 뒤 지형 무리 3개 = 3종이 하나씩', () => {
     const w = mkAtPhaseEnd(2, 'finale');
     w.run.order[5] = 'finale'; w.run.stageIndex = 5;
     const b = w.data.rules.boss;
+    const tr = w.data.rules.terrain;
     tick(w, Math.round((0.5 + b.entryWipeSec) / dt) + 3);
     assert.eq(w.run.phase, PHASE.BOSS_INTRO, '강림');
     assert.eq(mobs(w), 0, '잡몹 0');
-    assert.eq(w.terrain.items.filter((t) => t.alive).length, 0, '지형 0');
+    const kinds = w.terrain.items.filter((t) => t.alive).map((t) => t.kind).sort();
+    assert.eq(kinds.length, tr.bossEntryCount, `지형 무리 ${tr.bossEntryCount}`);
+    assert.eq(kinds.join(','), TERRAIN_KINDS.map((_, i) => i).join(','), '3종이 하나씩 (slow·inertia·heat)');
   });
 });

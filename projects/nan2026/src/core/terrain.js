@@ -15,7 +15,7 @@
  * ★ 지형이라 예고가 없다 — 피해가 없으니 §2.1 ① 의 대상이 아니고, 항상 보인다(§12.3 레이어 1).
  */
 
-import { TERRAIN_KINDS, SECTIONS } from './schema.mjs';
+import { TERRAIN_KINDS, TERRAIN_MIXED, SECTIONS } from './schema.mjs';
 
 export const T_SLOW = 0;
 export const T_INERTIA = 1;
@@ -33,6 +33,19 @@ function stageOf(world) {
 function kindIndex(kind) {
   const k = TERRAIN_KINDS.indexOf(kind);
   if (k < 0) throw new Error(`terrain: 미지의 terrainKind "${kind}" (§8.21)`);
+  return k;
+}
+
+/**
+ * §8.21 ③ 이 스테이지가 «다음에 놓을» 종 — 테마 스테이지는 그 테마의 하나. finale(`mixed`, v1.10 ⑳)은 3종이
+ *   slow → inertia → heat 순으로 돌아가며 나온다(run.terrainSeq — 놓을 때마다 +1, 보스 등장 무리 3개 = 하나씩 전부).
+ *   테마가 없으니 «전부 나온다»가 finale 의 정체성(§8.9 의 3속성 순환과 같은 문법). null = 지형 없음(-1).
+ */
+function nextKind(world, st) {
+  if (st.terrainKind === null) return -1;
+  if (st.terrainKind !== TERRAIN_MIXED) return kindIndex(st.terrainKind);
+  const k = world.run.terrainSeq % TERRAIN_KINDS.length;
+  world.run.terrainSeq += 1;
   return k;
 }
 
@@ -85,19 +98,19 @@ export function terrainTick(world, dt) {
   if (sec === null || tr.spawnIn.indexOf(sec) < 0) return;
   if (run.wipeT >= 0) return;                                   // §8.22 쓸어내기 중엔 놓지 않는다(놓자마자 지워진다)
   const st = stageOf(world);
-  if (st.terrainKind === null) return;                         // finale — 테마가 없으니 지형도 없다
+  if (st.terrainKind === null) return;                         // 지형 없는 스테이지(어휘상 허용 — 현재 데이터엔 없다)
   if (world.time < run.terrainNextT) return;
   run.terrainNextT = world.time + tr.everySec;
   if (world.terrain.live >= tr.maxOnScreen) return;
   const r = tr.radiusPx;
-  place(world, kindIndex(st.terrainKind), a.x + r + world.rng.terrain.f() * (a.w - 2 * r), world.data.rules.view.spawnLineY - r);
+  place(world, nextKind(world, st), a.x + r + world.rng.terrain.f() * (a.w - 2 * r), world.data.rules.view.spawnLineY - r);
 }
 
 /**
  * §8.22(v1.10 ⑧) 보스 등장 무리 — 쓸어내기가 끝난 자리에 bossEntryCount 개를 아레나 «전체»에 무작위로 놓는다
  *   (위에서 흘러오는 게 아니라 이미 놓여 있다 — 「보스가 등장하며 화면을 뒤집고 장판이 랜덤하게 생긴다」).
  *   플레이어 바로 위엔 놓지 않는다(반지름 + 40px 안이면 최대 4번 다시 뽑는다 — 시도 수가 고정이라 결정적).
- *   그 뒤 평소 주기는 everySec 뒤부터. finale 은 0.
+ *   그 뒤 평소 주기는 everySec 뒤부터. finale(`mixed`)은 3종이 하나씩 — 슬로우·관성·과열이 한 화면에 같이 놓인다.
  */
 export function terrainBurst(world) {
   const run = world.run;
@@ -106,7 +119,6 @@ export function terrainBurst(world) {
   const st = stageOf(world);
   run.terrainNextT = world.time + tr.everySec;
   if (st.terrainKind === null) return 0;
-  const kind = kindIndex(st.terrainKind);
   const r = tr.radiusPx;
   const p = world.player;
   let placed = 0;
@@ -118,7 +130,7 @@ export function terrainBurst(world) {
       const dx = x - p.x; const dy = y - p.y;
       if (dx * dx + dy * dy > (r + 40) * (r + 40)) break;
     }
-    if (place(world, kind, x, y) !== null) placed += 1;
+    if (place(world, nextKind(world, st), x, y) !== null) placed += 1;
   }
   return placed;
 }
@@ -146,6 +158,7 @@ export function clearTerrain(world) {
   const it = world.terrain.items;
   for (let i = 0; i < it.length; i += 1) if (it[i].alive) world.terrain.release(it[i]);
   world.run.terrainNextT = 0;
+  world.run.terrainSeq = 0;
   world.player.heat = 0;
 }
 

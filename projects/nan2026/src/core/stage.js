@@ -79,6 +79,7 @@ export function initRun(world) {
     crisis: false,                  // 잡몹 페이즈 마지막 서브구간(§8.10) — v1.10: 한 번 켜지면 페이즈 끝까지(sticky)
     crisisAtSec: -1,                // v1.10 — 위기가 «실제로» 켜진 phaseT. 새떼 스케줄(spawnCrisis)의 원점. -1 = 아직
     terrainNextT: 0,                // §8.21(v1.10 ⑦) — 다음 지형 장판 스폰 시각(world.time)
+    terrainSeq: 0,                  // §8.21 ③(v1.10 ⑳) — finale «mixed» 순환 카운터(놓은 장판 수). clearTerrain 이 0 으로
     wipeT: -1,                      // §8.22(v1.10 ⑧) — 보스 등장 쓸어내기 경과(-1 = 없음). boss.js 가 진행·종료
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억

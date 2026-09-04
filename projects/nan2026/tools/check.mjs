@@ -280,7 +280,7 @@ const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena'];                             // §9.5 (5)
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova']; // §9.5 (10 — v1.5: omni·mine 삭제)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
-  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul', 'xpGainMul'];                             // §9.6 (11 — v1.5 salvage 제거)
+  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul'];                            // §9.6 (11 — v1.5 salvage 제거 · v1.10 ⑳ moveSpeedMul → terrainResist)
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
 const BULLET_SHAPES = ['circle', 'hex'];                                                                         // §9.7 (2)
 const BULLET_STATUS = [null, 'slow', 'stun'];                                                                    // §9.7
@@ -456,6 +456,8 @@ function S1_corePurity() {
 const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
 const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];
+const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fire' };   // §8.21 ② (schema.mjs 와 같은 사전 — check 는 독립 사본)
+const TERRAIN_MIXED = 'mixed';                                                     // §8.21 ③ finale 순환
 const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 구간 어휘
 
 function S2_schema() {
@@ -3200,8 +3202,9 @@ function S55_midBossSection() {
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * 사용자 결정: 「공격이 아니라 유틸을 방해하는 지형 — 늪은 느리게, 빙원은 관성, 화산은 과열 정지」.
- *   ① 테마(finale 제외)마다 `terrainKind` ∈ TERRAIN_KINDS · finale 은 null(테마가 없으니 지형도 없다)
- *   ② «속성당 하나»: 같은 element 의 테마는 같은 kind (기계는 3종, 테마는 겉모습만 다르다 — §8.21)
+ *   ① 테마(finale 제외)마다 `terrainKind` ∈ TERRAIN_KINDS · finale 은 "mixed"(3종 순환, v1.10 ⑳) 또는 null(지형 없음)
+ *   ② «속성당 하나»: kind == TERRAIN_KIND_ELEMENT 의 역(풀 slow · 물 inertia · 불 heat) — 그림의 색이 이 사전으로 종을 칠하므로
+ *      데이터가 어긋나면 늪 위에 물색 장판이 뜬다 (기계는 3종, 테마는 겉모습만 다르다 — §8.21)
  *   ③ 3종이 전부 쓰인다 — 안 쓰이는 종은 죽은 어휘다
  *   ④ rules.terrain 의 값: radiusPx ∈ [24, arena.w ÷ 4] · scrollSpeedPx > 0 · everySec > 0 · 1 ≤ maxOnScreen ≤ caps.terrain
  *      · inertia.responseTauSec ∈ (0, 1] · heat.stallSec ∈ (0, fairness.maxStunSec] ∧ fullSec > stallSec ∧ coolSec > 0
@@ -3217,19 +3220,17 @@ function S56_terrain() {
   if (!Array.isArray(st) || !isObj(tr) || !isObj(caps) || !isObj(a) || !isObj(fa)) { V('S56', 'stages / rules.terrain / caps / view.arena / fairness 가 없다'); return; }
   let n = 0;
   const FINAL_ID = FINAL();
-  const byElement = {};
   const used = new Set();
   for (const t of st) {
     if (!isObj(t)) continue;
     n += 1;
     if (t.id === FINAL_ID) {
-      if (t.terrainKind !== null) V('S56', `stages[${t.id}].terrainKind = "${t.terrainKind}" — 최종 스테이지는 테마가 없으니 지형도 null (§8.21)`);
+      if (t.terrainKind !== TERRAIN_MIXED && t.terrainKind !== null) V('S56', `stages[${t.id}].terrainKind = "${t.terrainKind}" — 최종 스테이지는 테마가 없으니 "mixed"(3종 순환) 또는 null (§8.21 ③)`);
       continue;
     }
     if (TERRAIN_KINDS.indexOf(t.terrainKind) < 0) { V('S56', `stages[${t.id}].terrainKind = ${JSON.stringify(t.terrainKind)} ∉ ${JSON.stringify(TERRAIN_KINDS)} (§8.21)`); continue; }
     used.add(t.terrainKind);
-    if (byElement[t.element] === undefined) byElement[t.element] = t.terrainKind;
-    else if (byElement[t.element] !== t.terrainKind) V('S56', `stages[${t.id}] (${t.element}): terrainKind "${t.terrainKind}" ≠ 같은 속성의 다른 테마 "${byElement[t.element]}" — 기계는 속성당 하나 (§8.21 ②)`);
+    if (TERRAIN_KIND_ELEMENT[t.terrainKind] !== t.element) V('S56', `stages[${t.id}] (${t.element}): terrainKind "${t.terrainKind}" 는 ${TERRAIN_KIND_ELEMENT[t.terrainKind]} 의 기계 — 속성당 하나, 색도 그 사전으로 칠한다 (§8.21 ②)`);
   }
   for (const k of TERRAIN_KINDS) if (!used.has(k)) V('S56', `terrainKind "${k}" 를 쓰는 테마가 0 — 죽은 어휘 (§8.21 ③)`);
   // ④ 값

@@ -34,7 +34,7 @@ const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
   'boomerang', 'barrage', 'drone', 'nova'];
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
-  'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'moveSpeedMul',
+  'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist',
   'xpGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
@@ -113,6 +113,11 @@ const TELEGRAPH_FLOOR_BY_TYPE = {
 const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
 export const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];   // §8.21 — 지형 장판 3종(속성당 하나: 풀·물·불)
+/** §8.21 ② 종 → 속성(고정 사전). 그림의 색(draw)과 게이트 S56 ② 가 같은 표를 본다 — 테마는 겉모습만 다르다. */
+export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fire' };
+/** §8.21 ③(v1.10 ⑳) finale 의 terrainKind — 3종이 slow→inertia→heat 순으로 «돌아가며» 나온다(테마가 없으니 전부 나온다). */
+export const TERRAIN_MIXED = 'mixed';
+export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
 export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)
@@ -532,7 +537,7 @@ function checkStages(c, s) {
     const p = `stages.stages[${t && t.id}]`;
     if (!c.closed(p, t, ['id', 'name', 'element', 'introOk', 'bossId', 'crisisElementRule',
       'introArchetypeId', 'terrainKind', 'roster', 'mix', 'waves'])) continue;
-    if (own(t, 'terrainKind') && t.terrainKind !== null) c.vocab(`stages.stages[${i}].terrainKind`, t.terrainKind, TERRAIN_KINDS);
+    if (own(t, 'terrainKind') && t.terrainKind !== null) c.vocab(`stages.stages[${i}].terrainKind`, t.terrainKind, TERRAIN_KIND_VALUES);   // null = 지형 없음 · mixed = finale 순환(§8.21 ③)
     if (c.arr(`${p}.roster`, t.roster)) {
       for (let j = 0; j < t.roster.length; j += 1) {
         c.closed(`${p}.roster[${j}]`, t.roster[j], ['archetypeId', 'unlockStageMin']);

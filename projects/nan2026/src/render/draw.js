@@ -22,6 +22,7 @@
 import { drawArenaBands } from './hud.js';
 import { recomputeEff } from '../core/state.js';   // §5.3 랜스 빔 기하 재구성용(즉발 무기 가시화)
 import { wipeFrontY } from '../core/boss.js';        // §8.22 쓸어내기 앞선(판정과 같은 식)
+import { TERRAIN_KINDS, TERRAIN_KIND_ELEMENT } from '../core/schema.mjs';   // §8.21 ② 지형 색 = 종의 속성
 
 // ---------------------------------------------------------------------------
 // 색 — sRGB ↔ CIE Lab. §7.12.8 의 「L*+25」와 §7.3 의 「채도 0」이 실제 수를 요구한다
@@ -530,18 +531,12 @@ function drawTerrain(ctx, world, pal) {
   const it = world.terrain.items;
   if (world.terrain.live === 0) return;
   const vt = world.data.rules.visual.terrain;
-  const run = world.run;
-  const stageId = run === undefined ? null : run.order[run.stageIndex];
-  let element = 'normal';
-  if (stageId !== null) {
-    const list = world.data.stages.stages;
-    for (let i = 0; i < list.length; i += 1) if (list[i].id === stageId) { element = list[i].element === null ? 'normal' : list[i].element; break; }
-  }
-  const col = pal.element[element];
   const fadeSec = world.data.rules.terrain.fadeSec;
   for (let i = 0; i < it.length; i += 1) {
     const t = it[i];
     if (!t.alive) continue;
+    // §8.21 ② 색 = 종의 속성(TERRAIN_KIND_ELEMENT — 풀·물·불). 테마 스테이지는 테마색과 같고, finale(mixed)은 세 색이 같이 보인다.
+    const col = pal.element[TERRAIN_KIND_ELEMENT[TERRAIN_KINDS[t.kind]]];
     // §8.21 ④ 사라지는 중 — 반지름과 알파가 같이 줄어든다(효과는 이미 꺼져 있다)
     const k = t.fadeT >= 0 ? Math.max(0, 1 - t.fadeT / fadeSec) : 1;
     const r = t.radius * k;

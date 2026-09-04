@@ -580,7 +580,7 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
 const STANCE_KEY = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
 
 const STAT_FMT = {
-  dmgMul: 'pct', fireRateMul: 'pct', areaMul: 'pct', moveSpeedMul: 'pct', xpGainMul: 'pct',
+  dmgMul: 'pct', fireRateMul: 'pct', areaMul: 'pct', terrainResist: 'pct', xpGainMul: 'pct',
   pierceAdd: 'add', projCountAdd: 'add', maxHpAdd: 'add',
   elementBonusMul: 'mul',                 // ★ §3.1 의 k — 가산이 아니라 «대입»이다
   ghostSecOnHit: 'sec', hitBulletClearRadius: 'px',

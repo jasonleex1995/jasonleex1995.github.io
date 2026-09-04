@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maxLevel": 10,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
-            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul"],
+            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
   "passives": [
     { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
     { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40,0.43,0.46] },
@@ -13,7 +13,7 @@
     { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",         "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8,4.2,4.6] },
     { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",    "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
-    { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",  "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26,0.28,0.30] },
+    { "id":"stabilizer", "name":"자세 안정기",  "desc":"지형(둔화·관성·과열)의 효과 −N%",  "stat":"terrainResist",       "values":[0.15,0.25,0.33,0.40,0.46,0.52,0.57,0.62,0.66,0.70] },
     { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] }
   ]
 }

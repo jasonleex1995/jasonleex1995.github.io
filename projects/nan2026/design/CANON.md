@@ -258,7 +258,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 반응 시상수 | `player.moveResponseTau` | **0.0** (Sec) — ★ v1.10 ⑦: 물 지형(`inertia`) 위에서는 이 항 대신 `rules.terrain.inertia.responseTauSec`(0.35)가 쓰인다(§8.21). «항은 존재하고 값이 0»이 처음으로 값을 가진 자리 |
 | 대각선 정규화 | `player.diagonalNormalize` | **true** (×0.70710678) |
 | SOCD (반대키 동시) | `input.socd` | **`"lastInput"`** — 마지막에 눌린 키 우선 |
-| 이동 속도 상한 | (파생: 패시브 `moveSpeedMul` 최대 **30%** — v1.10 ⑱ 10레벨 · ~~상점 3스택~~ 은 v1.5 에 폐지) | 280 × 1.30 = **364** · ~~352.8~~ ~~396.5~~ |
+| 이동 속도 상한 | **`player.moveSpeed` 고정** — ★ v1.10 ⑳(사용자 2026-09-05 「이속이 크게 안 와닿는다」): 패시브 `moveSpeedMul`(경량 프레임) **폐지**, 그 자리에 **지형 저항** `terrainResist`(자세 안정기, §8.21 ⑥). 남은 유일한 배율은 §11.6 위기 대응 특성(위기 중 +20%). 코드의 단일 소유자 `step.speedCap` — 자석(§2.6)도 이 값 | **280** · 위기 대응 특성 시 336 · ~~364~~ ~~352.8~~ ~~396.5~~ |
 
 - `velocity = dir × moveSpeed`. **가속/감속 없음, 즉시 정지.** 관성 = 미세 조작 실패 = 트위치 = 기둥 위반.
 - 코드에 지수 스무딩 항이 **존재하고** 기본값이 0이다 → "살짝 미끄럽게"가 필요해도 **숫자만** 바뀐다.
@@ -2187,7 +2187,8 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 | 물 | `inertia` | 빙원(빙판) · 바다(해류) | 안에서는 방향을 바꿔도 미끄러진다 | §2.2 의 **지수 스무딩 항**(`moveResponseTau`, «항은 존재하고 값이 0») — 지형이 그 항을 `rules.terrain.inertia.responseTauSec`(0.35)로 켠다. 뒤집는 데 τ·ln2 ≈ 0.24초(15틱) |
 | 불 | `heat` | 화산(열기) · 사막(신기루 열기) | 안에 있는 동안 **열 게이지**가 차고, 다 차면 **과열 정지** | §2.7 스턴 — `player.heat ∈ [0,1]` 이 `fullSec`(1.5)에 차면 `stallSec`(0.6) 스턴 + 열 0. 스턴 중엔 안 찬다(연쇄 정지 방지). 밖에서는 `coolSec`(1.0)에 식는다. 게이지는 기체 위 호박 바(§7.12.4-② 채널) |
 
-**③ 거처와 값.** `stages[].terrainKind` ∈ `{slow, inertia, heat}` \| null(finale — 테마가 없으니 지형도 없다).
+**③ 거처와 값.** `stages[].terrainKind` ∈ `{slow, inertia, heat}` \| **`"mixed"`**(finale) \| null(지형 없음 — 어휘상 허용, 현재 데이터엔 없다).
+★ **finale 은 `mixed` (v1.10 ⑳, 사용자 질문 2026-09-05 「최종 stage 6 에서는 장판 효과가 어떻게 되는가」에 대한 결정)**: 테마가 없으니 지형이 «없는» 것이 아니라 **셋이 전부 나온다** — 놓을 때마다 `slow → inertia → heat` 순으로 돌아가며(`run.terrainSeq`, `terrain.nextKind`), 보스 등장 무리 3개는 정확히 하나씩. §8.9 의 최종 스테이지 3속성 순환·`mix` 0.34/0.33/0.33 과 같은 문법이고, 지형 저항 패시브(⑥)가 마지막 스테이지에서 죽지 않게 하는 조건이기도 하다. 그림의 색은 **종의 속성**(`TERRAIN_KIND_ELEMENT` = 풀 slow · 물 inertia · 불 heat)이라 finale 한 화면에 세 색이 같이 보인다. ~~null(finale — 테마가 없으니 지형도 없다)~~
 `rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 3.2, maxOnScreen 3, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }`.
 `caps.terrain 16`(overflow `rejectSpawn`) · `visual.terrain { fillAlpha 0.14, edgeAlpha 0.35, patternAlpha 0.30, heatPulseHz 0.8 }`.
 `rules.json` 루트는 **17개**가 됐다(`terrain` 추가 — `RULES_ROOT_17`).
@@ -2207,7 +2208,9 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 **⑤ 계측.** 봇(§10.4)은 지형을 «모른다» — 그 위에서 잰 강제% 는 지형이 만든 정지·둔화까지 포함한다. 이것은 결함이 아니라
 정직한 계측이다(지형이 플레이어를 탄 속에 붙잡으면 그건 «맞은 것»이다). 봇에 회피를 가르치는 것은 다음 패스.
 
-**게이트 S56 (§13.4)** — ① 테마마다 kind ∈ 어휘, finale null ② 같은 속성 = 같은 kind ③ 3종 전부 쓰인다 ④ 값의 범위
+**⑥ 지형 저항 — 패시브 «자세 안정기» (v1.10 ⑳).** 사용자(2026-09-05): 「이속이 크게 안 와닿는다. 차라리 각 스테이지의 장판에 대한 저항으로 가자 — 레벨업 패시브 카드도 포함」. `passives.json` 의 `frame`(경량 프레임, `moveSpeedMul`) 이 **`stabilizer`(자세 안정기, `terrainResist`)** 로 바뀌었다 — 11종 1:1 은 그대로. 값 `[0.15 … 0.70]`(Lv10) 은 **저항이지 면역이 아니다**(0.30 은 남는다 — 면역이면 그 빌드에 지형이 죽은 콘텐츠가 된다). 적용은 이동의 단일 소유자 `step.movePlayer` 한 곳, 배율 하나 `tmul = (1 − Σ terrainResist) × traitFx.terrainEffectMul` 이 세 지형에 같이 걸린다: 둔화 **깊이** `1 − (1 − 0.55) × tmul` · 관성 **τ** `0.35 × tmul` · 과열 **충전 속도** `× tmul`(정지까지 1.5s ÷ tmul). **탄의 둔화는 대상이 아니다**(지형 저항이지 상태이상 저항이 아니다 — §9.6 의 `statusResistMul` 폐기 근거 그대로). 특성 «지형 적응»(§11.6, ×0.5)과는 곱으로 겹친다 — 특성 재설계(보류) 때 정리한다.
+
+**게이트 S56 (§13.4)** — ① 테마마다 kind ∈ 어휘, finale `mixed`|null ② kind = 속성 사전의 역(풀 slow·물 inertia·불 heat — 그림이 이 사전으로 칠한다) ③ 3종 전부 쓰인다 ④ 값의 범위
 (`radiusPx ∈ [24, arena.w/4]` · `stallSec ≤ fairness.maxStunSec` · `fullSec > stallSec` · `maxOnScreen ≤ caps.terrain` …)
 ⑤ 통로: 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 폭이 남는다) ⑥ (v1.10 ⑧) `spawnIn ⊆ {early, midboss, crisis, boss}`,
 비어 있지 않고 중복 없음, **`crisis` 없음** · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0`.
@@ -2818,14 +2821,14 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 - ★ **`bossPartPriority`는 존재하지 않는다 (확정).** 초안 F의 "복합 보스에서 부위를 지정할 수단을 데이터로 제공"은 **"의미 있는 이동" 기둥의 정면 위반**이다 — 자동 타겟이 스탠스 퍼즐을 대신 풀어버린다. **보스 부위는 각각 독립 타겟 엔티티이고 `nearest` 계열은 가장 가까운 부위를 노린다 → 플레이어가 위치로 부위를 고른다.**
 - ★ **`knockback`은 존재하지 않는다 (확정, 미결 해소).** 초안 C·F 양쪽 계약에 있었으나 **모델이 없었다**(단위·스크립트 이동에의 적용·편대 붕괴·보스 적용 전부 미정). 스크립트 경로를 도는 적(`moveId`)에 넉백을 적용하면 `column`·`anchor`·`pincer` 편대가 깨져 **§8.4의 이동 어휘 전체와 충돌**한다. 어휘에 남겨두면 AI가 의미 없는 값을 생성한다. **삭제가 가장 싸고 안전하다.**
 
-### 9.6 `passives.json` — 폐쇄 스탯 어휘 (12종, 12 패시브와 1:1)
+### 9.6 `passives.json` — 폐쇄 스탯 어휘 (11종, 11 패시브와 1:1 — v1.5 `coinGainMul` 폐지 · v1.10 ⑳ `moveSpeedMul` → `terrainResist`)
 
 > ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
 ```json
 { "schemaVersion": 1, "maxLevel": 10,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
-            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","moveSpeedMul","xpGainMul","coinGainMul"],
+            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
   "passives": [
     { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",
       "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
@@ -2845,15 +2848,18 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
       "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",
       "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
-    { "id":"frame",      "name":"경량 프레임",  "desc":"이동 속도 증가",
-      "stat":"moveSpeedMul",        "values":[0.06,0.11,0.15,0.18,0.20,0.22,0.24,0.26,0.28,0.30] },
+    { "id":"stabilizer", "name":"자세 안정기",  "desc":"지형(둔화·관성·과열)의 효과 −N%",
+      "stat":"terrainResist",       "values":[0.15,0.25,0.33,0.40,0.46,0.52,0.57,0.62,0.66,0.70] },
     { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",
-      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
-    { "id":"salvage",    "name":"노획 프로토콜","desc":"획득 코인 증가",
-      "stat":"coinGainMul",         "values":[0.12,0.22,0.30,0.37,0.43] }
+      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] }
   ]
 }
 ```
+
+> ★ **v1.10 ⑳ (사용자 2026-09-05)** — 「기동(이속)이 크게 안 와닿는다. 차라리 각 스테이지의 장판에 대한 **저항**으로 가자 —
+> 레벨업 패시브 카드도 포함」. `frame`(경량 프레임 · `moveSpeedMul` 0.06→0.30) 을 **`stabilizer`(자세 안정기 · `terrainResist`
+> 0.15→0.70)** 로 **교체**했다(추가가 아니다 — 11종 1:1 유지). 이동 속도 상한은 280 고정이 됐다(§2.2). 적용 식은 §8.21 ⑥.
+> `salvage`(코인) 행은 v1.5 에 이미 폐지됐는데 이 인쇄에 남아 있던 흔적을 같이 지웠다.
 
 **★ `desc` 신설 — 12행 (v1.3, 전사 감사 major)**
 
@@ -2904,8 +2910,8 @@ areaMul      :  eff[areaKey]   = src[areaKey] × (1 + v)      // areaKeys 중 sr
 pierceAdd    :  eff.pierce     = src.pierce + v              // pierceApplies == false 이면 무효
 projCountAdd :  eff[countKey]  = src[countKey] + v           // countKey == null 이면 무효
 dmgMul / elementBonusMul       : §3.1의 2항·3항. 파라미터 공간을 건드리지 않는다
-나머지 6종 (ghostSecOnHit, hitBulletClearRadius, maxHpAdd, moveSpeedMul, xpGainMul, coinGainMul)
-                               : 플레이어·획득 스탯. 무기 파라미터와 무관
+나머지 5종 (ghostSecOnHit, hitBulletClearRadius, maxHpAdd, terrainResist, xpGainMul)
+                               : 플레이어·획득 스탯. 무기 파라미터와 무관 (terrainResist 는 §8.21 ⑥ — movePlayer 의 지형 배율)
 ```
 
 **★★ `src = resolveLevels(base, level) ∪ …` — 왜 `base`가 아니라 레벨 해소값인가 (v1.4, 라운드 감사 major)**
@@ -3304,7 +3310,7 @@ tetrarchThroneP1  ...
              "statusStunMaxPerStage":2 },
   // 예시 — stages[] 원소 2개(sea·finale)의 형태만 확정한다 (C-7.1). 값의 소유자 = 04 §8~§9 (C-2.1)
   "stages": [{ "id":"sea", "name":"바다", "element":"water", "introOk":true,
-               "bossId":"manta", "crisisElementRule":"themePure", "terrainKind":"inertia",   // §8.21 v1.10 ⑦ (finale 은 null)
+               "bossId":"manta", "crisisElementRule":"themePure", "terrainKind":"inertia",   // §8.21 v1.10 ⑦ (finale 은 "mixed" — v1.10 ⑳ 3종 순환)
                "roster":[{"archetypeId":"drifter","unlockStageMin":1}, "..."],
                "mix":{"water":0.70,"fire":0.30,"grass":0.00,"normal":0.00},   // v1.10 ⑬ 테마 + 먹이
                "waves":[{ "formationId":"vWedge","archetypeId":"drifter","count":7,
@@ -4058,7 +4064,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | `bossHunter` 보스 사냥꾼 | power | 중간보스·보스에 피해 +25% | `damage.hitEnemy` |
 | `stanceEcho` 스탠스 공명 | utility | 전환 순간 반경 150px 적 탄 소거 + 0.4초 무적 | `stance.requestStance` |
 | `terrainAdapt` 지형 적응 | utility | 둔화·관성·과열 지형 효과 ×0.5 (탄의 둔화는 그대로) | `step.movePlayer` |
-| `crisisDash` 위기 대응 | utility | 위기 구간 이속 +20% | `step.movePlayer` |
+| `crisisDash` 위기 대응 | utility | 위기 구간 이속 +20% (`step.speedCap` — 이동 속도의 유일한 배율, §2.2) | `step.movePlayer` · `pickups` 자석 |
 
 **③ 코드 표현.** `world.traits`(id 열) · `world.traitFx`(핫패스가 읽는 평면 효과 — `recomputeTraitFx` 가 획득 때 1회 재계산,
 문자열 비교 0) · `world.traitState`(방패 충전·처치 수·재기 사용). 효과는 «입구 하나»에서만 적용된다(피해 = `hitEnemy`,
@@ -4069,6 +4075,8 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 `effect.kind` 어휘 = `schema.TRAIT_EFFECT_KINDS`(10). 로더가 형식을, **S59** 가 설계를 지킨다: ① heal ≥ 1 ② 묶음마다 ≥ 1 ∧ 묶음 수
 ≥ offerCount ③ 특성 수 ≥ 보스 5 + offerCount − 1 ④ 값 범위(재생 ≤ 1/s · 회수 ≥ 5마리 · 보급 ≤ 0.5 · 격벽 ≥ 10초 · 재기 ≤ 3초 · 청정
 ≤ 0.3 · 사냥꾼 ≤ 0.5 · 공명 ≤ 240px/1초 · 적응 ∈ [0.25, 1) · 위기 ≤ 0.5) ⑤ `palette.pickup.trait`.
+
+**★ 재설계 보류 (사용자 2026-09-05 「특성은 좀 더 고민해보자」).** 구조의 구멍은 알려져 있다 — 묶음 넷이 배타라 5번째 보스의 구슬은 제안이 0장(`buildTraitDraft` 빈 배열 → 드라이버가 큐를 비운다). 논의 중인 대안은 **처치 누적형**(잡은 수에 따라 최대 HP·방어·회복이 자라는 특성)이며, 사용자가 이속 계열(`crisisDash`)을 「안 와닿는다」고 했고 `terrainAdapt` 는 v1.10 ⑳ 의 지형 저항 패시브와 겹친다 — 재설계 때 둘 다 정리한다. 그때까지 현재 10종은 그대로 돈다(테스트 12건이 계약을 고정).
 
 **⑤ 계측.** 봇은 스테이지 1 보스를 180초 안에 못 잡는다(코어 잔여 452~664/878 — 특성 이전부터 그랬다: 봇은 부위·봉인을 안 푼다)
 → 자연 런에서 특성 흐름의 계측은 봇으로 불가. 테스트 12건(구슬·대기·최종 0·드래프트·묶음 배타·결정성·효과 10종)이 계약을 고정한다.
@@ -4802,7 +4810,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
 | **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
 | **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
-| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale null ② 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0` |
+| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale `mixed`(3종 순환, v1.10 ⑳)|null ② kind = 속성 사전(풀 slow·물 inertia·불 heat)의 역 — 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0` |
 | **S57** ★ | **보스 등장 쓸어내기** (v1.10 ⑧, §8.22) — ① `0 < boss.entryWipeSec < boss.introSec`(강림 안에서 끝난다) ② 앞선 속도 `(arena.h + 40 − spawnLineY) ÷ entryWipeSec` > `fairness.maxBulletSpeed`(어떤 탄도 앞선을 앞지르지 못한다 = 0.7초 뒤 무대는 보스뿐) ③ `visual.wipe.bandPx > 0` · `flashAlpha ∈ [0,1]` |
 | **S58** ★ | **오빗 반경 = 자석 점선 원** (v1.10 ⑨, §7.8) — `weapons.orbit.base.orbitRadius == player.magnetRadius` ∧ 어느 레벨도 `orbitRadius` 를 바꾸지 않는다. 화면에 상시 보이는 원(자석 반경)과 공의 궤도가 어긋나면 «내 영역»이 둘로 읽힌다 |
 | **S59** ★ | **특성** (v1.10 ⑲, §11.6) — ① 회복 묶음 ≥ 1 ② 묶음마다 ≥ 1 ∧ 묶음 수 ≥ `offerCount` ③ 특성 수 ≥ 5 + `offerCount` − 1 ④ 효과 값 범위(특성은 규칙을 비틀지 스탯을 대신하지 않는다) ⑤ `palette.pickup.trait` |

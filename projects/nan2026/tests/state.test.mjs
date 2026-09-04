@@ -345,7 +345,7 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     const others = ['overclock', 'coil', 'coating', 'autoload', 'resonance'];
     for (let k = 0; k < nSlots - 1; k += 1) assert.ok(givePassive(w, others[k]), `채움 ${others[k]}`);
     assert.eq(w.passives.length, nSlots, `${nSlots}칸 만석`);
-    assert.eq(givePassive(w, 'frame'), false, '만석 + 미보유 신규 = false');
+    assert.eq(givePassive(w, 'stabilizer'), false, '만석 + 미보유 신규 = false');
   });
 
   // §11.1(v1.6) — 계열을 넘는 교환은 각인 규약을 깨므로 거부된다

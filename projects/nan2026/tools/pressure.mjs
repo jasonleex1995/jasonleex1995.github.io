@@ -26,7 +26,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validate } from '../src/core/schema.mjs';
+import { validate, MANIFEST } from '../src/core/schema.mjs';   // 매니페스트 = 단일 소유자(v1.10 ⑳: 9파일 하드코딩이 traits.json 뒤로 깨져 있었다)
 import { makeCtx, escapeDirs as escapeShared } from './lib/escape.mjs';
 import { createWorld } from '../src/core/state.js';
 import { enemies } from '../src/core/enemies.js';
@@ -43,9 +43,8 @@ const HORIZON = 1.0;      // «숨 쉴 곳» 판정 지평: 1초 안에 닿는�
 const GRID = 24;
 
 function loadData() {
-  const names = ['rules', 'weapons', 'passives', 'enemies', 'stages', 'bosses', 'bullets', 'elements', 'meta'];
   const raw = {};
-  for (const n of names) raw[n] = JSON.parse(readFileSync(join(ROOT, 'data', `${n}.json`), 'utf8'));
+  for (const n of MANIFEST) raw[n] = JSON.parse(readFileSync(join(ROOT, 'data', `${n}.json`), 'utf8'));
   return validate(raw);
 }
 
