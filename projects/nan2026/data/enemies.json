@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "bands": {
-    "chaff": { "hpMult": 1.0, "xpRef": 2, "minPerWave": 16 },
+    "chaff": { "hpMult": 1.0, "xpRef": 2, "minPerWave": 30 },
     "line": { "hpMult": 2.5, "minPerWave": 6 },
     "turret": { "hpMult": 6.0, "minPerWave": 2 },
     "bruiser": { "hpMult": 12.0, "minPerWave": 2 }
@@ -13,7 +13,7 @@
       "desc": "떠내려오며 아무것도 하지 않는다",
       "band": "chaff",
       "shapeId": "orb",
-      "radius": 13,
+      "radius": 8,
       "moveId": "dive",
       "moveParams": { "speed": 51 },
       "attack": null,

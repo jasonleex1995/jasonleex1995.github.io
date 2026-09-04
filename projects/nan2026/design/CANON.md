@@ -1498,6 +1498,7 @@ waves: [ { formationId, archetypeId, count, element, spawnEdge, eliteIndex } ]  
 |---|---|
 | 왜 하한이 필요한가 | 하드코딩 `2` 는 «안전망»이 아니라 **실제 값**으로 돌고 있었다 — 실측 전 웨이브의 **43.8%가 4마리 미만**, 72.9% 가 8마리 미만. 절반 가까운 웨이브가 몹 2마리였다 |
 | 왜 밴드별인가 | 총 HP 예산은 여전히 `hpMult` 나눗셈이 보존한다. 하한이 정하는 것은 **「그 예산이 몇 개의 몸으로 쪼개지는가」**뿐이다 |
+| ★ v1.10 ⑤ 하한 = 초기 구간의 밀도 손잡이 | 비율 모델(§8.19)에서 몸 수는 chaff 밴드로 세고, 1스테이지 저작 count 가 3~16 이라 **전 웨이브가 하한에 걸린다**(실측). 그래서 `chaff.minPerWave` 가 곧 초기 구간의 스폰률이다: **30**(≈ 벽 한 줄 25 + α, 1.4초마다) → 21초에 391기·세로 덮임 100%. ~~16~~(v1.8 ④) ~~8~~. S50 ③ 은 밴드가 «자기 몫» 예산(chaff = `introConcurrentMax`, 나머지 = `enemyConcurrentMax`)의 절반을 넘지 않는지 본다 |
 | `chaff` = **8** | 사용자 기준의 직접 이행. `spitter`(`spitStraight` count 1) · `rearDart`(`dartStraight` count 1) · `drifter`(무탄)가 chaff 다 = 「탄환을 하나만 쏘는 몹이면 8마리」 |
 | `line` = **3** | ★ **밴드는 사용자 기준의 입도가 아니다.** line 에는 단발종(`hexer`·`columnAnt`)과 무탄종(`dustRunner`) 옆에 `flanker`(fan 3발)·`thornWeaver`(wall 8발)가 같이 산다. 8 은 계측으로 기각했고(「길 0」이 전 스테이지에서 악화), 5 는 8발 벽 종을 2.5배로 만든다. **3 이 단발종을 +50% 올리면서 다발종의 탄을 1.5배로 묶는 자리다** |
 | `turret` = **2** · `bruiser` = **2** | 현행 유지. 산술이 이유다 — `turretPod` 는 포지션 2 에서 개체당 144 effHP, `mortarHulk` 는 포지션 3 에서 806 effHP 다. 8마리면 밀도가 아니라 **스펀지**다. 여기는 «몸 수»가 아니라 «한 마리의 무게»가 콘텐츠다 |
@@ -2028,6 +2029,11 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 > **① 완벽한 조작이면 «탄·빔·장판»에는 안 맞는다. «몸»은 쏴서 길을 내는 자원이다.**
 계측이 이것을 따른다: `tools/lib/escape.mjs` 의 `bodies=false` 가 몸통을 차단물에서 빼고, `study.mjs` 가
 «몸 포함 평균길»(밀도)과 «탄 평균길·탄 강제%»(공정성)를 **나란히** 인쇄한다. 둘을 합치면 서로를 가린다.
+
+**⑤-b ★ 몸은 작고 많다 (v1.10 ⑤, 사용자 2026-09-04: 「적이 너무 커 — 작은 적이 꽉 채워서 오는 느낌」).** v1.8 ④ 가 벽을 채우려고
+`drifter.radius` 7 → 13 으로 키운 것을 **8** 로 되돌리고, 대신 수로 채운다: 벽 격자 `gapPx 20 · perRow 28 · rowGapPx 28 · laneSlots 3`
+(차선 순틈 64 ≥ 46) · `chaff.minPerWave 30` · `introConcurrentMax 400` · `caps.enemies 576`. 무공격 몸이 쏘는 적(6~7)보다 크면
+안 된다 — 위협의 크기 서열이 뒤집힌다. 실측 포지션 1: 21초 391기, 세로 덮임 100%, 최대 빈틈 0px.
 
 **⑥ 속도가 구간의 성격이다 — `phase.sectionSpeedMul`.** `{ early: 0.72, mid: 1.0, crisis: 1.45 }`. 사용자:
 「초기 구간은 느려서 천천히 내려오는 느낌, 위기 구간은 전반적으로 속도가 좀 많이 빠른 느낌」. `applyMovement` 가
@@ -2917,7 +2923,7 @@ v1.1은 `drone`의 `countKey`를 **`droneCount`로 동결**했는데 `anchorOffs
 //        값의 소유자 = enemies.json 17 archetypes + 18 emitters (04 §3.1~§3.2에 위임, C-2.1)
 //        단 bands 블록은 확정이다 — 아래 「bands[].coin 신설」이 4밴드 전량을 인쇄한다
 { "schemaVersion": 1,
-  "bands": { "chaff":{"hpMult":1.0,"coinDropChance":0.0,"coin":0,"xpRef":2,"minPerWave":8}, "line":{"hpMult":2.5,"minPerWave":3}, "turret":{"hpMult":6.0,"minPerWave":2}, "bruiser":{"hpMult":12.0,"minPerWave":2} },
+  "bands": { "chaff":{"hpMult":1.0,"coinDropChance":0.0,"coin":0,"xpRef":2,"minPerWave":30}, "line":{"hpMult":2.5,"minPerWave":6}, "turret":{"hpMult":6.0,"minPerWave":2}, "bruiser":{"hpMult":12.0,"minPerWave":2} },
   "archetypes": [{
     "id":"stalker", "name":"추격체", "desc":"플레이어를 선회하며 유도탄을 쏜다",
     "band":"bruiser", "shapeId":"claw", "radius":18,
@@ -3261,7 +3267,7 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 | `arc` | `radiusPx: 180, spanDeg: 120` | 호, 중심 = 아레나 중앙 상단 |
 | `pincer` | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
 | `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 최소 간격 강제 |
-| ★ `wall` (v1.9 · **v1.10 `jitterY`**) | `gapPx: 29, rowGapPx: 40, perRow: 20, laneSlots: 2, laneStrideCols: 3, jitterY: 0.85` | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
+| ★ `wall` (v1.9 · **v1.10 `jitterY`** · **v1.10 ⑤ 촘촘한 격자**) | `gapPx: 20, rowGapPx: 28, perRow: 28, laneSlots: 3, laneStrideCols: 4, jitterY: 0.85` · ~~29/40/20/2/3~~ | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
 
 ★ **`pincer`만 `strafe.yPx`를 덮어쓴다**: `yPx = yStartPx + floor(i/2) × yStepPx` (i = 편대 내 인덱스). **이 예외가 없으면 `flanker.yPx`가 아키타입 고정값이라 모든 측면기가 한 줄로만 지나간다 = `strafe` 거동이 죽는다**(그리고 `boomerang`의 "라인 정렬" 시너지 논거(§8.4)가 무의미해진다). `check.mjs` **S20**: `pincer` ⟺ `moveId == "strafe"`, `columnV` ⟺ `moveId == "column"`.
 
@@ -3957,6 +3963,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 |---|---|---|
 | `enemyConcurrentMax` | **42** · ~~40~~ | ★ **런타임 `defer`** + S26(웨이브 1개의 `count` 합 ≤ 42) + `capHits`가 발화를 센다 |
 | ★ **이 값이 «세는 것»** (v1.8) | 웨이브가 낸 잡몹**뿐** | 보스·중간보스(§8.9)와 유령 소환(§8.9-R9)은 **웨이브 예산 밖**이다. 유령은 자기 몫으로 **같은 `enemyConcurrentMax`** 를 갖는다(`telegraphConcurrentMaxGlobal` 과 같은 **재사용식 파생** — 새 키 0). 세 몫의 합 **42 + 42 + max(`midBossCount`) 5 = 89 ≤ `caps.enemies` 128** 을 **S12** 가 강제한다. ★ v1.8 이전엔 소환에 예산 검사가 **아예 없었고** 웨이브 게이트가 유령까지 세어, **예산 있는 개체가 예산 없는 개체에 굶었다**(실측 유령 동시 최악 110 · 풀 최악 123/128 = 96%). 「캡에 닿는 콘텐츠는 콘텐츠 버그다」가 이 절의 첫 문장이다 |
+| ★ **`introConcurrentMax`** (v1.9 · **v1.10 ⑤ 400**) | **400** · ~~216~~ | 무공격 몸(도입 밴드 chaff)의 자기 몫. 몸이 작아진 만큼(반지름 13 → 8) 수로 채운다 — 21초에 391기·세로 덮임 100%(실측). S12 가 「웨이브 42×max(threatBudgetScale) + 유령 42 + 도입 400 + 중간보스 5 < caps.enemies 576」을 강제 |
 | `swarmConcurrentMax` | **100** · ~~70~~ | 새떼 전용 예외. 동일. ★ 위기 중 `spawnCrisis` 의 게이트는 «전역 live» 를 세므로 유령이 남아 있어도 위기 총 개체는 100 을 넘지 않는다 |
 | ★ **`crisisWaveResidualMax`** | **10** | ★ v1.2 신설 — 위기 중 웨이브 잔존 상한. 동일. **`enemyConcurrentMax`의 재분할이지 새 자유 숫자가 아니다** |
 | `maxSimultaneousEnemyBullets` | **320** | 보스 `patternSet` 3페이즈 전개 시뮬 |
@@ -3988,6 +3995,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 **2층 검증 (A < B, 전역 대 전역, 여유 20%)**
 ```
 enemies:      A 80 (= 웨이브 10 잔존 + 새떼 70)  <  B 96   ✔  (여유 20%)   ← v1.2 정정
+enemies(잡몹 페이즈, v1.10 ⑤): A 89 + 42 + 400 + 5 = 536  <  B 576  ✔  ← 웨이브 42×2.1 · 유령 42 · 도입 400 · 중간보스 5 (S12)
 enemyBullets: A 320                             <  B 384  ✔  (여유 20%)
 telegraphs:   A 80 (파생)                       <  B 96   ✔  (여유 20%)   ← v1.1 정정
 ```

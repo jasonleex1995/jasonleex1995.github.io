@@ -371,6 +371,6 @@
     "arc": { "radiusPx": 180, "spanDeg": 120 },
     "pincer": { "yStartPx": 120, "yStepPx": 60 },
     "scatter": { "jitterPx": 90, "minSepPx": 40 },
-    "wall": { "gapPx": 29, "rowGapPx": 40, "perRow": 20, "laneSlots": 2, "laneStrideCols": 3, "jitterY": 0.85 }
+    "wall": { "gapPx": 20, "rowGapPx": 28, "perRow": 28, "laneSlots": 3, "laneStrideCols": 4, "jitterY": 0.85 }
   }
 }

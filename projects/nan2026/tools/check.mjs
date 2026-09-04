@@ -1763,6 +1763,13 @@ function S11_rngStreams() {
 // ===========================================================================
 //  S12 — 2층 캡 (§12.1) — A층 오써링 예산 < B층 안전망 캡 + 파생값 무결성
 // ===========================================================================
+function maxThreatScale() {
+  const c = D.stages && D.stages.curve && D.stages.curve.threatBudgetScale;
+  if (!Array.isArray(c) || c.length === 0) return 1;
+  let m = 1;
+  for (const v of c) if (num(v) && v > m) m = v;
+  return m;
+}
 function maxMidBoss() {
   const mc = D.stages && D.stages.curve && D.stages.curve.midBossCount;
   if (!Array.isArray(mc) || mc.length === 0) return 0;
@@ -1792,9 +1799,10 @@ function S12_twoLayerCaps() {
     // §12.1(v1.9) — 도입 구간의 몸(introBody)은 «위협» 예산에서 빠지고 자기 몫을 쓴다.
     //   그 몫은 웨이브 예산과 «배타가 아니다»: 벽이 창을 넘어 내려오는 동안 정상 웨이브가 함께 선다.
     //   그래서 A층 합은 max 가 아니라 **덧셈**이고, 이 행이 그 덧셈을 B층 아래로 묶는다.
+    // §8.19(v1.10) 웨이브 몫은 포지션 곡선 threatBudgetScale 을 탄다 — 최댓값으로 센다(유령 몫은 배율 없음, midboss.js).
     ['enemies-mobPhase',
-      (f.enemyConcurrentMax || 0) * 2 + (f.introConcurrentMax || 0) + maxMidBoss(),
-      `enemyConcurrentMax(${f.enemyConcurrentMax}) 웨이브 + 같은 값 유령 + introConcurrentMax(${f.introConcurrentMax}) 도입 + max(midBossCount)(${maxMidBoss()})`,
+      Math.round((f.enemyConcurrentMax || 0) * maxThreatScale()) + (f.enemyConcurrentMax || 0) + (f.introConcurrentMax || 0) + maxMidBoss(),
+      `enemyConcurrentMax(${f.enemyConcurrentMax}) × max(threatBudgetScale)(${maxThreatScale()}) 웨이브 + enemyConcurrentMax 유령 + introConcurrentMax(${f.introConcurrentMax}) 도입 + max(midBossCount)(${maxMidBoss()})`,
       caps.enemies],
     ['enemyBullets', f.maxSimultaneousEnemyBullets, `maxSimultaneousEnemyBullets(${f.maxSimultaneousEnemyBullets})`, caps.enemyBullets],
     ['telegraphs', f.telegraphConcurrentMaxGlobal, `telegraphConcurrentMaxGlobal(${f.telegraphConcurrentMaxGlobal})`, caps.telegraphs],
@@ -2852,9 +2860,14 @@ function S50_minPerWave() {
       continue;
     }
     if (!num(bv.hpMult)) { V('S50', `enemies.bands.${bn}.hpMult 가 수가 아니다`); continue; }
-    if (cap !== undefined && num(cap) && v > cap / 2) {
-      V('S50', `enemies.bands.${bn}.minPerWave = ${v} > enemyConcurrentMax(${cap}) ÷ 2 — `
-        + '한 웨이브가 A층 예산의 절반을 혼자 먹는다 (§12.1)');
+    // §8.19(v1.10) 몸 수의 예산은 «자기 몫»이다 — 무공격 몸(chaff = 도입 밴드)은 introConcurrentMax,
+    //   나머지 밴드는 enemyConcurrentMax. 비율 모델에서 웨이브의 몸 수는 chaff 하한이 사실상 정한다
+    //   (저작 count 가 3~16 이라 전부 하한에 걸린다, 실측) — 그래서 이 하한이 곧 «초기 구간의 밀도 손잡이»다.
+    const introCap = D.rules.fairness && D.rules.fairness.introConcurrentMax;
+    const myCap = bn === 'chaff' ? introCap : cap;
+    if (myCap !== undefined && num(myCap) && v > myCap / 2) {
+      V('S50', `enemies.bands.${bn}.minPerWave = ${v} > ${bn === 'chaff' ? 'introConcurrentMax' : 'enemyConcurrentMax'}(${myCap}) ÷ 2 — `
+        + '한 웨이브가 자기 몫 예산의 절반을 혼자 먹는다 (§12.1)');
     }
     seen.push([bn, bv.hpMult, v]);
   }
