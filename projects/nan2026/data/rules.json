@@ -146,8 +146,7 @@
     "maxSimultaneousEnemyBullets": 320,
     "maxBulletAgeSec": 6,
     "enemyConcurrentMax": 42, "introConcurrentMax": 400,
-    "swarmConcurrentMax": 100,
-    "crisisWaveResidualMax": 10,
+    "swarmConcurrentMax": 120,
     "telegraphConcurrentMaxPerEntity": 2,
     "telegraphConcurrentMaxGlobal": 84,
     "playerWeaponsExempt": true

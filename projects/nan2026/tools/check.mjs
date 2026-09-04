@@ -250,7 +250,7 @@ function census() {
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
     ['weapons.weapons', D.weapons && D.weapons.weapons, 10, '§9.5 — 10 패밀리 1:1 (v1.5: omni·mine 삭제)'],
     ['passives.passives', D.passives && D.passives.passives, 11, '§9.6 — 11종 (v1.5 salvage 제거)'],
-    ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 12, '§9.9 — 12행'],
+    ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 6, '§9.9 — 6행 (v1.10 ⑥ 서브웨이브당 1행)'],
   ];
   for (const [path, arr, minRows, why] of need) {
     if (!Array.isArray(arr)) {
@@ -520,7 +520,7 @@ function S2_schema() {
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   closedKeys('S2', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec', 'maxBulletSpeed',
     'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx', 'minGapWidthPx', 'minSpawnRadiusPx',
-    'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax', 'swarmConcurrentMax', 'crisisWaveResidualMax',
+    'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax', 'swarmConcurrentMax',
     'telegraphConcurrentMaxPerEntity', 'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt'], 'rules.fairness');
 
   // ★ v1.5: hud.icons 14 → 3 (§9.4.1 — 상점·소비아이템 폐지로 살아있는 어휘 = xp + 상태이상 2종)
@@ -825,7 +825,7 @@ function S2_files() {
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
-    'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisDurationSec',
+    'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisBodyId', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
     'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
     'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
@@ -838,10 +838,10 @@ function S2_files() {
   }
   // §9.9.3: crisisSubWaveIntervalSec 은 파생값이지 키가 아니다 (새 키 0)
   if (has(D.stages.phase, 'crisisSubWaveIntervalSec')) {
-    V('S2', 'stages.phase.crisisSubWaveIntervalSec: 파생값이지 키가 아니다 — §9.9.3 (= crisisDurationSec / crisisSubWaves)');
+    V('S2', 'stages.phase.crisisSubWaveIntervalSec: 파생값이지 키가 아니다 — §9.9.3 (= crisisCycleSec / crisisSubWaves)');
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
-    closedKeys('S2', cw, ['subWave', 'formationId', 'archetypeId', 'count', 'spawnEdge'], 'stages.phase.crisisWaves[]');
+    closedKeys('S2', cw, ['subWave', 'formationId', 'count', 'spawnEdge'], 'stages.phase.crisisWaves[]');   // v1.10 ⑥ archetypeId 삭제
   }
   // §9.9.2 formations — 6종 + 파라미터
   closedKeys('S2', D.stages.formations, FORMATION_IDS, 'stages.formations');
@@ -986,9 +986,10 @@ function refIntegrity() {
     });
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
-    need(archIds, cw && cw.archetypeId, 'stages.phase.crisisWaves[].archetypeId');
     need(formIds, cw && cw.formationId, 'stages.phase.crisisWaves[].formationId');
   }
+  need(archIds, D.stages.phase && D.stages.phase.crisisBodyId, 'stages.phase.crisisBodyId');          // v1.10 ⑥
+  need(archIds, D.stages.phase && D.stages.phase.crisisShooterId, 'stages.phase.crisisShooterId');
   need(emitIds, D.rules.boss && D.rules.boss.coreEmitterId, 'rules.boss.coreEmitterId');   // §9.8.1 v1.5
   for (const id of rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed)) {
     need(bossIds, id, 'rules.boss.midBossSummonsAllowed');
@@ -1792,8 +1793,9 @@ function S12_twoLayerCaps() {
   // A층 < B층 (전역 대 전역)
   const rowsAB = [
     // §12.1 정정: 위기 중 = 새떼 70 + 웨이브 잔존 10 = 80 이 A층 enemies 합
-    ['enemies', (f.swarmConcurrentMax || 0) + (f.crisisWaveResidualMax || 0),
-      `swarmConcurrentMax(${f.swarmConcurrentMax}) + crisisWaveResidualMax(${f.crisisWaveResidualMax})`, caps.enemies],
+    // v1.10 ⑥ — 위기 중 무대 = 새떼 + 남은 유령(Nest 소환, 자기 몫 enemyConcurrentMax). crisisWaveResidualMax 는 폐지(읽는 곳 0).
+    ['enemies-crisis', (f.swarmConcurrentMax || 0) + (f.enemyConcurrentMax || 0),
+      `swarmConcurrentMax(${f.swarmConcurrentMax}) + enemyConcurrentMax(${f.enemyConcurrentMax}) 유령`, caps.enemies],
     // §12.1(v1.8) — 잡몹 페이즈의 A층 enemies 합. 웨이브 예산과 유령 예산은 «다른 몫»이고
     //   유령은 새 키 없이 같은 enemyConcurrentMax 를 자기 상한으로 재사용한다(midboss.summon).
     // §12.1(v1.9) — 도입 구간의 몸(introBody)은 «위협» 예산에서 빠지고 자기 몫을 쓴다.
@@ -2057,7 +2059,11 @@ function S20_formationExclusivity() {
     });
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
-    if (isObj(cw)) check(cw.formationId, cw.archetypeId, `stages.phase.crisisWaves[subWave ${cw.subWave}, ${cw.archetypeId}]`);
+    if (!isObj(cw)) continue;
+    // v1.10 ⑥ — 서브웨이브 하나에 몸(crisisBodyId)과 공격형(crisisShooterId)이 봉지로 섞인다: 둘 다 그 편대에 맞아야 한다
+    for (const id of [D.stages.phase.crisisBodyId, D.stages.phase.crisisShooterId]) {
+      check(cw.formationId, id, `stages.phase.crisisWaves[subWave ${cw.subWave}, ${id}]`);
+    }
   }
   for (const b of BOSSES()) {
     if (isObj(b) && isObj(b.summon)) check(b.summon.formationId, b.summon.archetypeId, `bosses[${b.id}].summon`);
@@ -2096,37 +2102,35 @@ function S22_swarmXpShare() {
   const archById = new Map(ARCHETYPES().map((a) => [a && a.id, a]));
   const scale = rowsQuiet(curve.swarmTotalScale);
   const FINAL_ID = FINAL();
+  const minPerWave = D.enemies.bands && D.enemies.bands.chaff && D.enemies.bands.chaff.minPerWave;
   let n = 0;
 
-  // ★ 테마 순서는 셔플된다(§8.1) → 어떤 테마가 어느 스테이지에 와도 성립해야 한다
+  // ★ v1.10 ⑥ — «지분»이 아니라 «율»이다. 새떼는 위기 내내 반복되고(crisisSwarmLoop) 위기 길이는 격파 시각의 함수라
+  //   총량을 정적으로 못 센다. 그리고 비율 모델(§8.19)에서 실제 웨이브 몸 수는 저작 count 가 아니라 chaff.minPerWave 다.
+  //   → 초당 XP 로 견준다: 새떼 = crisisTotal × scale × swarmXp ÷ crisisCycleSec,
+  //                       초기 = chaff.minPerWave × introXp ÷ earlyWaveIntervalSec (몸 수 하한 = 실측 스폰, §8.7.1).
+  //   새떼율 ÷ 초기율 ≤ SWARM_XP_CAP — 위기가 초기 구간보다 빨리 파밍되면 «위기»가 아니라 «수확»이다(§8.10).
+  if (!num(minPerWave) || !num(ph.earlyWaveIntervalSec) || !num(ph.crisisCycleSec) || ph.earlyWaveIntervalSec <= 0 || ph.crisisCycleSec <= 0) {
+    A('stages.phase.earlyWaveIntervalSec / crisisCycleSec / enemies.bands.chaff.minPerWave', 'S22 의 두 율을 확정할 수 없다');
+    return;
+  }
   for (const t of rows('S22', D.stages.stages, 'stages.stages',
     '§8.10 — 새떼 XP 상한이 0행을 보면 분모가 없다')) {
     if (!isObj(t)) continue;
+    const intro = archById.get(t.introArchetypeId);
+    if (!intro || !num(intro.xp)) { A(`stages.stages[${t.id}].introArchetypeId`, 'S22 의 초기율(도입종 xp)을 확정할 수 없다'); continue; }
+    const earlyRate = minPerWave * intro.xp / ph.earlyWaveIntervalSec;
+    if (earlyRate <= 0) { V('S22', `stages.stages[${t.id}]: 초기 XP 율 = 0 → 분모 없음`); continue; }
     const stageAxis = t.id === FINAL_ID ? [6] : [1, 2, 3, 4, 5];
     for (const st of stageAxis) {
-      let waveXp = 0, unresolved = false;
-      for (const w of rowsQuiet(t.waves)) {
-        if (!isObj(w)) continue;
-        if (!num(w.unlockStageMin) || isAmb(w.unlockStageMin)) { unresolved = true; continue; }
-        if (w.unlockStageMin > st) continue;             // ★ v1.3: 저작 리스트의 정의 (S8과 같은 필터)
-        const a = archById.get(w.archetypeId);
-        if (!a || !num(a.xp) || !num(w.count)) { unresolved = true; continue; }
-        waveXp += w.count * a.xp;
-      }
-      if (unresolved) {
-        A(`stages.stages[${t.id}].waves[].unlockStageMin`,
-          `S22 의 분모(스테이지 ${st} 저작 리스트 Σ XP)를 확정할 수 없다`);
-        break;
-      }
-      if (waveXp <= 0) { V('S22', `stages.stages[${t.id}] @ s${st}: 저작 리스트 Σ XP = 0 → 분모 없음`); continue; }
-      const s = num(scale[st - 1]) ? scale[st - 1] : null;
-      if (s === null) { A(`stages.curve.swarmTotalScale[${st - 1}]`, 'S22 를 평가할 수 없다'); continue; }
+      const sc = num(scale[st - 1]) ? scale[st - 1] : null;
+      if (sc === null) { A(`stages.curve.swarmTotalScale[${st - 1}]`, 'S22 를 평가할 수 없다'); continue; }
       n += 1;
-      const crisisXp = (num(ph.crisisTotal) ? ph.crisisTotal : 0) * s * swarmXp;
-      const ratio = crisisXp / waveXp;
+      const crisisRate = (num(ph.crisisTotal) ? ph.crisisTotal : 0) * sc * swarmXp / ph.crisisCycleSec;
+      const ratio = crisisRate / earlyRate;
       if (ratio > SWARM_XP_CAP + 1e-9) {
-        V('S22', `stages.stages[${t.id}] @ 스테이지 ${st}: 새떼 XP 지분 ${ratio.toFixed(3)} > ${SWARM_XP_CAP} `
-          + `(위기 ${crisisXp} / 웨이브 ${waveXp}) — §13.4-S22 (상한이지 목표가 아니다, §8.10)`);
+        V('S22', `stages.stages[${t.id}] @ 스테이지 ${st}: 새떼 XP 율 ${crisisRate.toFixed(1)}/s ÷ 초기 ${earlyRate.toFixed(1)}/s = ${ratio.toFixed(3)} > ${SWARM_XP_CAP} `
+          + '— §13.4-S22 (v1.10 ⑥ 율 기준 · 상한이지 목표가 아니다, §8.10)');
       }
     }
   }
@@ -2313,12 +2317,24 @@ function S26_concurrentBudget() {
   }
   // 새떼 전원이 동시에 살아있는 최악(= 아무도 안 죽는다)도 예산 안이어야 한다
   if (num(ph.crisisTotal) && num(f.swarmConcurrentMax)) {
+    // v1.10 ⑥ — 한 사이클(crisisCycleSec)이 통째로 무대에 서지는 않는다: 몸은 arena.h ÷ (최저 새떼 속도 × sectionSpeedMul.crisis)
+    //   초 만에 빠져나간다. 무대 상한 = 사이클 총량 × min(1, 체류 ÷ 사이클). 체류가 사이클보다 길면 옛 식(전량)으로 돌아간다.
+    const arch = {}; for (const a of ARCHETYPES()) if (isObj(a)) arch[a.id] = a;
+    let vMin = Infinity;
+    for (const id of [ph.crisisBodyId, ph.crisisShooterId]) {
+      const a = arch[id]; const v = a && a.moveParams && a.moveParams.speed;
+      if (num(v) && v > 0 && v < vMin) vMin = v;
+    }
+    const mul = ph.sectionSpeedMul && num(ph.sectionSpeedMul.crisis) ? ph.sectionSpeedMul.crisis : 1;
+    const ah = D.rules.view && D.rules.view.arena && D.rules.view.arena.h;
+    const dwell = (num(ah) && vMin < Infinity) ? ah / (vMin * mul) : Infinity;
+    const share = (num(ph.crisisCycleSec) && ph.crisisCycleSec > 0) ? Math.min(1, dwell / ph.crisisCycleSec) : 1;
     rowsQuiet(curve.swarmTotalScale).forEach((s, i) => {
       if (!num(s)) return;
-      const total = ph.crisisTotal * s;
+      const total = ph.crisisTotal * s * share;
       if (total > f.swarmConcurrentMax) {
-        V('S26', `위기 총량 @ 스테이지 ${i + 1}: crisisTotal(${ph.crisisTotal}) × swarmTotalScale(${s}) = ${total} `
-          + `> swarmConcurrentMax(${f.swarmConcurrentMax}) (§12.1/S26)`);
+        V('S26', `위기 무대 상한 @ 스테이지 ${i + 1}: crisisTotal(${ph.crisisTotal}) × swarmTotalScale(${s}) × 체류비(${share.toFixed(2)}) = ${total.toFixed(1)} `
+          + `> swarmConcurrentMax(${f.swarmConcurrentMax}) (§12.1/S26 v1.10 ⑥)`);
       }
     });
   }
@@ -2495,7 +2511,7 @@ function S31_crisisComposition() {
   const ph = D.stages.phase;
   if (!isObj(ph)) return;
   const cws = rows('S31', ph.crisisWaves, 'stages.phase.crisisWaves',
-    '§8.10 — 위기 편성이 0행이면 새떼가 아예 등장하지 않는다 (v1.3이 처음 인쇄한 12행)');
+    '§8.10 — 위기 편성이 0행이면 새떼가 아예 등장하지 않는다 (v1.10 ⑥ 서브웨이브당 1행 = 6행)');
   if (!cws.length) return;
 
   let sum = 0;
@@ -2503,10 +2519,24 @@ function S31_crisisComposition() {
   for (const cw of cws) {
     if (!isObj(cw)) continue;
     if (num(cw.count)) sum += cw.count;
+    if (subs.has(cw.subWave)) V('S31', `stages.phase.crisisWaves: subWave ${cw.subWave} 레코드가 둘 — v1.10 ⑥ 은 서브웨이브당 레코드 하나(몸/공격형은 봉지가 가른다)`);
     subs.add(cw.subWave);
-    if (!/^swarm/.test(String(cw.archetypeId))) {
-      V('S31', `stages.phase.crisisWaves: archetypeId "${cw.archetypeId}" 가 swarm* 가 아니다 — 위기 세션은 새떼 전용 (§8.10/S31)`);
+  }
+  // v1.10 ⑥ — 몸/공격형은 phase 가 지명한다: 둘 다 swarm* · 몸은 attack null · 공격형은 attack ≠ null · 둘 다 chaff 밴드(몸 수는 chaff 로 센다)
+  {
+    const arch = {}; for (const a of ARCHETYPES()) if (isObj(a)) arch[a.id] = a;
+    const body = arch[ph.crisisBodyId]; const shooter = arch[ph.crisisShooterId];
+    if (!body) V('S31', `stages.phase.crisisBodyId "${ph.crisisBodyId}" 미지`);
+    else {
+      if (!/^swarm/.test(body.id)) V('S31', `crisisBodyId "${body.id}" 가 swarm* 가 아니다 — 위기 세션은 새떼 전용 (§8.10)`);
+      if (body.attack !== null) V('S31', `crisisBodyId "${body.id}" 가 쏜다 — 새떼의 «몸»은 무공격이어야 한다 (§8.10 v1.10 ⑥)`);
     }
+    if (!shooter) V('S31', `stages.phase.crisisShooterId "${ph.crisisShooterId}" 미지`);
+    else {
+      if (!/^swarm/.test(shooter.id)) V('S31', `crisisShooterId "${shooter.id}" 가 swarm* 가 아니다 (§8.10)`);
+      if (!isObj(shooter.attack)) V('S31', `crisisShooterId "${shooter.id}" 가 안 쏜다 — 새떼의 «공격형»은 attack ≠ null (§8.10 v1.10 ⑥)`);
+    }
+    if (body && shooter && body.id === shooter.id) V('S31', 'crisisBodyId == crisisShooterId — 봉지가 가를 두 종이 하나다');
   }
   if (num(ph.crisisTotal) && sum !== ph.crisisTotal) {
     V('S31', `stages.phase.crisisWaves: Σ count = ${sum} ≠ crisisTotal(${ph.crisisTotal}) (§8.10/S31)`);
@@ -3027,7 +3057,7 @@ function S54_sectionsAndRatio() {
   // ② 겹침 — 정상 로스터에 서는 «하강»종의 최속 통과 시간
   const a = D.rules.view.arena; const iv = ph.waveIntervalSec;
   const arch = {}; for (const x of D.enemies.archetypes) arch[x.id] = x;
-  const crisisOnly = {}; for (const c of (ph.crisisWaves || [])) crisisOnly[c.archetypeId] = 1;
+  const crisisOnly = {}; crisisOnly[ph.crisisBodyId] = 1; crisisOnly[ph.crisisShooterId] = 1;   // v1.10 ⑥
   let fastest = Infinity; let who = '';
   for (const s2 of st.stages) for (const ro of (s2.roster || [])) {
     const x = arch[ro.archetypeId]; if (!x || crisisOnly[x.id]) continue;
@@ -3096,9 +3126,9 @@ function S54_sectionsAndRatio() {
  *      — 소환자가 아니면 중간보스 구간(웨이브 정지)에 «적당히 나올 몹»이 없다
  *   ② 소환자를 뺀 tier "mid" 종이 ≥ 1 — 둘째 마리부터 뽑을 «다른 형태»가 있어야 한다
  *   ③ 시계 일관성: 모든 포지션에서 midBossAtSec[last] < crisisStartSec (S29 가 이미 본다) 그리고
- *      crisisStartSec + crisisDurationSec ≤ mobPhaseSec — 새떼가 페이즈 끝을 넘으면 잘린다
- *   ④ 위기가 격파로 앞당겨질 때(crisisOnMidBossClear) 정상 웨이브가 계속 흘러야 무대가 비지 않는다:
- *      crisisOnMidBossClear ⇒ !crisisSuspendsWaves (둘 다 true 면 새떼 14초 뒤 페이즈 끝까지 «공백»)
+ *      crisisStartSec + crisisCycleSec ≤ mobPhaseSec — 새떼 한 사이클은 돌아야 한다
+ *   ④ 위기가 격파로 앞당겨질 때(crisisOnMidBossClear) 무대가 비면 안 된다:
+ *      crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop) — v1.10 ⑥ 은 새떼 반복이 채운다
  */
 function S55_midBossSection() {
   const ph = D.stages && D.stages.phase;
@@ -3120,14 +3150,14 @@ function S55_midBossSection() {
   if (mids.filter((b) => b.id !== ph.midBossFirstId).length === 0) V('S55', '소환자를 뺀 tier "mid" 종이 0 — 둘째 마리부터 뽑을 «다른 형태»가 없다 (§8.19)');
   // ③ 시계
   n += 1;
-  if (num(ph.crisisStartSec) && num(ph.crisisDurationSec) && num(ph.mobPhaseSec)
-    && ph.crisisStartSec + ph.crisisDurationSec > ph.mobPhaseSec) {
-    V('S55', `crisisStartSec ${ph.crisisStartSec} + crisisDurationSec ${ph.crisisDurationSec} > mobPhaseSec ${ph.mobPhaseSec} — 새떼가 페이즈 끝에 잘린다 (§8.10)`);
+  if (num(ph.crisisStartSec) && num(ph.crisisCycleSec) && num(ph.mobPhaseSec)
+    && ph.crisisStartSec + ph.crisisCycleSec > ph.mobPhaseSec) {
+    V('S55', `crisisStartSec ${ph.crisisStartSec} + crisisCycleSec ${ph.crisisCycleSec} > mobPhaseSec ${ph.mobPhaseSec} — 새떼 한 사이클도 못 돈다 (§8.10)`);
   }
-  // ④ 앞당김 ⇒ 웨이브 계속
+  // ④ 앞당김 ⇒ 무대가 비지 않는다: 웨이브가 계속되거나(¬crisisSuspendsWaves) 새떼가 반복된다(crisisSwarmLoop)
   n += 1;
-  if (ph.crisisOnMidBossClear === true && ph.crisisSuspendsWaves === true) {
-    V('S55', 'crisisOnMidBossClear ∧ crisisSuspendsWaves — 격파로 앞당긴 위기가 새떼 뒤 페이즈 끝까지 «공백»이 된다 (§8.19 v1.10)');
+  if (ph.crisisOnMidBossClear === true && ph.crisisSuspendsWaves === true && ph.crisisSwarmLoop !== true) {
+    V('S55', 'crisisOnMidBossClear ∧ crisisSuspendsWaves ∧ ¬crisisSwarmLoop — 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 (§8.19 v1.10)');
   }
   EX('S55', n);
 }

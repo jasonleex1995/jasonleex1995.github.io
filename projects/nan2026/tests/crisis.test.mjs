@@ -1,11 +1,12 @@
 /**
  * tests/crisis.test.mjs — §8.10 위기 세션(새떼) 편성·속성·웨이브 정지.
  *
- * 정본 계약:
- *   - 총량 = crisisTotal(60) × swarmTotalScale[포지션], 서브웨이브 crisisSubWaves(6) 파.
- *   - 편성 = 서브웨이브당 swarmChaff 9 + swarmLancer 1 (9:1). 스케일링이 랜서를 0 으로 잘라선 안 된다.
- *   - 속성 = themePure(전부 테마) | finaleRotating(1·2 물 → 3·4 불 → 5·6 풀, §8.16).
- *   - crisisSuspendsWaves — 위기 중 정상 웨이브 정지.
+ * 정본 계약 (v1.10 ⑥ 새떼 반복):
+ *   - 한 사이클 = crisisSubWaves(6) 파 · crisisCycleSec 초. 총량 = round(crisisTotal × swarmTotalScale[포지션]).
+ *   - 편성 = 서브웨이브 몸 수 count 중 round(count × shooterRatio[포지션]) 이 crisisShooterId, 나머지 crisisBodyId (봉지).
+ *   - crisisSwarmLoop — 페이즈 끝까지 사이클을 반복한다(격파로 앞당긴 위기가 비지 않는다).
+ *   - 속성 = themePure(전부 테마) | finaleRotating(1·2 물 → 3·4 불 → 5·6 풀, §8.16) — 사이클마다 같은 회전.
+ *   - crisisSuspendsWaves — 위기 중 정상 웨이브 정지(정본 true).
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
@@ -38,74 +39,133 @@ function swarmStats(w) {
 }
 
 suite('crisis/§8.10 새떼', () => {
-  test('총량 = round(crisisTotal × swarmTotalScale) 이고 랜서가 잘리지 않는다 (전 포지션)', () => {
-    const d = loadData(); const ph = d.stages.phase; const sc = d.stages.curve.swarmTotalScale;
+  test('한 사이클 총량 = round(crisisTotal × swarmTotalScale) · 공격형 = 서브웨이브마다 round(count × shooterRatio) (전 포지션)', () => {
+    const d = loadData(); const ph = d.stages.phase; const sc = d.stages.curve.swarmTotalScale; const ratio = d.stages.curve.shooterRatio;
     for (let pos = 0; pos < sc.length; pos += 1) {
       const w = mkCrisisWorld(1, pos === 5 ? 'finale' : 'sea', pos);
-      w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec;    // 6파 전부 캐치업
+      w.run.phaseT = ph.crisisStartSec + ph.crisisCycleSec - 1e-6;     // 한 사이클(6파)까지만 캐치업
       enemies(w, TICK_DT);
       const st = swarmStats(w);
-      assert.eq(st.total, Math.round(ph.crisisTotal * sc[pos]), `pos${pos}(scale ${sc[pos]}) 총량`);
-      assert.gt(st.lancer, 0, `pos${pos} 랜서 > 0 (9:1 편성이 스케일링에 잘리지 않는다)`);
-      assert.gt(st.chaff, st.lancer, `pos${pos} chaff 가 다수 (9:1)`);
+      const want = Math.round(ph.crisisTotal * sc[pos]);
+      let planSum = 0;
+      for (let i = 0; i < w.spawner.crisisPlan.length; i += 1) planSum += w.spawner.crisisPlan[i];
+      assert.eq(planSum, want, `pos${pos}(scale ${sc[pos]}) 사이클 계획 합`);
+      // 한 틱에 6파를 캐치업하면 새떼 상한(swarmConcurrentMax)이 자를 수 있다 — 실제 플레이는 1.5초 간격이라 안 걸린다
+      const cap = d.rules.fairness.swarmConcurrentMax;
+      assert.eq(st.total, Math.min(want, cap), `pos${pos} 스폰 = min(총량, 상한 ${cap})`);
+      if (want <= cap) {
+        // 공격형 수 = Σ_서브웨이브 round(plan × ratio)
+        let wantShoot = 0;
+        for (let i = 0; i < w.spawner.crisisPlan.length; i += 1) wantShoot += Math.round(w.spawner.crisisPlan[i] * ratio[pos]);
+        assert.eq(st.lancer, wantShoot, `pos${pos} 공격형 = Σ round(count × ${ratio[pos]})`);
+        assert.gt(st.lancer, 0, `pos${pos} 공격형 > 0`);
+        if (ratio[pos] < 0.5) assert.gt(st.chaff, st.lancer, `pos${pos} 몸이 다수 (ratio ${ratio[pos]})`);
+      }
     }
   });
 
-  test('정확히 crisisSubWaves 파 — 시간이 더 지나도 추가 스폰 없음', () => {
+  test('공격형 지분 ≈ curve.shooterRatio[포지션] (정상 웨이브와 같은 곡선 — 서브웨이브 반올림 이내)', () => {
+    const d = loadData(); const ph = d.stages.phase; const ratio = d.stages.curve.shooterRatio;
+    for (let pos = 0; pos < 6; pos += 1) {
+      const w = mkCrisisWorld(2, pos === 5 ? 'finale' : 'glacier', pos);
+      // 서브웨이브 하나만 낸다(상한에 안 걸리게) — 지분은 그 파의 round(count × ratio) / count
+      w.run.phaseT = ph.crisisStartSec;
+      enemies(w, TICK_DT);
+      const st = swarmStats(w);
+      const count = w.spawner.crisisPlan[0];
+      assert.eq(st.total, count, `pos${pos} 첫 파 몸 수 = 계획 ${count}`);
+      assert.eq(st.lancer, Math.round(count * ratio[pos]), `pos${pos} 공격형 = round(${count} × ${ratio[pos]})`);
+    }
+  });
+
+  test('crisisSwarmLoop — 사이클이 페이즈 끝까지 반복된다 · false 면 정확히 crisisSubWaves 파', () => {
     const d = loadData(); const ph = d.stages.phase;
-    const w = mkCrisisWorld(3, 'sea', 3);
-    w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec * 2;   // 위기 길이의 2배가 지나도
+    assert.eq(ph.crisisSwarmLoop, true, '정본: 새떼 반복');
+    const w = mkCrisisWorld(3, 'sea', 2);
+    w.run.phaseT = ph.crisisStartSec + ph.crisisCycleSec * 2.5;        // 2.5 사이클
     enemies(w, TICK_DT);
-    assert.eq(w.spawner.crisisSpawned, ph.crisisSubWaves, '정확히 6파');
-    // ★ 총량은 crisisTotal 그 자체가 아니라 «스테이지 곡선을 태운 값»이다 (§8.10 swarmTotalScale).
-    //   하드코딩하면 곡선을 만질 때마다 이 테스트가 «실패»가 아니라 «거짓말»을 한다.
-    const scale = d.stages.curve.swarmTotalScale[2];               // 스테이지 3 = 인덱스 2
-    const want = Math.round(ph.crisisTotal * scale);
-    assert.eq(swarmStats(w).total, want, `총 ${want}기 (상한 초과 스폰 없음)`);
+    assert.eq(w.spawner.crisisSpawned, Math.floor(2.5 * ph.crisisSubWaves) + 1, '2.5 사이클 = 15파 + 진행 중 1파');
+    // ★ loadData() 는 캐시된 «같은 객체»다 — 값을 바꾸면 반드시 원복한다(다음 테스트로 샌다)
+    const w2 = mkCrisisWorld(3, 'sea', 2);
+    const saved = w2.data.stages.phase.crisisSwarmLoop;
+    try {
+      w2.data.stages.phase.crisisSwarmLoop = false;
+      w2.run.phaseT = ph.crisisStartSec + ph.crisisCycleSec * 2.5;
+      enemies(w2, TICK_DT);
+      assert.eq(w2.spawner.crisisSpawned, ph.crisisSubWaves, '반복이 꺼지면 6파에서 멈춘다');
+      const scale = d.stages.curve.swarmTotalScale[2];
+      const cap = d.rules.fairness.swarmConcurrentMax;                 // 한 틱 캐치업은 상한에 걸릴 수 있다
+      assert.eq(swarmStats(w2).total, Math.min(Math.round(ph.crisisTotal * scale), cap), '한 사이클 총량 (상한 초과 스폰 없음)');
+    } finally {
+      w2.data.stages.phase.crisisSwarmLoop = saved;
+    }
   });
 
   test('themePure = 전부 테마 속성 (sea → 물)', () => {
     const d = loadData(); const ph = d.stages.phase;
     const w = mkCrisisWorld(1, 'sea', 0);
-    w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec;
+    w.run.phaseT = ph.crisisStartSec + ph.crisisCycleSec;
     enemies(w, TICK_DT);
     assert.deepEq(swarmStats(w).elems, ['water'], 'sea 위기 = 전부 물 (정답 스탠스의 페이오프)');
   });
 
-  test('finaleRotating = 서브웨이브 1·2 물 → 3·4 불 → 5·6 풀', () => {
+  test('finaleRotating = 서브웨이브 1·2 물 → 3·4 불 → 5·6 풀 — 둘째 사이클도 같은 회전', () => {
     const d = loadData(); const ph = d.stages.phase;
-    const interval = ph.crisisDurationSec / ph.crisisSubWaves;
+    const interval = ph.crisisCycleSec / ph.crisisSubWaves;
     const want = ['water', 'water', 'fire', 'fire', 'grass', 'grass'];
-    for (let k = 0; k < ph.crisisSubWaves; k += 1) {
-      const w = mkCrisisWorld(1, 'finale', 5);
-      // 서브웨이브 창의 **중간점**을 쓴다 — 경계 정각은 부동소수로 floor 가 한쪽으로 떨어진다
-      w.run.phaseT = ph.crisisStartSec + (k + 0.5) * interval;     // k+1 파까지 캐치업
-      enemies(w, TICK_DT);
-      assert.ok(swarmStats(w).elems.includes(want[k]), `서브웨이브 ${k + 1} 속성에 ${want[k]} 포함`);
+    // 한 틱에 k+1 파를 캐치업하면 새떼 상한이 뒤 파를 잘라 속성이 안 보인다 — 이 테스트는 «회전»만 보므로 상한을 잠시 푼다(원복)
+    const fa = d.rules.fairness; const savedCap = fa.swarmConcurrentMax;
+    try {
+      fa.swarmConcurrentMax = 100000;
+      for (let k = 0; k < ph.crisisSubWaves * 2; k += 1) {
+        const w = mkCrisisWorld(1, 'finale', 5);
+        // 서브웨이브 창의 **중간점**을 쓴다 — 경계 정각은 부동소수로 floor 가 한쪽으로 떨어진다
+        w.run.phaseT = ph.crisisStartSec + (k + 0.5) * interval;     // k+1 파까지 캐치업
+        enemies(w, TICK_DT);
+        assert.ok(swarmStats(w).elems.includes(want[k % ph.crisisSubWaves]), `서브웨이브 ${k + 1} 속성에 ${want[k % ph.crisisSubWaves]} 포함`);
+      }
+    } finally {
+      fa.swarmConcurrentMax = savedCap;
     }
   });
 
-  test('crisisSuspendsWaves — false(정본): 위기 중에도 정상 웨이브가 계속 흐른다 · true: 새떼만', () => {
+  test('crisisSuspendsWaves — true(정본): 위기 중 정상 웨이브 0, 그래도 새떼가 무대를 채운다 · false: 웨이브도 흐른다', () => {
     const d = loadData(); const ph = d.stages.phase;
-    assert.eq(ph.crisisSuspendsWaves, false, '정본: 위기 = 「속도 빠른 적이 끊임없이 나오는 구간」(§8.19 v1.10)');
-    function wavesIn(suspend, sec) {
+    assert.eq(ph.crisisSuspendsWaves, true, '정본: 위기 = 새떼만 (§8.19 v1.10 ⑥)');
+    function run(suspend, sec) {
       const w = mkCrisisWorld(2, 'sea', 0);
+      const saved = w.data.stages.phase.crisisSuspendsWaves;        // 캐시 공유 — 원복 필수
       w.data.stages.phase.crisisSuspendsWaves = suspend;
-      w.run.phaseT = ph.crisisStartSec;
-      w.player.hp = 1e9; w.player.hpMax = 1e9;
-      for (let t = 0; t < Math.round(sec / TICK_DT); t += 1) step(w, makeInput(), TICK_DT);
-      assert.eq(w.run.crisis, true, '위기가 유지된다(sticky)');
-      return w.spawner.wavesSpawned;
+      try {
+        w.run.phaseT = ph.crisisStartSec;
+        w.player.hp = 1e9; w.player.hpMax = 1e9;
+        let minSwarmLive = Infinity;
+        for (let t = 0; t < Math.round(sec / TICK_DT); t += 1) {
+          step(w, makeInput(), TICK_DT);
+          if (w.run.phaseT > ph.crisisStartSec + 5) {                 // 5초 뒤부터는 늘 새떼가 있다
+            let live = 0;
+            for (const e of w.enemies.items) if (e.alive && e.archetypeId.startsWith('swarm')) live += 1;
+            if (live < minSwarmLive) minSwarmLive = live;
+          }
+        }
+        assert.eq(w.run.crisis, true, '위기가 유지된다(sticky)');
+        return { waves: w.spawner.wavesSpawned, minSwarmLive };
+      } finally {
+        w.data.stages.phase.crisisSuspendsWaves = saved;
+      }
     }
-    assert.gt(wavesIn(false, 30), 3, '30초 동안 정상 웨이브가 여러 번 나온다(새떼 뒤에도 무대가 안 빈다)');
-    assert.eq(wavesIn(true, 30), 0, 'true 면 위기 중 정상 웨이브 0');
+    const a = run(true, 30);
+    assert.eq(a.waves, 0, 'true 면 위기 중 정상 웨이브 0');
+    assert.gt(a.minSwarmLive, 10, '30초 내내 새떼가 무대에 있다(반복) — 최저 동시 > 10');
+    // false 면 정상 웨이브도 흐르지만, 새떼가 위협 예산(threatLive < enemyConcurrentMax)을 나눠 쓰니 드물다
+    assert.gt(run(false, 30).waves, 0, 'false 면 정상 웨이브도 흐른다');
   });
 
   test('결정성: 같은 시드·포지션 → 같은 편성', () => {
     const d = loadData(); const ph = d.stages.phase;
     function run() {
       const w = mkCrisisWorld(7, 'sea', 2);
-      w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec;
+      w.run.phaseT = ph.crisisStartSec + ph.crisisCycleSec;
       enemies(w, TICK_DT);
       const st = swarmStats(w);
       return `${st.chaff}/${st.lancer}`;

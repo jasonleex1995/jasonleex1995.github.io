@@ -213,7 +213,7 @@ function checkRules(c, r) {
   c.closed('rules.fairness', r.fairness, ['minTelegraphSec', 'beamLockSec', 'beamBlockRadiusPx', 'beamBlockRatio', 'minStunTelegraphSec', 'maxStunSec',
     'maxBulletSpeed', 'maxAimedBulletSpeed', 'statusBulletSpeedMul', 'minBulletRadiusPx',
     'minGapWidthPx', 'minSpawnRadiusPx', 'maxSimultaneousEnemyBullets', 'maxBulletAgeSec', 'enemyConcurrentMax', 'introConcurrentMax',
-    'swarmConcurrentMax', 'crisisWaveResidualMax', 'telegraphConcurrentMaxPerEntity',
+    'swarmConcurrentMax', 'telegraphConcurrentMaxPerEntity',
     'telegraphConcurrentMaxGlobal', 'playerWeaponsExempt']);
   c.closed('rules.hud', r.hud, ['hitboxAlwaysVisible', 'showElementBudget', 'fontHeroPx',
     'fontLargePx', 'fontMediumPx', 'fontBodyPx', 'fontSmallPx', 'panelPadPx', 'keycapBoxPx',
@@ -485,14 +485,14 @@ function checkStages(c, s) {
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
-    'crisisStartSec', 'crisisDurationSec', 'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal',
+    'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisBodyId', 'crisisShooterId',
     'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {
     for (let i = 0; i < s.phase.crisisWaves.length; i += 1) {
       c.closed(`stages.phase.crisisWaves[${i}]`, s.phase.crisisWaves[i],
-        ['subWave', 'formationId', 'archetypeId', 'count', 'spawnEdge']);
+        ['subWave', 'formationId', 'count', 'spawnEdge']);          // v1.10 ⑥ archetypeId 삭제 — 몸/공격형은 phase.crisisBodyId/ShooterId + 봉지
     }
   }
   // §9.9.2 — 편대 6종 + 파라미터

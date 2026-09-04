@@ -648,7 +648,7 @@ render(world, acc / tickDur);                         // alpha 보간은 위치�
 | 웨이브 기본 간격 | `stages.phase.waveIntervalSec` | **9.0** |
 | 웨이브 상한 ★v1.10 | `stages.phase.mobPhaseMaxWaves` | **56** — S54 ③ 이 포지션마다 «초기 + 최장 위기»로 하한을 잡는다(포지션 1 = 16 + 34 = 50) · ~~14~~ ~~24~~ ~~48~~ |
 | 위기 세션 시작 ★v1.10 | `stages.phase.crisisStartSec` | **80** = **상한**. 실제 시작 = `min(중간보스 전원 격파, 80)` (`crisisOnMidBossClear`, §8.19 ①) · ~~95 (= 마지막 25초)~~ |
-| 새떼 길이 ★v1.10 | `stages.phase.crisisDurationSec` | **14** — 새떼가 여는 길이. 위기 «구간»은 `mobPhaseSec` 까지(가변, 최장 70초) · ~~25~~ |
+| 새떼 사이클 ★v1.10 ⑥ | `stages.phase.crisisCycleSec` | **9** — 6파 한 사이클. `crisisSwarmLoop` 로 페이즈 끝까지 반복. 위기 «구간»은 `mobPhaseSec` 까지(가변, 최장 70초) · ~~`crisisDurationSec` 25 → 14~~ (개명) |
 | ~~위기 세션 예고~~ | ~~`stages.phase.crisisWarnSec`~~ | **폐지(v1.10)** — 읽는 곳 0 + 격파 앞당김은 예고 불가 |
 | 중간보스 진입 창 ★v1.10 ③ | ★ `stages.phase.midBossAtSec` | **`[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`** — 첫 둘은 30초에 함께, 나머지는 10초 간격 (스테이지 인덱스 배열, §8.9) |
 | ~~**중간보스 이탈**~~ | ~~`stages.phase.midBossLeaveAfterSec`~~ | **폐지(v1.10)** — 격파 아니면 위기 상한까지 선다(§8.9 «선택적» 개정) |
@@ -1117,7 +1117,7 @@ v1.1: 「`view.spawnLineY`(**−40**) **바로 아래**」. 그러나 **`spawnLi
 | 근거 | |
 |---|---|
 | **적의 외곽선이 이미 답이다** | §7.6: 적 속성 = 속성색 외곽선 2px + 코어 글리프 + 림 라이트, **군중 속 <200ms 판독**이 이미 계약이다. 서브웨이브가 **물×2 → 불×2 → 풀×2**로 오면 화면의 색이 통째로 바뀐다 — 그것이 고지다 |
-| **리드타임은 구조가 준다** | 서브웨이브 간격 = `crisisDurationSec / crisisSubWaves` = 25/6 ≈ **4.17 게임초**(파생값, 새 키 0 — 04-R15 채택). 새떼는 `spawnLineY = −40`에서 스폰해 상단 띠를 통과해 내려온다(§1.2) → **도달 전 최소 1초 이상 색이 보인다** |
+| **리드타임은 구조가 준다** | 서브웨이브 간격 = `crisisCycleSec / crisisSubWaves` = 9/6 = **1.5 게임초**(파생값, 새 키 0 — 04-R15 채택 · v1.10 ⑥ ~~25/6 ≈ 4.17~~). 새떼는 `spawnLineY = −40`에서 스폰해 상단 띠를 통과해 내려온다(§1.2) → **도달 전 최소 1초 이상 색이 보인다** |
 | **02의 우려("로테이션을 알리는 채널이 없으면 졸업 시험이 운이 된다")에 대한 답** | **운이 아니다 — 반응이다.** 4.17초 간격 · 색이 화면 절반을 채움 · `player.stanceSwitchCooldown = 0` · 스탠스 전환은 **다음 틱 즉시 적용**(§4.3). 4.17초는 무-트위치 예산의 **7배**(`minTelegraphSec` 0.55 기준). 그리고 §8.16이 이 장면을 "졸업 시험"이라 부른 것은 **"보고 바꿀 수 있는가"의 시험**이라는 뜻이지 "미리 알려주면 되는 시험"이 아니다. **미리 알려주면 시험이 아니라 대본이다.** |
 
 ### 7.12.4 호박 채널 — **정확히 5곳 (확정)**
@@ -1606,12 +1606,15 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | 키 | 값 |
 |---|---|
 | `stages.phase.crisisPerStage` | **1** (매 스테이지 필수) — ★ **v1.3: 인쇄 자리를 줬다**(§9.9). v1.2는 백틱 키로 참조하면서 `phase` 블록에 넣지 않았다 |
-| `stages.phase.crisisStartSec` / `crisisDurationSec` ★v1.10 | **80**(상한) / **14**(새떼가 여는 길이) — ★ 위기의 «시작»은 `crisisStartSec` 이 아니라 **`min(중간보스 전원 격파 시각, crisisStartSec)`** 이고(`crisisOnMidBossClear`, §8.19 ①), 새떼는 그 원점(`run.crisisAtSec`)에서 `crisisDurationSec` 동안 `crisisSubWaves` 파를 낸다. 위기 자체는 **`mobPhaseSec` 까지** 이어진다(길이 가변, 최장 70초) · ~~95/25~~ ~~106/14~~ |
+| `stages.phase.crisisStartSec` ★v1.10 | **80** = **상한**. 위기의 «시작»은 **`min(중간보스 전원 격파 시각, crisisStartSec)`** (`crisisOnMidBossClear`, §8.19 ①), 원점은 `run.crisisAtSec`. 위기 자체는 **`mobPhaseSec` 까지**(길이 가변, 최장 70초) · ~~95~~ ~~106~~ |
 | ~~`crisisWarnSec`~~ ★v1.10 | **폐지** — 읽는 곳이 0 이었고(죽은 키), 격파로 앞당겨지는 시작은 시계로 예고할 수 없다. HUD 는 `run.crisis` 로 «위기» 표식을 켠다 |
-| `stages.phase.crisisSuspendsWaves` ★v1.10 | **false** — 위기 = 「속도 빠른 적이 끊임없이 나오는 구간」(사용자 2026-09-04). 정상 웨이브가 `waveIntervalSec` 간격·`sectionSpeedMul.crisis`(1.45)로 **계속** 흐르고 새떼가 그 위에 얹힌다. 예산은 `threatLive < enemyConcurrentMax × threatBudgetScale` 이 자율 조절(새떼가 서 있는 동안 웨이브가 기다린다). ~~true (106초에 스포너 정지 = 관대함)~~ — S55 ④: `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves` |
-| `stages.phase.crisisTotal` | **60 × `swarmTotalScale[stage]`** |
-| `stages.phase.crisisSubWaves` | 6 (10기 × 6파, `arc`/`vWedge`) |
-| ★ `stages.phase.crisisWaves` | **12 레코드** (서브웨이브당 `swarmChaff` 9 + `swarmLancer` 1) — ★ **v1.3 신설, 아래** |
+| ★ **`stages.phase.crisisCycleSec`** ★v1.10 ⑥ | **9** — 새떼 **한 사이클**(`crisisSubWaves` 6파, 균등 간격 1.5초)의 길이. ~~`crisisDurationSec` 25 → 14~~ 를 **개명** — 위기의 «길이»가 아니라 사이클의 길이이므로 이름이 거짓이었다 |
+| ★ **`stages.phase.crisisSwarmLoop`** ★v1.10 ⑥ | **true** — 사이클을 **페이즈 끝까지 반복**한다. 사용자(2026-09-04): 「위기 구간은 거의 날아오는 적 피하기 — 빠른 무리가 쭈르륵 내려오면서 피하거나, 부숴서 길을 내야만 하는 느낌」. false 면 한 사이클(옛 v1.3~v1.10 ⑤). S55 ④: `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)` |
+| `stages.phase.crisisSuspendsWaves` ★v1.10 ⑥ | **true** — 위기 = **새떼만**. v1.10 ② 가 false 로 «정상 웨이브 + 새떼 14초» 를 시도했으나 「초기 구간의 빠른 판」이라 정체성이 없었다(플레이 피드백). 초기 = 느리고 큰 벽을 뚫는 구간 / 위기 = 작고 빠른 무리를 정답 스탠스로 갈아버리는 구간 |
+| `stages.phase.crisisTotal` ★v1.10 ⑥ | **150 × `swarmTotalScale[stage]`** = 사이클당 몸 수(서브웨이브 25 × 6). `swarmTotalScale` **`[0.8, 0.9, 1.0, 1.1, 1.2, 1.3]`** — 밀도는 전 포지션 높고, 난이도 축은 «쏘는 비율»과 속도다 · ~~60~~ ~~84~~ ~~[0.55,…,1.15]~~ |
+| `stages.phase.crisisSubWaves` | 6 (`arc`/`vWedge` 교대 — S9 의 3속성 × 2 회전이 이것을 전제) |
+| ★ **`stages.phase.crisisBodyId` / `crisisShooterId`** ★v1.10 ⑥ | **`"swarmChaff"` / `"swarmLancer"`** — 새떼의 두 종. 서브웨이브 몸 수 `count` 중 **`round(count × curve.shooterRatio[pos])`** 이 공격형, 나머지 몸 — **정상 웨이브와 같은 곡선**(§8.19 ②, 새 키 0)으로 「탄환을 쏘는 것은 stage 가 올라감에 따라 비율이 높아지게」. 봉지(`rng.spawn`)라 마릿수 편차 0. 몸은 `attack null`·공격형은 `attack ≠ null`·둘 다 swarm* (S31) |
+| ★ `stages.phase.crisisWaves` ★v1.10 ⑥ | **6 레코드** — 서브웨이브당 **하나** `{subWave, formationId, count, spawnEdge}`. ~~12 레코드(서브웨이브당 swarmChaff 9 + swarmLancer 1)~~ — `archetypeId` 는 **삭제**(두 종의 갈림은 봉지가 한다) |
 | `crisisFailCondition` | **없음** (**규칙이며 키가 아니다** — 「실패 조건이 존재하지 않는다」는 밸런싱 대상이 아니다) |
 | ★ `stages[].crisisElementRule` | **`"themePure"` \| `"finaleRotating"`** — ★ **v1.3: 어휘가 2값으로 넓어지고 거처가 테마 엔트리로 갔다, 아래** |
 
@@ -1995,7 +1998,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 | **초기** | 0 ~ `midBossAtSec[pos][0] − earlyDrainSec` | 간격 `earlyWaveIntervalSec`(1.4) · 편대 `introFormationId`(wall) — «우루루» | — | `sectionSpeedMul.early` 0.72 |
 | **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | early |
 | **중간보스** | `midBossAtSec[pos][0]` ~ 위기 | **0** (`midBossSuspendsWaves`) — 몹이 적어야 «피할 수» 있다 | 첫 마리 = 소환자(`midBossFirstId`) → 유령이 «적당히» 흐른다(실측 13~20). 나머지는 다른 형태. 타이머 이탈 없음 | `sectionSpeedMul.mid` 1.0 |
-| **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | 간격 `waveIntervalSec` — **계속 흐른다**(`crisisSuspendsWaves` false) + 새떼(§8.10)가 처음 `crisisDurationSec` 을 연다 | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
+| **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | **0** (`crisisSuspendsWaves` true) — 대신 **새떼 사이클 반복**(`crisisSwarmLoop`, §8.10): 1.5초마다 호·쐐기 25기(× `swarmTotalScale`), 반지름 6~7, 속도 128·102 × 1.45, 테마 속성 100%, 공격형 = `shooterRatio[pos]` | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
 | **보스** | `mobPhaseSec` 이후 | — | §8.11~ | — |
 
 ★ 위기 시작은 «둘 중 먼저 오는 쪽»이고 **한 번 켜지면 페이즈 끝까지**(sticky) — `run.crisisAtSec` 이 원점이고 새떼
@@ -2046,8 +2049,8 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 전수에서 물·불·풀이 다 나온다(2×3 구조가 «우연히» 보장하던 것을 못박는다. 테마를 늘리면 조용히 깨진다).
 
 **게이트 S55 (§13.4) — 중간보스 구간.** ① `midBossFirstId` 가 tier mid 에 실재 ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed`
-② 소환자를 뺀 tier mid 종 ≥ 1 ③ `crisisStartSec + crisisDurationSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves`
-(둘 다 true 면 앞당긴 위기가 새떼 뒤 페이즈 끝까지 공백이다).
+② 소환자를 뺀 tier mid 종 ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`
+(웨이브도 서고 새떼도 반복 안 하면 앞당긴 위기가 한 사이클 뒤 페이즈 끝까지 공백이다).
 
 **실측(v1.10 ②, 시드 11, 5초 격자 · 봇은 중간보스를 안 잡으므로 상한 시각의 시간표다).**
 포지션 1: 초기 56→121→166→226 · 배수 176→108 · 중간보스 Nest 1 + 유령 9~18(잡몹 0) · 위기 80~120 잡몹 52~73.
@@ -2306,7 +2309,7 @@ data/bosses.json     data/stages.json     data/meta.json
                "maxBulletSpeed":260, "maxAimedBulletSpeed":200, "statusBulletSpeedMul":0.6,
                "minBulletRadiusPx":4, "minGapWidthPx":46, "minSpawnRadiusPx":140,
                "maxSimultaneousEnemyBullets":320,
-               "enemyConcurrentMax":40, "swarmConcurrentMax":70, "crisisWaveResidualMax":10,
+               "enemyConcurrentMax":40, "swarmConcurrentMax":120,
                "telegraphConcurrentMaxPerEntity":2,
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
@@ -3161,21 +3164,16 @@ tetrarchThroneP1  ...
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
              "waveListExhausted":"cycle",
              "crisisPerStage":1,
-             "crisisStartSec":80, "crisisDurationSec":14,
-             "crisisSuspendsWaves":false, "crisisOnMidBossClear":true, "crisisTotal":60, "crisisSubWaves":6,
+             "crisisStartSec":80, "crisisCycleSec":9,
+             "crisisSuspendsWaves":true, "crisisSwarmLoop":true, "crisisOnMidBossClear":true,
+             "crisisTotal":150, "crisisSubWaves":6, "crisisBodyId":"swarmChaff", "crisisShooterId":"swarmLancer",
              "crisisWaves":[
-               { "subWave":1, "formationId":"arc",    "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":1, "formationId":"arc",    "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
-               { "subWave":2, "formationId":"vWedge", "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":2, "formationId":"vWedge", "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
-               { "subWave":3, "formationId":"arc",    "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":3, "formationId":"arc",    "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
-               { "subWave":4, "formationId":"vWedge", "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":4, "formationId":"vWedge", "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
-               { "subWave":5, "formationId":"arc",    "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":5, "formationId":"arc",    "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
-               { "subWave":6, "formationId":"vWedge", "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
-               { "subWave":6, "formationId":"vWedge", "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" } ],
+               { "subWave":1, "formationId":"arc",    "count":25, "spawnEdge":"top" },
+               { "subWave":2, "formationId":"vWedge", "count":25, "spawnEdge":"top" },
+               { "subWave":3, "formationId":"arc",    "count":25, "spawnEdge":"top" },
+               { "subWave":4, "formationId":"vWedge", "count":25, "spawnEdge":"top" },
+               { "subWave":5, "formationId":"arc",    "count":25, "spawnEdge":"top" },
+               { "subWave":6, "formationId":"vWedge", "count":25, "spawnEdge":"top" } ],
              "midBossAtSec":[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]],
              "midBossFirstId":"mbNest", "midBossElementRule":"themeElseNonTheme",
              "midBossForcedLeaveOnCrisis":true,
@@ -3288,9 +3286,9 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 ### 9.9.3 ★ 위기 서브웨이브 간격 = 파생값 (04-R15 채택, 새 키 0)
 
 ```
-crisisSubWaveIntervalSec = crisisDurationSec / crisisSubWaves = 25 / 6 ≈ 4.17 게임초
+crisisSubWaveIntervalSec = crisisCycleSec / crisisSubWaves = 9 / 6 = 1.5 게임초 (v1.10 ⑥ · ~~crisisDurationSec 25 / 6 ≈ 4.17~~)
 ```
-§8.10이 `crisisDurationSec`·`crisisSubWaves`만 정하고 간격을 정하지 않았다. **파생이면 새 키 0이고 두 값이 갈라질 수 없다.** 이 4.17초가 §7.12.3(최종 로테이션의 리드타임)의 근거다.
+§8.10이 `crisisCycleSec`(구 `crisisDurationSec`)·`crisisSubWaves`만 정하고 간격을 정하지 않았다. **파생이면 새 키 0이고 두 값이 갈라질 수 없다.** 이 4.17초가 §7.12.3(최종 로테이션의 리드타임)의 근거다.
 
 ```json
 // meta.json
@@ -3964,8 +3962,8 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | `enemyConcurrentMax` | **42** · ~~40~~ | ★ **런타임 `defer`** + S26(웨이브 1개의 `count` 합 ≤ 42) + `capHits`가 발화를 센다 |
 | ★ **이 값이 «세는 것»** (v1.8) | 웨이브가 낸 잡몹**뿐** | 보스·중간보스(§8.9)와 유령 소환(§8.9-R9)은 **웨이브 예산 밖**이다. 유령은 자기 몫으로 **같은 `enemyConcurrentMax`** 를 갖는다(`telegraphConcurrentMaxGlobal` 과 같은 **재사용식 파생** — 새 키 0). 세 몫의 합 **42 + 42 + max(`midBossCount`) 5 = 89 ≤ `caps.enemies` 128** 을 **S12** 가 강제한다. ★ v1.8 이전엔 소환에 예산 검사가 **아예 없었고** 웨이브 게이트가 유령까지 세어, **예산 있는 개체가 예산 없는 개체에 굶었다**(실측 유령 동시 최악 110 · 풀 최악 123/128 = 96%). 「캡에 닿는 콘텐츠는 콘텐츠 버그다」가 이 절의 첫 문장이다 |
 | ★ **`introConcurrentMax`** (v1.9 · **v1.10 ⑤ 400**) | **400** · ~~216~~ | 무공격 몸(도입 밴드 chaff)의 자기 몫. 몸이 작아진 만큼(반지름 13 → 8) 수로 채운다 — 21초에 391기·세로 덮임 100%(실측). S12 가 「웨이브 42×max(threatBudgetScale) + 유령 42 + 도입 400 + 중간보스 5 < caps.enemies 576」을 강제 |
-| `swarmConcurrentMax` | **100** · ~~70~~ | 새떼 전용 예외. 동일. ★ 위기 중 `spawnCrisis` 의 게이트는 «전역 live» 를 세므로 유령이 남아 있어도 위기 총 개체는 100 을 넘지 않는다 |
-| ★ **`crisisWaveResidualMax`** | **10** | ★ v1.2 신설 — 위기 중 웨이브 잔존 상한. 동일. **`enemyConcurrentMax`의 재분할이지 새 자유 숫자가 아니다** |
+| `swarmConcurrentMax` | **120** · ~~100~~ ~~70~~ | 새떼 전용 예외. 동일. ★ 위기 중 `spawnCrisis` 의 게이트는 «전역 live» 를 세므로 유령이 남아 있어도 위기 총 개체는 100 을 넘지 않는다 |
+| ~~`crisisWaveResidualMax`~~ ★v1.10 ⑥ | **폐지** — 읽는 곳이 0 이었다(런타임은 한 번도 안 읽었다). 위기 중 무대 = 새떼 + 남은 유령이라 S12 의 위기 행은 `swarmConcurrentMax + enemyConcurrentMax(유령 몫) < caps.enemies` 로 바뀌었다 |
 | `maxSimultaneousEnemyBullets` | **320** | 보스 `patternSet` 3페이즈 전개 시뮬 |
 | `telegraphConcurrentMaxPerEntity` | **2** | 보스·중간보스·잡몹 **1개체** 기준 정적 검사 |
 | ★ **`telegraphConcurrentMaxGlobal`** | **84** (파생) · ~~80~~ | ★ `enemyConcurrentMax(42) × telegraphConcurrentMaxPerEntity(2)`의 곱 — **새 자유 숫자가 아니다.** `check.mjs` S12가 곱의 무결성을 검사. ★ **상한은 64 미만이어야 한다**: 64 × 2 = 128 = `caps.telegraphs` 라 「A층 < B층」이 등호에서 깨진다 |
@@ -4607,16 +4605,16 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S19** ★ | **`zone`의 탄** — `emitterType == "zone"` ⟺ `bulletId == null` |
 | **S20** ★ | **편대 전용성** — `pincer` ⟺ `moveId == "strafe"` / `columnV` ⟺ `moveId == "column"` (**양방향** — §9.9.2) |
 | **S21** ★ | **드래프트 보장 상한** — `guarantee*` 키의 동시 발동 최대 개수 ≤ `optionCount − 1` (= 2) |
-| **S22** ★ | **새떼 XP 상한** — `(crisisTotal × swarmTotalScale[i] × swarmXp) ÷ (스테이지 i 저작 리스트의 Σ XP)` ≤ **0.30**. ★ **v1.3 명문화: 정의역 = 모든 `(theme, stage)` 쌍**(구현이 이미 그렇게 했고 전 조합이 통과한다 — 최악 **0.148**). v1.2의 「스테이지 i」는 **테마를 말하지 않아** 「테마 평균인가 최악인가」가 미정이었다 |
+| **S22** ★ | **새떼 XP 상한** — ★ **v1.10 ⑥ «율» 기준**: `crisisTotal × swarmTotalScale[i] × swarmXp ÷ crisisCycleSec`(새떼 XP/초) ÷ `chaff.minPerWave × introXp ÷ earlyWaveIntervalSec`(초기 XP/초) ≤ **0.30**, 정의역 = 모든 `(theme, stage)` 쌍. 이유: 새떼는 위기 내내 반복되고 위기 길이는 격파 시각의 함수라 총량을 정적으로 못 세며, 비율 모델(§8.19)에서 실제 웨이브 몸 수는 저작 count 가 아니라 `chaff.minPerWave` 다 — 옛 분모(저작 리스트 Σ XP)는 두 번 낡았다. 실측 최악 0.19(finale s6). ~~지분 기준 `… ÷ (스테이지 i 저작 리스트 Σ XP)` ≤ 0.30~~ |
 | **S23** ★ | **코인원 균질성** — ★ **`themeDraw.pool`에 속한 테마**의 `roster` 4종 중 `turret`+`bruiser` 밴드가 **1~2종** (v1.3: `finale`은 15종이라 정의역 밖 — §13.2-⑪) |
 | **S24** ★ | **HP 배분** — 각 보스의 `Σ(armor 부위 hp) == core.hp × armorCoreRatio` (±1%) · 선택 부위 hp `== armor 부위 1개 hp × boss.optionalPartArmorRatio` (±5%) |
 | **S25** ★ | **상성 매트릭스의 무결성** — `elements.json`의 `matrix`가 §4.1의 표와 **비트 동일**: 값 ∈ {0.5, 1.0, 2.0} · `matrix["normal"][*] == matrix[*]["normal"] == 1.0` · 순환(`matrix[x][y]==2.0 ⟺ matrix[y][x]==0.5`) · `order`(4) · `investable`(3, `normal` 불포함)이 `matrix` 키 집합과 정합. **이 게임의 중심 축이 데이터 오타 하나로 뒤집히는 것을 막는 유일한 문**(§9.4.4) |
-| **S26** ★ | **동시 개체 예산의 정적 하한** — 웨이브 **1개**의 `Σ count` ≤ `enemyConcurrentMax`(40) · ★ **`crisisWaves`의 `subWave` 1파의 `Σ count` ≤ `swarmConcurrentMax`(70)** (v1.3: 처음으로 읽을 데이터가 생겼다 — §9.9). ★ **동시 개체 수 자체는 처치율의 함수라 정적 검사가 불가능**하므로(§12.1) 이 검사는 **「어떤 처치율에서도 깨지는 편성」만** 잡는다 — 런타임 발화는 `certify.static.capHits`가 센다 |
+| **S26** ★ | **동시 개체 예산의 정적 하한** — 웨이브 **1개**의 `Σ count` ≤ `enemyConcurrentMax` · `crisisWaves` 서브웨이브 1파의 `count` ≤ `swarmConcurrentMax` · ★ **v1.10 ⑥ 무대 상한**: `crisisTotal × swarmTotalScale[i] × min(1, 체류 ÷ crisisCycleSec)` ≤ `swarmConcurrentMax`(120), 체류 = `arena.h ÷ (min(새떼 두 종 speed) × sectionSpeedMul.crisis)` — 한 사이클이 통째로 서지 않는다는 산술(체류 4.9초 / 사이클 9초 = 0.54). ★ **동시 개체 수 자체는 처치율의 함수라 정적 검사가 불가능**하므로(§12.1) 이 검사는 **「어떤 처치율에서도 깨지는 편성」만** 잡는다 — 런타임 발화는 `certify.static.capHits`가 센다 |
 | **S27** ★ | **엘리트의 적법성** (v1.3) — `eliteIndex != null` ⟹ (`archetypeId`의 `band` ∈ `elite.bandAllowed`) ∧ (`element` ∈ `elite.elementAllowed`). §8.6이 두 규칙을 확정하고도 **검사기를 주지 않아** 04가 4건을 어겼다 |
 | **S28** ★ | **`from`의 적법성** (v1.3) — `from == "part"` ⟺ 그 이미터가 `bosses[].parts[].patternSet[i].emitterIds`에서만 참조된다 |
 | **S29** ★ | **중간보스 스케줄의 파생 무결성** (v1.3) — `len(phase.midBossAtSec[i]) == curve.midBossCount[i]` (전 6스테이지) |
 | **S30** ★ | **악절의 배타성** (v1.3) — 이미터가 `bosses[]`에서 참조된다 ⟺ (`repeat ≥ 2` ∧ `restSec > 0`). `enemies.archetypes[].attack`에서 참조되는 이미터는 `repeat == 1` ∧ `restSec == 0` (§8.5의 「보스만 쓴다」를 기계로) |
-| **S31** ★ | **위기 편성의 무결성** (v1.3) — `Σ(crisisWaves[].count) == crisisTotal`(60) ∧ `distinct(crisisWaves[].subWave) == crisisSubWaves`(6) ∧ `archetypeId`가 전부 `swarm*` |
+| **S31** ★ | **위기 편성의 무결성** (v1.3 · **v1.10 ⑥ 개정**) — `Σ(crisisWaves[].count) == crisisTotal`(150) ∧ `distinct(subWave) == crisisSubWaves`(6) ∧ **서브웨이브당 레코드 하나** ∧ `crisisBodyId`/`crisisShooterId` 가 실재·둘 다 `swarm*`·몸은 `attack null`·공격형은 `attack ≠ null`·서로 다르다. ~~`archetypeId` 가 전부 swarm*~~(키 삭제) |
 | **S32** ★ | **`themeId`의 적법성** (v1.3) — `tier == "stage"` ⟺ `themeId != null` (S15와 대칭) |
 | ~~**S33**~~ | ~~아이콘 어휘의 충분성 (v1.3) — `shop`의 전 항목의 `iconId` ∈ `hud.icons`~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 | **S34** ★ | **패밀리별 `base`·`evolution.params` 필수 키 집합** (v1.3 · **문면 정정 v1.4**) — §9.5 12행 표를 **두 검사로** 적용한다: ① `weapons[i].base`의 키 집합 == 그 `family`의 행이 ✔한 공통 키 **∪ (고유 파라미터 중 `evo*`가 아닌 것)** ② `weapons[i].evolution.params`의 키 집합 == **그 행의 고유 파라미터 중 `evo*`인 것**. ★ **표의 `+`는 거처 구분자**(§9.5 읽는 법 4번째 규칙) — v1.3의 문면 「∪ 고유 파라미터」는 `evo*`의 거처가 `evolution.params`라는 **같은 절의 확정**과 충돌해 **12행 전부를 실패시켰다**(데이터·검증기는 옳았고 문장이 틀렸다). **이 표가 없으면 S2의 「필수 키」가 무엇인지 검증기가 알 수 없다** |
@@ -4636,7 +4634,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S50** ★ | **웨이브 몸 수 하한의 정합** (v1.8, §8.7.1) — ① 4밴드 전부 선언 · 정수 ≥1 ② `hpMult` 오름차순으로 `minPerWave` **단조 비증가**(총 HP 예산 보존과 같은 방향) ③ `minPerWave ≤ enemyConcurrentMax ÷ 2`(한 웨이브가 A층 예산 절반을 혼자 먹지 않는다). ★ 이 게이트는 «값의 정합»만 본다 — effHP 가 감당 가능한가는 **계측이 답할 몫**이다 |
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
 | **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
-| **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisDurationSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 14초 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
+| **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
 | ~~**S46**~~ | ~~공격 기호 어휘의 완결성 (v1.7)~~ — ★ **v1.8 삭제.** 기호 자체를 폐지했다(§7.6.1). 번호는 재사용하지 않는다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 

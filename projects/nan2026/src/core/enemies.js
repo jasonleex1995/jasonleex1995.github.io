@@ -58,25 +58,20 @@ const INTRO_MOVES = ['dive', 'weave', 'anchor', 'bounce'];
  * ★ 편성·아키타입 인덱스·간격을 전부 주입된 데이터에서 유도한다(하드코딩 매직넘버 0).
  */
 /**
- * §8.10 — 위기 편성의 스케일링을 스테이지 진입 시 **1회 확정**한다(핫패스 0 alloc·계산).
- *   crisisTotal(60) × swarmTotalScale[pos] 을 레코드에 나눌 때 레코드마다 반올림하면 총량이 새고
- *   (0.5 배율에서 30 → 36), 소수 캐리는 부동소수 잔차로 랜서를 0 으로 잘라 9:1 편성을 깬다.
- *   → **아키타입별 누적 반올림**: Σcount == round(crisisTotal × scale) 이고 9:1 비율도 보존된다. 결정적.
+ * §8.10(v1.10 ⑥) — 위기 편성의 스케일링을 스테이지 진입 시 **1회 확정**한다(핫패스 0 alloc·계산).
+ *   crisisTotal × swarmTotalScale[pos] 을 서브웨이브 레코드에 나눌 때 레코드마다 반올림하면 총량이 샌다 →
+ *   **누적 반올림**: Σplan == round(crisisTotal × scale). 몸/공격형의 갈림은 스폰 때 봉지가 한다(shooterRatio).
  */
 function crisisPlan(world, curveIdx) {
   const recs = world.data.stages.phase.crisisWaves;
   const scale = world.data.stages.curve.swarmTotalScale[curveIdx];
-  const cum = Object.create(null);        // archetypeId → 정확 누적
-  const done = Object.create(null);       // archetypeId → 확정한 정수 누적
   const plan = new Array(recs.length);
+  let cum = 0; let done = 0;
   for (let i = 0; i < recs.length; i += 1) {
-    const r = recs[i];
-    const a = r.archetypeId;
-    if (cum[a] === undefined) { cum[a] = 0; done[a] = 0; }
-    cum[a] += r.count * scale;
-    const target = Math.round(cum[a]);
-    plan[i] = target - done[a];
-    done[a] = target;
+    cum += recs[i].count * scale;
+    const target = Math.round(cum);
+    plan[i] = target - done;
+    done = target;
   }
   return plan;
 }
@@ -104,8 +99,17 @@ function buildSpawner(world, stageId, curveIdx) {
   // ★ 위기(새떼) 전용 아키타입은 정상 웨이브 로스터에서 제외한다(데이터 유도, 하드코딩 id 없음) —
   //   crisisWaves 가 선언한 종이 평범한 웨이브에 섞여 나오면 §8.10 위기의 «장면»이 미리 새 버린다(실측).
   const crisisArch = Object.create(null);
-  const cw = world.data.stages.phase.crisisWaves;
-  for (let i = 0; i < cw.length; i += 1) crisisArch[cw[i].archetypeId] = true;
+  const phz = world.data.stages.phase;
+  crisisArch[phz.crisisBodyId] = true;
+  crisisArch[phz.crisisShooterId] = true;
+  {
+    // v1.10 ⑥ — 새떼의 두 종: 몸(무공격) + 공격형. 폴백 금지(§9.3) — 어긋나면 여기서 터진다.
+    const b = archIndex[phz.crisisBodyId]; const sh = archIndex[phz.crisisShooterId];
+    if (b === undefined) throw new Error(`enemies: crisisBodyId "${phz.crisisBodyId}" 미지 (§8.10)`);
+    if (sh === undefined) throw new Error(`enemies: crisisShooterId "${phz.crisisShooterId}" 미지 (§8.10)`);
+    if (b.attack !== null) throw new Error(`enemies: crisisBodyId "${b.id}" 가 쏜다 — 새떼의 몸은 무공격 (§8.10)`);
+    if (sh.attack === null) throw new Error(`enemies: crisisShooterId "${sh.id}" 가 안 쏜다 (§8.10)`);
+  }
 
   // ★ 로스터 — **정본이 저작한 stages[].roster 를 쓴다** (§8.3 · §8.6 · §9.9).
   //   v1.7 까지 이 코드는 저작 로스터를 «읽지 않고» archetypes 전량에서 자체 로스터를 만들었다.
@@ -172,8 +176,9 @@ function buildSpawner(world, stageId, curveIdx) {
     waveIndex: 0, wavesSpawned: 0, nextWaveT: 0,
     element: stage.element,                    // §8.10 themePure 위기 속성
     crisisRule: stage.crisisElementRule,       // "themePure" | "finaleRotating"
-    crisisSpawned: 0,                          // 이미 내보낸 위기 서브웨이브 수
-    crisisPlan: crisisPlan(world, curveIdx),   // 레코드별 확정 스폰 수(총량·9:1 보존)
+    crisisSpawned: 0,                          // 이미 내보낸 위기 서브웨이브 수(반복이면 6 을 넘어 계속 센다)
+    crisisPlan: crisisPlan(world, curveIdx),   // 서브웨이브별 확정 스폰 수(사이클 총량 보존)
+    cbag: new Uint8Array(world.data.rules.caps.enemies),   // v1.10 ⑥ 새떼 봉지(몸/공격형) — 웨이브 봉지와 분리
   };
 }
 
@@ -442,40 +447,60 @@ function crisisElement(s, subWave) {
 }
 
 /** §8.10 — 한 위기 서브웨이브(9 swarmChaff + 1 swarmLancer)를 편성대로 내보낸다. */
+/**
+ * §8.10(v1.10 ⑥) — 새떼 서브웨이브 하나. subWave 는 1..crisisSubWaves 로 접은 인덱스(반복 사이클의 몇 번째 파인가).
+ *   레코드가 편대·몸 수를, phase.crisisBodyId/ShooterId 가 두 종을, curve.shooterRatio[pos] 가 «쏘는 비율»을 갖는다
+ *   (사용자 2026-09-04: 「탄환을 쏘는 것은 stage 가 올라감에 따라 비율이 높아지게」 — 정상 웨이브와 같은 곡선, 새 키 0).
+ *   봉지: round(count × ratio) 칸이 공격형, rng.spawn 으로 섞는다 — 마릿수 편차 0, 자리만 매 판 다르다.
+ *   속성은 crisisElement(themePure | finaleRotating — 서브웨이브 index 기준이라 사이클마다 같은 회전).
+ */
 function spawnCrisisSubWave(world, s, subWave) {
-  const recs = world.data.stages.phase.crisisWaves;
+  const ph = world.data.stages.phase;
+  const recs = ph.crisisWaves;
   const swarmMax = world.data.rules.fairness.swarmConcurrentMax;
   const el = crisisElement(s, subWave);
+  const body = s.archIndex[ph.crisisBodyId];
+  const shooter = s.archIndex[ph.crisisShooterId];
+  const hpBody = enemyHp(world, body);
+  const hpShoot = enemyHp(world, shooter);
+  const ratio = world.data.stages.curve.shooterRatio[s.curveIdx];
 
   for (let i = 0; i < recs.length; i += 1) {
     const r = recs[i];
     if (r.subWave !== subWave) continue;
-    const def = s.archIndex[r.archetypeId];
-    if (def === undefined) throw new Error(`enemies: 미지의 새떼 아키타입 "${r.archetypeId}" (§8.10)`);
-    const hp = enemyHp(world, def);
-    const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(총량·9:1 보존)
+    const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(사이클 총량 보존)
+    const nShoot = Math.round(count * ratio);
+    const bag = s.cbag;
+    for (let k = 0; k < count; k += 1) bag[k] = k < nShoot ? 1 : 0;
+    for (let k = count - 1; k > 0; k -= 1) {          // Fisher–Yates (rng.spawn)
+      const j = Math.floor(world.rng.spawn.f() * (k + 1));
+      const t = bag[k]; bag[k] = bag[j]; bag[j] = t;
+    }
     for (let k = 0; k < count; k += 1) {
       if (world.enemies.live >= swarmMax) break;      // §12.4 swarmConcurrentMax (새떼 전용 상한)
-      placement(world, r, k, count, _pos);            // 레코드가 formationId 를 들고 있다(arc/vWedge)
-      spawnEnemy(world, r.archetypeId, el, _pos.x, _pos.y, hp, false);
+      const shoot = bag[k] === 1;
+      placement(world, r, k, count, _pos, shoot ? shooter : body);   // 레코드가 formationId 를 들고 있다(arc/vWedge)
+      spawnEnemy(world, shoot ? shooter.id : body.id, el, _pos.x, _pos.y, shoot ? hpShoot : hpBody, false);
     }
   }
 }
 
 /**
- * §8.10 — 위기 세션: 위기 시작 후 crisisDurationSec 동안 crisisSubWaves 파를 균등 간격으로(새떼).
+ * §8.10(v1.10 ⑥) — 위기 세션: 위기 시작(run.crisisAtSec — 격파로 앞당겨질 수 있다)부터 crisisCycleSec 마다 한 사이클
+ *   (crisisSubWaves 파, 균등 간격). crisisSwarmLoop 면 페이즈 끝까지 사이클을 반복한다 — 「빠른 무리가 쭈르륵 내려오며
+ *   피하거나 부숴서 길을 내는」 구간(사용자 2026-09-04). false 면 한 사이클만(옛 v1.3~v1.10 ⑤).
  *   정상 웨이브의 정지 여부는 crisisSuspendsWaves 가 정한다(enemies() 의 구간 분기). 누적 카운트라 큰 dt 도
- *   놓치지 않는다(결정적 캐치업). ★ v1.10: 시작 시각은 시계가 아니라 run.crisisAtSec — 격파로 앞당겨질 수 있다.
+ *   놓치지 않는다(결정적 캐치업).
  */
 function spawnCrisis(world, s) {
   const ph = world.data.stages.phase;
   const elapsed = world.run.phaseT - world.run.crisisAtSec;
-  const interval = ph.crisisDurationSec / ph.crisisSubWaves;
+  const interval = ph.crisisCycleSec / ph.crisisSubWaves;
   let want = Math.floor(elapsed / interval) + 1;
-  if (want > ph.crisisSubWaves) want = ph.crisisSubWaves;
+  if (!ph.crisisSwarmLoop && want > ph.crisisSubWaves) want = ph.crisisSubWaves;
   while (s.crisisSpawned < want) {
     s.crisisSpawned += 1;
-    spawnCrisisSubWave(world, s, s.crisisSpawned);     // subWave 는 1-based
+    spawnCrisisSubWave(world, s, ((s.crisisSpawned - 1) % ph.crisisSubWaves) + 1);   // 1..6 으로 접는다
   }
 }
 
