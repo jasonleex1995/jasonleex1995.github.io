@@ -173,6 +173,9 @@ suite('traits — 효과 (§11.6 ㉒)', () => {
     const w2 = mkRun(2, 'sea', 0); const ctx2 = w2.dmgCtx; ctx2.matrix = w2.data.elements.matrix;
     w2.run.phase = PHASE.BOSS; w2.run.bossSpawned = false; w2.run.bossTimer = w2.data.stages.phase.bossTimerSec; tick(w2, 2);
     const c = core(w2); w2.run.bossTransitionT = 0; c.hp = 1e6;
+    // ㉘ 하드 게이트 — 모듈을 다 부숴야 코어가 열린다
+    for (const e of w2.enemies.items) if (e.alive && e.isBoss && !e.isCore) killEnemy(w2, e);
+    tick(w2, 1); c.hp = 1e6; w2.run.bossTransitionT = 0;
     applyTrait(w2, 'lifesteal'); w2.player.hp = 50;
     const b = hitEnemy(w2, ctx2, 'forward', 10, 1, 'normal', c, 0);
     assert.gt(b, 0, '보스에 피해가 든다');

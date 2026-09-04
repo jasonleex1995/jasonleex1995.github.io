@@ -21,7 +21,7 @@ import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 (§10.3) */
-const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
+const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
 
 /** 반경 r 안의 적에게 dmg × localMul 을 1회 적용하고, 행동 감속 slowSec 을 건다. */
 function ring(world, slot, eff, r, localMul, stamp, slowSec) {
@@ -47,7 +47,6 @@ function detonate(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
   ctx.dmgMulSum = world.stats.dmgMul;
   ctx.elementBonusMul = world.stats.elementBonusMul;
-  ctx.coreGateMul = world.data.rules.boss.coreGateMul;
 
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);
   ring(world, slot, eff, eff.radius, 1, stamp, eff.actionSlowSec);

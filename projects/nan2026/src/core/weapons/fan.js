@@ -26,7 +26,7 @@ import { killEnemy } from '../step.js';
 const FORWARD = 'forward';
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 — 핫패스에서 새로 만들지 않는다 (§10.3) */
-const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
+const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
 
 /**
  * 진화(플레어 팬) — 소멸한 탄 자리에서 evoBlastRadius 안의 적에게
@@ -40,7 +40,6 @@ function blast(world, slot, eff, b) {
   ctx.matrix = world.data.elements.matrix;
   ctx.dmgMulSum = world.stats.dmgMul;
   ctx.elementBonusMul = world.stats.elementBonusMul;
-  ctx.coreGateMul = world.data.rules.boss.coreGateMul;
 
   // §4.4 — 폭발은 그 탄의 것이므로 **탄에 각인된 속성**을 그대로 쓴다 (step.js 의 충돌 경로와 동일)
   const stamp = stampFor(world, slot.index, b.stampMode, b.element);

@@ -101,7 +101,7 @@ function makeEnemy(slotCount) {
     //   (strafe 는 벽 밖에서 들어오므로 false). 보스·중간보스는 자기 이동이 좌표를 소유한다(false).
     wallX: false,
     // §3.1-4항 — 잡몹은 코어가 아니다. 보스 코어가 이 풀을 쓰게 되면 여기서 켠다
-    isCore: false, aliveArmorPartCount: 0,
+    isCore: false,
     // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
     //   partId = 부위 식별(patternSet 이미터 조회). phase = 보스 페이즈 인덱스(patternSet 선택, B2b).
     isBoss: false, bossId: '', partId: '', partType: '', anchorX: 0, anchorY: 0, phase: 0,
@@ -507,7 +507,7 @@ export function createWorld(opts) {
       stanceNormal: false, stanceFire: false, stanceWater: false, stanceGrass: false },
 
     // §3.1 — 데미지 컨텍스트. 매 틱 재사용한다 (핫패스 0 alloc)
-    dmgCtx: { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 },
+    dmgCtx: { matrix: null, dmgMulSum: 0, elementBonusMul: 1 },
     // §11.1(v1.6) null = 매 런 추첨. 특정 무기를 시험하는 테스트만 값을 넘긴다.
     startWeaponId,
 
@@ -725,7 +725,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.introBody = false;                    // §8.19.1 — 스포너가 도입 구간에서만 켠다
   e.wallX = false;                        // §8.7 ㉕ — 스포너가 켠다
   if (e.ghost) { e.xp = 0; e.score = 0; }
-  e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isCore = false;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = '';
@@ -741,10 +741,10 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
 }
 
 /**
- * §8.11 — 보스 코어를 적 풀에 스폰한다(isCore + aliveArmorPartCount 로 §3.1-4 소프트게이트가 켜진다).
- *   hp 스케일링·armorCount 산출은 boss.js 소관. 이 헬퍼는 필드 전량 리셋만 책임진다(makeEnemy 대칭).
+ * §8.11 — 보스 코어를 적 풀에 스폰한다. ㉘: 코어는 모듈이 살아 있는 동안 sealedNow(하드 게이트) — 보스훅이 매 틱 갱신.
+ *   hp 스케일링은 boss.js 소관. 이 헬퍼는 필드 전량 리셋만 책임진다(makeEnemy 대칭).
  */
-export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
+export function spawnBossCore(world, bossId, core, hp, x, y) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
   e.archetypeId = ''; e.band = ''; e.shapeId = core.shapeId;
@@ -754,13 +754,13 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.radius = core.radius; e.contactDmg = core.contactDmg;
   e.xp = 0; e.score = core.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
-  e.isCore = true; e.aliveArmorPartCount = armorCount;
+  e.isCore = true;
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
   e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
   e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;   // §8.17(v1.7) 개성은 잡몹 전용 — 보스는 봉인(sealLayer)·코어게이트가 그 역할을 한다
-  e.sealLayer = 0; e.sealedNow = false;            // §8.11 — 코어는 봉인 대상이 아니다. 풀 재사용 stale 방지(나머지 3개 스포너와 대칭)
+  e.sealLayer = 0; e.sealedNow = false;            // §8.13(㉘) — 코어 봉인은 boss.js 가 «모듈 생존»으로 켠다. 풀 재사용 stale 방지(나머지 3개 스포너와 대칭)
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
 }
@@ -777,7 +777,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.radius = part.radius; e.contactDmg = part.contactDmg;
   e.xp = 0; e.score = part.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
-  e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isCore = false;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
   e.sealLayer = part.sealLayer === undefined ? 0 : part.sealLayer; e.sealedNow = false;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
@@ -803,7 +803,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.radius = def.radius; e.contactDmg = def.contactDmg;
   e.xp = def.xp; e.score = def.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
-  e.isCore = false; e.aliveArmorPartCount = 0;
+  e.isCore = false;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = def.id;

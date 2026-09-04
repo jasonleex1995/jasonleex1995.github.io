@@ -26,7 +26,7 @@ import { killEnemy } from '../step.js';
 const FORWARD = 'forward';
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 (§10.3) */
-const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
+const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
 
 /**
  * 빔 하나. 중심 x = bx, 위로 length 만큼. 가까운 순(= y 가 큰 순)으로 limit 마리까지 적용한다.
@@ -71,7 +71,6 @@ function fire(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
   ctx.dmgMulSum = world.stats.dmgMul;
   ctx.elementBonusMul = world.stats.elementBonusMul;
-  ctx.coreGateMul = world.data.rules.boss.coreGateMul;
 
   const p = world.player;
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);

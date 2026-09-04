@@ -214,9 +214,9 @@ function checkRules(c, r) {
     'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec', 'entryWipeSec',
-    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
+    'timerStartsAfterIntro', 'timerExpire', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
+    'armorPartCountRange', 'armorCoreRatioMax', 'optionalPartArmorRatio', 'partReachMinPx',
     'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale']);
   if (isObj(r.boss)) {
     c.closed('rules.boss.finale', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules',

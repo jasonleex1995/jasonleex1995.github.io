@@ -509,9 +509,9 @@ function S2_schema() {
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
   closedKeys('S2', r.boss, ['partCount', 'partRegen', 'partHitPriority',
     'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec', 'entryWipeSec',
-    'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
+    'timerStartsAfterIntro', 'timerExpire', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
-    'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
+    'armorPartCountRange', 'armorCoreRatioMax', 'optionalPartArmorRatio', 'partReachMinPx',
     'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale'], 'rules.boss');
   if (isObj(r.boss)) {
     // ★ v1.3: finale.armorCoreRatio 삭제 — 유일 소유자 = bosses[].armorCoreRatio (§23.3)
@@ -1289,20 +1289,16 @@ function S5_bossRules() {
       }
     }
 
-    // R7: φ ∈ [0.85·B, B), B = coreGateMul^-a − 1.  ★ R7 은 면제하지 않는다 (§8.16)
+    // R7(v1.10 ㉘): φ ∈ (0, boss.armorCoreRatioMax] — 하드 게이트에서 φ 는 «HP 배분»(armor 총합 = 코어 × φ)일 뿐, 소프트 게이트의
+    //   산술(B = coreGateMul^-a − 1)은 사라졌다. 상한은 «코어 대비 모듈이 터무니없이 두꺼워 타이머 안에 못 여는» 저작을 막는다.
+    //   ★ R7 은 면제하지 않는다 (§8.16). 값이 없거나 상한 키가 없으면 «공허 통과»가 아니라 위반이다.
     const a = armor.length;
     const phi = b.armorCoreRatio;
-    if (num(phi) && a > 0 && num(rb.coreGateMul) && Array.isArray(rb.armorCoreRatioBandPct)) {
-      const B = Math.pow(rb.coreGateMul, -a) - 1;
-      const lo = rb.armorCoreRatioBandPct[0] * B;
-      const okLo = phi >= lo - 1e-9;
-      const okHi = rb.armorCoreRatioBandPct[1] === 1.0
-        ? phi < B
-        : phi <= rb.armorCoreRatioBandPct[1] * B + 1e-9;
-      if (!okLo || !okHi) {
-        V('S5', `${tag}: R7 위반 — φ = ${phi} ∉ [${lo.toFixed(3)}, ${B.toFixed(3)}) (a=${a}, B=${rb.coreGateMul}^-${a}−1) (§8.13.1)`);
-      }
-    } else if (!num(phi) && !isAmb(phi)) {
+    if (!num(rb.armorCoreRatioMax) || rb.armorCoreRatioMax <= 0) V('S5', 'rules.boss.armorCoreRatioMax 가 없다 — R7 의 상한 (§8.13.1 ㉘)');
+    else if (num(phi)) {
+      if (a === 0) V('S5', `${tag}: armor 가 0 인데 φ = ${phi} — 배분할 부위가 없다 (§8.13.1)`);
+      else if (!(phi > 0) || phi > rb.armorCoreRatioMax + 1e-9) V('S5', `${tag}: R7 위반 — φ = ${phi} ∉ (0, armorCoreRatioMax ${rb.armorCoreRatioMax}] (§8.13.1 ㉘)`);
+    } else if (!isAmb(phi)) {
       V('S5', `${tag}.armorCoreRatio: tier ∈ {stage, final} 에 필수 (§9.8)`);
     }
 

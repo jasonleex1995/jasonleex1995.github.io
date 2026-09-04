@@ -6,7 +6,7 @@
  *         - base = w.dmg × Π(지역 배율)  (localMul 이 falloff·rearBias·evoSecondaryDmgMul 의 곱)
  *         - dmgMul = 1 + Σ(패시브 dmgMul)  → ★가산 풀 1회 적용 (곱연산 폭주 방지, 회귀)
  *         - elem  : elementTerm 위임 (elem>1 만 resonance 증폭)
- *         - gate  : isCore ? coreGateMul^aliveArmorPartCount : 1  (mobility/armament 무관)
+ *         - (㉘) 게이트 항 없음 — 코어 무적은 hitEnemy 의 sealedNow(하드 게이트)
  *   §3.1-6항  displayDamage = Math.round (적용은 float, 표시만 반올림)
  *   §3.2  taken = ceil( max( raw − defense , raw × damageFloorRatio ) )
  *         - 실측(정본): defense 8 기준 소형탄 8→2, 레이저 22→14.
@@ -18,13 +18,12 @@ import { elementMul } from '../src/core/elements.js';
 
 const d = loadData();
 const M = d.elements.matrix;
-const CORE_GATE = d.rules.boss.coreGateMul;          // 0.4 (§8.13)
 const FLOOR = d.rules.player.damageFloorRatio;        // 0.25 (§3.2)
 const DEF_BASE = d.rules.player.defenseBase;          // 0
 
 // 중립 ctx: 상성·풀·게이트 전부 항등 → base 만 남는다
 function neutralCtx() {
-  return { matrix: M, dmgMulSum: 0, elementBonusMul: 1.0, coreGateMul: CORE_GATE };
+  return { matrix: M, dmgMulSum: 0, elementBonusMul: 1.0 };
 }
 const NON_CORE = { element: 'normal', isCore: false, aliveArmorPartCount: 0 };
 
@@ -97,38 +96,27 @@ suite('damage.playerToEnemy.elem', () => {
 
 // ── §3.1-4항: gate (코어 소프트 게이트) ────────────────────────────────────
 suite('damage.playerToEnemy.gate', () => {
-  test('비-코어는 gate 항등 (aliveArmorPartCount 무관)', () => {
-    const t = { element: 'normal', isCore: false, aliveArmorPartCount: 4 };
-    assert.eq(playerToEnemy(neutralCtx(), 100, 1, 'normal', t), 100, '비코어 gate=1');
-  });
-
-  test('코어: gate = coreGateMul ^ 살아있는 armor 부위 수', () => {
-    const mk = (n) => ({ element: 'normal', isCore: true, aliveArmorPartCount: n });
-    assert.near(playerToEnemy(neutralCtx(), 100, 1, 'normal', mk(0)), 100 * Math.pow(CORE_GATE, 0), 1e-9, 'n=0 → ×1');
-    assert.near(playerToEnemy(neutralCtx(), 100, 1, 'normal', mk(1)), 100 * CORE_GATE, 1e-9, 'n=1');
-    assert.near(playerToEnemy(neutralCtx(), 100, 1, 'normal', mk(2)), 100 * CORE_GATE * CORE_GATE, 1e-9, 'n=2');
-  });
-
-  test('코어 armor 0개 → 게이트 완전 해제 (×1) = 코어 직행 트레이드오프', () => {
-    const t = { element: 'normal', isCore: true, aliveArmorPartCount: 0 };
-    assert.eq(playerToEnemy(neutralCtx(), 250, 1, 'normal', t), 250, 'armor 없으면 풀댐');
+  test('(㉘) 식에 게이트 항이 없다 — 코어든 아니든 playerToEnemy 는 같은 값 (코어 무적은 hitEnemy 의 sealedNow 가 소유)', () => {
+    const a = { element: 'normal', isCore: false };
+    const c = { element: 'normal', isCore: true };
+    assert.eq(playerToEnemy(neutralCtx(), 100, 1, 'normal', a), 100, '비코어');
+    assert.eq(playerToEnemy(neutralCtx(), 100, 1, 'normal', c), 100, '코어(열린 상태로 도달한 것)도 같은 식');
   });
 });
 
 // ── §3.1: 5항 전체 합성 ─────────────────────────────────────────────────────
 suite('damage.playerToEnemy.composed', () => {
-  test('final = base × dmgMul × elem × gate (전 항 비항등)', () => {
-    const ctx = { matrix: M, dmgMulSum: 0.30, elementBonusMul: 1.5, coreGateMul: CORE_GATE };
+  test('final = base × dmgMul × elem (전 항 비항등 — ㉘ 게이트 항 없음)', () => {
+    const ctx = { matrix: M, dmgMulSum: 0.30, elementBonusMul: 1.5 };
     const dmg = 80, localMul = 0.5;
-    const target = { element: 'fire', isCore: true, aliveArmorPartCount: 2 };
+    const target = { element: 'fire', isCore: true };
     const stamp = 'water'; // water→fire = ×2, resonance k=1.5 → ×2.5
     const base = dmg * localMul;             // 40
     const dmgMul = 1 + 0.30;                  // 1.30
     const elemBase = elementMul(M, stamp, target.element); // 2.0
     const elem = 1 + (elemBase - 1) * 1.5;    // 2.5
-    const gate = Math.pow(CORE_GATE, 2);      // 0.16
-    const expected = base * dmgMul * elem * gate;
-    assert.near(playerToEnemy(ctx, dmg, localMul, stamp, target), expected, 1e-9, '5항 곱');
+    const expected = base * dmgMul * elem;
+    assert.near(playerToEnemy(ctx, dmg, localMul, stamp, target), expected, 1e-9, '3항 곱');
   });
 
   test('결과는 float — 반올림 없이 누산 (§3.1-6항)', () => {

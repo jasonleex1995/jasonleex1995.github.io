@@ -378,8 +378,9 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 2. dmgMul = 1 + Σ(패시브 dmgMul)                            // 가산 풀 → 1회 적용 (곱연산 폭주 방지)
 3. elem   = elements.matrix[stampElement][target.element]   // ∈ {0.5, 1.0, 2.0}
    if (elem > 1) elem = 1 + (elem - 1) × elementBonusMul    // 패시브 resonance. 기본 1.0
-4. gate   = target.isCore ? (boss.coreGateMul ^ aliveArmorPartCount) : 1
-5. final  = base × dmgMul × elem × gate
+4. (v1.10 ㉘ 폐지) ~~gate = target.isCore ? (boss.coreGateMul ^ aliveArmorPartCount) : 1~~ — 코어는 모듈이 하나라도 살아 있으면
+   «무적»(sealedNow, §8.13 하드 게이트). hitEnemy ①' 가 0 을 돌려주고 탄은 통과한다. 식에는 게이트 항이 없다.
+5. final  = base × dmgMul × elem
 6. 적용은 float 누산. 표시만 Math.round.
 ```
 
@@ -402,7 +403,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | **데미지 난수** | **없음 (확정).** 데미지 경로에서 RNG를 호출하지 않는다 → 결정성 + 가독성 + 시뮬 분산 축소. |
 | **적의 방어력** | **존재하지 않는다 (확정).** `enemies.json`·`bosses.json` 어느 스키마에도 defense 필드가 없다. 초안 F 식의 7번 항(`1 − def/(def+defenseK)`)은 **플레이어→적 경로에서 삭제**된다 — 그것은 적→플레이어 전용이며 §3.2로 이동했다. (이것이 blocker "def가 정의 안 됨"의 답이다: **평가할 항 자체가 없다.**) |
 | `elementBonusMul` | ★ **의미 고정**: `elem = 1 + (elem − 1) × k` 의 **k**다. `resonance` 패시브 values = `[1.10, 1.20, 1.30, 1.40, 1.50]` → **유효 상성 배율 ×2.1 ~ ×2.5**. (초안 C의 `[2.1…2.5]`를 그대로 넣으면 ×3.1~3.5가 되는 함정 — 값은 k로 재작성되었다.) `elem ≤ 1`에는 절대 적용되지 않는다(×0.5·×1 불변). |
-| `gate` | 코어 전용. 살아있는 **`armor` 타입 부위 수**만 지수에 들어간다. `mobility`·`armament`는 게이트에 **영향 없음** → §8.13의 트레이드오프가 성립한다. |
+| ~~`gate`~~ (㉘ 폐지) | 코어 «소프트 게이트»는 없다. 코어의 무적은 식의 항이 아니라 **봉인(sealedNow)** — 모듈(코어가 아닌 모든 파트)이 살아 있는 동안 `hitEnemy` 가 0 을 돌려주고 탄이 통과한다(§8.13). |
 | 지속형 | 오라·장판·오빗의 `dmg`는 **1회 적용당** 값이며 `tickIntervalSec`가 주기다. DPS 정규화 없음. |
 
 ### 3.2 적 → 플레이어
@@ -651,7 +652,7 @@ render(world, acc / tickDur);                         // alpha 보간은 위치�
 | 위기 세션 시작 ★v1.10 ⑮ | `stages.phase.crisisStartSec` | **88**(~~80~~) = **상한**. 실제 시작 = `min(중간보스 전원 격파, 80)` (`crisisOnMidBossClear`, §8.19 ①) · ~~95 (= 마지막 25초)~~ |
 | 새떼 사이클 ★v1.10 ⑥ | `stages.phase.crisisCycleSec` | **9** — 6파 한 사이클. `crisisSwarmLoop` 로 페이즈 끝까지 반복. 위기 «구간»은 `mobPhaseSec` 까지(가변, 최장 70초) · ~~`crisisDurationSec` 25 → 14~~ (개명) |
 | ~~위기 세션 예고~~ | ~~`stages.phase.crisisWarnSec`~~ | **폐지(v1.10)** — 읽는 곳 0 + 격파 앞당김은 예고 불가 |
-| 중간보스 진입 창 ★v1.10 ⑰ | ★ `stages.phase.midBossAtSec` | **`[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]]`** — 첫 둘은 48초에 함께, 셋째 56초, 그 뒤 8초 간격 (스테이지 인덱스 배열, §8.9) |
+| 중간보스 진입 창 ★v1.10 ⑰·㉘ | ★ `stages.phase.midBossAtSec` | **`[[48,48,51],[48,48,51,54],…,[48,48,51,54,57,60,63,66,69,72]]`** — 첫 둘은 48초에 함께, 그 뒤 3초 간격(㉘), 수는 `midBossCount [3,4,5,6,8,10]` (스테이지 인덱스 배열, §8.9) |
 | ~~**중간보스 이탈**~~ | ~~`stages.phase.midBossLeaveAfterSec`~~ | **폐지(v1.10)** — 격파 아니면 위기 상한까지 선다(§8.9 «선택적» 개정) |
 | **중간보스 첫 마리** ★v1.10 | `stages.phase.midBossFirstId` | **`"mbNest"`** (소환자, §8.19 · S55) |
 | ~~페이즈 종료 페이드~~ ★v1.10 ⑧ | ~~`stages.phase.mobPhaseExitFadeSec`~~ | **폐지** — 읽는 곳이 0 이었다. 전환 연출은 `boss.entryWipeSec`(0.7, §8.22 쓸어내기)가 한다 |
@@ -1462,7 +1463,7 @@ v1.2는 `laser`에 **`chargeSec`와 `telegraphSec`를 동시에** 요구했다 �
 | 지정 방식 (베이크) | 웨이브 레코드의 `eliteIndex: int \| null` — 그 웨이브의 n번째 개체에 스포트라이트 플래그 |
 | 지정 방식 (라이브) ★v1.5 | **엘리트 재롤** — `enemies.spawnWave`가 자격 개체를 `elitePerWaveChance[포지션]` 확률로 엘리트화(`rng.elite`) |
 | `elite.perWaveMax` | 1 — **베이크된 `eliteIndex` 스포트라이트 상한**(스칼라라 1). 재롤은 이 위에 확률로 더 얹힌다(별개) |
-| ★ `stages.curve.elitePerWaveChance` | 런 포지션별, `rng.elite` — ★ **v1.5: 이제 라이브다.** v1.3이 「거처=`stages.curve` · `rng.elite` 구동」을 확정하고도 구현이 «슬라이스 밖»이라 죽어 있던 것을 배선(예약된 «엘리트 재롤»의 완성). 값 = `[0.0, 0.05, 0.15, 0.40, 0.70, 1.0]`(단조 비감소 — **초반 자유·최종 전원**). 자격 = `band∈bandAllowed ∧ element∈elementAllowed`. `eliteIndex` 위에 OR. S27이 ∈[0,1]·단조를 강제 |
+| ★ `stages.curve.elitePerWaveChance` | 런 포지션별, `rng.elite` — ★ **v1.10 ㉘: 위기 새떼에도 같은 규칙으로 선다**(`spawnCrisisSubWave` — 자격은 line 밴드 화살·공격형뿐, chaff 새떼 몸은 자격 밖. 사용자 「위기 구간에는 엘리트가 왜 하나도 없어?」). ★ **v1.5: 이제 라이브다.** v1.3이 「거처=`stages.curve` · `rng.elite` 구동」을 확정하고도 구현이 «슬라이스 밖»이라 죽어 있던 것을 배선(예약된 «엘리트 재롤»의 완성). 값 = `[0.0, 0.05, 0.15, 0.40, 0.70, 1.0]`(단조 비감소 — **초반 자유·최종 전원**). 자격 = `band∈bandAllowed ∧ element∈elementAllowed`. `eliteIndex` 위에 OR. S27이 ∈[0,1]·단조를 강제 |
 | `elite.hpMult` | 4.0 |
 | `elite.sizeMult` | 1.4 |
 | `elite.contactDmgMul` | 1.5 |
@@ -1593,8 +1594,8 @@ v1.2는 이 값을 `stages.themes[].midBossAtSec`(= **테마별** 필드)로 인
 
 | 키 | 값 |
 |---|---|
-| `stages.curve.midBossCount` ★v1.10 ⑰ | **`[3,3,3,4,5,5]`** — **하한 3**(사용자 2026-09-04: 「중간보스 구간이 너무 쉽다 — 기본 3마리」). 중간보스는 발사 배율(mobFireRateScale)을 안 받아 이미 최대 세기로 쏘므로 세기가 아니라 «수»가 손잡이다. 소환자 + 다른 형태 둘. 상한 5 는 유지 — 진입 x 슬롯이 3개라 6이면 세 번째로 겹친다. ~~③ `[2,2,3,3,4,5]`~~ ~~v1.5 `[1,2,2,3,4,5]`~~ |
-| ★ `stages.phase.midBossAtSec` ★v1.10 ⑰ | **`[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]]`** — ⑮ 가 첫 마리를 48초로(배수 24초 = 벽이 초기 속도로 다 빠지는 시간), ⑰ 이 기본 3. ~~③ `[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`~~ — 전 포지션 **첫 둘은 30초에 함께**(소환자 + 다른 형태가 처음부터 한 쌍, 초기 구간 길이는 포지션에 무관하게 21초 + 배수 9초, §8.19), 셋째부터 **10초 간격**으로 합류(사용자 결정 2026-09-04: 시각표로 «꾸준히», 격파 시 보충 안은 보류). 마지막 마리(60초)도 상한 80초 전 20초는 선다. len == midBossCount · 전 시각 < crisisStartSec 80 (S29). 같은 시각의 둘은 스폰 순번 슬롯(중앙·우)이 달라 겹치지 않는다. 거처는 `stages.phase`(v1.3). ~~v1.10 ② 5초 간격 `[[30],[30,35],…]`~~ ~~v1.5 `[[35],[30,45],…,[20,35,50,65,80]]`~~ |
+| `stages.curve.midBossCount` ★v1.10 ⑰·㉘ | **`[3,4,5,6,8,10]`** · ~~[3,3,3,4,5,5]~~ — ㉘(사용자 2026-09-05 「stage 2 부터 개수를 4, 5, 6, 8, 10 으로」). 하한 3(2026-09-04: 「중간보스 구간이 너무 쉽다 — 기본 3마리」). 중간보스는 발사 배율(mobFireRateScale)을 안 받아 이미 최대 세기로 쏘므로 세기가 아니라 «수»가 손잡이다. 소환자 + 다른 형태 둘. 상한 5 는 유지 — 진입 x 슬롯이 3개라 6이면 세 번째로 겹친다. ~~③ `[2,2,3,3,4,5]`~~ ~~v1.5 `[1,2,2,3,4,5]`~~ |
+| ★ `stages.phase.midBossAtSec` ★v1.10 ⑰·㉘ | **`[[48,48,51],[48,48,51,54],[48,48,51,54,57],[48,48,51,54,57,60],[48,48,51,54,57,60,63,66],[48,48,51,54,57,60,63,66,69,72]]`** — 첫 둘은 48초에 함께, 그 뒤 **3초 간격**(㉘ 사용자 「등장 간격도 3초 정도로」 · ~~8초~~). ⑮ 가 첫 마리를 48초로(배수 24초 = 벽이 초기 속도로 다 빠지는 시간), ⑰ 이 기본 3. ~~③ `[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`~~ — 전 포지션 **첫 둘은 30초에 함께**(소환자 + 다른 형태가 처음부터 한 쌍, 초기 구간 길이는 포지션에 무관하게 21초 + 배수 9초, §8.19), 셋째부터 **10초 간격**으로 합류(사용자 결정 2026-09-04: 시각표로 «꾸준히», 격파 시 보충 안은 보류). 마지막 마리(60초)도 상한 80초 전 20초는 선다. len == midBossCount · 전 시각 < crisisStartSec 80 (S29). 같은 시각의 둘은 스폰 순번 슬롯(중앙·우)이 달라 겹치지 않는다. 거처는 `stages.phase`(v1.3). ~~v1.10 ② 5초 간격 `[[30],[30,35],…]`~~ ~~v1.5 `[[35],[30,45],…,[20,35,50,65,80]]`~~ |
 | ★ **몸 전체가 아레나 안 (§8.20 · v1.10 ⑨)** | 플레이 피드백 「중간보스가 화면 밖에 숨는다」 실물 2건 정정: ① `anchor` 왕복 중심(mp2)을 `[a.x + r + swayAmpPx, a.x + a.w − r − swayAmpPx]` 로 조인다 — 우/좌 슬롯(±w/4)에 선 파쇄추(sway 190)가 x 아레나 밖 45px 까지 나가 통째로 숨었다 ② `charge` 복귀 x 를 모서리가 아니라 **반지름만큼 안쪽**으로 — 모서리에 세우면 창병(r 28)의 절반이 화면 밖에서 조준했다(스크린샷). 실측 36런(6시드 × 6포지션) 대기·왕복 중 «중심이 밖»인 틱 **0 / 233,622** |
 | ★ **동시 다수 (§8.9 v1.5)** | ★ **v1.4의 「동시 1마리」(등장 스케줄이 보장)를 폐기.** midboss.js 는 스케줄 시각마다 등장(타 개체 생존 무관), 살아있는 각 중간보스를 개체별로 처리(퇴장·이동·소환). v1.10: 타이머 이탈이 없으므로 **예정 전원이 함께 선다**(포지션 6 = 5마리, 보스 구간처럼). 진입 x 를 **스폰 순번 %3**(중앙·우·좌)으로 순환 — 연속 3스폰이 3슬롯이라 겹치지 않는다. 결정적·capHits 0·crash 0 |
 | ★ **첫 마리 = 소환자 (§8.19 v1.10)** | **`stages.phase.midBossFirstId = "mbNest"`** — 사용자(2026-09-04): 「무조건 유령/몬스터를 소환하는 중간보스 하나 + 다른 형태의 중간보스들, 마치 보스 구간처럼」. 첫 마리는 rng 소비 0(고정), 둘째부터 소환자를 **뺀** 종에서 `rng.spawn`. 이유: 중간보스 구간은 웨이브가 서므로(`midBossSuspendsWaves`) 소환자가 없으면 무대에 몹이 0 — 「몹이 적당히 나와야 중간보스를 피할 수 있다」. S55 ①② |
@@ -1800,52 +1801,30 @@ v1.0 §9.8은 `"movePattern": "mantaSway"`를 예시로 썼으나 **어휘도 �
 
 > ★ 초안 F의 `onDestroy: [{op, v}]` 6종 어휘(`moveSpeedMul dmgMul emitterOff spawnWave phaseAdvance openCore`)는 **폐기**한다. 근거: ① 타입별 고정 효과가 규칙 하나로 끝나고 조합 폭발이 없다 ② F의 `spawnWave`는 `boss.summonsAllowed: false`와 **직접 충돌**하며, 그 충돌이 §6.4(보스전 중 레벨업 구조적 불가)의 전제를 깬다 ③ `op` 목록은 AI가 임의 조합해 보스마다 다른 규칙을 만들 수 있다.
 
-### 8.13 ★ 코어 소프트 게이트 (설계의 급소)
+### 8.13 ★ 코어 하드 게이트 — 모듈을 다 부숴야 코어가 열린다 (v1.10 ㉘, 소프트 게이트 폐지)
 
-> **질문**: 부위를 무시하고 코어만 때려 죽일 수 있는가?
-> **답**: 때릴 수는 있다. 하지만 산술적으로 3분 안에 못 죽인다.
+> **사용자 결정(2026-09-05)**: 「어느 정도 궤도에 오르면 중간 보스·위기·보스 구간이 되게 쉽다. **보스 모듈은 무기 모듈이 파괴되지
+> 않으면 딜이 아예 안 들어오는 구조**를 써야 할 것 같다.」
 
 ```
-코어_피해배율 = boss.coreGateMul ^ (살아있는 armor 부위 수)
-boss.coreGateMul = 0.4
+코어.sealedNow = (살아있는 모듈 수 > 0)        // 모듈 = 코어가 아닌 모든 파트(armor·mobility·armament·extra)
+sealedNow 인 개체: hitEnemy → 0 · 탄은 통과(소멸 아님) · 무채화 + 자물쇠 렌더(§8.11 파트 봉인과 같은 규약)
 ```
 
-| 살아있는 `armor` | 코어 피해 배율 | 코어 직행 소요 = 코어 격파의 |
-|---|---|---|
-| 3 (최종만) | **×0.064** | **15.625배** |
-| 2 | **×0.16** | **6.25배** |
-| 1 | ×0.40 | 2.5배 |
-| 0 | **×1.00** | 1배 |
+- **강제 게이팅이다.** v1.1~v1.10 ㉗ 의 소프트 게이트(`coreGateMul^armor`, ×0.16)는 «코어 직행이 손해»로 가르쳤지만, 만렙
+  화력에서는 손해가 아니었다(플레이테스트 「보스가 쉽다」). 이제 순서가 규칙이다: 모듈(레이어 봉인 §8.11 순서대로) → 코어.
+- **소유**: `boss.js` 봉인 틱이 매 틱 «살아있는 모듈 수»를 세어 코어의 `sealedNow` 를 정한다(스폰 직후엔 닫힌 채 시작).
+  읽는 곳은 둘 — `damage.hitEnemy` ①'(직접피해 4무기 포함, 단 하나의 입구) · `step.collide`(탄 통과). `aliveArmorPartCount` ·
+  `rules.boss.coreGateMul` · `armorCoreRatioBandPct` 는 **삭제**(죽은 키).
+- **시간 구조**: 보스전 = Σ모듈 HP ÷ DPS + 코어 HP ÷ DPS — 병렬 피해가 없으므로 `bossTimerSec` 안에 열리는지는 모듈 총량이 정한다.
+  ㉘ 이 함께 올린 `bossHpScale ×1.5`(포지션 1~)와 합쳐 플레이테스트로 잰다(봇은 보스를 못 잡는다 — §11.6 ⑤).
 
-- **강제 게이팅이 아니라 배율** → "코어 직행" 자유는 존재하되 명백히 손해. **소프트 게이트**이므로 플레이어가 규칙을 몰라도 벽에 부딪히지 않고 *느려짐으로* 배운다(정보 전달이 곧 피드백).
+### 8.13.1 `bosses[].armorCoreRatio` — HP 배분 (v1.10 ㉘: 게이트 조건이 아니라 배분값)
 
-### 8.13.1 ★ `bosses[].armorCoreRatio` — 게이트가 실제로 게이트이기 위한 조건 (v1.1 신설)
-
-**φ = `bosses[].armorCoreRatio` = (armor 부위 HP 총합) ÷ (코어 HP).** 이 하나의 값이 보스전의 성격을 전부 결정한다.
-
-> ★ **v1.3 정정 — `boss.armorCoreRatio`는 유령 스코프였다 (전사 감사 major + 라운드 4 기지)**: **세 곳이 `boss.armorCoreRatio`를 백틱 확정 키로 참조**했다(§8.11의 HP 배분 행 · 이 절의 제목과 첫 문장 · **§8.14-R7의 키 열**) — 그런데 §9.4의 `rules.boss` 인쇄 블록에 **그런 키가 없다**(있는 것은 `armorCoreRatioBandPct: [0.85, 1.0]`뿐). 실제 거처는 **`bosses[].armorCoreRatio`**(§9.8, 개체 필수 필드)다. ★ **R7을 구현하는 사람이 읽는 바로 그 열이 존재하지 않는 키를 가리키고 있었다.**
->
-> ★ **분업의 명문화 (이것이 유령이 생긴 이유를 없앤다)**: **`rules.json > boss.armorCoreRatioBandPct` = 규칙(밴드 `[0.85, 1.0]`)의 유일 소유자** / **`bosses[].armorCoreRatio` = 값(φ)의 유일 소유자.** 「비율의 허용 범위」는 전 보스 공통의 **규칙**이라 `rules`에 살고, 「이 보스의 φ」는 **개체의 값**이라 `bosses[]`에 산다. 이 분업이 명시되면 §13.6.4의 「밸런싱 손잡이 = `armorCoreRatio`」도 **어느 파일을 여는 말인지** 확정된다(= `bosses.json`). 새 키 0.
-
-플레이어의 두 경로 (코어 HP = K, armor 총합 = A = φK, 실효 DPS = D, armor에 대한 스탠스 배율 = m):
-```
-경로 A (armor 파괴 후 코어) :  T_break(m) = A/(D·m) + K/D = (φ/m + 1)·K/D
-경로 B (코어 직행)          :  T_direct   = K/(0.4^a · D) = 0.4^-a · K/D
-```
-
-| # | **규칙** | 산술 | 그것이 지키는 것 |
-|---|---|---|---|
-| **G-1** ★ | **φ < 0.4^-a − 1** | 무투자(m=1)조차 `T_break < T_direct` | ★ **게이트가 게이트가 된다.** φ가 이 값을 넘으면 armor가 코어 직행보다 비싸져서 **모든 빌드가 armor를 무시**한다 → 속성 투자가 보스전에서 **완전히 무의미**해진다. 이것이 φ의 **의미 있는 상한이며, 상한이 armor 수의 함수라는 것이 `armorPartCountRange`의 진짜 의미다** |
-| **G-2** | **φ ≥ 0.85 × (0.4^-a − 1)** | ρ를 상한 가까이 | 속성 레버리지 ρ = `T_noEl/T_bal` = `(φ+1)/(φ/m+1)`는 **φ의 증가함수**다. G-1 아래에서 최대한 크게 = 속성 투자가 최대한 값을 갖게 |
-| **G-3** | 파생 상한 | ρ < m | **속성 투자의 산술적 천장은 `m`(균형 빌드의 스탠스 배율)이다.** 어떤 보스 저작으로도 이것을 넘을 수 없다 — §13.2-③이 이 부등식 위에 게이트 창을 세운다 |
-
-**φ의 확정 밴드**
-
-| `armor` 수 a | `0.4^-a − 1` (G-1 상한) | **정본 확정 φ** | ρ (m=1.62) | 코어 직행 |
-|---|---|---|---|---|
-| **2** (전 테마 보스) | 5.25 | **4.90** (93%) | **1.466** | `T_direct = 1.059 × T_noEl` — 가능하나 항상 손해 |
-| **3** (최종만) | 14.625 | **13.58** (93%) | **1.554** | `T_direct = 1.070 × T_noEl` — 그리고 절대시간이 180 초과 |
-| ~~1~~ | ~~1.5~~ | ★ **금지 (아래)** | 1.287 | — |
+**φ = (armor 부위 HP 총합) ÷ (코어 HP).** 하드 게이트에서 φ 는 «코어 직행 대비 손익»의 산술과 무관하다 — 그 산술(G-1 `φ < 0.4^-a − 1`,
+G-2, ρ 상한)은 소프트 게이트와 함께 폐기. 값은 그대로(테마 보스 **4.90**, 최종 **13.58** — 보스전 시간의 대부분이 모듈에 있다는 뜻).
+규칙(S5 R7): **φ ∈ (0, `rules.boss.armorCoreRatioMax`(15)]** — 상한은 «타이머 안에 못 여는 두께»의 저작을 막는다. 분업은 그대로:
+`rules.json > boss.armorCoreRatioMax` = 규칙, `bosses[].armorCoreRatio` = 값.
 
 ### 8.13.2 ★ `armorPartCountRange` = **[2, 2]** (v1.1 개정 — R6 변경)
 
@@ -2418,12 +2397,12 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
                "partHitPriority":"outermostFirst", "phaseThresholds":[0.6,0.3],
                "phaseTransitionSec":1.5, "timerPausesOnPhaseTransition":true,
                "introSec":3.0, "entryWipeSec":0.7, "timerStartsAfterIntro":true, "timerExpire":"kill",
-               "coreGateMul":0.4, "mobilityPenalty":1.5,
+               "mobilityPenalty":1.5,   // ㉘ coreGateMul 삭제(하드 게이트)
                "escalateFireRateMul":1.25, "escalateFireRateMax":1.60, "coreElement":"normal",
                "coreEmitterId":"bossCore",
                "partNormalForbidden":true, "partElementDistinctMin":2,
                "partThemeElementMax":2, "armorElementNotTheme":false,
-               "armorPartCountRange":[2,2], "armorCoreRatioBandPct":[0.85,1.0], "coin":12, "partCoin":2,
+               "armorPartCountRange":[2,2], "armorCoreRatioMax":15, "coin":12, "partCoin":2,
                "optionalPartArmorRatio":0.20, "partReachMinPx":32,
                "midBossSummonsAllowed":["mbNest"],
                "finale":{ "partCount":8, "armorPartCount":3,
@@ -2838,7 +2817,7 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 > ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
 ```json
-{ "schemaVersion": 1, "maxLevel": 10,
+{ "schemaVersion": 1, "maxLevel": 6,   // ㉘ (사용자 2026-09-05 「무기는 10, 패시브는 6 — 지금은 너무 강하다」) · ~~10~~
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
   "passives": [
@@ -3295,7 +3274,7 @@ tetrarchThroneP1  ...
   "themeDraw": { "pool":["sea","glacier","volcano","desert","forest","bog"],
                  "count":5, "allowRepeat":false, "stage1RequiresIntroOk":true, "finalStageId":"finale" },
   "curve": { "enemyHpScale":[1.0,1.5,2.2,3.2,4.5,6.0], "xpScale":[1.0,1.6,2.4,3.4,4.6,6.0],
-             "bossHpScale":[1.00,1.80,4.67,6.96,14.42,14.42],
+             "bossHpScale":[1.00,2.70,7.00,10.44,21.63,21.63],   // ㉘ 포지션 1~ ×1.5 (보스·중간보스 공용)
              "spawnDensityScale":[0.70,0.85,1.00,1.15,1.30,1.50],
              "midBossCount":[1,1,2,2,2,2], "elitePerWaveChance":[0.10,0.15,0.20,0.25,0.30,0.35],
              "swarmTotalScale":[0.5,0.7,0.85,1.0,1.0,1.0],
@@ -3316,7 +3295,7 @@ tetrarchThroneP1  ...
                { "subWave":4, "formationId":"vWedge", "bodyId":"swarmDart",  "count":37, "spawnEdge":"top" },
                { "subWave":5, "formationId":"arc",    "bodyId":"swarmChaff", "count":37, "spawnEdge":"top" },
                { "subWave":6, "formationId":"vWedge", "bodyId":"swarmDart",  "count":36, "spawnEdge":"top" } ],
-             "midBossAtSec":[[48,48,56],[48,48,56],[48,48,56],[48,48,56,64],[48,48,56,64,72],[48,48,56,64,72]],
+             "midBossAtSec":[[48,48,51],[48,48,51,54],[48,48,51,54,57],[48,48,51,54,57,60],[48,48,51,54,57,60,63,66],[48,48,51,54,57,60,63,66,69,72]],   // ㉘ 3초 간격
              "midBossFirstId":"mbNest", "midBossElementRule":"themeElseNonTheme",
              "midBossForcedLeaveOnCrisis":true,
              "bossTimerSec":180, "timerWarnSec":60, "timerRedAlertSec":30,
@@ -4380,7 +4359,7 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
     "killTimeMedianBalanced": { "min":120, "max":150 }
   },
   "static": {
-    "growthBudget": { "maxLevelUps":60, "minTotalSink":131 },
+    "growthBudget": { "maxLevelUps":60, "minTotalSink":107 },   // ㉘ 패시브 6×6
     "capHits":      { "max":0 },
     "fairnessViolations": { "max":0 }
   }
@@ -4625,7 +4604,7 @@ dustRunner:     passive 0 (초고속 이탈)  /  maxFarm 대부분 × XP 5배   
 
 **⑥ `growthBudget` (정적)**
 ```
-minTotalSink = 5(새 무기) + 54(무기 레벨 6×9) + 12(속성) + 60(패시브 6×10) = 131    // certify.static.growthBudget.minTotalSink (v1.10 ⑱ · ~~85~~ ~~67~~)
+minTotalSink = 5(새 무기) + 54(무기 레벨 6×9) + 12(속성) + 36(패시브 6×6) = 107   // ㉘ · ~~131~~    // certify.static.growthBudget.minTotalSink (v1.10 ⑱ · ~~85~~ ~~67~~)
 maxLevelUps = 60  <  67   ✔   (충족률 상한 90%, 목표 54 → 81%)
 ```
 **결론: 통과 ✔** — 이 부등식이 **"전부 못 찍는다 = 선택이 의미를 가진다"**의 산술적 성립이다. XP 곡선을 바꿔 레벨업이 60을 넘기면 **인증 실패.**
@@ -4787,7 +4766,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S2** | **스키마** — 전 JSON을 `schema.mjs`로 검증: 타입 · 필수 키 · **미지 키 거부** · 참조 무결성 (`weapons[].levels[i]` 부분 오버라이드가 유일한 예외). ★ **`rules.json` 루트 키 = 17개 목록**(§9.4) |
 | **S3** | **어휘** — `moveId`(8) · `emitterType`(8) · `formationId`(6) · `partType`(4) · `shapeId`(12) · `targetMode`(5) · `family`(12) · `passive.stat`(12) · ★ **`movePattern`(3)** · ★ **`bullets[].shape`(2)** · ★ **`emitters[].from`(2)** · ★ **`archetypes[].themeOnly`(6 + `null`)** · ★ **`stages[].crisisElementRule`(2)** 밖의 값 = **실패**. ★ **v1.3: `tier == "mid"` ⟺ `moveId` 보유 ⟺ `movePattern` 부재 ⟺ `parts == []` ⟺ `armorCoreRatio` 부재 ⟺ 보상 4필드 보유** (§9.8.2의 다중 동치) |
 | **S4** | **아키타입 겹침 금지** — `(moveId, emitterType)` 쌍 중복 시 실패 (`band`가 다르면 허용) |
-| **S5** | **보스 R1~R7 전부** + `partCount == 4` (finale는 5, `exemptRules` 적용) + ★ **`armor` 수 == 2** (finale는 `finale.armorPartCount` 3) + ★ **`tier == "final"` ⟺ `finale` 스테이지 전용 ⟺ `bossHpScale` 미적용** |
+| **S5** | **보스 R1~R7 전부** (★ ㉘ R7 = `armorCoreRatio φ ∈ (0, boss.armorCoreRatioMax]` — 소프트 게이트 산술 폐기) + `partCount == 4` (finale는 5, `exemptRules` 적용) + ★ **`armor` 수 == 2** (finale는 `finale.armorPartCount` 3) + ★ **`tier == "final"` ⟺ `finale` 스테이지 전용 ⟺ `bossHpScale` 미적용** |
 | **S6** | **공정성** — ★ **`enemies.json > emitters`만** 검사(`fairness.playerWeaponsExempt`) — `telegraphSec`가 **3축의 `max`**(거동별 표 · 탄 상태 · 개체 클래스 — §7.4)를 만족, `speed ≤ 260`, 조준탄 ≤ 200, ★ **상태이상 탄 ≤ `maxBulletSpeed × statusBulletSpeedMul`(156)**, 틈 ≥ 46px, 스턴 ≥ 1.5s / ≤ 1.0s. ★ **v1.3: `minSpawnRadiusPx`(140)는 여기서 뺐다** — 발사 시점 플레이어 위치의 함수라 정적 검사 불가 → `certify.static.fairnessViolations`(런타임) |
 | **S7** | **동시 텔레그래프** — 보스 `patternSet`을 3페이즈 전부 전개해 **개체당 ≤ 2** 정적 검사 |
 | **S8** | **혼합 비율** — ★ **저작 리스트**(= `stages[].waves[]` 중 **`unlockStageMin ≤ s`인 레코드**, v1.3)의 **원시 개체 수**(= `count` 그대로, ★ **v1.4: 엘리트를 빼지 않는다** — §8.2) 기준 속성 비율이 `mix`에 **±3%p** (**중간보스·새떼·보스 제외** — 셋 다 `waves[]` 밖이라 동어반복이다). `mix`가 counter/prey 규칙(70/10/10/10)을 따르는지. ★ **실측: 전 31셀 0.0000%p** · ★ ㉔ ③ `stages.theme.offThemeHpMul ∈ [0.5, 1)` (테마 밖 속성은 약하다 — §8.2 ③) |

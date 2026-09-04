@@ -123,7 +123,7 @@
       "killTimeMedianBalanced": { "min": 120, "max": 150 }
     },
     "static": {
-      "growthBudget": { "maxLevelUps": 60, "minTotalSink": 131 },
+      "growthBudget": { "maxLevelUps": 60, "minTotalSink": 107 },
       "capHits": { "max": 0 },
       "fairnessViolations": { "max": 0 }
     }

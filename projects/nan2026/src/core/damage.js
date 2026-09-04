@@ -34,18 +34,17 @@ export function onScreen(a, e) {
 /**
  * §3.1 — 플레이어 → 적. float 를 돌려준다 (적용은 float 누산, 표시만 반올림 — 6항).
  *
- * @param ctx   { matrix, dmgMulSum, elementBonusMul, coreGateMul }
+ * @param ctx   { matrix, dmgMulSum, elementBonusMul }
  *                matrix          = elements.matrix                     (§9.4.4)
  *                dmgMulSum       = Σ(패시브 dmgMul)  — 가산 풀        (§9.6)
  *                elementBonusMul = resonance 의 k. 미보유면 1.0        (§3.1)
- *                coreGateMul     = rules.boss.coreGateMul              (§8.13)
  * @param dmg      w.dmg — 무기 레벨 행에서 읽은 값                     (§3.1-1항)
  * @param localMul Π(패밀리 지역 배율) — v1.5 기준 실재하는 것은 `evoSecondaryDmgMul` 뿐이다
  *                 (falloff · rearBias 는 omni 와 함께 소멸했다).
  *                 ★ 폐쇄 목록 3종이며 전부 **1항 안**에서 곱해진다 (§3.1).
  *                 해당 없으면 1.
  * @param stamp    피해 개체에 각인된 속성 (§4.4)
- * @param target   { element, isCore, aliveArmorPartCount }
+ * @param target   { element }
  */
 export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
   // 1항 — base = w.dmg × Π(패밀리 지역 배율)
@@ -58,11 +57,11 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
   //   공식은 elements.elementTerm 이 소유한다 (미지 속성은 그 안에서 에러 — §4.1 폴백 금지).
   const elem = elementTerm(ctx.matrix, stamp, target.element, ctx.elementBonusMul);
 
-  // 4항 — 코어 소프트 게이트. 살아있는 **armor 타입 부위 수**만 지수에 들어간다 (§3.1 · §8.13)
-  const gate = target.isCore ? Math.pow(ctx.coreGateMul, target.aliveArmorPartCount) : 1;
+  // 4항(v1.10 ㉘ 폐지) — 코어 «소프트 게이트»(coreGateMul^armor)는 없다. 코어는 모듈이 하나라도 살아 있으면 **무적**(sealedNow —
+  //   hitEnemy ①' 가 0 을 돌려주고 탄은 통과한다, §8.13 하드 게이트). 여기 오는 코어는 이미 열린 코어다.
 
   // 5항
-  return base * dmgMul * elem * gate;
+  return base * dmgMul * elem;
 }
 
 /**
@@ -86,7 +85,7 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
   //   «한쪽만 막는» 사고를 두 번 냈다 — 세 번째를 만들지 않는다.
   if (!onScreen(world.data.rules.view.arena, e)) return 0;                                // ①'''
   if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) return 0;   // ①
-  if (e.isBoss && !e.isCore && e.sealedNow) return 0;                                    // ①' §8.11
+  if (e.isBoss && e.sealedNow) return 0;                                                 // ①' §8.11 파트 봉인 · §8.13 코어 하드 게이트(㉘)
   // ①'' §8.17(v1.7) 장갑 — 이 파일의 존재 이유가 「모든 직접피해가 공유하는 단 하나의 입구」다.
   //   여기 게이트를 안 두면 노바·랜스·바라지·팬진화 4무기가 장갑을 그대로 뚫는다
   //   (v1.5 가 봉인 sealedNow 를 탄 경로에만 넣어 같은 사고를 낸 자리 = 바로 위 ①' 줄이다).

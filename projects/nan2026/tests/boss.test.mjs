@@ -40,7 +40,7 @@ function livePickups(w, kind) {
 }
 
 suite('boss/spawnBoss', () => {
-  test('코어 + 파트 스폰, HP × bossHpScale[포지션], aliveArmorPartCount = armor 수', () => {
+  test('코어 + 파트 스폰, HP × bossHpScale[포지션], 코어는 닫힌 채(sealedNow) 시작 (㉘)', () => {
     const w = mkRunWorld(1, 0);
     const def = bossDefFor(w);
     assert.eq(def.tier, 'stage', '포지션 0 = 스테이지 보스');
@@ -56,8 +56,7 @@ suite('boss/spawnBoss', () => {
     const scale = w.data.stages.curve.bossHpScale[0];
     assert.near(core.hp, def.core.hp * scale, 1e-6, '코어 HP = core.hp × bossHpScale[0]');
     assert.near(core.hpMax, core.hp, 1e-9, 'hpMax = hp');
-    const armorCount = def.parts.filter((p) => p.partType === 'armor').length;
-    assert.eq(core.aliveArmorPartCount, armorCount, 'aliveArmorPartCount = armor 파트 수');
+    assert.eq(core.sealedNow, true, '모듈이 있으니 코어는 닫혀서 시작 (§8.13 하드 게이트)');
   });
 
   test('§8.9.1(v1.5) 발사 파트 수가 런 포지션으로 성장 (3,3,4,5,6,7)', () => {
@@ -110,29 +109,47 @@ suite('boss/spawnBoss', () => {
 });
 
 suite('boss/처치 규칙 (killBossEntity)', () => {
-  test('armor 파트 처치 → 코어 aliveArmorPartCount −1 (§3.1-4 게이트 1단 해제), 코어 생존', () => {
+  test('하드 게이트(㉘) — 모듈이 하나라도 살아 있으면 코어는 무적(탄 통과·피해 0), 마지막 모듈이 죽은 «다음 틱»에 열린다', () => {
     const w = mkRunWorld(3, 0);
-    spawnBoss(w);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = false; w.run.bossTimer = w.data.stages.phase.bossTimerSec;
+    step(w, makeInput(), TICK_DT);
     const { core, parts } = scanBoss(w);
-    const armor = parts.filter((p) => p.partType === 'armor');
-    assert.gt(armor.length, 0, 'armor 파트 존재 (양성 경로)');
-    const before = core.aliveArmorPartCount;
-    killEnemy(w, armor[0]);
-    assert.eq(core.aliveArmorPartCount, before - 1, 'armor 처치 = 게이트 1단 해제');
-    assert.ok(!armor[0].alive, '파트 반납됨');
+    assert.gt(parts.length, 0, '모듈이 있다');
+    w.run.bossTransitionT = 0;
+    const ctx = w.dmgCtx; ctx.matrix = w.data.elements.matrix;
+    assert.eq(core.sealedNow, true, '닫힘');
+    assert.eq(hitEnemy(w, ctx, 'forward', 50, 1, 'normal', core, 0), 0, '닫힌 코어엔 피해 0');
+    // 모듈을 하나만 남기고 부순다 — 여전히 닫힘 (armor 든 아니든 «모듈» 이다)
+    for (let i = 0; i < parts.length - 1; i += 1) killEnemy(w, parts[i]);
+    step(w, makeInput(), TICK_DT);
+    assert.eq(core.sealedNow, true, '하나라도 남으면 닫힘');
+    assert.eq(hitEnemy(w, ctx, 'forward', 50, 1, 'normal', core, 0), 0, '여전히 0');
     assert.ok(core.alive, '코어 생존 (파트 파괴 ≠ 보스 사망)');
     assert.eq(w.run.cleared, false, '파트 파괴는 클리어 아님');
+    // 마지막 모듈
+    const last = parts.find((p) => p.alive);
+    killEnemy(w, last);
+    step(w, makeInput(), TICK_DT);
+    assert.eq(core.sealedNow, false, '모듈 0 → 열림');
+    const hp0 = core.hp;
+    assert.gt(hitEnemy(w, ctx, 'forward', 50, 1, 'normal', core, 0), 0, '열린 코어엔 피해가 든다');
+    assert.lt(core.hp, hp0, 'HP 감소');
   });
 
-  test('비-armor 파트(mobility/armament) 처치는 aliveArmorPartCount 불변 (armor 만 게이트)', () => {
-    const w = mkRunWorld(4, 0);
-    spawnBoss(w);
-    const { core, parts } = scanBoss(w);
-    const nonArmor = parts.filter((p) => p.partType !== 'armor');   // 스테이지 보스 = 2 armor + 1 비-armor
-    assert.gt(nonArmor.length, 0, '비-armor 파트 존재 (양성 경로)');
-    const before = core.aliveArmorPartCount;
-    killEnemy(w, nonArmor[0]);
-    assert.eq(core.aliveArmorPartCount, before, '비-armor 처치 = 게이트 불변');
+  test('닫힌 코어를 지나는 탄은 소멸하지 않고 통과한다(파트 봉인과 같은 규약)', () => {
+    const w = mkRunWorld(5, 0);
+    w.run.phase = PHASE.BOSS; w.run.bossSpawned = false; w.run.bossTimer = w.data.stages.phase.bossTimerSec;
+    step(w, makeInput(), TICK_DT);
+    const { core } = scanBoss(w);
+    w.run.bossTransitionT = 0;
+    const s0 = w.slots[0];
+    const eff = recomputeEff(w, s0);
+    for (const s2 of w.slots) s2.weaponId = null;                 // 자동 발사 끔(탄은 직접 놓는다)
+    const b = spawnPlayerBullet(w, s0, eff, core.x, core.y, 0, 0, 1);
+    const hp0 = core.hp;
+    step(w, makeInput(), TICK_DT);
+    assert.ok(b.alive, '탄이 소멸하지 않는다(통과)');
+    assert.eq(core.hp, hp0, '코어 HP 불변');
   });
 
   test('코어 처치 → run.cleared + 모든 보스 개체 반납 (v1.5: 코인 드랍 폐지)', () => {
@@ -222,7 +239,6 @@ suite('boss/레이어 봉인 (§8.11 v1.5)', () => {
       matrix: w.data.elements.matrix,
       dmgMulSum: w.stats.dmgMul,
       elementBonusMul: w.stats.elementBonusMul,
-      coreGateMul: w.data.rules.boss.coreGateMul,
     };
     const stamp = stampFor(w, 0, 'spawn', w.slots[0].stampElement);
 

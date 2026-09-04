@@ -493,12 +493,20 @@ function spawnCrisisSubWave(world, s, subWave) {
       const j = Math.floor(world.rng.spawn.f() * (k + 1));
       const t = bag[k]; bag[k] = bag[j]; bag[j] = t;
     }
+    // §8.6 · §8.10(v1.10 ㉘) 위기에도 엘리트가 선다 — 사용자: 「위기 구간에는 엘리트가 왜 하나도 없어? 초기 구간만큼 빡세야 한다」.
+    //   정상 웨이브와 «같은 규칙»: 자격(밴드 ∈ bandAllowed ∧ 속성 ∈ elementAllowed) 개체가 elitePerWaveChance[포지션] 확률로,
+    //   rng.elite 스트림(단락평가 — 자격 개체만 뽑는다, §10.2). 새떼 몸(chaff)은 자격 밖이라 화살(line)·공격형만 후보다.
+    const el2 = world.data.rules.elite;
+    const chance = world.data.stages.curve.elitePerWaveChance[s.curveIdx];
     for (let k = 0; k < count; k += 1) {
       if (world.enemies.live >= swarmMax) break;      // §12.4 swarmConcurrentMax (새떼 전용 상한)
       const shoot = bag[k] === 1;
-      placement(world, r, k, count, _pos, shoot ? shooter : body);   // 레코드가 formationId 를 들고 있다(arc/vWedge)
-      const bornC = spawnEnemy(world, shoot ? shooter.id : body.id, el, _pos.x, _pos.y, shoot ? hpShoot : hpBody, false);
-      if (bornC !== null) bornC.wallX = (shoot ? shooter : body).moveId !== 'strafe';   // §8.7 ㉕
+      const d = shoot ? shooter : body;
+      const eligible = chance > 0 && el2.bandAllowed.indexOf(d.band) >= 0 && el2.elementAllowed.indexOf(el) >= 0;
+      const elite = eligible && world.rng.elite.f() < chance;
+      placement(world, r, k, count, _pos, d, undefined, elite);   // 레코드가 formationId 를 들고 있다(arc/vWedge)
+      const bornC = spawnEnemy(world, d.id, el, _pos.x, _pos.y, shoot ? hpShoot : hpBody, elite);
+      if (bornC !== null) bornC.wallX = d.moveId !== 'strafe';   // §8.7 ㉕
     }
   }
 }

@@ -28,7 +28,7 @@ function mkWorld(seed = 1) {
   return createWorld({ data: loadData(), seed, weapons, hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
 }
 function ctxOf(w) {
-  return { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: w.data.rules.boss.coreGateMul };
+  return { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1 };
 }
 
 // ── ① 술어 = 클립 사각형 ────────────────────────────────────────────────

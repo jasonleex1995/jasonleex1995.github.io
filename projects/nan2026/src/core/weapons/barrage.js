@@ -30,7 +30,7 @@ const STRIKE = 'strike';
 const HIT = 'barrageHit';        // §7.12(v1.7) 착탄 연출용 kind
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 (§10.3) */
-const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1, coreGateMul: 0 };
+const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
 const _at = { x: 0, y: 0 };
 
 /**
@@ -72,7 +72,6 @@ function detonate(world, slot, eff, x, y, r) {
   ctx.matrix = world.data.elements.matrix;
   ctx.dmgMulSum = world.stats.dmgMul;
   ctx.elementBonusMul = world.stats.elementBonusMul;
-  ctx.coreGateMul = world.data.rules.boss.coreGateMul;
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) {

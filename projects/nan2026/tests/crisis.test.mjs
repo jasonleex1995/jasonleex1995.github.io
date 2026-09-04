@@ -175,3 +175,36 @@ suite('crisis/§8.10 새떼', () => {
     assert.eq(run(), run(), '동일 시드 = 동일 편성');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('crisis · v1.10 ㉘ — 위기에도 엘리트가 선다 (§8.6 · §8.10)', () => {
+  test('포지션 0(확률 0)은 엘리트 0 · 확률 > 0 인 포지션은 자격 몸(line 밴드 화살)에서만 엘리트 · 새떼 몸(chaff)은 절대 아니다', () => {
+    const d = loadData();
+    const el = d.rules.elite;
+    const chance = d.stages.curve.elitePerWaveChance;
+    for (const pos of [0, 2, 4]) {
+      const w = mkCrisisWorld(5, pos === 5 ? 'finale' : 'bog', pos);
+      w.run.phaseT = d.stages.phase.crisisStartSec;
+      w.player.hp = 1e9; w.player.hpMax = 1e9;
+      for (const s of w.slots) s.weaponId = null;
+      const seen = new Map();
+      for (let i = 0; i < 60 * 18; i += 1) {
+        step(w, makeInput(), TICK_DT);
+        for (const e of w.enemies.items) if (e.alive && !e.isBoss && e.midBossId === '') seen.set(`${e.gen}:${e.idx}`, e);
+      }
+      let elites = 0; let total = 0;
+      for (const e of seen.values()) {
+        total += 1;
+        if (!e.elite) continue;
+        elites += 1;
+        const a = d.enemies.archetypes.find((x) => x.id === e.archetypeId);
+        assert.ok(el.bandAllowed.includes(a.band), `${e.archetypeId}(${a.band}) 는 엘리트 자격 밴드`);
+        assert.ok(el.elementAllowed.includes(e.element), '자격 속성');
+        assert.ok(e.radius > a.radius, '엘리트는 크다(sizeMult)');
+      }
+      assert.gt(total, 100, `pos${pos}: 새떼가 많이 나왔다 (${total})`);
+      if (chance[pos] === 0) assert.eq(elites, 0, `pos${pos}: 확률 0 → 엘리트 0`);
+      else assert.gt(elites, 0, `pos${pos}: 확률 ${chance[pos]} → 엘리트 > 0 (실제 ${elites}/${total})`);
+    }
+  });
+});

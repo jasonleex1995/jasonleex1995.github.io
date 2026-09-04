@@ -368,7 +368,6 @@ function collide(world, dt) {
   ctx.matrix = world.data.elements.matrix;
   ctx.dmgMulSum = world.stats.dmgMul;                     // §3.1-2항 — 가산 풀
   ctx.elementBonusMul = world.stats.elementBonusMul;      // §3.1-3항 — resonance 의 k
-  ctx.coreGateMul = world.data.rules.boss.coreGateMul;    // §3.1-4항
 
   const pb = world.playerBullets.items;
   const en = world.enemies.items;
@@ -407,7 +406,8 @@ function collide(world, dt) {
       }
 
       // §8.11(v1.5) 레이어 봉인 — 낮은 레이어(앞) 파트가 살아있으면 이 파트는 무적. 탄은 통과(잠금 렌더가 신호).
-      if (e.isBoss && !e.isCore && e.sealedNow) continue;
+      // §8.13(v1.10 ㉘) 코어 하드 게이트 — 모듈이 하나라도 살아 있으면 코어도 같은 봉인(탄 통과). 부수는 순서가 곧 규칙.
+      if (e.isBoss && e.sealedNow) continue;
 
       // §6.3 — 페이즈 전환 중 보스(코어·파트) 무적 = 공짜 숨돌릴 틈. 탄은 통과(소멸 아님, i-frame 과 대칭).
       if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) continue;
@@ -685,7 +685,7 @@ function killMidBoss(world, e) {
 /**
  * §8.11/§8.12 — 보스 개체(코어·파트) 처치. killEnemy 가 e.isBoss 면 여기로 위임한다(멱등 가드는 상위).
  *   코어 격파 = 보스 사망 → run.cleared + 모든 보스 개체 반납(잡몹 드랍 없음, xp 0).
- *   주변 파트 파괴 = armor 면 코어 aliveArmorPartCount −1(§3.1-4 소프트게이트 1단 해제).
+ *   주변 파트 파괴 = 코어 하드 게이트는 boss.js 의 봉인 틱이 «살아있는 모듈 수»로 다시 잰다(§8.13 ㉘).
  *   ★ 이동 페널티(mobility)·발사 격화(armament)는 B2. 여기선 게이트·반납만 (v1.5: 코인 폐지).
  */
 /** 현재 런 포지션이 최종(테마 없음)인가. stage.isFinale 과 같은 판정이나 step 은 stage.js 를 import 하지 않는다(순환). */
@@ -723,10 +723,6 @@ function killBossEntity(world, e) {
     world.run.bossFireRateMul = Math.min(world.run.bossFireRateMul * bcfg.escalateFireRateMul, bcfg.escalateFireRateMax);
   }
   if (e.partType === 'armor') {
-    for (let i = 0; i < en.length; i += 1) {
-      const c = en[i];
-      if (c.alive && c.isBoss && c.isCore && c.aliveArmorPartCount > 0) { c.aliveArmorPartCount -= 1; break; }
-    }
     // §8.12(v1.5 B-3) — 모듈 격파 = «새 패턴». armor 를 부수면 남은 부위를 다음 페이즈 패턴으로
     //   즉시 격상(발악 앞당김). ★ 페이즈는 오직 오른다(advancePhase 가 HP 임계와 max 합성) → 격파할수록
     //   보스가 발악에 가까워진다 = 「모듈이 죽을수록 강해지는」 체감(속도만이 아니라 패턴).
