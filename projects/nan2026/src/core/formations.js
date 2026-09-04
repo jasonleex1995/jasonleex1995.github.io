@@ -67,7 +67,9 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     const slot = col < lane ? col : col + f.laneSlots;      // 차선 칸을 건너뛴다
     // ★ 원점 기준이 «칸 격자»다(몸 수가 아니다) — 마지막 줄이 덜 차도 줄이 좌우로 흔들리지 않는다.
     x = originX + (slot - (slots - 1) / 2) * f.gapPx;
-    y = originY - row * f.rowGapPx;
+    // §8.19(v1.10) jitterY — 줄을 y 로 흩뜨린다. 사용자: 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루」.
+    //   0 이면 정확한 격자(v1.9), 1 이면 한 줄 높이만큼 흩어져 줄이 «사라진다». rng.spawn 이라 시드 결정적.
+    y = originY - row * f.rowGapPx - rng.f() * f.jitterY * f.rowGapPx;
   } else {
     // scatter + 폴백(columnV·pincer·미지) — rng.spawn 산포. jitterPx = y 계단, minSepPx = 가장자리 여백.
     //   ★ 원점 중심으로 흩는다(소환 편대가 소환자 자리에 놓이는 계약). 웨이브는 originX=아레나 중앙이라

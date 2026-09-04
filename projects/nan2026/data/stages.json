@@ -26,7 +26,7 @@
   "phase": {
     "mobPhaseSec": 120,
     "mobPhaseSkippable": false,
-    "mobPhaseMaxWaves": 48,
+    "mobPhaseMaxWaves": 56,
     "waveIntervalSec": 2.65,
     "waveClearAdvance": true,
     "mobPhaseExitFadeSec": 3.0,
@@ -35,14 +35,17 @@
     "enemyExitForfeitsReward": true,
     "waveListExhausted": "cycle",
     "crisisPerStage": 1,
-    "crisisStartSec": 106,
+    "crisisStartSec": 80,
     "crisisDurationSec": 14,
-    "crisisWarnSec": 3.0,
-    "crisisSuspendsWaves": true,
+    "crisisSuspendsWaves": false,
+    "crisisOnMidBossClear": true,
     "crisisTotal": 84,
     "crisisSubWaves": 6,
     "introFormationId": "wall",
     "sectionSpeedMul": { "early": 0.72, "mid": 1.0, "crisis": 1.45 },
+    "earlyWaveIntervalSec": 1.4,
+    "earlyDrainSec": 9,
+    "midBossSuspendsWaves": true,
     "crisisWaves": [
       { "subWave": 1, "formationId": "arc",     "archetypeId": "swarmChaff",  "count": 7, "spawnEdge": "top" },
       { "subWave": 1, "formationId": "arc",     "archetypeId": "swarmLancer", "count": 7, "spawnEdge": "top" },
@@ -57,8 +60,8 @@
       { "subWave": 6, "formationId": "vWedge",  "archetypeId": "swarmChaff",  "count": 12, "spawnEdge": "top" },
       { "subWave": 6, "formationId": "vWedge",  "archetypeId": "swarmLancer", "count": 2, "spawnEdge": "top" }
     ],
-    "midBossAtSec": [[30], [30, 35], [30, 35], [26, 31, 36], [24, 29, 34, 39], [20, 25, 30, 35, 40]],
-    "midBossLeaveAfterSec": 45,
+    "midBossAtSec": [[30], [30, 35], [30, 35], [30, 35, 40], [30, 35, 40, 45], [30, 35, 40, 45, 50]],
+    "midBossFirstId": "mbNest",
     "midBossElementRule": "themeElseNonTheme",
     "midBossForcedLeaveOnCrisis": true,
     "bossTimerSec": 180,
@@ -375,6 +378,6 @@
     "arc": { "radiusPx": 180, "spanDeg": 120 },
     "pincer": { "yStartPx": 120, "yStepPx": 60 },
     "scatter": { "jitterPx": 90, "minSepPx": 40 },
-    "wall": { "gapPx": 29, "rowGapPx": 40, "perRow": 20, "laneSlots": 2, "laneStrideCols": 3 }
+    "wall": { "gapPx": 29, "rowGapPx": 40, "perRow": 20, "laneSlots": 2, "laneStrideCols": 3, "jitterY": 0.85 }
   }
 }

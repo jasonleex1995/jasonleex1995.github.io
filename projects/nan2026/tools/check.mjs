@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -771,7 +771,7 @@ function S2_files() {
       }
       // §8.9 v1.2 정정: bosses[].leaveAfterSec 는 삭제되었다
       if (has(b, 'leaveAfterSec')) {
-        V('S2', `bosses[${b.id}].leaveAfterSec: 삭제된 키 — 유일 소유자 = stages.phase.midBossLeaveAfterSec (§8.9)`);
+        V('S2', `bosses[${b.id}].leaveAfterSec: 삭제된 키 — 타이머 이탈은 폐지, 이탈은 위기(midBossForcedLeaveOnCrisis)만이 부른다 (§8.9 v1.10)`);
       }
     } else {
       // §9.8 — 스테이지·최종 보스 팔
@@ -826,9 +826,9 @@ function S2_files() {
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisDurationSec',
-    'crisisWarnSec', 'crisisSuspendsWaves', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
-    'introFormationId', 'sectionSpeedMul',
-    'midBossAtSec', 'midBossLeaveAfterSec', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
+    'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
+    'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
+    'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
     'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec', 'statusStunMaxPerStage'], 'stages.phase');
   if (has(D.stages.phase, 'bossEntrySec')) {
     V('S2', 'stages.phase.bossEntrySec: 삭제된 키 (§9.9/§23.3) — 유일 소유자 = rules.boss.introSec (§6.3)');
@@ -848,7 +848,7 @@ function S2_files() {
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
     arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
-    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols'],
+    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(D.stages.formations)) {
     for (const [f, params] of Object.entries(FORM_PARAMS)) {
@@ -2716,7 +2716,7 @@ function S38_midBossLeave() {
     n += 1;
     if (isObj(b.moveParams) && has(b.moveParams, 'leaveAfterSec')) {
       V('S38', `bosses[${b.id}].moveParams.leaveAfterSec: 중간보스에는 없다 (§9.8.2/S38) `
-        + `— 이탈의 유일 소유자 = stages.phase.midBossLeaveAfterSec(${D.stages.phase && D.stages.phase.midBossLeaveAfterSec}). `
+        + `— v1.10: 중간보스 타이머 이탈은 폐지됐다(격파 아니면 위기가 부른다, §8.19). `
         + `★ §21-A12가 삭제한 bosses[].leaveAfterSec 가 한 단계 아래에서 부활한 것이다`);
     }
   }
@@ -2988,7 +2988,9 @@ const DESCENT_MOVES = ['dive', 'weave', 'column', 'bounce'];
  *   ① 비율 곡선: 길이 6 · [0,1] · 포지션 단조 비감소 («갈수록 탄이 많아진다») · [0] < 1 (초반은 섞인다)
  *   ② 겹침(구 S53-②): 2 × waveIntervalSec ≤ 정상 로스터 최속 «하강»종의 화면 통과 시간
  *      — 「한 벌이 다 지나간 뒤 다음이 온다 = 끊긴다」를 산술로 막는다
- *   ③ 공급(구 S53-①): ceil(crisisStartSec ÷ waveIntervalSec) ≤ mobPhaseMaxWaves
+ *   ③ 공급(구 S53-①, v1.10 개정): 웨이브가 흐르는 구간은 초기 + 위기뿐이다(배수·중간보스 구간은 정지).
+ *      위기는 격파로 앞당겨질 수 있어 최장 = 마지막 중간보스 등장 직후 ~ mobPhaseSec. 포지션마다
+ *      ceil((midBossAtSec[0] − earlyDrainSec) ÷ earlyWaveIntervalSec) + ceil((mobPhaseSec − midBossAtSec[last]) ÷ waveIntervalSec) ≤ mobPhaseMaxWaves
  *   ④ 벽의 차선(구 S52): wall 편대의 차선 순틈 ≥ fairness.minGapWidthPx — 못 지나가는 벽은 ①(완벽하면 안 맞는다) 위반
  *   ⑤ 무공격 칸: stages[].introArchetypeId 가 실재 ∧ attack == null ∧ 위기 전용 아님
  *   ⑥ 속성 3종 보장: themeDraw.count 개를 pool 에서 어떻게 뽑아도 물·불·풀이 전부 나온다
@@ -3025,10 +3027,18 @@ function S54_sectionsAndRatio() {
   if (typeof iv === 'number' && fastest < Infinity && 2 * iv > fastest + 1e-9) {
     V('S54', `2 × waveIntervalSec = ${(2 * iv).toFixed(2)}초 > 최속 하강종 통과 ${fastest.toFixed(2)}초 [${who}] — 한 벌이 다 지나간 뒤 다음이 온다 = 끊긴다 (§8.7.3)`);
   }
-  // ③ 공급
+  // ③ 공급 — 초기(earlyWaveIntervalSec) + 최장 위기(waveIntervalSec). crisisSuspendsWaves 가 true 면 위기 항은 0.
   n += 1;
-  const need = Math.ceil(ph.crisisStartSec / iv);
-  if (need > ph.mobPhaseMaxWaves) V('S54', `위기까지 ${need}웨이브가 필요한데 mobPhaseMaxWaves = ${ph.mobPhaseMaxWaves} — 재고가 마르면 스폰이 0 이 된다 (§8.7.3)`);
+  if (Array.isArray(ph.midBossAtSec) && num(ph.earlyWaveIntervalSec) && num(ph.earlyDrainSec) && num(ph.mobPhaseSec)) {
+    for (let i = 0; i < ph.midBossAtSec.length; i += 1) {
+      const at = ph.midBossAtSec[i];
+      if (!Array.isArray(at) || at.length === 0) continue;
+      const early = Math.ceil(Math.max(0, at[0] - ph.earlyDrainSec) / ph.earlyWaveIntervalSec);
+      const crisis = ph.crisisSuspendsWaves ? 0 : Math.ceil(Math.max(0, ph.mobPhaseSec - at[at.length - 1]) / iv);
+      const need = early + crisis;
+      if (need > ph.mobPhaseMaxWaves) V('S54', `포지션 ${i + 1}: 초기 ${early} + 최장 위기 ${crisis} = ${need}웨이브가 필요한데 mobPhaseMaxWaves = ${ph.mobPhaseMaxWaves} — 재고가 마르면 스폰이 0 이 된다 (§8.7.3)`);
+    }
+  }
   // ④ 벽의 차선
   const w = st.formations && st.formations.wall;
   const chaff = arch[(st.stages[0] || {}).introArchetypeId];
@@ -3062,6 +3072,51 @@ function S54_sectionsAndRatio() {
     if (got.size < els.size) V('S54', `themeDraw ${k}/${pool.length} 조합 [${c.join(',')}] 에 속성 ${[...els].filter((e) => !got.has(e)).join('·')} 이 없다 — 스테이지 1~5 에서 물·불·풀을 다 겪어야 한다 (§8.1)`);
   }
   EX('S54', n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  S55 — 중간보스 «구간» (§8.19 v1.10 · §8.9 · §8.10)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자 결정: 「무조건 유령/몬스터를 소환하는 중간보스 하나 + 다른 형태의 중간보스들 — 마치 보스 구간처럼」.
+ *   ① `phase.midBossFirstId` 가 tier "mid" 에 실재하고 summon ≠ null 이며 `rules.boss.midBossSummonsAllowed` 에 있다
+ *      — 소환자가 아니면 중간보스 구간(웨이브 정지)에 «적당히 나올 몹»이 없다
+ *   ② 소환자를 뺀 tier "mid" 종이 ≥ 1 — 둘째 마리부터 뽑을 «다른 형태»가 있어야 한다
+ *   ③ 시계 일관성: 모든 포지션에서 midBossAtSec[last] < crisisStartSec (S29 가 이미 본다) 그리고
+ *      crisisStartSec + crisisDurationSec ≤ mobPhaseSec — 새떼가 페이즈 끝을 넘으면 잘린다
+ *   ④ 위기가 격파로 앞당겨질 때(crisisOnMidBossClear) 정상 웨이브가 계속 흘러야 무대가 비지 않는다:
+ *      crisisOnMidBossClear ⇒ !crisisSuspendsWaves (둘 다 true 면 새떼 14초 뒤 페이즈 끝까지 «공백»)
+ */
+function S55_midBossSection() {
+  const ph = D.stages && D.stages.phase;
+  const bs = D.bosses && D.bosses.bosses;
+  const rb = D.rules && D.rules.boss;
+  if (!isObj(ph) || !Array.isArray(bs) || !isObj(rb)) { V('S55', 'stages.phase / bosses / rules.boss 가 없다'); return; }
+  let n = 0;
+  // ① 첫 마리 = 소환자
+  n += 1;
+  const mids = bs.filter((b) => isObj(b) && b.tier === 'mid');
+  const first = mids.find((b) => b.id === ph.midBossFirstId);
+  if (!first) V('S55', `stages.phase.midBossFirstId "${ph.midBossFirstId}" 가 tier "mid" 에 없다 (§8.19)`);
+  else {
+    if (!isObj(first.summon)) V('S55', `midBossFirstId "${first.id}" 의 summon 이 null — 첫 중간보스는 소환자여야 중간보스 구간에 몹이 «적당히» 흐른다 (§8.19)`);
+    if (!Array.isArray(rb.midBossSummonsAllowed) || !rb.midBossSummonsAllowed.includes(first.id)) V('S55', `midBossFirstId "${first.id}" 가 rules.boss.midBossSummonsAllowed 에 없다 (S17)`);
+  }
+  // ② 다른 형태 ≥ 1
+  n += 1;
+  if (mids.filter((b) => b.id !== ph.midBossFirstId).length === 0) V('S55', '소환자를 뺀 tier "mid" 종이 0 — 둘째 마리부터 뽑을 «다른 형태»가 없다 (§8.19)');
+  // ③ 시계
+  n += 1;
+  if (num(ph.crisisStartSec) && num(ph.crisisDurationSec) && num(ph.mobPhaseSec)
+    && ph.crisisStartSec + ph.crisisDurationSec > ph.mobPhaseSec) {
+    V('S55', `crisisStartSec ${ph.crisisStartSec} + crisisDurationSec ${ph.crisisDurationSec} > mobPhaseSec ${ph.mobPhaseSec} — 새떼가 페이즈 끝에 잘린다 (§8.10)`);
+  }
+  // ④ 앞당김 ⇒ 웨이브 계속
+  n += 1;
+  if (ph.crisisOnMidBossClear === true && ph.crisisSuspendsWaves === true) {
+    V('S55', 'crisisOnMidBossClear ∧ crisisSuspendsWaves — 격파로 앞당긴 위기가 새떼 뒤 페이즈 끝까지 «공백»이 된다 (§8.19 v1.10)');
+  }
+  EX('S55', n);
 }
 
 
@@ -3609,7 +3664,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S54 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S55 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3671,6 +3726,7 @@ function main() {
   S49_partReach();           // §8.11 v1.8 부위 도달 가능성
   S50_minPerWave();          // §8.7.1 v1.8 웨이브 몸 수 하한
   S54_sectionsAndRatio();    // §8.19 v1.10 구간·비율·겹침·차선·속성3종
+  S55_midBossSection();      // §8.19 v1.10 중간보스 구간 — 첫 마리 소환자 · 시계 · 앞당김⇒웨이브 계속
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

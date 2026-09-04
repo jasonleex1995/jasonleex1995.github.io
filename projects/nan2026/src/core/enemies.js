@@ -407,12 +407,13 @@ function spawnCrisisSubWave(world, s, subWave) {
 }
 
 /**
- * §8.10 — 위기 세션: 잡몹 페이즈 마지막 crisisDurationSec 동안 crisisSubWaves 파를 균등 간격으로.
- *   정상 웨이브는 멈춘다(crisisSuspendsWaves). 누적 카운트라 큰 dt 도 놓치지 않는다(결정적 캐치업).
+ * §8.10 — 위기 세션: 위기 시작 후 crisisDurationSec 동안 crisisSubWaves 파를 균등 간격으로(새떼).
+ *   정상 웨이브의 정지 여부는 crisisSuspendsWaves 가 정한다(enemies() 의 구간 분기). 누적 카운트라 큰 dt 도
+ *   놓치지 않는다(결정적 캐치업). ★ v1.10: 시작 시각은 시계가 아니라 run.crisisAtSec — 격파로 앞당겨질 수 있다.
  */
 function spawnCrisis(world, s) {
   const ph = world.data.stages.phase;
-  const elapsed = world.run.phaseT - ph.crisisStartSec;
+  const elapsed = world.run.phaseT - world.run.crisisAtSec;
   const interval = ph.crisisDurationSec / ph.crisisSubWaves;
   let want = Math.floor(elapsed / interval) + 1;
   if (want > ph.crisisSubWaves) want = ph.crisisSubWaves;
@@ -431,7 +432,7 @@ function spawnCrisis(world, s) {
  */
 /**
  * §8.19(v1.10) 구간의 «속도» — 사용자 사양: 「초기 구간은 느리게 천천히, 위기 구간은 꽤 빠르게」.
- *   구간은 사건 타이머가 가른다(새 시계 0): 초기 = 첫 중간보스 전 · 위기 = crisisStartSec 이후 · 그 사이 = mid.
+ *   구간은 사건 타이머가 가른다(새 시계 0): 초기 = 첫 중간보스 전 · 위기 = run.crisis(격파 앞당김 또는 crisisStartSec 상한) · 그 사이 = mid.
  *   슬라이스(런 없음)는 1.0 — 구간이 없다. 유령·중간보스·보스는 각자 소관이라 여기 안 온다.
  */
 function sectionSpeedMul(world) {
@@ -545,20 +546,34 @@ export function enemies(world, dt) {
 
   const s = ensureSpawner(world);
 
-  // §8.10 — 위기 세션 구간: 정상 웨이브를 멈추고(crisisSuspendsWaves) 새떼 서브웨이브만 내보낸다.
-  if (runMode && world.run.crisis) {
-    spawnCrisis(world, s);
-    applyMovement(world);
-    return;
-  }
-
   // §8.19(v1.10) 바깥 게이트도 «같은» 곡선 배율을 탄다 — 루프 안만 올리면 웨이브 시작이 42 에 막혀
   //   간격이 2.65 → 8초로 벌어진다(실측 포지션 6: threatLive 49 에서 정지). 두 자리가 다른 값을 보면 안 된다.
   const concurrentMax = Math.round(world.data.rules.fairness.enemyConcurrentMax
     * world.data.stages.curve.threatBudgetScale[s.curveIdx]);
-  const interval = world.data.stages.phase.waveIntervalSec;
+  const ph = world.data.stages.phase;
+  // §8.19(v1.10) 구간은 «순차·배타»다 — 사용자: 「초기 구간이 끝나지 않았는데 중간보스가 나온다」.
+  //   위기  : 새떼 서브웨이브(§8.10)를 내보내고, crisisSuspendsWaves 가 false 면 정상 웨이브도 «계속»
+  //           흐른다(waveIntervalSec, sectionSpeedMul.crisis) — 사용자: 「속도 빠른 적이 끊임없이 나오는 구간」.
+  //           true 면 새떼만(옛 v1.1 관대함). ★ 위기가 먼저다 — 시각으로는 중간보스 구간 안일 수 있다(격파 앞당김).
+  //   초기  : 첫 중간보스 − earlyDrainSec 까지 스폰. 간격은 earlyWaveIntervalSec(우루루).
+  //   배수  : 그 뒤 첫 중간보스까지 스폰 0 — 무리가 화면을 빠져나갈 시간이다.
+  //   중간보스: midBossSuspendsWaves 면 웨이브 정지 — 몹이 적어야 중간보스를 «피할 수» 있다(유령만 흐른다).
+  //   슬라이스(런 없음)는 구간이 없다.
+  let interval = ph.waveIntervalSec;
+  if (runMode) {
+    const mbAt = ph.midBossAtSec[s.curveIdx];
+    const firstMb = Array.isArray(mbAt) && mbAt.length > 0 ? mbAt[0] : Infinity;
+    const t = world.run.phaseT;
+    if (world.run.crisis) {                                                          // 위기
+      spawnCrisis(world, s);
+      if (ph.crisisSuspendsWaves) { applyMovement(world); return; }
+    }
+    else if (t < firstMb - ph.earlyDrainSec) interval = ph.earlyWaveIntervalSec;    // 초기
+    else if (t < firstMb) { applyMovement(world); return; }                          // 배수
+    else if (ph.midBossSuspendsWaves) { applyMovement(world); return; }              // 중간보스 구간
+  }
   // §6.3 — 런 구동은 mobPhaseMaxWaves 상한. 슬라이스(테스트)는 무한 순환(상한 없음).
-  const wavesLeft = !runMode || s.wavesSpawned < world.data.stages.phase.mobPhaseMaxWaves;
+  const wavesLeft = !runMode || s.wavesSpawned < ph.mobPhaseMaxWaves;
 
   // §12.1(v1.9) — 두 셈이 «다른 일»을 한다:
   //   · 예산(누가 더 설 수 있는가) = threatLive — 도입 구간의 무해한 몸은 위협 예산을 먹지 않는다.

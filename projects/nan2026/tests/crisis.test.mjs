@@ -10,7 +10,7 @@
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld } from '../src/core/state.js';
-import { TICK_DT } from '../src/core/step.js';
+import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -24,6 +24,7 @@ function mkCrisisWorld(seed, stageId, pos) {
   w.run.stageIndex = pos;
   w.run.phase = PHASE.MOB;
   w.run.crisis = true;
+  w.run.crisisAtSec = w.data.stages.phase.crisisStartSec;   // v1.10 — 새떼의 원점은 «실제 시작 시각»이다
   return w;
 }
 function swarmStats(w) {
@@ -84,14 +85,20 @@ suite('crisis/§8.10 새떼', () => {
     }
   });
 
-  test('crisisSuspendsWaves — 위기 중엔 정상 웨이브를 스폰하지 않는다', () => {
+  test('crisisSuspendsWaves — false(정본): 위기 중에도 정상 웨이브가 계속 흐른다 · true: 새떼만', () => {
     const d = loadData(); const ph = d.stages.phase;
-    const w = mkCrisisWorld(2, 'sea', 0);
-    w.run.phaseT = ph.crisisStartSec + ph.crisisDurationSec;
-    for (let t = 0; t < 60; t += 1) enemies(w, TICK_DT);
-    let nonSwarm = 0;
-    for (const e of w.enemies.items) if (e.alive && !e.archetypeId.startsWith('swarm')) nonSwarm += 1;
-    assert.eq(nonSwarm, 0, '위기 중 비-새떼 스폰 0');
+    assert.eq(ph.crisisSuspendsWaves, false, '정본: 위기 = 「속도 빠른 적이 끊임없이 나오는 구간」(§8.19 v1.10)');
+    function wavesIn(suspend, sec) {
+      const w = mkCrisisWorld(2, 'sea', 0);
+      w.data.stages.phase.crisisSuspendsWaves = suspend;
+      w.run.phaseT = ph.crisisStartSec;
+      w.player.hp = 1e9; w.player.hpMax = 1e9;
+      for (let t = 0; t < Math.round(sec / TICK_DT); t += 1) step(w, makeInput(), TICK_DT);
+      assert.eq(w.run.crisis, true, '위기가 유지된다(sticky)');
+      return w.spawner.wavesSpawned;
+    }
+    assert.gt(wavesIn(false, 30), 3, '30초 동안 정상 웨이브가 여러 번 나온다(새떼 뒤에도 무대가 안 빈다)');
+    assert.eq(wavesIn(true, 30), 0, 'true 면 위기 중 정상 웨이브 0');
   });
 
   test('결정성: 같은 시드·포지션 → 같은 편성', () => {

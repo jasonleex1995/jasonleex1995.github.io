@@ -1,10 +1,11 @@
 /**
  * src/core/midboss.js — 중간보스 (§8.9, 순수 core 모듈)
  *
- * 「선택적」의 정확한 의미를 코드로 옮긴 파일이다:
- *   등장 후 midBossLeaveAfterSec(30) 게임초가 지나면 **화면 위로 이탈**한다. 이탈 = 보상 0.
- *   무시해도 **쫓아오지 않는다**(추격 금지 — 그러면 "선택"이 거짓이 된다). 다만 **이탈 전까지는
- *   계속 쏜다** → 무시 = "30초간 추가 탄막을 회피하며 웨이브를 파밍한다"는 선택. 공짜 회피가 아니다.
+ * §8.19(v1.10) 중간보스 «구간» — 보스 구간처럼 서 있다:
+ *   첫 마리는 **무조건 소환자**(`midBossFirstId`, mbNest) → 유령이 «적당히» 흐른다(웨이브는 정지, §8.19).
+ *   나머지는 소환자를 뺀 종에서 `rng.spawn` 이 뽑는다. **타이머 이탈은 없다** — 격파하거나, 위기가 오면
+ *   위로 «빠져나간다»(midBossForcedLeaveOnCrisis = 퇴장 연출). 전원 격파 = 그 즉시 위기(crisisOnMidBossClear).
+ *   무시해도 **쫓아오지 않는다**(추격 금지). 무시 = "위기가 올 때까지 탄막을 회피한다"는 선택. 공짜가 아니다.
  *
  * 정본 절:
  *   §8.9   3종 전 테마 공용(`bosses.json`, tier "mid", parts [], phases 1개) · 단일 몸체
@@ -15,7 +16,9 @@
  *   §8.9   `midBossElementRule "notThemeAndNotNormal"` = **런타임 주입**. 저작값 element 는 null 이고
  *          그것이 곧 「주입 대상」 표식이다(S15). 최종 스테이지는 테마가 없으므로 "테마가 아님"이
  *          **공허참** → 후보 = {fire,water,grass} 전부이고 `rng.spawn` 이 **비복원 2개**를 뽑는다.
- *   §8.9   `midBossForcedLeaveOnCrisis` — 위기 세션(새떼)이 시작되면 남아 있어도 즉시 이탈한다.
+ *   §8.9   `midBossForcedLeaveOnCrisis` — 위기 세션(새떼)이 시작되면 남아 있어도 퇴장 연출로 이탈한다.
+ *   §8.19  `midBossFirstId` — 스테이지의 첫 중간보스는 이 소환자다(S55). `crisisOnMidBossClear` —
+ *          예정된 전원이 등장했고 살아 있는 마리가 0 이면 stage.tickRun 이 위기를 앞당긴다(§8.10).
  *   §8.9-R9 `summon` 은 `midBossSummonsAllowed`(= ["mbNest"])를 통과한 개체만 non-null(S17).
  *          중간보스는 **잡몹 페이즈**에 있으므로 소환된 잡몹의 XP 획득은 정상이다(§6.4 전제 유지).
  *   §9.8.2 `moveId` 는 중간보스 판본에만 인쇄된 필드다 — `charge` 의 **유일한 사용자**가 mbLancer 라
@@ -84,13 +87,37 @@ function injectElement(world) {
   return el;
 }
 
+/**
+ * §8.19(v1.10) 종 선택 — 사용자 결정: 「무조건 소환하는 중간보스 하나 + 다른 형태의 중간보스들, 마치 보스 구간처럼」.
+ *   첫 마리(midBossNext === 1)는 `midBossFirstId`(소환자). 나머지는 소환자를 **뺀** 종에서 `rng.spawn` 이 뽑는다.
+ *   S55 가 midBossFirstId ∈ tier mid ∧ summon ≠ null ∧ 나머지 종 ≥ 1 을 정적으로 지킨다 — 여기서는 믿고 쓴다.
+ *   ★ 결정성 — 첫 마리는 rng 소비 0(고정), 나머지는 f() 1회. 종 수가 달라도 스트림 소비는 마리당 ≤ 1.
+ */
+function pickDef(world, defs) {
+  const firstId = world.data.stages.phase.midBossFirstId;
+  if (world.run.midBossNext === 1) {
+    for (let i = 0; i < defs.length; i += 1) if (defs[i].id === firstId) return defs[i];
+    throw new Error(`midboss: midBossFirstId "${firstId}" 가 tier mid 에 없다 (§8.19)`);
+  }
+  let n = 0;
+  for (let i = 0; i < defs.length; i += 1) if (defs[i].id !== firstId) n += 1;
+  if (n === 0) throw new Error('midboss: 소환자를 뺀 중간보스 종이 없다 (§8.19 S55)');
+  let k = Math.floor(world.rng.spawn.f() * n) % n;
+  for (let i = 0; i < defs.length; i += 1) {
+    if (defs[i].id === firstId) continue;
+    if (k === 0) return defs[i];
+    k -= 1;
+  }
+  return defs[0];                                       // 방어(도달 불가)
+}
+
 /** §8.9 — 한 마리 등장. 아레나 상단 스폰 라인에서 들어온다.
  *   ★ v1.5 동시 다수: 진입 x 를 «스폰 순번»으로 3슬롯 순환(중앙·우·좌). 연속 3스폰이 항상 서로 다른
  *     슬롯이라 동시(≤2, 순간 ≤3)에도 x 가 겹치지 않는다 — 생존 «수»로 고르면 정상상태 2에서 3번째부터
  *     좌슬롯이 중복된다(리뷰 지적). 결정적(RNG 0). ★ midBossNext 는 spawnOne 직전 이미 +1 됨. */
 function spawnOne(world) {
   const defs = ensureMidDefs(world);
-  const def = defs[Math.floor(world.rng.spawn.f() * defs.length) % defs.length];
+  const def = pickDef(world, defs);
   const a = world.data.rules.view.arena;
   const hp = def.hp * world.data.stages.curve.bossHpScale[world.run.stageIndex];
   const slot = (world.run.midBossNext - 1) % 3;         // 0=중앙 1=우 2=좌 (연속 3스폰 = 3슬롯)
@@ -206,14 +233,14 @@ export function midBoss(world, dt) {
   const ph = world.data.stages.phase;
   const it = world.enemies.items;
 
-  // (1) §8.9 midBossForcedLeaveOnCrisis — 새떼가 오면 무대를 «전원» 비운다
+  // (1) §8.9 midBossForcedLeaveOnCrisis — 새떼가 오면 무대를 «전원» 비운다. v1.10: 즉시 반납이 아니라
+  //     «퇴장 연출»(mp0 = -1, 위로 상승)을 시작한다 — 아래 (3) 이 off-screen 에서 반납한다.
   if (ph.midBossForcedLeaveOnCrisis && run.crisis) {
-    for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') leave(world, it[i]);
-    return;
+    for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') it[i].mp0 = -1;
   }
 
   // (2) 등장 — 예정 시각을 지난 «모든» 미등장 마리를 낸다. §8.9(v1.5): «동시 1마리» 게이트를
-  //     제거 → 스케줄(midBossAtSec)이 곧 등장이다. 15초 간격 + 30초 수명 = 겹쳐서 «우르르».
+  //     제거 → 스케줄(midBossAtSec)이 곧 등장이다. 5초 간격 = 겹쳐서 «우르르»(보스 구간처럼 함께 선다).
   if (!run.crisis) {
     const list = atSecList(world);
     while (run.midBossNext < list.length && run.phaseT >= list[run.midBossNext]) {
@@ -222,13 +249,15 @@ export function midBoss(world, dt) {
     }
   }
 
-  // (3~5) 살아있는 각 중간보스를 «개체별 독립»으로 처리한다(이탈 타이머·이동·소환).
+  // (3~5) 살아있는 각 중간보스를 «개체별 독립»으로 처리한다(퇴장·이동·소환).
+  //   ★ v1.10: 타이머 이탈(midBossLeaveAfterSec)은 폐지 — 격파 아니면 위기까지 선다(보스 구간처럼).
   const defs = ensureMidDefs(world);
   const sy = world.data.rules.view.spawnLineY;
   for (let i = 0; i < it.length; i += 1) {
     const e = it[i];
     if (!e.alive || e.midBossId === '') continue;
-    // ★ 퇴장 연출(v1.5) — 수명이 다한 마리는 위로 «서서히 빠져나간다»(비행슈팅). off-screen 에서 반납.
+    // (3) 퇴장 연출 — 위기가 부른 마리는 위로 «서서히 빠져나간다»(비행슈팅). off-screen 에서 반납.
+    //     스턴보다 먼저 본다 — 퇴장은 「행동」이 아니라 「무대에서 치우는 일」이라 스턴이 붙잡지 않는다.
     if (e.mp0 === -1) {
       e.y -= EXIT_SPEED_PX * dt;
       if (e.y < sy - 60) leave(world, e);
@@ -236,9 +265,6 @@ export function midBoss(world, dt) {
     }
     // ★ §2.7 「스턴 = 개체 정지」 — 이동·소환 멈춤. stunSec 감소는 step.moveBullets 단일 소유(이중 방지).
     if (e.stunSec > 0) continue;
-    // (3) 이탈 — 등장 후 midBossLeaveAfterSec: 즉시 반납이 아니라 «퇴장 연출»(위로 상승) 시작.
-    //   ★ e.moveT 는 step.moveBullets 가 매 틱 올린다 — 여기서 또 올리면 시계가 2배.
-    if (e.moveT >= ph.midBossLeaveAfterSec) { e.mp0 = -1; continue; }
     // (4) 이동 — §9.8.2 moveId(anchor | charge)
     let def = null;
     for (let j = 0; j < defs.length; j += 1) if (defs[j].id === e.midBossId) { def = defs[j]; break; }
@@ -251,10 +277,23 @@ export function midBoss(world, dt) {
   }
 }
 
+/**
+ * §8.19(v1.10) 중간보스 구간 «격파» — 예정된 전원이 등장했고(midBossNext == 스케줄 길이) 살아 있는 마리가
+ *   0 이면 참. stage.tickRun 이 `crisisOnMidBossClear` 로 위기를 앞당길 때 쓴다(§8.10).
+ *   ★ 유령(midBossId '')은 세지 않는다 — 소환자가 죽으면 남은 유령은 위기 속으로 흘러 들어간다.
+ */
+export function midBossSectionCleared(world) {
+  const run = world.run;
+  if (run.midBossNext < atSecList(world).length) return false;
+  const it = world.enemies.items;
+  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') return false;
+  return true;
+}
+
 /** 페이즈/스테이지 전이에서 무대를 «전원» 비운다(잡몹 페이즈가 끝나면 중간보스는 남지 않는다). */
 export function clearMidBoss(world) {
   const it = world.enemies.items;
   for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') leave(world, it[i]);
 }
 
-export default { midBoss, clearMidBoss };
+export default { midBoss, clearMidBoss, midBossSectionCleared };

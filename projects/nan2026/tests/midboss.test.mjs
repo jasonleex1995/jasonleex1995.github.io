@@ -7,7 +7,8 @@
  *   스케줄 — midBossAtSec 시각에 등장 / 스테이지당 마릿수 == curve.midBossCount / 동시 1마리
  *   속성   — notThemeAndNotNormal(테마 속성 아님 · 노말 아님) / 최종 스테이지는 후보 3종 + 비복원
  *   HP     — bosses[].hp × curve.bossHpScale[stageIndex] (★ enemyHpScale 이 아니다)
- *   이탈   — midBossLeaveAfterSec 뒤 사라지고 **보상 0** / midBossForcedLeaveOnCrisis
+ *   이탈   — v1.10: 타이머 이탈 폐지(위기 전엔 안 떠난다) / midBossForcedLeaveOnCrisis = 퇴장 연출 + **보상 0**
+ *   구간   — §8.19(v1.10): 첫 마리 = midBossFirstId(소환자), 나머지는 다른 형태 / 전원 격파 = 즉시 위기(crisisOnMidBossClear)
  *   이동   — anchor: yHoldPx 까지 하강 후 swayAmpPx 왕복
  *            charge: ★ 회귀 — 스폰 라인(아레나 밖 위쪽)에서 시작해도 실제로 돌진한다
  *   소환   — mbNest 만 summon 이 non-null(S17) / everySec 마다 count 마리 / 원점 = 소환자
@@ -20,7 +21,7 @@ import { createWorld, spawnMidBoss } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { emitters } from '../src/core/emitters.js';
-import { initRun } from '../src/core/stage.js';
+import { initRun, tickRun } from '../src/core/stage.js';
 import { midBoss } from '../src/core/midboss.js';
 
 const dt = TICK_DT;
@@ -151,40 +152,121 @@ suite('midboss — 속성 주입 · HP (§8.9)', () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════
-suite('midboss — 이탈 (§8.9 「선택적」의 정의)', () => {
-  test('midBossLeaveAfterSec 뒤 사라지고 보상은 0이다', () => {
+suite('midboss — 이탈 (§8.9 「선택적」의 정의 · v1.10 보스 구간처럼)', () => {
+  test('v1.10: 위기 전에는 떠나지 않는다 (타이머 이탈 폐지)', () => {
     const w = mkRun(2);
     const ph = w.data.stages.phase;
     tickMob(w, Math.floor(ph.midBossAtSec[0][0] / dt) + 2);
     const e = midOf(w);
     assert.ne(e, null, '등장했다');
+    // 옛 체류 45초를 훌쩍 넘겨도(위기 직전까지) 서 있다 — 격파 아니면 위기가 부른다
+    const until = ph.crisisStartSec - 0.5;
+    tickMob(w, Math.floor((until - w.run.phaseT) / dt));
+    assert.eq(e.alive, true, '위기 직전까지 살아 있다');
+    assert.ne(e.mp0, -1, '퇴장 연출도 시작하지 않았다');
+  });
+
+  test('midBossForcedLeaveOnCrisis — 새떼가 오면 퇴장 연출로 빠져나가고 보상은 0이다', () => {
+    const w = mkRun(2);
+    const ph = w.data.stages.phase;
+    assert.eq(ph.midBossForcedLeaveOnCrisis, true, '정본이 강제 이탈을 켜 뒀다');
+    tickMob(w, Math.floor(ph.midBossAtSec[0][0] / dt) + 2);
+    const e = midOf(w);
+    assert.ne(e, null, '등장했다');
     const before = livePickups(w).length;
     const scoreBefore = w.score.midBossClear;
-    // ★ v1.5 — 수명이 다하면 «즉시 반납»이 아니라 위로 서서히 빠져나가는 «퇴장 연출»(mp0=-1)이 시작된다.
-    tickMob(w, Math.floor(ph.midBossLeaveAfterSec / dt) + 2);
-    assert.eq(e.alive, true, '아직 살아서 위로 빠져나가는 중(연출)');
+    tickMob(w, Math.floor((ph.crisisStartSec - w.run.phaseT) / dt) + 2);   // 위기 진입
+    assert.eq(w.run.crisis, true, '위기 구간에 들어왔다');
+    assert.eq(e.alive, true, '즉시 반납이 아니라 아직 살아서 빠져나가는 중(연출)');
     assert.eq(e.mp0, -1, '퇴장 상태');
     const yMid = e.y;
     tickMob(w, 20);
     assert.lt(e.y, yMid, '위로 상승 중');
-    tickMob(w, 200);                                    // off-screen 까지 충분히
+    tickMob(w, 300);                                    // off-screen 까지 충분히
     assert.eq(e.alive, false, '퇴장 완료 = 반납');
+    assert.eq(midOf(w), null, '무대에 중간보스 0');
     assert.eq(livePickups(w).length, before, '퇴장 = 드랍 0');
     assert.eq(w.score.midBossClear, scoreBefore, '퇴장 = 격파 점수 0');
   });
+});
 
-  test('midBossForcedLeaveOnCrisis — 새떼가 오면 즉시 이탈', () => {
-    const w = mkRun(2);
-    const ph = w.data.stages.phase;
-    assert.eq(ph.midBossForcedLeaveOnCrisis, true, '정본이 강제 이탈을 켜 뒀다');
-    // 위기 직전에 등장하도록 시계를 옮긴다(이탈 타이머가 끝나기 전에 위기가 온다)
-    w.run.phaseT = ph.crisisStartSec - 2;
-    w.run.midBossNext = 0;
-    tickMob(w, 2);                                       // 예정 시각을 이미 지났으므로 즉시 등장
-    assert.ne(midOf(w), null, '등장했다');
-    tickMob(w, Math.floor(2.5 / dt));                    // 위기 진입
-    assert.eq(w.run.crisis, true, '위기 구간에 들어왔다');
-    assert.eq(midOf(w), null, '강제 이탈');
+// ══════════════════════════════════════════════════════════════════════
+suite('midboss — 구간 (§8.19 v1.10 · 첫 마리 소환자 · 격파 = 위기)', () => {
+  /** run 훅(tickRun)이 시계와 위기를 소유하는 세계 — 웨이브/발사는 끈다(중간보스 계약만 본다) */
+  function mkDirected(seed, stageIndex) {
+    const world = createWorld({
+      data: loadData(), seed, weapons,
+      hooks: { enemies: null, emitters: null, run: tickRun, boss: null },
+    });
+    initRun(world);
+    world.run.stageIndex = stageIndex;
+    world.player.hp = 1e9; world.player.hpMax = 1e9;
+    return world;
+  }
+  function liveMids(world) {
+    const out = [];
+    for (const e of world.enemies.items) if (e.alive && e.midBossId !== '') out.push(e);
+    return out;
+  }
+  function tickTo(world, sec) {
+    while (world.run.phaseT < sec) step(world, makeInput(), dt);
+  }
+
+  test('첫 마리는 midBossFirstId(소환자)이고, 나머지는 전부 다른 형태다 — 전 시드', () => {
+    const d = loadData(); const ph = d.stages.phase;
+    const pos = ph.midBossAtSec.length - 1;                          // 최종 포지션 = 가장 많은 마릿수
+    const at = ph.midBossAtSec[pos];
+    for (let seed = 1; seed <= 12; seed += 1) {
+      const w = mkDirected(seed, pos);
+      tickTo(w, at[0] + 0.5);
+      const first = liveMids(w);
+      assert.eq(first.length, 1, `시드 ${seed}: 첫 시각엔 1마리`);
+      assert.eq(first[0].midBossId, ph.midBossFirstId, `시드 ${seed}: 첫 마리 = ${ph.midBossFirstId}`);
+      tickTo(w, at[at.length - 1] + 0.5);
+      const all = liveMids(w);
+      assert.eq(all.length, at.length, `시드 ${seed}: 전원 등장(타이머 이탈 없음)`);
+      let nest = 0;
+      for (const e of all) if (e.midBossId === ph.midBossFirstId) nest += 1;
+      assert.eq(nest, 1, `시드 ${seed}: 소환자는 정확히 1마리`);
+    }
+  });
+
+  test('crisisOnMidBossClear — 예정 전원이 등장하고 전부 죽으면 «그 즉시» 위기, 원점은 그 시각', () => {
+    const d = loadData(); const ph = d.stages.phase;
+    assert.eq(ph.crisisOnMidBossClear, true, '정본이 격파 앞당김을 켜 뒀다');
+    const pos = 1;                                                    // 2마리(30, 35)
+    const at = ph.midBossAtSec[pos];
+    const w = mkDirected(3, pos);
+    tickTo(w, at[0] + 0.5);
+    let mids = liveMids(w);
+    assert.eq(mids.length, 1, '첫 마리 등장');
+    killEnemy(w, mids[0]);
+    step(w, makeInput(), dt);
+    assert.eq(w.run.crisis, false, '둘째가 아직 예정이라 위기가 아니다 (전원 «등장» 조건)');
+    tickTo(w, at[1] + 0.5);
+    mids = liveMids(w);
+    assert.eq(mids.length, 1, '둘째 등장');
+    assert.ne(mids[0].midBossId, ph.midBossFirstId, '둘째는 소환자가 아니다');
+    const tKill = w.run.phaseT;
+    killEnemy(w, mids[0]);
+    step(w, makeInput(), dt);
+    assert.eq(w.run.crisis, true, '전원 격파 = 즉시 위기 (crisisStartSec 보다 훨씬 이르다)');
+    assert.lt(w.run.crisisAtSec, ph.crisisStartSec, '앞당겨졌다');
+    assert.ok(Math.abs(w.run.crisisAtSec - tKill) <= 2 * dt, '원점 = 격파 시각');
+    tickTo(w, ph.crisisStartSec + 1);
+    assert.eq(w.run.crisis, true, '한 번 켜지면 페이즈 끝까지(sticky)');
+  });
+
+  test('격파하지 못하면 crisisStartSec 이 상한이다 (그때 퇴장 연출로 전원 이탈)', () => {
+    const d = loadData(); const ph = d.stages.phase;
+    const w = mkDirected(5, 0);
+    tickTo(w, ph.crisisStartSec - dt);
+    assert.eq(w.run.crisis, false, '상한 직전은 아직 중간보스 구간');
+    assert.eq(liveMids(w).length, 1, '살아 있다');
+    tickTo(w, ph.crisisStartSec + 0.5);
+    assert.eq(w.run.crisis, true, '상한에서 위기');
+    assert.eq(Math.abs(w.run.crisisAtSec - ph.crisisStartSec) <= dt, true, '원점 = 상한');
+    for (const e of liveMids(w)) assert.eq(e.mp0, -1, '퇴장 중');
   });
 });
 

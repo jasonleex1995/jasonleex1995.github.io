@@ -485,8 +485,8 @@ function checkStages(c, s) {
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
-    'crisisStartSec', 'crisisDurationSec', 'crisisWarnSec', 'crisisSuspendsWaves', 'crisisTotal',
-    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'midBossAtSec', 'midBossLeaveAfterSec', 'midBossElementRule',
+    'crisisStartSec', 'crisisDurationSec', 'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal',
+    'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {
@@ -501,7 +501,7 @@ function checkStages(c, s) {
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
     arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
-    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols'],
+    wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(s.formations)) {
     for (let i = 0; i < FORMATION_IDS.length; i += 1) {

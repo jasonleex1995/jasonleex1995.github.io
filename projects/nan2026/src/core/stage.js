@@ -4,7 +4,7 @@
  * 정본 v1.4 구현 절:
  *   §8.1   themeDraw — 6 테마 중 5 비복원 추첨(rng.theme) + finale 부착 = 6 포지션. 스테이지 1 은
  *          introOk 필수. **증명(§8.1)**: 1종만 탈락 → 물·불·풀 각 최소 1회 · stage-1 introOk 항상 가능.
- *   §6.3   페이즈 길이(전부 stages.phase / rules.boss 의 게임초). mobPhaseSec 120 · crisisStartSec 95
+ *   §6.3   페이즈 길이(전부 stages.phase / rules.boss 의 게임초). mobPhaseSec 120 · crisisStartSec 80(상한) — 중간보스 전원 격파 시 앞당김(v1.10)
  *          · introSec 3 · bossTimerSec 180.
  *   §6.5   전역 상태 기계의 **전투/진행 절반** — MOB→BOSS_INTRO→BOSS→STAGE_CLEAR→(다음/승리).
  *          ★ 메뉴·전환 화면(TITLE/DIFFICULTY/THEME_BANNER/HEAL/RESULTS)과 DRAFT 결정,   (v1.5: SHOP 폐지)
@@ -22,11 +22,11 @@
  *     - 보스 코어 격파 시 killEnemy(step.js)가 run.cleared=true 를 세팅 → 여기서 STAGE_CLEAR/승리로 소화.
  */
 
-import { midBoss, clearMidBoss } from './midboss.js';
+import { midBoss, clearMidBoss, midBossSectionCleared } from './midboss.js';
 import { addBossClear, addRunClear } from './score.js';
 
 export const PHASE = {
-  MOB: 'MOB',                 // 잡몹 페이즈 (내부 마지막 25초 = 위기 서브구간)
+  MOB: 'MOB',                 // 잡몹 페이즈 (내부 마지막 구간 = 위기, §8.19 초기→중간보스→위기)
   BOSS_INTRO: 'BOSS_INTRO',   // 보스 등장 연출 (무적·무발사·타이머 정지)
   BOSS: 'BOSS',               // 보스전 (180s 타이머)
   STAGE_CLEAR: 'STAGE_CLEAR', // 보스 격파 — 드라이버가 드래프트/회복 후 advanceStage 호출 (v1.5: 상점 폐지)
@@ -75,7 +75,8 @@ export function initRun(world) {
     stageIndex: 0,                  // 0..5 (런 포지션)
     phase: PHASE.MOB,
     phaseT: 0,                      // 현재 페이즈 경과(게임초)
-    crisis: false,                  // 잡몹 페이즈 마지막 25초 서브구간(§8.10)
+    crisis: false,                  // 잡몹 페이즈 마지막 서브구간(§8.10) — v1.10: 한 번 켜지면 페이즈 끝까지(sticky)
+    crisisAtSec: -1,                // v1.10 — 위기가 «실제로» 켜진 phaseT. 새떼 스케줄(spawnCrisis)의 원점. -1 = 아직
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
@@ -117,12 +118,19 @@ export function tickRun(world, dt) {
   run.phaseT += dt;
 
   if (run.phase === PHASE.MOB) {
-    // 위기 서브구간 = 마지막 crisisDurationSec (§8.10). 독립 상태 아님(§6.5).
-    run.crisis = run.phaseT >= ph.crisisStartSec;
+    // 위기 서브구간(§8.10) — 독립 상태 아님(§6.5). v1.10: 시작은 둘 중 «먼저 오는 쪽»이고 한 번 켜지면 페이즈 끝까지다.
+    //   · crisisStartSec — 상한(시계). 이 시각엔 중간보스가 남아 있어도 온다(midBossForcedLeaveOnCrisis).
+    //   · crisisOnMidBossClear — 예정된 중간보스 전원이 등장했고 살아 있는 마리가 0 이면 «그 즉시»(격파 = 다음 구간,
+    //     보스 구간처럼). 이게 없으면 빨리 잡을수록 빈 무대가 길어진다(실측: 이탈 75초 → 위기 106초 사이 26초 공백).
+    if (!run.crisis) {
+      run.crisis = run.phaseT >= ph.crisisStartSec
+        || (ph.crisisOnMidBossClear && midBossSectionCleared(world));
+      if (run.crisis) run.crisisAtSec = run.phaseT;
+    }
     // §8.9 — 중간보스는 «잡몹 페이즈의 선택지»다. 등장·이동·이탈·소환을 midboss.js 가 소유한다.
     midBoss(world, dt);
     if (run.phaseT >= ph.mobPhaseSec) {
-      run.crisis = false;
+      run.crisis = false; run.crisisAtSec = -1;
       clearMidBoss(world);           // 잡몹 페이즈가 끝나면 무대에 남지 않는다
       run.phase = PHASE.BOSS_INTRO;
       run.phaseT = 0;
@@ -199,7 +207,7 @@ export function advanceStage(world) {
   run.stageIndex += 1;
   run.phase = PHASE.MOB;
   run.phaseT = 0;
-  run.crisis = false;
+  run.crisis = false; run.crisisAtSec = -1;
   run.midBossNext = 0;
   run.midBossElementPrev = '';
   run.bossTimer = 0;

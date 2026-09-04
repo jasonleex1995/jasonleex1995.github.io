@@ -198,7 +198,7 @@ v1.3의 이 목록은 **4행**이었고 「이 4개뿐」·「전부 `// 예시`
 | 색 | 그 개체의 **속성색**. 스테이지 보스 코어 = 항상 노말(R1) → **은색**. 중간보스 = `notThemeAndNotNormal` → 불/물/풀 중 하나 → **바 색이 곧 "무슨 스탠스로 때려야 하나"** |
 | 페이즈 노치 | `boss.phaseThresholds`(0.6 / 0.3) 위치에 **높이 4px 흰 눈금 2개** |
 | 파 고스트 마커 | **높이 8px 흰 세로선 2px + 상단 3px 사각 캡**(노치와 형태·운동이 다르다). 위치 = §11.5의 사상식. `flow.stagePar[i] == 0`이면 **숨김** |
-| 중첩 불가 (증명) | 중간보스 최종 스폰 70 + `midBossLeaveAfterSec` 30 = **100초 이탈** < `mobPhaseSec` 120, 그리고 `midBossForcedLeaveOnCrisis`(95초). 보스는 잡몹 페이즈 종료 후 시작 → **두 사용자가 같은 8px를 다툴 수 없다** |
+| 중첩 불가 (증명) ★v1.10 | 중간보스는 늦어도 `crisisStartSec` 80 에 `midBossForcedLeaveOnCrisis` 로 퇴장을 시작하고(상승 220px/s, 수 초 안에 off-screen 반납), 잡몹 페이즈 끝(`mobPhaseSec` 120)에는 `clearMidBoss` 가 전원 반납한다. 보스는 잡몹 페이즈 종료 후 시작 → **두 사용자가 같은 8px를 다툴 수 없다** · ~~최종 스폰 70 + 체류 30 = 100초 이탈~~ |
 | 없을 때 | **바 자체를 그리지 않는다** (빈 트랙 금지) |
 
 - **띠는 레이어 1(지면)에 그린다.** 배경 위, 모든 게임플레이 오브젝트 아래. → 적 탄이 띠 위를 지나가므로 **I-4(적 탄은 절대 가려지지 않는다)가 유지된다.**
@@ -646,12 +646,13 @@ render(world, acc / tickDur);                         // alpha 보간은 위치�
 |---|---|---|
 | 잡몹 페이즈 | `stages.phase.mobPhaseSec` | **120** |
 | 웨이브 기본 간격 | `stages.phase.waveIntervalSec` | **9.0** |
-| 웨이브 상한 | `stages.phase.mobPhaseMaxWaves` | **14** |
-| 위기 세션 시작 | `stages.phase.crisisStartSec` | **95** (= 잡몹 페이즈 마지막 25초) |
-| 위기 세션 길이 | `stages.phase.crisisDurationSec` | **25** |
-| 위기 세션 예고 | `stages.phase.crisisWarnSec` | **3.0** |
-| 중간보스 진입 창 | ★ `stages.phase.midBossAtSec` | **`[[35],[35],[30,70],[30,70],[30,70],[30,70]]`** (스테이지 인덱스 배열, v1.3 — §9.9) |
-| **중간보스 이탈** | `stages.phase.midBossLeaveAfterSec` | **30** |
+| 웨이브 상한 ★v1.10 | `stages.phase.mobPhaseMaxWaves` | **56** — S54 ③ 이 포지션마다 «초기 + 최장 위기»로 하한을 잡는다(포지션 1 = 16 + 34 = 50) · ~~14~~ ~~24~~ ~~48~~ |
+| 위기 세션 시작 ★v1.10 | `stages.phase.crisisStartSec` | **80** = **상한**. 실제 시작 = `min(중간보스 전원 격파, 80)` (`crisisOnMidBossClear`, §8.19 ①) · ~~95 (= 마지막 25초)~~ |
+| 새떼 길이 ★v1.10 | `stages.phase.crisisDurationSec` | **14** — 새떼가 여는 길이. 위기 «구간»은 `mobPhaseSec` 까지(가변, 최장 70초) · ~~25~~ |
+| ~~위기 세션 예고~~ | ~~`stages.phase.crisisWarnSec`~~ | **폐지(v1.10)** — 읽는 곳 0 + 격파 앞당김은 예고 불가 |
+| 중간보스 진입 창 ★v1.10 | ★ `stages.phase.midBossAtSec` | **`[[30],[30,35],[30,35],[30,35,40],[30,35,40,45],[30,35,40,45,50]]`** (스테이지 인덱스 배열, §8.9) |
+| ~~**중간보스 이탈**~~ | ~~`stages.phase.midBossLeaveAfterSec`~~ | **폐지(v1.10)** — 격파 아니면 위기 상한까지 선다(§8.9 «선택적» 개정) |
+| **중간보스 첫 마리** ★v1.10 | `stages.phase.midBossFirstId` | **`"mbNest"`** (소환자, §8.19 · S55) |
 | 페이즈 종료 페이드 | `stages.phase.mobPhaseExitFadeSec` | 3.0 |
 | 보스 등장 연출 | ★ `boss.introSec` | **3.0** (연출 중 보스 무적 + 발사 없음 + 타이머 정지) — ★ **`stages.phase.bossEntrySec`는 삭제됐다 (v1.3), 아래** |
 | **보스 타이머** | `stages.phase.bossTimerSec` | **180** (전 난이도 동일, LOCKED) |
@@ -1456,7 +1457,7 @@ waves: [ { formationId, archetypeId, count, element, spawnEdge, eliteIndex } ]  
 | 스포너 | 다음 웨이브 소환 시각 = **`max(직전 스폰 시각 + waveIntervalSec, 웨이브 잡몹 전멸 시각)`**. ★ **v1.8 정정** — 구현은 「직전 웨이브 전멸」이 아니라 **전역 생존 0** 이다(`enemies.js`). 그리고 v1.8 이전에는 그 «전역»이 유령·중간보스까지 세어 중간보스 구간 내내 `waveClearAdvance` 가 죽어 있었다(실측 발화율 7%). 이제 `waveLive` 가 웨이브 잡몹만 센다 |
 | **`waveClearAdvance` 의미** | ★ **남은 스케줄 전체를 압축한다.** "다음 1개만 당기고 나머지는 절대시각 유지"가 **아니다.** |
 | `waveIntervalSec` | ★ **5.3** (v1.8 — 7.0 에서 내렸다) · ~~9.0~~ ~~7.0~~. **실측이 정했다**: 7.0 에서는 웨이브 전환의 93% 가 고정 간격이고(`waveClearAdvance` 는 7% 만 발화) 판당 16웨이브뿐이라 저작 예산 24 의 67% 만 썼다 — 「루즈하다」는 이것의 이름이다. 5.3 이면 판당 20웨이브, 마지막 웨이브가 위기 시작(106초) 직전에 선다. 4.4(=예산 전량 소진)는 최종 강제 피격을 9.1%→12.6% 로 되돌려 기각했다 |
-| `mobPhaseMaxWaves` | **24** (도달 시 추가 스폰 정지 = 무한 파밍 방지) · ~~14~~ (인쇄 드리프트 정정) |
+| `mobPhaseMaxWaves` ★v1.10 | **56** (도달 시 추가 스폰 정지 = 무한 파밍 방지). 하한은 S54 ③ — 웨이브가 흐르는 구간이 초기(1.4초 간격) + 위기(가변, 최장 70초)뿐이라 옛 `crisisStartSec ÷ waveIntervalSec` 로는 모자란다 · ~~24~~ ~~14~~ ~~48~~ |
 | ★ **몸 수의 하한** (v1.8) | `bands[].minPerWave` — §8.7.1 |
 | ★ **`waveListExhausted`** | **`"cycle"`** — 리스트를 소진하면 **처음으로 순환**한다 (04-R7 채택, 아래) |
 | `crisisSuspendsWaves` | **true** (**106초**에 웨이브 스포너 정지, 밀도 폭발 방지 = 관대함) · ~~95초~~ |
@@ -1553,12 +1554,14 @@ v1.2는 이 값을 `stages.themes[].midBossAtSec`(= **테마별** 필드)로 인
 | 키 | 값 |
 |---|---|
 | `stages.curve.midBossCount` ★v1.5 | **`[1,2,2,3,4,5]`** — 후반일수록 «우르르»(사용자 결정 2026-07-31). v1.4 `[1,2,2,3,3,2]` 개정 |
-| ★ `stages.phase.midBossAtSec` ★v1.5 | **`[[35],[30,45],[30,45],[25,40,55],[22,37,52,67],[20,35,50,65,80]]`** — ~15초 간격 클러스터(len == midBossCount, 전 시각 < crisisStartSec 95, S29). 거처는 `stages.phase`(v1.3) |
-| ★ **동시 다수 (§8.9 v1.5)** | ★ **v1.4의 「동시 1마리」(등장 스케줄이 보장)를 폐기.** midboss.js 는 스케줄 시각마다 등장(타 개체 생존 무관), 살아있는 각 중간보스를 개체별로 처리(이탈·이동·소환). 15초 간격+30초 수명 → 정상 2·순간 3 동시. 진입 x 를 **스폰 순번 %3**(중앙·우·좌)으로 순환 — 연속 3스폰이 3슬롯이라 겹치지 않는다(«생존 수» 기준은 정상상태 2에서 좌슬롯 중복 → 적대 리뷰가 잡음). 결정적·capHits 0·crash 0 |
+| ★ `stages.phase.midBossAtSec` ★v1.10 | **`[[30],[30,35],[30,35],[30,35,40],[30,35,40,45],[30,35,40,45,50]]`** — 전 포지션 첫 마리 **30초**(초기 구간 길이가 포지션에 무관하게 21초 + 배수 9초, §8.19), 5초 간격 클러스터(len == midBossCount, 전 시각 < crisisStartSec 80, S29). 거처는 `stages.phase`(v1.3). ~~v1.5 `[[35],[30,45],…,[20,35,50,65,80]]`~~ |
+| ★ **동시 다수 (§8.9 v1.5)** | ★ **v1.4의 「동시 1마리」(등장 스케줄이 보장)를 폐기.** midboss.js 는 스케줄 시각마다 등장(타 개체 생존 무관), 살아있는 각 중간보스를 개체별로 처리(퇴장·이동·소환). v1.10: 타이머 이탈이 없으므로 **예정 전원이 함께 선다**(포지션 6 = 5마리, 보스 구간처럼). 진입 x 를 **스폰 순번 %3**(중앙·우·좌)으로 순환 — 연속 3스폰이 3슬롯이라 겹치지 않는다. 결정적·capHits 0·crash 0 |
+| ★ **첫 마리 = 소환자 (§8.19 v1.10)** | **`stages.phase.midBossFirstId = "mbNest"`** — 사용자(2026-09-04): 「무조건 유령/몬스터를 소환하는 중간보스 하나 + 다른 형태의 중간보스들, 마치 보스 구간처럼」. 첫 마리는 rng 소비 0(고정), 둘째부터 소환자를 **뺀** 종에서 `rng.spawn`. 이유: 중간보스 구간은 웨이브가 서므로(`midBossSuspendsWaves`) 소환자가 없으면 무대에 몹이 0 — 「몹이 적당히 나와야 중간보스를 피할 수 있다」. S55 ①② |
 | **hp** | ★ **`bosses[].hp × bossHpScale[stage]`** — **루트 필드**다(`core.hp` 아님, §9.8.2). `enemyHpScale`이 아닌 이유는 아래 |
-| **`stages.phase.midBossLeaveAfterSec`** | **30** ← **"선택적"의 정의** |
+| ~~`stages.phase.midBossLeaveAfterSec`~~ ★v1.10 | **폐지.** 체류 타이머(30→45)와 «구간»은 양립하지 않는다 — 타이머가 위기보다 먼저 끝나면 공백(실측 26초), 나중이면 위기와 겹친다. 이제 중간보스는 **격파되거나 위기가 부를 때까지** 선다("선택적"의 정의는 아래 개정) |
+| ★ **`stages.phase.crisisOnMidBossClear`** ★v1.10 | **true** — 예정 전원이 등장했고 살아 있는 마리가 0 이면 **그 즉시 위기**(§8.10). 격파 = 다음 구간(보스 구간처럼). 없으면 빨리 잡을수록 무대가 오래 빈다 |
 | `midBossElementRule` ★v1.5 | **`"themeElseNonTheme"`** — 스테이지=테마 속성 주입, finale=비-테마. **런타임 주입** (v1.4 `"notThemeAndNotNormal"` 을 뒤집음, 사용자 결정) |
-| `midBossForcedLeaveOnCrisis` | true |
+| `midBossForcedLeaveOnCrisis` ★v1.10 | true — 위기가 오면 남은 마리는 **퇴장 연출**(위로 상승, off-screen 에서 반납, 보상 0)로 빠져나간다. ~~즉시 반납~~ |
 | **`boss.midBossSummonsAllowed`** ★ | **`["mbNest"]`** (중간보스는 잡몹 페이즈에 있으므로 XP 획득이 정상) — **거처 = `rules.json > boss`**, 인쇄 자리 §9.4 |
 
 **★ `midBossSummonsAllowed`의 거처 (v1.2, §21-A5 — S17이 읽을 값이 없었다)**
@@ -1572,7 +1575,7 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | 보상 | `xp` = **`bands.chaff.xpRef` × 25 = 50** / `coin` = **5**(확정) / `healDropChance` = **0.35** ← 회복 3채널 중 "드랍" 채널의 주 수도꼭지 / `score`. ★ **거처 = `bosses[]` 개체 필드** (04-R10 채택 — `rules.json`에 `midBoss` 블록이 없고 `stages.json > phase`에도 없었다) |
 
 **★ 중간보스가 `bossHpScale`을 쓰는 이유 (v1.1 정정 — v1.0은 `enemyHpScale`이라 했다)**
-`enemyHpScale`은 스테이지 6에서 **6배**, `bossHpScale`은 **17.3배**다(§13.6). 그런데 플레이어 화력은 **14.2배** 자란다(§13.5). `enemyHpScale`을 쓰면 `mbNest`(1100 base)가 스테이지 5에서 `1100 × 4.5 = 4,950` → **11.7초에 죽는다** → §8.9가 확정한 "**DPS 체크 — 보스전 예고편**"이 소멸한다. `bossHpScale`이면 `1100 × 14.42 = 15,862` → **37.3초**(실효 424.8) vs `midBossLeaveAfterSec` 30 → ★ **v1.2 재산출로 이탈 시간을 넘겼다** — 04의 base 1100은 **`bossHpScale`이 11.9였을 때 30초에 아슬아슬하도록** 저작된 값이다. **04는 base를 `1100 → 880`으로 낮춰 29.8초에 맞춰야 한다**(§20.3-04-2). 이것이 「밸런싱은 오직 숫자」의 실물이다 — 규칙도 구조도 안 바뀌고 `bosses.json`의 수 하나가 바뀐다. 잡몹 HP 곡선이 완만한 이유("chaff는 끝까지 1~2히트", §8.6)는 중간보스에 적용되지 않는다.
+`enemyHpScale`은 스테이지 6에서 **6배**, `bossHpScale`은 **17.3배**다(§13.6). 그런데 플레이어 화력은 **14.2배** 자란다(§13.5). `enemyHpScale`을 쓰면 `mbNest`(1100 base)가 스테이지 5에서 `1100 × 4.5 = 4,950` → **11.7초에 죽는다** → §8.9가 확정한 "**DPS 체크 — 보스전 예고편**"이 소멸한다. `bossHpScale`이면 `1100 × 14.42 = 15,862` → **37.3초**(실효 424.8) vs ~~`midBossLeaveAfterSec` 30~~(v1.10 폐지 — 지금은 위기 상한까지 최대 50초, §8.19) → ★ **v1.2 재산출로 이탈 시간을 넘겼다** — 04의 base 1100은 **`bossHpScale`이 11.9였을 때 30초에 아슬아슬하도록** 저작된 값이다. **04는 base를 `1100 → 880`으로 낮춰 29.8초에 맞춰야 한다**(§20.3-04-2). 이것이 「밸런싱은 오직 숫자」의 실물이다 — 규칙도 구조도 안 바뀌고 `bosses.json`의 수 하나가 바뀐다. 잡몹 HP 곡선이 완만한 이유("chaff는 끝까지 1~2히트", §8.6)는 중간보스에 적용되지 않는다.
 
 **★ `midBossElementRule`의 적용 시점 = 런타임 주입 (04-R11 채택)**
 
@@ -1592,7 +1595,7 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | R8 | §8.9는 `mbHammer`를 "**`fan` + `zone` 교대**"로 확정했으나 §9.8은 `patternSet` 엔트리를 `{emitterId}` **단수**로 못박았다 → **정본이 확정한 기능을 정본의 스키마가 표현하지 못한다** | `patternSet[i]`를 ★ **`{emitterIds: [...]}` (배열, 길이 1~2)**로 일반화. **보스 부위 = 길이 1 강제 / 중간보스 = 1~2 허용** (`check.mjs` S16). `telegraphConcurrentMaxPerEntity`(2)가 그대로 상한이며, `offsetSec` 교대(예: `everySec 6.0` / `offsetSec 0.0`·`3.0`)로 **동시 텔레그래프 1개**가 정적으로 증명된다 |
 | R9 | §8.9가 `mbNest` = "`aimed` + **잡몹 소환**"으로 **기능을 확정**했으나 표현할 필드가 없고 `onDestroy.spawnWave`는 §8.12에서 폐기됐다 | ★ **`bosses[].summon: { archetypeId, count, everySec, formationId } \| null`** 신설. **`tier == "mid"` 이고 `midBossSummonsAllowed`를 통과할 때만 non-null 허용**, 그 외 = 로드 실패(`check.mjs` S17). `boss.summonsAllowed = false`(§8.11)는 **스테이지 보스** 규칙이므로 충돌하지 않는다 — 그리고 §6.4의 전제("보스 페이즈에 XP 획득원 없음")는 **중간보스가 잡몹 페이즈에 있으므로** 그대로 유지된다 |
 
-**"선택적"의 정확한 의미**: 등장 후 30 게임초가 지나면 **화면 위로 이탈해 사라진다.** 이탈 = 보상 0. **무시해도 쫓아오지 않는다**(추격 금지 — 그러면 "선택"이 거짓이 됨). 다만 **이탈 전까지는 계속 사격한다** → 무시 = "30초간 추가 탄막을 회피하며 웨이브를 파밍한다"는 선택. **공짜 회피가 아니다.**
+**"선택적"의 정확한 의미 (★v1.10 개정)**: ~~등장 후 30 게임초가 지나면 화면 위로 이탈해 사라진다~~ → 중간보스는 **격파되거나 위기(`crisisStartSec` 상한)가 부를 때까지** 선다. 위기가 부르면 화면 위로 빠져나가고 보상은 0. **무시해도 쫓아오지 않는다**(추격 금지 — 그러면 "선택"이 거짓이 됨). 다만 **서 있는 동안 계속 사격·소환한다** → 무시 = "위기가 올 때까지 탄막과 유령을 회피한다"는 선택이고, 격파 = "위기를 **앞당긴다**"는 선택이다(§8.19 ①). **공짜 회피가 아니고, 격파도 공짜가 아니다.**
 
 **속성 규칙 = 보스전의 예고편**: 테마 정답 스탠스(예: 화산에서 물)를 켜둔 채로는 중간보스가 잘 안 죽는다 → **스탠스를 바꾸게 만든다.** 스테이지 보스가 요구할 전환을 잡몹 페이즈에서 미리 연습시키는 장치.
 
@@ -1601,8 +1604,9 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | 키 | 값 |
 |---|---|
 | `stages.phase.crisisPerStage` | **1** (매 스테이지 필수) — ★ **v1.3: 인쇄 자리를 줬다**(§9.9). v1.2는 백틱 키로 참조하면서 `phase` 블록에 넣지 않았다 |
-| `stages.phase.crisisStartSec` / `crisisDurationSec` / `crisisWarnSec` | 95 / **25** / **3.0** |
-| `stages.phase.crisisSuspendsWaves` | true |
+| `stages.phase.crisisStartSec` / `crisisDurationSec` ★v1.10 | **80**(상한) / **14**(새떼가 여는 길이) — ★ 위기의 «시작»은 `crisisStartSec` 이 아니라 **`min(중간보스 전원 격파 시각, crisisStartSec)`** 이고(`crisisOnMidBossClear`, §8.19 ①), 새떼는 그 원점(`run.crisisAtSec`)에서 `crisisDurationSec` 동안 `crisisSubWaves` 파를 낸다. 위기 자체는 **`mobPhaseSec` 까지** 이어진다(길이 가변, 최장 70초) · ~~95/25~~ ~~106/14~~ |
+| ~~`crisisWarnSec`~~ ★v1.10 | **폐지** — 읽는 곳이 0 이었고(죽은 키), 격파로 앞당겨지는 시작은 시계로 예고할 수 없다. HUD 는 `run.crisis` 로 «위기» 표식을 켠다 |
+| `stages.phase.crisisSuspendsWaves` ★v1.10 | **false** — 위기 = 「속도 빠른 적이 끊임없이 나오는 구간」(사용자 2026-09-04). 정상 웨이브가 `waveIntervalSec` 간격·`sectionSpeedMul.crisis`(1.45)로 **계속** 흐르고 새떼가 그 위에 얹힌다. 예산은 `threatLive < enemyConcurrentMax × threatBudgetScale` 이 자율 조절(새떼가 서 있는 동안 웨이브가 기다린다). ~~true (106초에 스포너 정지 = 관대함)~~ — S55 ④: `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves` |
 | `stages.phase.crisisTotal` | **60 × `swarmTotalScale[stage]`** |
 | `stages.phase.crisisSubWaves` | 6 (10기 × 6파, `arc`/`vWedge`) |
 | ★ `stages.phase.crisisWaves` | **12 레코드** (서브웨이브당 `swarmChaff` 9 + `swarmLancer` 1) — ★ **v1.3 신설, 아래** |
@@ -1981,14 +1985,24 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 > 「stage 1 에서 적이 300 나온다면 쏘는 적이 30, stage 2 는 40, stage 3 은 60, … stage 5 는 180.
 >  총량은 그대로 두고 섞이는 비율만 올린다.」 **폐지**: 위 네 키와 게이트 S48·S52·S53. **신설**: 아래.
 
-**① 구간은 넷이다 — 사건 타이머가 가른다(새 시계 0).**
+**① 구간은 넷이고 «순차·배타»다 — 사건 타이머가 가른다(새 시계 0).** 사용자(2026-09-04): 「초반 구간이 끝나지
+않았는데 중간보스가 나온다」 → 한 구간이 끝나야 다음이 온다. 겹치면 「중간보스를 피할 수 없다」.
 
-| 구간 | 언제 | 소유 |
-|---|---|---|
-| **초기** | 첫 중간보스(`midBossAtSec[pos][0]`) 전 | 편대 = `phase.introFormationId`(wall) · 속도 `sectionSpeedMul.early` |
-| **중간보스** | 그 뒤 ~ `crisisStartSec` | 속도 `sectionSpeedMul.mid` |
-| **위기** | `crisisStartSec` ~ `mobPhaseSec` | 스포너 자체를 대체(§8.10) · 속도 `sectionSpeedMul.crisis` |
-| **보스** | `mobPhaseSec` 이후 | §8.11~ |
+| 구간 | 언제 | 웨이브 | 그 밖에 | 속도 |
+|---|---|---|---|---|
+| **초기** | 0 ~ `midBossAtSec[pos][0] − earlyDrainSec` | 간격 `earlyWaveIntervalSec`(1.4) · 편대 `introFormationId`(wall) — «우루루» | — | `sectionSpeedMul.early` 0.72 |
+| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | early |
+| **중간보스** | `midBossAtSec[pos][0]` ~ 위기 | **0** (`midBossSuspendsWaves`) — 몹이 적어야 «피할 수» 있다 | 첫 마리 = 소환자(`midBossFirstId`) → 유령이 «적당히» 흐른다(실측 13~20). 나머지는 다른 형태. 타이머 이탈 없음 | `sectionSpeedMul.mid` 1.0 |
+| **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | 간격 `waveIntervalSec` — **계속 흐른다**(`crisisSuspendsWaves` false) + 새떼(§8.10)가 처음 `crisisDurationSec` 을 연다 | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
+| **보스** | `mobPhaseSec` 이후 | — | §8.11~ | — |
+
+★ 위기 시작은 «둘 중 먼저 오는 쪽»이고 **한 번 켜지면 페이즈 끝까지**(sticky) — `run.crisisAtSec` 이 원점이고 새떼
+스케줄이 거기서 센다. 이게 없으면 빨리 잡을수록 무대가 오래 빈다(실측 v1.10 ①: 이탈 75초 → 위기 106초 사이 **26초 공백**).
+그래서 위기는 **길이가 변한다**(격파가 빠르면 최장 = `mobPhaseSec − midBossAtSec[pos][last]`) — 웨이브 재고
+`mobPhaseMaxWaves`(56)가 그 최장을 감당해야 한다(S54 ③).
+★ 중간보스 구간은 «보스 구간처럼» 선다(사용자: 「무조건 소환하는 중간보스 하나 + 다른 형태들, 마치 보스 구간처럼」):
+격파하면 다음 구간, 못 하면 상한에서 위기가 쫓아낸다. 옛 `midBossLeaveAfterSec`(체류 타이머)은 **폐지** — 체류
+타이머와 «구간»은 양립하지 않는다(타이머가 먼저 끝나면 공백, 나중에 끝나면 위기와 겹친다).
 
 **② 스테이지가 «공격형 : 무공격» 비율을 소유한다 — `curve.shooterRatio` (6칸, 포지션 단조 비감소).**
 현재 `[0.10, 0.13, 0.20, 0.35, 0.55, 0.70]`. 사용자 수치(10·13·20·—·60·—)에 4 를 보간하고 5·6 을 실측으로 낮췄다
@@ -2019,9 +2033,18 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 하강·횡속도에 곱한다. 유령·중간보스·보스는 각자 소관이라 안 탄다.
 
 **게이트 S54 (§13.4)** — ① 비율 곡선 형식·단조 ② 겹침 `2 × waveIntervalSec ≤ 최속 하강종 통과시간`(구 S53-②)
-③ 공급 `ceil(crisisStartSec ÷ waveIntervalSec) ≤ mobPhaseMaxWaves` ④ 벽 차선 ≥ `minGapWidthPx`(구 S52)
-⑤ 무공격 칸 실재·무공격·비위기 ⑥ **속성 3종 보장** — `themeDraw` 5/6 조합 전수에서 물·불·풀이 다 나온다
-(2×3 구조가 «우연히» 보장하던 것을 못박는다. 테마를 늘리면 조용히 깨진다).
+③ 공급 — 웨이브가 흐르는 구간은 초기 + 위기뿐이므로 포지션마다
+`ceil((midBossAtSec[0] − earlyDrainSec) ÷ earlyWaveIntervalSec) + ceil((mobPhaseSec − midBossAtSec[last]) ÷ waveIntervalSec) ≤ mobPhaseMaxWaves`
+④ 벽 차선 ≥ `minGapWidthPx`(구 S52) ⑤ 무공격 칸 실재·무공격·비위기 ⑥ **속성 3종 보장** — `themeDraw` 5/6 조합
+전수에서 물·불·풀이 다 나온다(2×3 구조가 «우연히» 보장하던 것을 못박는다. 테마를 늘리면 조용히 깨진다).
+
+**게이트 S55 (§13.4) — 중간보스 구간.** ① `midBossFirstId` 가 tier mid 에 실재 ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed`
+② 소환자를 뺀 tier mid 종 ≥ 1 ③ `crisisStartSec + crisisDurationSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves`
+(둘 다 true 면 앞당긴 위기가 새떼 뒤 페이즈 끝까지 공백이다).
+
+**실측(v1.10 ②, 시드 11, 5초 격자 · 봇은 중간보스를 안 잡으므로 상한 시각의 시간표다).**
+포지션 1: 초기 56→121→166→226 · 배수 176→108 · 중간보스 Nest 1 + 유령 9~18(잡몹 0) · 위기 80~120 잡몹 52~73.
+포지션 6: 초기 65→117→86→132 · 중간보스 5마리(Nest 먼저) + 유령 15~20 · 위기 잡몹 45~78 · 적탄 62~254. **공백 0초.**
 
 **아직 안 한 것 — 다음 패스.** «테마가 공격 패턴을 소유한다»(공통 어휘 + 테마 고유 어휘, 사용자 2026-09-03).
 지금은 `straight` 가 잡몹 17종 중 5종이라 어느 테마든 절반이 직사다. S47(형태↔무기) 사슬 때문에 패턴을 바꾸면
@@ -3006,7 +3029,7 @@ v1.2의 이 표는 **「`enemies.json`에서 삭제」**를 명시 확정했는�
 | `onDestroy` | **없음** — 효과는 `partType`이 결정 (§8.12) |
 | `regenSec` | **없음** — `boss.partRegen = false` 고정 |
 | `hpShare` | **없음** — 절대 HP |
-| ★ `leaveAfterSec` | **없다** — 이탈 30초의 유일 소유자는 `stages.phase.midBossLeaveAfterSec`다(§8.9, v1.2 §21-A12) |
+| ★ `leaveAfterSec` | **없다** — 중간보스에 체류 타이머는 없다(v1.10 폐지: 격파 아니면 위기가 부른다, §8.9). ~~이탈 30초의 유일 소유자 `stages.phase.midBossLeaveAfterSec`~~(v1.2 §21-A12) |
 | 부위 스크립트 | **어휘 참조 + 숫자일 뿐. DSL도 로직도 없다** |
 | ★ 부위 사격 | **부위 파괴 = 그 부위의 이미터 정지** (§8.12, 전 `partType` 공통) |
 
@@ -3096,7 +3119,7 @@ tetrarchThroneP1  ...
 | ⓒ | ★ **`movePattern`/`movePatternParams`는 `tier ∈ {stage, final}` 전용** — 중간보스에 **없다** | 두 어휘(`moveId` 8종 vs `movePattern` 3종)는 **다른 축**이다: 전자 = **잡몹·중간보스의 이동 스크립트**, 후자 = **복합 보스의 전신 운동**(§8.12.1). 중간보스는 **단일 몸체이므로 잡몹 쪽 어휘를 쓴다** — 그것이 §8.9가 표에 `moveId`를 적은 이유다 |
 | ⓓ | **`armorCoreRatio`·`movePattern`·`movePatternParams`는 없다 / `parts`는 `[]` 필수 / `patternSet` 길이 = 1** | φ는 armor 부위의 비율이므로 부위가 없으면 **정의되지 않는다.** `parts: []`는 **필수**다(「누락 키 = 에러」 — 빈 배열도 값이다) |
 | ⓔ | **보상 4필드**(`xp` `coin` `healDropChance` `score`)는 **`tier == "mid"` 전용** | 04-R10 채택. 스테이지·최종 보스의 보상은 `rules.boss.coin`/`partCoin`(전 보스 공용 상수)과 `core.score`/`parts[].score`가 소유한다 |
-| ⓕ | **`leaveAfterSec`는 없다** | `stages.phase.midBossLeaveAfterSec`(30)가 유일 소유자 (§21-A12) |
+| ⓕ | **`leaveAfterSec`는 없다** | 중간보스 체류 타이머는 v1.10 에 폐지됐다(§8.9) — ~~`stages.phase.midBossLeaveAfterSec`(30)가 유일 소유자~~ (§21-A12) |
 
 **★ `check.mjs` S3의 동치 추가 (v1.3)**
 
@@ -3107,7 +3130,7 @@ tetrarchThroneP1  ...
 **★ `moveParams.leaveAfterSec`는 중간보스에 없다 (v1.3, 전사 감사 major)**
 
 `mbHammer`·`mbNest`는 `moveId: "anchor"`인데 ★ **§8.4의 `anchor` 파라미터 목록에 `leaveAfterSec`가 있다**(`enterSpeed, yHoldPx, swayAmpPx, leaveAfterSec`) → 중간보스가 `moveParams.leaveAfterSec`를 저작하면 **§21-A12가 삭제한 `bosses[].leaveAfterSec`가 한 단계 아래에서 부활**한다.
-- **확정**: ★ **`tier: "mid"`의 `moveParams`는 `leaveAfterSec`를 저작하지 않는다** — 이탈은 `stages.phase.midBossLeaveAfterSec`(30)가 **전담**한다. `anchor`의 `leaveAfterSec`는 ★ **잡몹 전용 파라미터**다(드론/옵션형 잡몹이 잠깐 머물다 떠나는 거동).
+- **확정**: ★ **`tier: "mid"`의 `moveParams`는 `leaveAfterSec`를 저작하지 않는다** — 중간보스의 이탈은 위기(`midBossForcedLeaveOnCrisis`)가 **전담**한다(v1.10, ~~`stages.phase.midBossLeaveAfterSec`(30)~~ 폐지). `anchor`의 `leaveAfterSec`는 ★ **잡몹 전용 파라미터**다(드론/옵션형 잡몹이 잠깐 머물다 떠나는 거동).
 - `check.mjs` **S38**: 「`tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재」. 그리고 **§15-M12의 `leaveAfterSec` 문자열을 삭제**했다(v1.3 — 미결 대장이 v1.2의 삭제를 안 받고 있었다).
 
 ### 9.9 `stages.json` · `meta.json`
@@ -3124,14 +3147,14 @@ tetrarchThroneP1  ...
              "swarmTotalScale":[0.5,0.7,0.85,1.0,1.0,1.0],
              "rearSpawnAllowed":[false,false,true,true,true,true],
              "shooterRatio":[0.10,0.13,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },
-  "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":14,
+  "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":56,
              "waveIntervalSec":9.0, "waveClearAdvance":true,
              "mobPhaseExitFadeSec":3.0, "mobPhaseExitClearBullets":true,
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
              "waveListExhausted":"cycle",
              "crisisPerStage":1,
-             "crisisStartSec":95, "crisisDurationSec":25, "crisisWarnSec":3.0,
-             "crisisSuspendsWaves":true, "crisisTotal":60, "crisisSubWaves":6,
+             "crisisStartSec":80, "crisisDurationSec":14,
+             "crisisSuspendsWaves":false, "crisisOnMidBossClear":true, "crisisTotal":60, "crisisSubWaves":6,
              "crisisWaves":[
                { "subWave":1, "formationId":"arc",    "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
                { "subWave":1, "formationId":"arc",    "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
@@ -3145,8 +3168,8 @@ tetrarchThroneP1  ...
                { "subWave":5, "formationId":"arc",    "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" },
                { "subWave":6, "formationId":"vWedge", "archetypeId":"swarmChaff",  "count":9, "spawnEdge":"top" },
                { "subWave":6, "formationId":"vWedge", "archetypeId":"swarmLancer", "count":1, "spawnEdge":"top" } ],
-             "midBossAtSec":[[35],[35],[30,70],[30,70],[30,70],[30,70]],
-             "midBossLeaveAfterSec":30, "midBossElementRule":"notThemeAndNotNormal",
+             "midBossAtSec":[[30],[30,35],[30,35],[30,35,40],[30,35,40,45],[30,35,40,45,50]],
+             "midBossFirstId":"mbNest", "midBossElementRule":"themeElseNonTheme",
              "midBossForcedLeaveOnCrisis":true,
              "bossTimerSec":180, "timerWarnSec":60, "timerRedAlertSec":30,
              "statusStunMaxPerStage":2 },
@@ -3225,7 +3248,7 @@ tetrarchThroneP1  ...
 | 개체 0 | 맥동 없음 |
 | 범위 | `stanceHintPulseStageMax = 1` — **스테이지 1 전용, 이후 영구 OFF** (v1.0 그대로) |
 
-### 9.9.2 ★ `stages.formations` 파라미터 (6종 확정 — 04-R14 채택)
+### 9.9.2 ★ `stages.formations` 파라미터 (6종 확정 — 04-R14 채택 · **v1.9 `wall` 추가 = 7종**)
 
 v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에러」이므로 값이 없으면 로드 실패다.
 
@@ -3237,6 +3260,7 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 | `arc` | `radiusPx: 180, spanDeg: 120` | 호, 중심 = 아레나 중앙 상단 |
 | `pincer` | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
 | `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 최소 간격 강제 |
+| ★ `wall` (v1.9 · **v1.10 `jitterY`**) | `gapPx: 29, rowGapPx: 40, perRow: 20, laneSlots: 2, laneStrideCols: 3, jitterY: 0.85` | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
 
 ★ **`pincer`만 `strafe.yPx`를 덮어쓴다**: `yPx = yStartPx + floor(i/2) × yStepPx` (i = 편대 내 인덱스). **이 예외가 없으면 `flanker.yPx`가 아키타입 고정값이라 모든 측면기가 한 줄로만 지나간다 = `strafe` 거동이 죽는다**(그리고 `boomerang`의 "라인 정렬" 시너지 논거(§8.4)가 무의미해진다). `check.mjs` **S20**: `pincer` ⟺ `moveId == "strafe"`, `columnV` ⟺ `moveId == "column"`.
 
@@ -4602,6 +4626,8 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S49** ★ | **부위 도달 가능성** (v1.8, §8.11) — 각 `stage`/`final` 보스의 모든 부위에 대해, 점탄(반경 0) 기준 **노출폭 ≥ `boss.partReachMinPx`**(32). 노출폭 = `yFirst(P,dx) > yFirst(core,dx)` 인 `dx`(1px 격자)의 개수, `yFirst(E,dx) = E.ay + √(E.r² − (E.ax−dx)²)`. ★ **재는 것은 «코어에 가리는가»뿐이다** — 형제 부위 차폐도 `sealedNow` 도 세지 않는다. 실측 분리도가 그래도 결정적이었다: v1.8 이전의 위반 5건은 **전부 0px**, 통과 부위의 최소는 **41px** → 문턱 32 는 그 한가운데다. ★ **v1.8 이전에 `anchor` 를 검사하는 게이트는 «하나도» 없었다**(닫힌 키가 존재만 봤다) |
 | **S50** ★ | **웨이브 몸 수 하한의 정합** (v1.8, §8.7.1) — ① 4밴드 전부 선언 · 정수 ≥1 ② `hpMult` 오름차순으로 `minPerWave` **단조 비증가**(총 HP 예산 보존과 같은 방향) ③ `minPerWave ≤ enemyConcurrentMax ÷ 2`(한 웨이브가 A층 예산 절반을 혼자 먹지 않는다). ★ 이 게이트는 «값의 정합»만 본다 — effHP 가 감당 가능한가는 **계측이 답할 몫**이다 |
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
+| **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
+| **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisDurationSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ ¬crisisSuspendsWaves`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 14초 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
 | ~~**S46**~~ | ~~공격 기호 어휘의 완결성 (v1.7)~~ — ★ **v1.8 삭제.** 기호 자체를 폐지했다(§7.6.1). 번호는 재사용하지 않는다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 
@@ -4876,7 +4902,7 @@ T_noEl(i) = (2·armor + core) × bossRamp[i] / 36 = 5.90 × core × bossRamp[i] 
 | `contactDmg` | 코어 **16** / 부위 **14~15** (§2.5 저작 가이드) |
 | `radius` · `anchor` · `shapeId` · `score` · 시드 이미터 | **「보스」 섹션 위임** (정본은 HP와 구조만 소유) |
 | 목표 격파 시간 | ★ **균형(probe) = `killTimeMedianBalanced` ∈ [120, 150]** (v1.2 개정 — §13.6.5). `flow.stagePar[i]` = `180 − 그것` = **30~60** |
-| 중간보스 hp | `bosses[].hp × bossHpScale[stage]` (§8.9). 목표: `mbNest` = **`midBossLeaveAfterSec`(30)에 아슬아슬** → ★ v1.2의 `bossHpScale[5] = 14.42`에서 base **880**이 그 값이다(1100은 11.9 시절의 값) |
+| 중간보스 hp | `bosses[].hp × bossHpScale[stage]` (§8.9). 목표(v1.10): `mbNest` 를 **위기 상한 전에 잡을 수 있되 공짜는 아니게**(첫 마리 30초 → 상한 80초 = 최대 50초 체류) · ~~`midBossLeaveAfterSec`(30)에 아슬아슬 → base 880~~ |
 
 ★ **밸런싱의 유일한 손잡이 = `bossRamp` → `bossHpScale`.** `noElementPass`가 밴드를 벗어나면 **`bossHpScale` 배열 하나**를 고친다. 그것으로 안 되면(= `balancedPass`가 함께 깨지면) 다음 손잡이는 **`armorCoreRatio`**(R7 밴드 안에서), 그 다음이 **`elementCapTotal`**(= 정본 개정). **`.js`를 여는 경우는 없다.**
 
