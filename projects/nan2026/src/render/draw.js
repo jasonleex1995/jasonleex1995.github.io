@@ -21,6 +21,7 @@
 
 import { drawArenaBands } from './hud.js';
 import { recomputeEff } from '../core/state.js';   // §5.3 랜스 빔 기하 재구성용(즉발 무기 가시화)
+import { wipeFrontY } from '../core/boss.js';        // §8.22 쓸어내기 앞선(판정과 같은 식)
 
 // ---------------------------------------------------------------------------
 // 색 — sRGB ↔ CIE Lab. §7.12.8 의 「L*+25」와 §7.3 의 「채도 0」이 실제 수를 요구한다
@@ -502,10 +503,15 @@ function drawTerrain(ctx, world, pal) {
     for (let i = 0; i < list.length; i += 1) if (list[i].id === stageId) { element = list[i].element === null ? 'normal' : list[i].element; break; }
   }
   const col = pal.element[element];
+  const fadeSec = world.data.rules.terrain.fadeSec;
   for (let i = 0; i < it.length; i += 1) {
     const t = it[i];
     if (!t.alive) continue;
-    const r = t.radius;
+    // §8.21 ④ 사라지는 중 — 반지름과 알파가 같이 줄어든다(효과는 이미 꺼져 있다)
+    const k = t.fadeT >= 0 ? Math.max(0, 1 - t.fadeT / fadeSec) : 1;
+    const r = t.radius * k;
+    if (r <= 0.5) continue;
+    ctx.globalAlpha = k;
     ctx.fillStyle = rgba(col, vt.fillAlpha);
     ctx.beginPath(); ctx.arc(t.x, t.y, r, 0, Math.PI * 2); ctx.fill();
     ctx.lineWidth = 1.5;
@@ -538,7 +544,35 @@ function drawTerrain(ctx, world, pal) {
         ctx.beginPath(); ctx.arc(t.x, t.y, r * (0.25 + 0.75 * f), 0, Math.PI * 2); ctx.stroke();
       }
     }
+    ctx.globalAlpha = 1;
   }
+}
+
+// ---------------------------------------------------------------------------
+// 레이어 9.5 — 보스 등장 쓸어내기 (§8.22 v1.10 ⑧). 앞선 위는 «닦인» 자리라 잠깐 밝고, 앞선 자체는 굵은 띠.
+//   피해·위협이 아니라 «장면 전환»이므로 위협색이 아니라 텍스트/은색 채널을 쓴다. 판정과 같은 식(wipeFrontY).
+// ---------------------------------------------------------------------------
+function drawWipe(ctx, world, pal) {
+  const run = world.run;
+  if (run === undefined || run.wipeT < 0) return;
+  const a = world.data.rules.view.arena;
+  const vw = world.data.rules.visual.wipe;
+  const sec = world.data.rules.boss.entryWipeSec;
+  const y = wipeFrontY(world);
+  const k = sec > 0 ? Math.min(1, run.wipeT / sec) : 1;
+  const top = a.y;
+  const h = Math.max(0, y - top);
+  if (h > 0) {                                                 // 닦인 자리 — 앞선에서 위로 갈수록 옅어지는 섬광
+    const g = ctx.createLinearGradient(0, top, 0, y);
+    g.addColorStop(0, rgba(pal.hud.textPrimary, 0));
+    g.addColorStop(1, rgba(pal.hud.textPrimary, vw.flashAlpha * (1 - k * 0.6)));
+    ctx.fillStyle = g;
+    ctx.fillRect(a.x, top, a.w, h);
+  }
+  ctx.fillStyle = rgba(pal.hud.textPrimary, 0.9);              // 앞선 띠
+  ctx.fillRect(a.x, y - vw.bandPx / 2, a.w, vw.bandPx);
+  ctx.fillStyle = rgba(pal.hud.textPrimary, 0.35);
+  ctx.fillRect(a.x, y + vw.bandPx / 2, a.w, vw.bandPx * 0.6);
 }
 
 function drawGroundZones(ctx, world, pal) {
@@ -1289,6 +1323,7 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9
+  drawWipe(ctx, world, pal);                                  // 9.5 — 보스 등장 쓸어내기(§8.22)
   drawHitboxDot(ctx, world, pal, pp.x, pp.y);                 // 10
 
   ctx.restore();

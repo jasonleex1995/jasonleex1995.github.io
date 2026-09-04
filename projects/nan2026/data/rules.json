@@ -104,6 +104,7 @@
     "phaseTransitionSec": 1.5,
     "timerPausesOnPhaseTransition": true,
     "introSec": 3.0,
+    "entryWipeSec": 0.7,
     "timerStartsAfterIntro": true,
     "timerExpire": "kill",
     "coreGateMul": 0.4,
@@ -158,6 +159,9 @@
     "scrollSpeedPx": 42,
     "everySec": 3.2,
     "maxOnScreen": 3,
+    "spawnIn": ["early", "midboss", "boss"],
+    "bossEntryCount": 3,
+    "fadeSec": 0.8,
     "inertia": { "responseTauSec": 0.35 },
     "heat": { "fullSec": 1.5, "stallSec": 0.6, "coolSec": 1.0 }
   },
@@ -295,6 +299,10 @@
     "zone": {
       "fillAlpha": 0.30,
       "pulseHz": 1.0
+    },
+    "wipe": {
+      "bandPx": 28,
+      "flashAlpha": 0.35
     },
     "terrain": {
       "fillAlpha": 0.14,

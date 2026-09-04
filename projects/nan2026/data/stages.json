@@ -29,8 +29,6 @@
     "mobPhaseMaxWaves": 56,
     "waveIntervalSec": 2.65,
     "waveClearAdvance": true,
-    "mobPhaseExitFadeSec": 3.0,
-    "mobPhaseExitClearBullets": true,
     "phaseEndAutocollect": true,
     "enemyExitForfeitsReward": true,
     "waveListExhausted": "cycle",

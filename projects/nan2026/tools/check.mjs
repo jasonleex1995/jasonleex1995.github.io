@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -456,6 +456,7 @@ function S1_corePurity() {
 const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
 const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];
+const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 구간 어휘
 
 function S2_schema() {
   const r = D.rules;
@@ -504,7 +505,7 @@ function S2_schema() {
 
   // §9.4 인쇄 블록이 boss 스코프의 필드 집합을 확정한다 (C-7)
   closedKeys('S2', r.boss, ['partCount', 'partRegen', 'partHitPriority',
-    'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
+    'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec', 'entryWipeSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
@@ -520,7 +521,7 @@ function S2_schema() {
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   // §8.21(v1.10 ⑦) 지형 장판
-  closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'inertia', 'heat'], 'rules.terrain');
+  closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat'], 'rules.terrain');
   if (isObj(r.terrain)) {
     closedKeys('S2', r.terrain.inertia, ['responseTauSec'], 'rules.terrain.inertia');
     closedKeys('S2', r.terrain.heat, ['fullSec', 'stallSec', 'coolSec'], 'rules.terrain.heat');
@@ -582,8 +583,9 @@ function S2_schema() {
 
   // §9.4.3 — visual 전 키 인쇄. ★ v1.3: statusBulletSpeedMul 이 빠졌다(→ fairness)
   closedKeys('S2', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet',
-    'glyph', 'telegraph', 'band', 'zone', 'terrain', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
+    'glyph', 'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
   if (isObj(r.visual)) closedKeys('S2', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz'], 'rules.visual.terrain');   // §7.13(v1.10 ⑦)
+  if (isObj(r.visual)) closedKeys('S2', r.visual.wipe, ['bandPx', 'flashAlpha'], 'rules.visual.wipe');                                        // §8.22(v1.10 ⑧)
   if (has(r.visual, 'statusBulletSpeedMul')) {
     V('S2', 'rules.visual.statusBulletSpeedMul: 이사한 키 → rules.fairness.statusBulletSpeedMul (§23.3) — visual 키가 게임플레이 속도를 바꾸면 §9.4.3의 경계가 깨진다');
   }
@@ -832,7 +834,7 @@ function S2_files() {
     'shooterRatio', 'threatBudgetScale'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
-    'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets', 'phaseEndAutocollect',
+    'waveClearAdvance', 'phaseEndAutocollect',
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisBodyId', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
     'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
@@ -3221,7 +3223,49 @@ function S56_terrain() {
   // ⑤ 통로
   n += 1;
   if (num(tr.radiusPx) && !(2 * tr.radiusPx < a.w - 2 * tr.radiusPx)) V('S56', `rules.terrain.radiusPx = ${tr.radiusPx}: 장판 하나가 아레나 폭 ${a.w} 의 절반을 넘는다 — 돌아갈 폭이 없다 (§8.21 ⑤)`);
+  // ⑥ (v1.10 ⑧) 구간·보스 등장 무리·페이드 — spawnIn ⊆ SECTIONS · 비어 있지 않다 · 중복 없음 · ★ 'crisis' 가 없다
+  //    (186px/s 새떼 속의 둔화·정지는 확정 피격 = §2.1 ① 위반 — 사용자 결정 2026-09-04) · bossEntryCount ∈ [0, maxOnScreen] · fadeSec > 0
+  n += 1;
+  if (!Array.isArray(tr.spawnIn) || tr.spawnIn.length === 0) V('S56', 'rules.terrain.spawnIn: 비어 있으면 지형이 어디에도 안 나온다 — 죽은 기능 (§8.21 ④)');
+  else {
+    const seen = new Set();
+    for (const sec of tr.spawnIn) {
+      if (SECTIONS.indexOf(sec) < 0) V('S56', `rules.terrain.spawnIn: "${sec}" ∉ ${JSON.stringify(SECTIONS)}`);
+      if (seen.has(sec)) V('S56', `rules.terrain.spawnIn: "${sec}" 중복`);
+      seen.add(sec);
+    }
+    if (seen.has('crisis')) V('S56', "rules.terrain.spawnIn 에 'crisis' — 위기(새떼 186px/s) 속의 둔화·정지는 확정 피격이라 §2.1 ① 을 깬다 (§8.21 ④)");
+  }
+  if (!Number.isInteger(tr.bossEntryCount) || tr.bossEntryCount < 0 || (Number.isInteger(tr.maxOnScreen) && tr.bossEntryCount > tr.maxOnScreen)) V('S56', `rules.terrain.bossEntryCount = ${tr.bossEntryCount} ∉ [0, maxOnScreen = ${tr.maxOnScreen}] (§8.22)`);
+  if (!num(tr.fadeSec) || tr.fadeSec <= 0) V('S56', `rules.terrain.fadeSec = ${tr.fadeSec} — 양수 (§8.21 ④)`);
   EX('S56', n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  S57 — 보스 등장 쓸어내기 (§8.22 v1.10 ⑧)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * ① 0 < boss.entryWipeSec < boss.introSec — 쓸어내기는 강림 연출 «안»에서 끝난다(타이머는 강림 뒤 시작, §8.11)
+ * ② 앞선 속도 = (arena.h + 40 − spawnLineY) ÷ entryWipeSec > fairness.maxBulletSpeed — 어떤 탄도 앞선을 앞지르지 못한다
+ *    (안 그러면 쓸어내기 뒤에도 탄이 남아 «보스뿐인 무대»가 거짓이 된다)
+ * ③ visual.wipe.bandPx > 0 · flashAlpha ∈ [0, 1]
+ */
+function S57_entryWipe() {
+  const b = D.rules && D.rules.boss; const v = D.rules && D.rules.view; const fa = D.rules && D.rules.fairness;
+  const vw = D.rules && D.rules.visual && D.rules.visual.wipe;
+  if (!isObj(b) || !isObj(v) || !isObj(v.arena) || !isObj(fa) || !isObj(vw)) { V('S57', 'rules.boss / view / fairness / visual.wipe 가 없다'); return; }
+  let n = 0;
+  n += 1;
+  if (!num(b.entryWipeSec) || b.entryWipeSec <= 0 || !(num(b.introSec) && b.entryWipeSec < b.introSec)) V('S57', `rules.boss.entryWipeSec = ${b.entryWipeSec} ∉ (0, introSec = ${b.introSec}) (§8.22 ①)`);
+  n += 1;
+  if (num(b.entryWipeSec) && b.entryWipeSec > 0 && num(v.spawnLineY) && num(fa.maxBulletSpeed)) {
+    const speed = (v.arena.y + v.arena.h + 40 - v.spawnLineY) / b.entryWipeSec;
+    if (!(speed > fa.maxBulletSpeed)) V('S57', `쓸어내기 앞선 ${speed.toFixed(0)}px/s ≤ fairness.maxBulletSpeed ${fa.maxBulletSpeed} — 탄이 앞선을 앞지른다 (§8.22 ②)`);
+  }
+  n += 1;
+  if (!num(vw.bandPx) || vw.bandPx <= 0) V('S57', `rules.visual.wipe.bandPx = ${vw.bandPx} — 양수`);
+  if (!num(vw.flashAlpha) || vw.flashAlpha < 0 || vw.flashAlpha > 1) V('S57', `rules.visual.wipe.flashAlpha = ${vw.flashAlpha} ∉ [0, 1]`);
+  EX('S57', n);
 }
 
 
@@ -3769,7 +3813,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S56 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S57 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3832,7 +3876,8 @@ function main() {
   S50_minPerWave();          // §8.7.1 v1.8 웨이브 몸 수 하한
   S54_sectionsAndRatio();    // §8.19 v1.10 구간·비율·겹침·차선·속성3종
   S55_midBossSection();      // §8.19 v1.10 중간보스 구간 — 첫 마리 소환자 · 시계 · 앞당김⇒웨이브 계속
-  S56_terrain();             // §8.21 v1.10 ⑦ 지형 장판 — 종·속성당 하나·값·통로
+  S56_terrain();             // §8.21 v1.10 ⑦ 지형 장판 — 종·속성당 하나·값·통로·구간
+  S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

@@ -183,7 +183,7 @@ function makeZone() {
 
 function makeTerrain() {
   // §8.21 — 지형 장판. kind = TERRAIN_KINDS 인덱스(0 slow · 1 inertia · 2 heat). 위에서 아래로 흘러 내려간다(scrollSpeedPx).
-  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, kind: 0 };
+  return { alive: false, idx: 0, gen: 0, x: 0, y: 0, radius: 0, kind: 0, fadeT: -1 };   // fadeT ≥ 0 = 사라지는 중(효과 없음)
 }
 
 function makeDrone() {

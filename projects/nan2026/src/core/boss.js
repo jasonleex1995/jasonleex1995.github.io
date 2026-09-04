@@ -18,6 +18,7 @@
  */
 
 import { spawnBossCore, spawnBossPart } from './state.js';
+import { terrainBurst } from './terrain.js';   // §8.22(v1.10 ⑧) 쓸어내기 뒤 무작위 지형
 import { PHASE, stageEntry } from './stage.js';
 import { summon } from './midboss.js';   // §8.9(v1.5) — 스테이지 보스 유령 방패 소환(코어에서)
 
@@ -28,12 +29,54 @@ function findBoss(world, id) {
   throw new Error(`boss: 미지의 보스 "${id}" (§9.8)`);
 }
 
-/** 보스 아레나를 깨끗이 — 남은 잡몹(비-보스)과 적 탄을 반납한다(§8.11 등장 직전). */
+/** 보스 아레나를 깨끗이 — 남은 잡몹(비-보스)과 적 탄·지형을 반납한다. ★ v1.10 ⑧: 런에서는 «쓸어내기»(wipeTick)가
+ *  이 일을 0.7초에 걸쳐 위에서 아래로 한다. 이 즉시판은 BOSS 에 직접 스폰할 때(테스트·슬라이스)만 쓴다. */
 function clearField(world) {
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) if (en[i].alive && !en[i].isBoss) world.enemies.release(en[i]);
   const eb = world.enemyBullets.items;
   for (let i = 0; i < eb.length; i += 1) if (eb[i].alive) world.enemyBullets.release(eb[i]);
+  const tr = world.terrain.items;
+  for (let i = 0; i < tr.length; i += 1) if (tr[i].alive) world.terrain.release(tr[i]);
+}
+
+/**
+ * §8.22(v1.10 ⑧) 쓸어내기의 «앞선» y — 스폰 라인에서 아레나 바닥(+여유)까지 entryWipeSec 에 걸쳐 내려간다.
+ *   렌더(draw.js)와 판정이 같은 식을 쓴다. wipeT < 0 이면 -Infinity(없음).
+ */
+export function wipeFrontY(world) {
+  const run = world.run;
+  if (run === undefined || run.wipeT < 0) return -Infinity;
+  const v = world.data.rules.view;
+  const a = v.arena;
+  const sec = world.data.rules.boss.entryWipeSec;
+  const k = sec > 0 ? Math.min(1, run.wipeT / sec) : 1;
+  return v.spawnLineY + (a.y + a.h + 40 - v.spawnLineY) * k;
+}
+
+/**
+ * §8.22(v1.10 ⑧) 보스 등장 쓸어내기 — 사용자(2026-09-04): 「보스가 등장하면서 화면을 싹 뒤집는 모션이 나오면서 잡몹도
+ *   사라지고, 장판이 랜덤하게 생기는」. 앞선(wipeFrontY)이 지나간 것을 지운다: 비-보스 적(잡몹·유령·중간보스) · 적 탄 ·
+ *   지형. 보상 0(반납 — 옛 clearField 와 같다). 끝나면 남은 것을 전부 지우고 terrainBurst 로 지형을 무작위로 놓는다.
+ *   ★ 앞선 속도 ≈ 1,100px/s 라 어떤 탄(≤ 260)도 앞지르지 못한다 — 0.7초 뒤 무대는 보스뿐이다.
+ */
+export function wipeTick(world, dt) {
+  const run = world.run;
+  if (run.wipeT < 0) return;
+  run.wipeT += dt;
+  const sec = world.data.rules.boss.entryWipeSec;
+  const done = run.wipeT >= sec;
+  const front = done ? Infinity : wipeFrontY(world);
+  const en = world.enemies.items;
+  for (let i = 0; i < en.length; i += 1) if (en[i].alive && !en[i].isBoss && en[i].y < front) world.enemies.release(en[i]);
+  const eb = world.enemyBullets.items;
+  for (let i = 0; i < eb.length; i += 1) if (eb[i].alive && eb[i].y < front) world.enemyBullets.release(eb[i]);
+  const tr = world.terrain.items;
+  for (let i = 0; i < tr.length; i += 1) if (tr[i].alive && tr[i].y < front) world.terrain.release(tr[i]);
+  if (done) {
+    run.wipeT = -1;
+    terrainBurst(world);
+  }
 }
 
 /** 살아있는 보스 코어. 없으면 null(동시 1개). */
@@ -62,7 +105,8 @@ export function spawnBoss(world) {
   const cx = arena.x + arena.w / 2;
   const cy = def.movePatternParams.yHoldPx;
 
-  clearField(world);
+  // v1.10 ⑧ — 런(BOSS_INTRO)에서는 stage.tickRun 이 wipeT 를 0 으로 켜 두었고 wipeTick 이 쓸어낸다. 아니면 즉시판.
+  if (!(run.phase === PHASE.BOSS_INTRO && run.wipeT >= 0)) clearField(world);
 
   // §8.9.1(v1.5) — «발사 파트 수»가 런 포지션으로 성장한다(3,3,4,5,6,7). base 부위(extra≠true)는 항상
   //   스폰하고, extra 부위(선택 armament)는 firingPartsPerStage[포지션] − base 수 만큼 앞에서부터 스폰한다.
@@ -200,6 +244,7 @@ export function bossHook(world, dt) {
   const run = world.run;
   if (run.phase !== PHASE.BOSS && run.phase !== PHASE.BOSS_INTRO) return;   // ★ 강림 연출도 여기서
   if (!run.bossSpawned) { spawnBoss(world); run.bossSpawned = true; }
+  wipeTick(world, dt);                                                       // §8.22 쓸어내기(BOSS_INTRO 첫 entryWipeSec)
   advancePhase(world, dt);
   moveBoss(world);
   // §8.9(v1.5) — 유령 방패: bossSummonsAllowed 스테이지·최종 보스는 코어에서 유령을 소환한다(경험치 0,

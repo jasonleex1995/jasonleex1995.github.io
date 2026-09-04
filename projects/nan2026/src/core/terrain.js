@@ -15,7 +15,7 @@
  * ★ 지형이라 예고가 없다 — 피해가 없으니 §2.1 ① 의 대상이 아니고, 항상 보인다(§12.3 레이어 1).
  */
 
-import { TERRAIN_KINDS } from './schema.mjs';
+import { TERRAIN_KINDS, SECTIONS } from './schema.mjs';
 
 export const T_SLOW = 0;
 export const T_INERTIA = 1;
@@ -37,9 +37,33 @@ function kindIndex(kind) {
 }
 
 /**
- * ★ 훅 진입점 — stage.tickRun 이 매 고정 틱 부른다(페이즈 무관: 흐름·반납은 늘, 스폰은 MOB 에서만).
- *   (1) 흐름 — 모든 장판이 scrollSpeedPx 로 내려간다. 아레나 아래로 완전히 나가면 반납.
- *   (2) 스폰 — MOB 페이즈, terrainKind ≠ null, everySec 마다, 무대에 maxOnScreen 미만일 때.
+ * §8.19 ① 의 구간 이름 — 지형 스폰 허용(rules.terrain.spawnIn)의 정의역. 슬라이스(런 없음)는 null.
+ *   MOB: 위기면 'crisis' · 첫 중간보스 전이면 'early'(배수 포함) · 그 사이 'midboss'. BOSS_INTRO/BOSS: 'boss'. 그 밖 null.
+ */
+export function sectionOf(world) {
+  const run = world.run;
+  if (run === undefined) return null;
+  if (run.phase === 'BOSS_INTRO' || run.phase === 'BOSS') return SECTIONS[3];
+  if (run.phase !== 'MOB') return null;
+  if (run.crisis) return SECTIONS[2];
+  const mbAt = world.data.stages.phase.midBossAtSec[run.stageIndex];
+  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) return SECTIONS[0];
+  return SECTIONS[1];
+}
+
+/** 한 장판을 놓는다(공용). null = 풀 소진(caps.terrain rejectSpawn). */
+function place(world, kind, x, y) {
+  const t = world.terrain.alloc();
+  if (t === null) return null;
+  t.kind = kind; t.radius = world.data.rules.terrain.radiusPx; t.x = x; t.y = y; t.fadeT = -1;
+  return t;
+}
+
+/**
+ * ★ 훅 진입점 — stage.tickRun 이 매 고정 틱 부른다(페이즈 무관: 흐름·반납·페이드는 늘, 스폰은 허용 구간에서만).
+ *   (1) 흐름 — 모든 장판이 scrollSpeedPx 로 내려간다. 아레나 아래로 완전히 나가면 반납. 페이드 중이면 fadeSec 뒤 반납.
+ *   (2) 스폰 — 현재 구간 ∈ rules.terrain.spawnIn(v1.10 ⑧: 위기 제외 — 186px/s 무리 속의 둔화·정지는 확정 피격이라
+ *       §2.1 ① 을 깬다), terrainKind ≠ null, everySec 마다, 무대에 maxOnScreen 미만일 때.
  *       x = 아레나 안 균일(rng.terrain), y = spawnLineY − radius (위에서 «들어온다»).
  */
 export function terrainTick(world, dt) {
@@ -50,30 +74,67 @@ export function terrainTick(world, dt) {
   for (let i = 0; i < it.length; i += 1) {
     const t = it[i];
     if (!t.alive) continue;
+    if (t.fadeT >= 0) {
+      t.fadeT += dt;
+      if (t.fadeT >= tr.fadeSec) { world.terrain.release(t); continue; }
+    }
     t.y += tr.scrollSpeedPx * dt;
     if (t.y - t.radius > a.y + a.h) world.terrain.release(t);
   }
-  if (run.phase !== 'MOB') return;
+  const sec = sectionOf(world);
+  if (sec === null || tr.spawnIn.indexOf(sec) < 0) return;
+  if (run.wipeT >= 0) return;                                   // §8.22 쓸어내기 중엔 놓지 않는다(놓자마자 지워진다)
   const st = stageOf(world);
   if (st.terrainKind === null) return;                         // finale — 테마가 없으니 지형도 없다
   if (world.time < run.terrainNextT) return;
   run.terrainNextT = world.time + tr.everySec;
   if (world.terrain.live >= tr.maxOnScreen) return;
-  const t = world.terrain.alloc();
-  if (t === null) return;                                       // caps.terrain — rejectSpawn
   const r = tr.radiusPx;
-  t.kind = kindIndex(st.terrainKind);
-  t.radius = r;
-  t.x = a.x + r + world.rng.terrain.f() * (a.w - 2 * r);
-  t.y = world.data.rules.view.spawnLineY - r;
+  place(world, kindIndex(st.terrainKind), a.x + r + world.rng.terrain.f() * (a.w - 2 * r), world.data.rules.view.spawnLineY - r);
 }
 
-/** 점 (x, y) 가 어느 지형 안인가 — kind 인덱스 또는 -1. 겹치면 «먼저 스폰된 것»(인덱스 오름차순). 0 alloc. */
+/**
+ * §8.22(v1.10 ⑧) 보스 등장 무리 — 쓸어내기가 끝난 자리에 bossEntryCount 개를 아레나 «전체»에 무작위로 놓는다
+ *   (위에서 흘러오는 게 아니라 이미 놓여 있다 — 「보스가 등장하며 화면을 뒤집고 장판이 랜덤하게 생긴다」).
+ *   플레이어 바로 위엔 놓지 않는다(반지름 + 40px 안이면 최대 4번 다시 뽑는다 — 시도 수가 고정이라 결정적).
+ *   그 뒤 평소 주기는 everySec 뒤부터. finale 은 0.
+ */
+export function terrainBurst(world) {
+  const run = world.run;
+  const tr = world.data.rules.terrain;
+  const a = world.data.rules.view.arena;
+  const st = stageOf(world);
+  run.terrainNextT = world.time + tr.everySec;
+  if (st.terrainKind === null) return 0;
+  const kind = kindIndex(st.terrainKind);
+  const r = tr.radiusPx;
+  const p = world.player;
+  let placed = 0;
+  for (let n = 0; n < tr.bossEntryCount; n += 1) {
+    let x = 0; let y = 0;
+    for (let tries = 0; tries < 5; tries += 1) {
+      x = a.x + r + world.rng.terrain.f() * (a.w - 2 * r);
+      y = a.y + r + world.rng.terrain.f() * (a.h - 2 * r);
+      const dx = x - p.x; const dy = y - p.y;
+      if (dx * dx + dy * dy > (r + 40) * (r + 40)) break;
+    }
+    if (place(world, kind, x, y) !== null) placed += 1;
+  }
+  return placed;
+}
+
+/** §8.21 ④ 위기 시작 — 무대의 지형이 fadeSec 동안 줄어들며 사라진다. 효과는 이 순간 꺼진다(terrainUnder 가 무시). */
+export function fadeTerrain(world) {
+  const it = world.terrain.items;
+  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].fadeT < 0) it[i].fadeT = 0;
+}
+
+/** 점 (x, y) 가 어느 지형 안인가 — kind 인덱스 또는 -1. 사라지는 중(fadeT ≥ 0)은 없는 것. 겹치면 «먼저 스폰된 것». 0 alloc. */
 export function terrainUnder(world, x, y) {
   const it = world.terrain.items;
   for (let i = 0; i < it.length; i += 1) {
     const t = it[i];
-    if (!t.alive) continue;
+    if (!t.alive || t.fadeT >= 0) continue;
     const dx = x - t.x; const dy = y - t.y;
     if (dx * dx + dy * dy <= t.radius * t.radius) return t.kind;
   }
@@ -88,4 +149,4 @@ export function clearTerrain(world) {
   world.player.heat = 0;
 }
 
-export default { terrainTick, terrainUnder, clearTerrain };
+export default { terrainTick, terrainUnder, clearTerrain, terrainBurst, fadeTerrain, sectionOf };

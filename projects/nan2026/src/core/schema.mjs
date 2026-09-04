@@ -111,6 +111,7 @@ const TELEGRAPH_FLOOR_BY_TYPE = {
 const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'elite',
   'boss', 'fairness', 'terrain', 'hud', 'passiveHooks', 'input', 'palette', 'visual', 'render', 'audio'];   // v1.10 ⑦ terrain
 export const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];   // §8.21 — 지형 장판 3종(속성당 하나: 풀·물·불)
+export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 
 // ---------------------------------------------------------------------------
 // 검증 원시 함수
@@ -202,7 +203,7 @@ function checkRules(c, r) {
   c.closed('rules.elite', r.elite, ['perWaveMax', 'hpMult', 'sizeMult', 'contactDmgMul', 'xpMult',
     'bandAllowed', 'elementAllowed']);
   c.closed('rules.boss', r.boss, ['partCount', 'partRegen', 'partHitPriority',
-    'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec',
+    'phaseThresholds', 'phaseTransitionSec', 'timerPausesOnPhaseTransition', 'introSec', 'entryWipeSec',
     'timerStartsAfterIntro', 'timerExpire', 'coreGateMul', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioBandPct', 'optionalPartArmorRatio', 'partReachMinPx',
@@ -212,7 +213,10 @@ function checkRules(c, r) {
       'allowNormalPeripheral']);
   }
   // §8.21(v1.10 ⑦) 지형 장판 — 피해 0, 조작만 건드린다. 3종의 파라미터. 둔화는 status.slowMoveSpeedMul 을 재사용(새 키 0).
-  c.closed('rules.terrain', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'inertia', 'heat']);
+  c.closed('rules.terrain', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat']);
+  if (isObj(r.terrain) && Array.isArray(r.terrain.spawnIn)) {
+    for (let i = 0; i < r.terrain.spawnIn.length; i += 1) c.vocab(`rules.terrain.spawnIn[${i}]`, r.terrain.spawnIn[i], SECTIONS);
+  }
   if (isObj(r.terrain)) {
     c.closed('rules.terrain.inertia', r.terrain.inertia, ['responseTauSec']);
     c.closed('rules.terrain.heat', r.terrain.heat, ['fullSec', 'stallSec', 'coolSec']);
@@ -260,9 +264,10 @@ function checkRules(c, r) {
   }
 
   c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet', 'glyph',
-    'telegraph', 'band', 'zone', 'terrain', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
+    'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
   if (isObj(r.visual)) {
     c.closed('rules.visual.terrain', r.visual.terrain, ['fillAlpha', 'edgeAlpha', 'patternAlpha', 'heatPulseHz']);   // §7.13(v1.10 ⑦)
+    c.closed('rules.visual.wipe', r.visual.wipe, ['bandPx', 'flashAlpha']);                                          // §8.22(v1.10 ⑧)
     c.closed('rules.visual.hpBar', r.visual.hpBar,
       ['hPx', 'wPx', 'gapPx', 'trackAlpha', 'gatePostWPx', 'gatePostOverhangPx']);
     c.closed('rules.visual.stance', r.visual.stance, ['ringExpandSec', 'ringMaxRadiusPx',
@@ -491,7 +496,7 @@ function checkStages(c, s) {
     'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',
     'shooterRatio', 'threatBudgetScale']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
-    'waveIntervalSec', 'waveClearAdvance', 'mobPhaseExitFadeSec', 'mobPhaseExitClearBullets',
+    'waveIntervalSec', 'waveClearAdvance',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
     'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisBodyId', 'crisisShooterId',
     'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',

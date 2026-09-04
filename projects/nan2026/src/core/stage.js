@@ -17,13 +17,13 @@
  *   §10.3  런 상태는 initRun 1회만 alloc(핫패스 tickRun 은 0 alloc). themeDraw 셔플의 slice 는 런 1회.
  *
  * ★ 배선(B1 다음 슬라이스)에서 채우는 사이드이펙트(이 파일은 신호만 세팅):
- *     - MOB→BOSS_INTRO 전이 시 mobPhaseExitClearBullets + XP 자동수집(phaseEndAutocollect).
+ *     - MOB→BOSS_INTRO 전이 시 쓸어내기(run.wipeT, §8.22 — boss.wipeTick 이 잡몹·탄·지형을 위에서 아래로 지운다) + XP 자동수집(phaseEndAutocollect = 픽업 전량 자석).
  *     - BOSS 진입 시 run.bossSpawned=false 를 보스 훅(boss.js)이 보고 스폰.
  *     - 보스 코어 격파 시 killEnemy(step.js)가 run.cleared=true 를 세팅 → 여기서 STAGE_CLEAR/승리로 소화.
  */
 
 import { midBoss, clearMidBoss, midBossSectionCleared } from './midboss.js';
-import { terrainTick, clearTerrain } from './terrain.js';
+import { terrainTick, clearTerrain, fadeTerrain } from './terrain.js';
 import { addBossClear, addRunClear } from './score.js';
 
 export const PHASE = {
@@ -79,6 +79,7 @@ export function initRun(world) {
     crisis: false,                  // 잡몹 페이즈 마지막 서브구간(§8.10) — v1.10: 한 번 켜지면 페이즈 끝까지(sticky)
     crisisAtSec: -1,                // v1.10 — 위기가 «실제로» 켜진 phaseT. 새떼 스케줄(spawnCrisis)의 원점. -1 = 아직
     terrainNextT: 0,                // §8.21(v1.10 ⑦) — 다음 지형 장판 스폰 시각(world.time)
+    wipeT: -1,                      // §8.22(v1.10 ⑧) — 보스 등장 쓸어내기 경과(-1 = 없음). boss.js 가 진행·종료
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
@@ -129,7 +130,7 @@ export function tickRun(world, dt) {
     if (!run.crisis) {
       run.crisis = run.phaseT >= ph.crisisStartSec
         || (ph.crisisOnMidBossClear && midBossSectionCleared(world));
-      if (run.crisis) run.crisisAtSec = run.phaseT;
+      if (run.crisis) { run.crisisAtSec = run.phaseT; fadeTerrain(world); }   // §8.21 ④ 위기엔 지형이 없다 — 남은 것은 줄어들며 사라진다
     }
     // §8.9 — 중간보스는 «잡몹 페이즈의 선택지»다. 등장·이동·이탈·소환을 midboss.js 가 소유한다.
     midBoss(world, dt);
@@ -139,7 +140,13 @@ export function tickRun(world, dt) {
       run.phase = PHASE.BOSS_INTRO;
       run.phaseT = 0;
       run.bossSpawned = false;       // ★ 보스를 «인트로»에 스폰해 위에서 서서히 강림시킨다(boss.js)
-      // (배선) mobPhaseExitClearBullets + phaseEndAutocollect 는 여기 전이에서 수행한다
+      // §8.22(v1.10 ⑧) 쓸어내기 — 남은 잡몹·유령·적탄·지형을 «즉시 증발»이 아니라 위에서 아래로 쓸어 지운다(boss.js 가 진행).
+      run.wipeT = 0;
+      // phaseEndAutocollect — 남은 XP 픽업을 전부 자석에 붙인다(플레이어에게 날아와 회수된다, 손실 0).
+      if (ph.phaseEndAutocollect) {
+        const pk = world.pickups.items;
+        for (let i = 0; i < pk.length; i += 1) if (pk[i].alive) pk[i].magnet = true;
+      }
     }
     return;
   }
@@ -209,6 +216,7 @@ export function applyStageClearHeal(world) {
 export function advanceStage(world) {
   const run = world.run;
   clearTerrain(world);             // §8.21 — 이전 테마의 지형은 넘어가지 않는다
+  run.wipeT = -1;
   run.stageIndex += 1;
   run.phase = PHASE.MOB;
   run.phaseT = 0;

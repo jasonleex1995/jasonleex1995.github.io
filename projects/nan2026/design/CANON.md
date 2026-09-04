@@ -653,8 +653,8 @@ render(world, acc / tickDur);                         // alpha 보간은 위치�
 | 중간보스 진입 창 ★v1.10 ③ | ★ `stages.phase.midBossAtSec` | **`[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]]`** — 첫 둘은 30초에 함께, 나머지는 10초 간격 (스테이지 인덱스 배열, §8.9) |
 | ~~**중간보스 이탈**~~ | ~~`stages.phase.midBossLeaveAfterSec`~~ | **폐지(v1.10)** — 격파 아니면 위기 상한까지 선다(§8.9 «선택적» 개정) |
 | **중간보스 첫 마리** ★v1.10 | `stages.phase.midBossFirstId` | **`"mbNest"`** (소환자, §8.19 · S55) |
-| 페이즈 종료 페이드 | `stages.phase.mobPhaseExitFadeSec` | 3.0 |
-| 보스 등장 연출 | ★ `boss.introSec` | **3.0** (연출 중 보스 무적 + 발사 없음 + 타이머 정지) — ★ **`stages.phase.bossEntrySec`는 삭제됐다 (v1.3), 아래** |
+| ~~페이즈 종료 페이드~~ ★v1.10 ⑧ | ~~`stages.phase.mobPhaseExitFadeSec`~~ | **폐지** — 읽는 곳이 0 이었다. 전환 연출은 `boss.entryWipeSec`(0.7, §8.22 쓸어내기)가 한다 |
+| 보스 등장 연출 | ★ `boss.introSec` | **3.0** (연출 중 보스 무적 + 발사 없음 + 타이머 정지 · ★v1.10 ⑧ 처음 `entryWipeSec` 0.7초는 쓸어내기 — §8.22) — ★ **`stages.phase.bossEntrySec`는 삭제됐다 (v1.3), 아래** |
 | **보스 타이머** | `stages.phase.bossTimerSec` | **180** (전 난이도 동일, LOCKED) |
 | **타이머 경고** | `stages.phase.timerWarnSec` | 60 (색 라벨 없음 — §7.12) |
 | **타이머 빨간불** | `stages.phase.timerRedAlertSec` | **30** |
@@ -1511,9 +1511,9 @@ waves: [ { formationId, archetypeId, count, element, spawnEdge, eliteIndex } ]  
 |---|---|
 | `mobPhaseSec` | **120** (고정 게임시간 하드 타이머) |
 | **`mobPhaseSkippable`** | **false** — 보스로 조기 진입 불가 |
-| `mobPhaseExitFadeSec` | 3.0 (잔존 잡몹 페이드아웃 소멸) |
-| `mobPhaseExitClearBullets` | true (보스 시작을 공정하게) |
-| **`phaseEndAutocollect`** | **true** — 미수집 XP·코인은 **반경 무시하고 전부 자동 수집** |
+| ~~`mobPhaseExitFadeSec`~~ ★v1.10 ⑧ | ~~3.0 (잔존 잡몹 페이드아웃 소멸)~~ **폐지** — 읽는 곳 0. 잔존 잡몹은 §8.22 쓸어내기가 0.7초에 걸쳐 지운다 |
+| ~~`mobPhaseExitClearBullets`~~ ★v1.10 ⑧ | ~~true (보스 시작을 공정하게)~~ **폐지** — 읽는 곳 0. 탄도 쓸어내기가 지운다(앞선 1,100px/s > 탄 상한 260, S57 ②) |
+| **`phaseEndAutocollect`** ★v1.10 ⑧ 배선 | **true** — 미수집 XP 픽업을 **전부 자석에 붙인다**(플레이어에게 날아와 회수, 손실 0). v1.10 ⑧ 전까지 읽는 곳이 없던 키였다 — 이제 `stage.tickRun` 의 MOB→BOSS_INTRO 전이가 읽는다 |
 | `enemyExitForfeitsReward` | **true** — 화면 밖으로 나간 적의 XP·코인은 **영구 소멸** |
 
 > ★ 초안 F의 `skippable: true` + "남은 적은 소멸하고 XP는 자동 정산 없이 소멸"은 **폐기**한다. 후자는 **무-노가다 기둥을 정면으로 위반**한다(비평가 지적).
@@ -2159,21 +2159,64 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 `caps.terrain 16`(overflow `rejectSpawn`) · `visual.terrain { fillAlpha 0.14, edgeAlpha 0.35, patternAlpha 0.30, heatPulseHz 0.8 }`.
 `rules.json` 루트는 **17개**가 됐다(`terrain` 추가 — `RULES_ROOT_17`).
 
-**④ 시각표와 흐름.** 잡몹 페이즈(MOB)에서 `everySec` 마다, 무대에 `maxOnScreen` 미만일 때 하나. x 는 아레나 안 균일 —
-**`rng.terrain`**(§10.2 스트림 9번째, 다른 스트림을 밀지 않는다) · y 는 스폰 라인 위. `scrollSpeedPx` 로 내려오다 아레나
-아래로 완전히 나가면 반납. 스테이지 전이(`advanceStage`)가 무대와 열을 비운다. 흐름·반납은 페이즈 무관(보스전 중 남은
-장판은 흘러 나간다), 스폰은 MOB 만. 소유: `src/core/terrain.js`(시각표·흐름·술어 `terrainUnder`) · 효과의 «적용»은
-`step.movePlayer`(이동의 단일 소유자, §2.2) · 그림은 `draw.drawTerrain`(레이어 1) + 과열 바(`drawPlayer`).
+**④ 시각표와 흐름 (★ v1.10 ⑧ 구간 제한).** 구간이 `rules.terrain.spawnIn = ["early", "midboss", "boss"]` 에 들 때
+`everySec` 마다, 무대에 `maxOnScreen` 미만일 때 하나. x 는 아레나 안 균일 — **`rng.terrain`**(§10.2 스트림 9번째, 다른 스트림을
+밀지 않는다) · y 는 스폰 라인 위. `scrollSpeedPx` 로 내려오다 아레나 아래로 완전히 나가면 반납.
+★ **위기(`crisis`)에는 없다** — 사용자(2026-09-04): 「위기 구간 같이 촉박한 상황에 있어야 하는가 하면 좀 아닌 것 같다」.
+186px/s 새떼 속의 둔화·정지는 «확정 피격»이라 §2.1 ① 을 깬다 → S56 ⑥ 이 `'crisis' ∉ spawnIn` 을 못박는다. 위기가 켜지는
+순간 무대의 장판은 **`fadeSec`(0.8) 동안 줄어들며 사라지고 효과는 그 즉시 꺼진다**(`fadeTerrain`, `terrainUnder` 가 무시).
+★ **보스 구간**은 §8.22 의 쓸어내기가 끝난 자리에 `bossEntryCount`(3)개를 아레나 «전체»에 무작위로 놓고(이미 놓여 있는
+상태로 시작), 그 뒤 평소 주기로 계속 흘러온다. 스테이지 전이(`advanceStage`)가 무대와 열을 비운다. 흐름·반납·페이드는
+페이즈 무관, 스폰은 허용 구간만. 소유: `src/core/terrain.js`(시각표·구간 `sectionOf`·흐름·페이드·무리 `terrainBurst`·술어
+`terrainUnder`) · 효과의 «적용»은 `step.movePlayer`(이동의 단일 소유자, §2.2) · 그림은 `draw.drawTerrain`(레이어 1, 페이드
+= 반지름·알파 동시 축소) + 과열 바(`drawPlayer`).
 
 **⑤ 계측.** 봇(§10.4)은 지형을 «모른다» — 그 위에서 잰 강제% 는 지형이 만든 정지·둔화까지 포함한다. 이것은 결함이 아니라
 정직한 계측이다(지형이 플레이어를 탄 속에 붙잡으면 그건 «맞은 것»이다). 봇에 회피를 가르치는 것은 다음 패스.
 
 **게이트 S56 (§13.4)** — ① 테마마다 kind ∈ 어휘, finale null ② 같은 속성 = 같은 kind ③ 3종 전부 쓰인다 ④ 값의 범위
 (`radiusPx ∈ [24, arena.w/4]` · `stallSec ≤ fairness.maxStunSec` · `fullSec > stallSec` · `maxOnScreen ≤ caps.terrain` …)
-⑤ 통로: 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 폭이 남는다).
+⑤ 통로: 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 폭이 남는다) ⑥ (v1.10 ⑧) `spawnIn ⊆ {early, midboss, crisis, boss}`,
+비어 있지 않고 중복 없음, **`crisis` 없음** · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0`.
 
 **실측(헤드리스, 시드 5, 60초).** 늪: 스폰 9 · 동시 최대 3 · 안에 서면 둔화. 화산: 열 1.0 도달 → 정지, 안에 계속 서면
-2.1초마다 0.6초 정지. 최종: 0. 테스트 8건(스폰·흐름·전이·결정성·둔화·관성 τ·ln2·과열·무해).
+2.1초마다 0.6초 정지. 최종: 0. 테스트 8건(스폰·흐름·전이·결정성·둔화·관성 τ·ln2·과열·무해) + 구간·페이드 2건(v1.10 ⑧).
+
+### 8.22 ★ 보스 등장 쓸어내기 — 증발이 아니라 «닦아내기», 그리고 무작위 재배치 (v1.10 ⑧ 신설)
+
+> **설계 문제 (사용자 요구, 2026-09-04)**: 「초기 구간이 끝나면 중간 보스가 서서히 나타나는 느낌이 드는데, 위기 구간 끝나고
+> 보스가 등장할 때는 잔여 잡몹이 다 날아가거든? … 보스가 등장하면서 **화면을 싹 뒤집는 모션**이 나오면서 잡몹도 사라지고,
+> **장판이 랜덤하게 생기는** 방향은 어떻게 생각해? 조금 더 랜덤성을 주자는 거지.」
+>
+> v1.10 ⑦ 까지 `boss.spawnBoss` 의 `clearField` 가 잡몹·적탄을 **한 틱에 반납**했다 — 「날아간다」가 아니라 «증발»이었다.
+
+**① 앞선(front)이 위에서 아래로 쓴다.** MOB→BOSS_INTRO 전이에서 `run.wipeT = 0`. 그 뒤 `boss.wipeTick` 이 매 틱
+`wipeFrontY = spawnLineY + (arena.y + arena.h + 40 − spawnLineY) × min(1, wipeT ÷ entryWipeSec)` 를 내리며, **앞선보다
+위에 있는** 비-보스 적(잡몹·유령·중간보스)·적 탄·지형을 반납한다(보상 0 — 옛 `clearField` 와 같다). `entryWipeSec`(0.7)이
+지나면 남은 것을 전부 지우고 끝. 앞선 속도 ≈ 1,100px/s 라 어떤 탄(상한 260)도 앞지르지 못한다(S57 ②) — 0.7초 뒤 무대는
+**보스뿐**이다. 강림 연출(`introSec` 3.0) 안에서 끝나므로(S57 ①) 타이머는 그대로 강림 뒤 시작한다.
+
+**② 닦인 자리에 지형이 무작위로 «이미 놓여» 있다.** 쓸어내기가 끝나는 틱에 `terrainBurst` 가 `terrain.bossEntryCount`(3)개를
+아레나 전체(x·y 균일, `rng.terrain`)에 놓는다 — 위에서 흘러오는 것이 아니라 **재배치**다. 플레이어 반지름 + 40px 안이면
+최대 4번 다시 뽑는다(시도 수 고정 = 결정적). 그 뒤는 §8.21 ④ 의 평소 주기. finale 은 0(테마 없음).
+
+**③ 픽업은 쓸어 담는다.** 같은 전이에서 `phaseEndAutocollect`(true — v1.10 ⑧ 전까지 읽는 곳이 없던 키)가 남은 XP 픽업을
+전부 자석에 붙인다 → 플레이어에게 날아와 회수된다(손실 0, §2.6 자석 규약 재사용).
+
+**④ 시각 (§7.13 · 레이어 9.5).** 앞선 = `visual.wipe.bandPx`(28) 굵기의 은색 띠 + 그 아래 짧은 꼬리, 앞선 위쪽은
+`flashAlpha`(0.35)에서 옅어지는 섬광. 위협이 아니라 «장면 전환»이라 위협색(자홍)이 아니라 텍스트/은색 채널을 쓴다.
+"3D 로 뒤집기"는 캔버스 2D 에서 어색해 «쓸어내리는 띠»로 옮겼다 — 읽기 쉽고 «재배치» 느낌이 난다.
+
+**폐지한 키.** ~~`stages.phase.mobPhaseExitFadeSec`~~(3.0) · ~~`mobPhaseExitClearBullets`~~(true) — 둘 다 **읽는 곳이 0** 인
+죽은 키였다. 전환 연출은 `boss.entryWipeSec` 이, 탄 정리는 쓸어내기가 한다.
+
+**거처.** `rules.boss.entryWipeSec` 0.7 · `rules.terrain.bossEntryCount` 3 · `rules.visual.wipe { bandPx 28, flashAlpha 0.35 }` ·
+`run.wipeT`(−1 = 없음). 소유: `boss.js`(`wipeTick`·`wipeFrontY`) · 시작은 `stage.tickRun` · 무리는 `terrain.terrainBurst`.
+
+**게이트 S57 (§13.4)** — ① `0 < entryWipeSec < introSec` ② 앞선 속도 > `fairness.maxBulletSpeed` ③ `bandPx > 0`, `flashAlpha ∈ [0,1]`.
+
+**실측(봇, 시드 11, 화산 1스테이지).** 위기 끝 잡몹 70·탄 3·지형 0 → 쓸어내기 0.20초에 잡몹 40 → 0.7초에 0, BOSS 첫 틱
+지형 3. 테스트 3건(앞선 위/아래 분리·끝·무리 위치, 보스 구간 주기·결정성, finale 0).
 
 ## 9. 데이터 아키텍처
 
@@ -2325,7 +2368,7 @@ data/bosses.json     data/stages.json     data/meta.json
   "boss":    { "partCount":7, "partRegen":false, "summonsAllowed":false,
                "partHitPriority":"outermostFirst", "phaseThresholds":[0.6,0.3],
                "phaseTransitionSec":1.5, "timerPausesOnPhaseTransition":true,
-               "introSec":3.0, "timerStartsAfterIntro":true, "timerExpire":"kill",
+               "introSec":3.0, "entryWipeSec":0.7, "timerStartsAfterIntro":true, "timerExpire":"kill",
                "coreGateMul":0.4, "mobilityPenalty":1.5,
                "escalateFireRateMul":1.25, "escalateFireRateMax":1.60, "coreElement":"normal",
                "coreEmitterId":"bossCore",
@@ -2356,6 +2399,7 @@ data/bosses.json     data/stages.json     data/meta.json
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
   "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":3.2, "maxOnScreen":3,
+               "spawnIn":["early","midboss","boss"], "bossEntryCount":3, "fadeSec":0.8,                          // §8.21 ④ · §8.22 (v1.10 ⑧)
                "inertia":{ "responseTauSec":0.35 }, "heat":{ "fullSec":1.5, "stallSec":0.6, "coolSec":1.0 } },   // §8.21 v1.10 ⑦
   "hud":     { "...§9.4.1 전 키..." },
   "passiveHooks": { "...§9.6.1 전 키..." },
@@ -2497,6 +2541,8 @@ data/bosses.json     data/stages.json     data/meta.json
                  "emphasisBySpeed":{"1.0":1.0,"1.5":1.15,"2.0":1.30,"3.0":1.50} },  // §7.4 · 02-B3
   "band":   { "plateAlpha":0.30, "contentOpaque":true },          // §1.2 · §12.3
   "zone":   { "fillAlpha":0.30, "pulseHz":1.0 },                  // §12.3
+  "terrain":{ "fillAlpha":0.14, "edgeAlpha":0.35, "patternAlpha":0.30, "heatPulseHz":0.8 },   // §8.21 v1.10 ⑦
+  "wipe":   { "bandPx":28, "flashAlpha":0.35 },                     // §8.22 v1.10 ⑧
   "timer":  { "warnScale":1.15, "warnPulseHz":0.5,
               "alertScale":1.30, "alertPulseHz":1.0 },            // §7.12.1
   "trail":  { "ghostCount":3, "ghostAlpha":0.30 },                // §7.11-④ (둔화 잔상)
@@ -3204,7 +3250,6 @@ tetrarchThroneP1  ...
              "shooterRatio":[0.10,0.13,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },
   "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":56,
              "waveIntervalSec":9.0, "waveClearAdvance":true,
-             "mobPhaseExitFadeSec":3.0, "mobPhaseExitClearBullets":true,
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
              "waveListExhausted":"cycle",
              "crisisPerStage":1,
@@ -4681,7 +4726,8 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
 | **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
 | **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
-| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale null ② 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) |
+| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale null ② 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0` |
+| **S57** ★ | **보스 등장 쓸어내기** (v1.10 ⑧, §8.22) — ① `0 < boss.entryWipeSec < boss.introSec`(강림 안에서 끝난다) ② 앞선 속도 `(arena.h + 40 − spawnLineY) ÷ entryWipeSec` > `fairness.maxBulletSpeed`(어떤 탄도 앞선을 앞지르지 못한다 = 0.7초 뒤 무대는 보스뿐) ③ `visual.wipe.bandPx > 0` · `flashAlpha ∈ [0,1]` |
 | ~~**S46**~~ | ~~공격 기호 어휘의 완결성 (v1.7)~~ — ★ **v1.8 삭제.** 기호 자체를 폐지했다(§7.6.1). 번호는 재사용하지 않는다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 
