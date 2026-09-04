@@ -220,7 +220,7 @@ function descentSpeed(mp) {
  * §9.9.2 — 편대별 i번째 개체의 스폰 좌표. 원점 = 스폰 라인 중앙.
  * spawnEdge 는 슬라이스에서 top 만 유효(sea stage-1 전량 top). base y = view.spawnLineY.
  */
-function placement(world, wave, i, count, out, def, formOverride) {
+function placement(world, wave, i, count, out, def, formOverride, elite = false) {
   // 편대의 원점 = 스폰 라인 중앙(웨이브). 모양 자체는 formations.js 가 소유한다(§9.9.2).
   const a = world.data.rules.view.arena;
   const mv = def === undefined ? '' : def.moveId;
@@ -241,7 +241,19 @@ function placement(world, wave, i, count, out, def, formOverride) {
   //   scatter/arc 가 그대로 흩어 놓아 「빽빽하게 길을 뚫는」 그림이 되지 않는다(플레이 피드백).
   const formId = formOverride === undefined ? wave.formationId : formOverride;
   return formationPos(world, formId, i, count,
-    a.x + a.w / 2, world.data.rules.view.spawnLineY, out);
+    a.x + a.w / 2, world.data.rules.view.spawnLineY, out, bodyMargin(world, def, elite));
+}
+
+/**
+ * §8.7(v1.10 ㉕) «몸이 설 수 있는 폭»의 여백 = 유효 반지름(엘리트면 × elite.sizeMult) + 흔들림 폭(weave 의 ampPx).
+ *   편대(formationPos)가 이 여백 안에만 몸을 세운다. 그 뒤의 이동은 step 의 옆벽 클램프(wallX)가 지킨다 — 둘이 합쳐
+ *   «적이 있는 구간은 일정하다»(사용자 2026-09-05)를 만든다.
+ */
+export function bodyMargin(world, def, elite = false) {
+  if (def === undefined) return 0;
+  const mp = def.moveParams;
+  const r = elite ? def.radius * world.data.rules.elite.sizeMult : def.radius;
+  return r + (def.moveId === 'weave' && mp !== null && typeof mp.ampPx === 'number' ? mp.ampPx : 0);
 }
 
 /**
@@ -400,7 +412,6 @@ function spawnWave(world, s) {
     const d = shoot ? def : introDef;
     if (shoot) liveShoot += 1;
     else { if (liveChaff >= chaffMax) continue; liveChaff += 1; }
-    placement(world, wave, i, count, _pos, d, early ? phase.introFormationId : undefined);
     // §8.6 — 엘리트 = 두 경로의 OR:
     //   (1) eliteIndex: 그 웨이브의 n번째 개체에 접두 플래그(베이크된 스포트라이트, perWaveMax 1).
     //   (2) 엘리트 재롤(§8.6, 이제 구현 — 예약된 rng.elite 스트림): 자격 개체(밴드∈bandAllowed ∧
@@ -426,11 +437,14 @@ function spawnWave(world, s) {
     //   전원」으로 «후반 전면 엘리트화»를 확정했으므로, 상한을 걸면 그 설계가 통째로 죽는다
     //   (실측: 걸었더니 스테이지 6 엘리트율이 1.2% 로 주저앉았다).
     const elite = bakedElite || rerollElite;
+    // ★ v1.10 ㉕ 자리는 «유효 반지름»(엘리트면 sizeMult 배)으로 여백을 잡는다 — 엘리트가 경계에 반쯤 걸치던 원인.
+    placement(world, wave, i, count, _pos, d, early ? phase.introFormationId : undefined, shoot && elite);
     // 개체별로 종·체력이 갈린다 — 봉지가 정한 자리에 공격형(def) 또는 무공격(introDef).
     const born = spawnEnemy(world, shoot ? archetypeId : s.introId, element, _pos.x, _pos.y,
       enemyHp(world, shoot ? def : introDef, element), shoot && elite);   // §8.2 ③ 속성별 HP(테마 밖이면 약하다)
     // §12.1(v1.9) — 무공격 몸에 표식을 켠다. 이 한 줄이 「무해한 몸은 위협 예산을 먹지 않는다」다.
     if (born !== null && !shoot) born.introBody = true;
+    if (born !== null) born.wallX = d.moveId !== 'strafe';                 // §8.7 ㉕ 옆벽 클램프(strafe 는 벽 밖에서 들어온다)
   }
 
   s.waveIndex = (s.waveIndex + 1) % s.waves.length;   // §8.7 waveListExhausted = "cycle"
@@ -483,7 +497,8 @@ function spawnCrisisSubWave(world, s, subWave) {
       if (world.enemies.live >= swarmMax) break;      // §12.4 swarmConcurrentMax (새떼 전용 상한)
       const shoot = bag[k] === 1;
       placement(world, r, k, count, _pos, shoot ? shooter : body);   // 레코드가 formationId 를 들고 있다(arc/vWedge)
-      spawnEnemy(world, shoot ? shooter.id : body.id, el, _pos.x, _pos.y, shoot ? hpShoot : hpBody, false);
+      const bornC = spawnEnemy(world, shoot ? shooter.id : body.id, el, _pos.x, _pos.y, shoot ? hpShoot : hpBody, false);
+      if (bornC !== null) bornC.wallX = (shoot ? shooter : body).moveId !== 'strafe';   // §8.7 ㉕
     }
   }
 }
@@ -591,22 +606,43 @@ function applyMovement(world) {
       }
 
     } else if (mv === 'orbitDrift') {
-      // §8.4 — 플레이어 쪽으로 호를 그리며 접근 → keepDistPx 유지.
+      // §8.4(v1.10 ㉕ 재작성) — 플레이어 쪽으로 호를 그리며 접근 → keepDistPx 근처에서 «플레이어 위쪽 반원»을 진자처럼 돈다.
+      //   v1.7 식은 접선항(turn × keep = 174~220px/s)이 속도(38~51)를 압도해 정규화 뒤 «거의 접선만» 남았다 → 상단에서
+      //   스폰되자마자 옆으로 미끄러져 한 번도 들어오지 못하고 화면 밖(x < 아레나 − 80)에서 13초를 맴돌다 사라졌다(실측:
+      //   사이렌레이 41%·스토커 37% 의 생애가 아레나 밖). 사용자: 「계속 화면 밖으로 피하는 몹들」.
+      //   ① 반경 항 r = clamp((d − keep)/keep, −1, 1): 멀면 «속도 그대로» 접근(r=1), keep 근처 0, 안쪽이면 후퇴(r=−1).
+      //   ② 접선 항 = min(turn × keep, speed) × (1 − 0.7|r|) × 방향(mp0) — 멀리서는 30%(호), keep 에서 100%(궤도).
+      //   ③ 접선 방향은 옆벽(반지름 여백) 또는 «플레이어 높이»에 닿으면 뒤집는다(진자) — 화면 밖·플레이어 아래로 가지 않는다.
+      //      사용자: 「적이 화면 밑에서 나온다」·「적이 있는 구간은 일정해야 한다」. 방향의 첫 값은 스폰 x 로(rng 0, §10.2).
       const keep = typeof mp.keepDistPx === 'number' ? mp.keepDistPx : 0;
       const turn = typeof mp.turnRateDegSec === 'number' ? mp.turnRateDegSec : 0;
-      let dx = world.player.x - e.x;
-      let dy = world.player.y - e.y;
+      const px = world.player.x; const py = world.player.y;
+      let dx = px - e.x;
+      let dy = py - e.y;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d > 0.0001) { dx /= d; dy /= d; } else { dx = 0; dy = 1; }
-      const radial = d > keep ? 1 : -1;                // 멀면 접근, 가까우면 후퇴
-      const tan = turn * DEG2RAD * keep;               // 각속도 × 반경 = 접선 속도
-      let vx = dx * radial * speed - dy * tan;
-      let vy = dy * radial * speed + dx * tan;
+      if (e.mp0 === 0) e.mp0 = e.x < px ? 1 : -1;
+      const r = keep > 0 ? Math.max(-1, Math.min(1, (d - keep) / keep)) : 1;
+      const orbitV = Math.min(turn * DEG2RAD * keep, speed);
+      const tan = orbitV * (1 - 0.7 * Math.abs(r)) * e.mp0;
+      let vx = dx * r * speed - dy * tan;
+      let vy = dy * r * speed + dx * tan;
+      // ③ 되접기 — 벽·플레이어 높이에서 접선 방향을 뒤집고 이번 틱의 속도도 뒤집힌 값으로
+      const m = e.radius;
+      const atWall = (e.x <= arena.x + m && vx < 0) || (e.x >= arena.x + arena.w - m && vx > 0);
+      const atLevel = e.y >= py - m && vy > 0;
+      if (atWall || atLevel) {
+        e.mp0 = -e.mp0;
+        const t2 = -tan;
+        vx = dx * r * speed - dy * t2;
+        vy = dy * r * speed + dx * t2;
+        if (atLevel && vy > 0) vy = 0;                 // 그래도 내려가면 멈춘다 — 플레이어 아래는 없다
+        if (atWall) { if (e.x <= arena.x + m && vx < 0) vx = 0; if (e.x >= arena.x + arena.w - m && vx > 0) vx = 0; }
+      }
       const vm = Math.sqrt(vx * vx + vy * vy);
       if (vm > speed) { vx = vx / vm * speed; vy = vy / vm * speed; }
       e.vx = vx;
       e.vy = vy;
-
 
     } else {
       // dive · column + 폴백 — 직하강. column 의 «일렬 종대»는 이동이 아니라 스폰 편성(gapSec)이 만든다.

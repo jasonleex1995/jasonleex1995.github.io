@@ -631,3 +631,103 @@ suite('enemies · v1.10 ㉔ — 스테이지 1 은 안 쏜다 · 테마 밖 속�
     assert.eq(offThemeHpMul(d, null, 'fire'), 1, '헬퍼: 최종');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('enemies · v1.10 ㉕ — 적이 있는 구간은 일정하다: 편대 여백 · 옆벽 클램프 · 접힌 V · 선회 접근 (§8.7 · §8.4 · §9.9.2)', () => {
+  function mkPos(seed, stageId, pos, crisis) {
+    const d = loadData();
+    const w = mkRun(d, seed);
+    w.run.phase = PHASE.MOB; w.run.stageIndex = pos; w.run.order[pos] = stageId;
+    w.player.hp = 1e9; w.player.hpMax = 1e9;
+    if (crisis) { w.run.phaseT = d.stages.phase.crisisStartSec; w.run.crisis = true; w.run.crisisAtSec = w.run.phaseT; }
+    return w;
+  }
+  const inside = (a, e) => e.x >= a.x + e.radius - 1e-6 && e.x <= a.x + a.w - e.radius + 1e-6;
+
+  test('vWedge 는 폭에 맞춰 접힌다 — 37기가 전부 여백 안, 한 V 의 단 수는 아레나 반폭에서 유도, 넘치는 몸은 한 단 뒤의 다음 V', () => {
+    const w = mk(1);
+    const d = w.data; const a = d.rules.view.arena; const f = d.stages.formations.vWedge;
+    const margin = 6;                                                    // swarmDart 반지름
+    const ar = f.angleDeg * Math.PI / 180;
+    const maxRank = Math.max(1, Math.floor((a.w / 2 - margin) / (f.gapPx * Math.sin(ar))));
+    const per = 1 + 2 * maxRank;
+    const out = { x: 0, y: 0 };
+    const N = 37;
+    const xs = []; const ys = [];
+    for (let i = 0; i < N; i += 1) { formationPos(w, 'vWedge', i, N, a.x + a.w / 2, 0, out, margin); xs.push(out.x); ys.push(out.y); }
+    for (let i = 0; i < N; i += 1) assert.ok(xs[i] >= a.x + margin && xs[i] <= a.x + a.w - margin, `${i}: x ${xs[i].toFixed(0)} 여백 안`);
+    assert.ok(maxRank >= 4, `한 V 에 ≥ 4단 (실제 ${maxRank})`);
+    assert.eq(xs[0], a.x + a.w / 2, '선두 = 원점');
+    assert.eq(xs[per], a.x + a.w / 2, `두 번째 V 의 선두(${per}번째)도 원점 x`);
+    assert.near(ys[per], -f.gapPx, 1e-9, '두 번째 V 는 한 단(gapPx) 뒤');
+    // 벽에 «쌓인» 몸이 없다 — 같은 x 에 3기 이상 서지 않는다(옛 계산은 9단부터 전부 경계에 쌓였다)
+    const atEdge = xs.filter((x) => x <= a.x + margin + 0.5 || x >= a.x + a.w - margin - 0.5).length;
+    assert.eq(atEdge, 0, `경계에 선 몸 0 (실제 ${atEdge})`);
+  });
+
+  test('편대 여백 = 반지름 + weave 흔들림(+엘리트 배율) — scatter·arc·wall 도 여백 안', () => {
+    const w = mk(2);
+    const a = w.data.rules.view.arena;
+    const out = { x: 0, y: 0 };
+    for (const form of ['scatter', 'arc', 'wall', 'lineH']) {
+      for (const margin of [0, 30, 120]) {
+        for (let i = 0; i < 40; i += 1) {
+          formationPos(w, form, i, 40, a.x + a.w / 2, 0, out, margin);
+          assert.ok(out.x >= a.x + margin - 1e-9 && out.x <= a.x + a.w - margin + 1e-9, `${form} margin ${margin} #${i}: x ${out.x.toFixed(1)}`);
+        }
+      }
+    }
+  });
+
+  test('위기 30초: 새떼(weave 포함) 어느 몸도 옆벽 밖에 걸치지 않는다 · 정상 구간 100초도 (strafe 는 벽 밖 진입이라 제외)', () => {
+    for (const [stageId, pos, crisis, sec] of [['sea', 2, true, 30], ['bog', 3, false, 60], ['finale', 5, false, 60]]) {
+      const w = mkPos(4, stageId, pos, crisis);
+      const a = w.data.rules.view.arena;
+      let total = 0; let out = 0; let strafeSeen = 0;
+      for (let i = 0; i < 60 * sec; i += 1) {
+        step(w, makeInput(), TICK_DT);
+        for (const e of w.enemies.items) {
+          if (!e.alive || e.isBoss || e.midBossId !== '') continue;
+          const mv = w.spawner.archIndex[e.archetypeId].moveId;
+          if (mv === 'strafe') { strafeSeen += 1; assert.eq(e.wallX, false, 'strafe 는 클램프 안 함'); continue; }
+          assert.eq(e.wallX, true, `${e.archetypeId}: 옆벽 클램프 켜짐`);
+          total += 1;
+          if (!inside(a, e)) out += 1;
+        }
+      }
+      assert.gt(total, 1000, `${stageId}: 몸-틱 충분 (${total})`);
+      assert.eq(out, 0, `${stageId}${crisis ? ' 위기' : ''}: 옆벽 밖 0 (실제 ${out}/${total})`);
+      void strafeSeen;
+    }
+  });
+
+  test('orbitDrift(스토커·사이렌레이) — 들어와서 keepDistPx 근처를 «플레이어 위쪽»에서 돈다: 아레나 밖 0 · 플레이어 아래 0 · 도달률 100%', () => {
+    const w = mkPos(4, 'sea', 2, false);
+    const a = w.data.rules.view.arena;
+    const stat = {};
+    for (let i = 0; i < 60 * 48; i += 1) {
+      step(w, makeInput(), TICK_DT);
+      for (const e of w.enemies.items) {
+        if (!e.alive || e.isBoss || e.midBossId !== '') continue;
+        const def = w.spawner.archIndex[e.archetypeId];
+        if (def.moveId !== 'orbitDrift') continue;
+        const s = stat[e.archetypeId] || (stat[e.archetypeId] = { keep: def.moveParams.keepDistPx, t: 0, out: 0, below: 0, min: new Map() });
+        s.t += 1;
+        if (!inside(a, e) || e.y > a.y + a.h) s.out += 1;
+        if (e.y > w.player.y) s.below += 1;
+        const dd = Math.hypot(w.player.x - e.x, w.player.y - e.y); const k = `${e.gen}:${e.idx}`;
+        if (!s.min.has(k) || dd < s.min.get(k)) s.min.set(k, dd);
+      }
+    }
+    const ids = Object.keys(stat);
+    assert.ok(ids.includes('stalker') && ids.includes('sirenRay'), `둘 다 나왔다 (${ids.join(',')})`);
+    for (const id of ids) {
+      const s = stat[id];
+      assert.eq(s.out, 0, `${id}: 아레나 밖 0 (${s.out}/${s.t})`);
+      assert.eq(s.below, 0, `${id}: 플레이어 아래 0 (${s.below}/${s.t})`);
+      const ds = [...s.min.values()];
+      const reached = ds.filter((x) => x <= s.keep * 1.3).length;
+      assert.eq(reached, ds.length, `${id}: 전원이 keep×1.3(${(s.keep * 1.3).toFixed(0)}px) 안까지 온다 (${reached}/${ds.length})`);
+    }
+  });
+});

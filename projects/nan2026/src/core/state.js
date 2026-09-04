@@ -97,6 +97,9 @@ function makeEnemy(slotCount) {
     // §8.19.1(v1.9) 도입 구간의 «무해한 몸» 표식 — A층 «위협» 예산(enemyConcurrentMax)에서
     //   빠지고 자기 몫(introConcurrentMax)을 쓴다. v1.8 이 유령에게 준 것과 같은 처방(§12.1).
     introBody: false,
+    // §8.7(v1.10 ㉕) 옆벽 클램프 표식 — 잡몹은 아레나 옆벽 안(x ∈ [a.x + r, a.x + a.w − r])에만 있다. 스포너가 켠다
+    //   (strafe 는 벽 밖에서 들어오므로 false). 보스·중간보스는 자기 이동이 좌표를 소유한다(false).
+    wallX: false,
     // §3.1-4항 — 잡몹은 코어가 아니다. 보스 코어가 이 풀을 쓰게 되면 여기서 켠다
     isCore: false, aliveArmorPartCount: 0,
     // §8.11 — 복합 보스는 이 풀을 공유한다. isBoss = 코어·파트 공통 표식(이동/이탈/처치 분기).
@@ -720,6 +723,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   // §8.9(v1.5) 유령몹 — 소환된 «유령 군대». 공격/압박은 하되 처치해도 XP·점수 0(파밍 불가, 순수 긴장).
   e.ghost = ghost === true;
   e.introBody = false;                    // §8.19.1 — 스포너가 도입 구간에서만 켠다
+  e.wallX = false;                        // §8.7 ㉕ — 스포너가 켠다
   if (e.ghost) { e.xp = 0; e.score = 0; }
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
@@ -749,7 +753,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y, armorCount) {
   e.hp = hp; e.hpMax = hp;
   e.radius = core.radius; e.contactDmg = core.contactDmg;
   e.xp = 0; e.score = core.score;
-  e.elite = false; e.ghost = false; e.introBody = false;
+  e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
   e.isCore = true; e.aliveArmorPartCount = armorCount;
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
@@ -772,7 +776,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.hp = hp; e.hpMax = hp;
   e.radius = part.radius; e.contactDmg = part.contactDmg;
   e.xp = 0; e.score = part.score;
-  e.elite = false; e.ghost = false; e.introBody = false;
+  e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = true; e.bossId = bossId; e.partId = part.id; e.partType = part.partType; e.phase = 0;
   e.sealLayer = part.sealLayer === undefined ? 0 : part.sealLayer; e.sealedNow = false;
@@ -798,7 +802,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.hp = hp; e.hpMax = hp;
   e.radius = def.radius; e.contactDmg = def.contactDmg;
   e.xp = def.xp; e.score = def.score;
-  e.elite = false; e.ghost = false; e.introBody = false;
+  e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false;
   e.isCore = false; e.aliveArmorPartCount = 0;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.sealLayer = 0; e.sealedNow = false;

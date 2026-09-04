@@ -341,6 +341,13 @@ function moveBullets(world, dt) {
     e.x += e.vx * m * dt;
     e.y += e.vy * m * dt;
     e.moveT += dt;
+    // §8.7(v1.10 ㉕) 옆벽 클램프 — 잡몹은 아레나 옆벽 «안»에만 있다(몸 전체). 편대 여백(bodyMargin)이 자리를, 이것이 그 뒤
+    //   이동(weave 의 오일러 오차·엘리트 반지름·궤도)을 지킨다. 사용자: 「적이 있는 구간은 일정해야 한다 — 화면 밖에 걸치지 않게」.
+    //   strafe(벽 밖 진입)·보스·중간보스는 wallX 가 꺼져 있다. 아래(y)는 «지나간다»가 규칙이라 그대로 몰수 경로.
+    if (e.wallX) {
+      if (e.x < a.x + e.radius) e.x = a.x + e.radius;
+      else if (e.x > a.x + a.w - e.radius) e.x = a.x + a.w - e.radius;
+    }
     // §8.7 — 아레나를 벗어난 적은 보상을 몰수당한다 (enemyExitForfeitsReward).
     //   ★ 보스 개체는 예외 — 느린 스웨이가 자기 자신을 이탈 처리해 사라지면 안 된다(§8.11).
     //   ★ 중간보스도 예외 — 이탈은 midBossLeaveAfterSec 이 정한다(§8.9), 좌표가 정하지 않는다.

@@ -228,8 +228,9 @@ export function summon(world, e, def, dt) {
   for (let i = 0; i < sm.count; i += 1) {
     if (sm.ghost === true && ghostLive >= ghostMax) break;
     if (sm.ghost === true) ghostLive += 1;
-    formationPos(world, sm.formationId, i, sm.count, e.x, e.y, _pos);
-    spawnEnemy(world, sm.archetypeId, e.element, _pos.x, _pos.y, hp, false, sm.ghost === true);   // §8.9 유령 소환
+    formationPos(world, sm.formationId, i, sm.count, e.x, e.y, _pos, a.radius + (a.moveId === 'weave' && a.moveParams !== null && typeof a.moveParams.ampPx === 'number' ? a.moveParams.ampPx : 0));   // §8.7 ㉕ 여백(= enemies.bodyMargin — 순환이라 인라인)
+    const g = spawnEnemy(world, sm.archetypeId, e.element, _pos.x, _pos.y, hp, false, sm.ghost === true);   // §8.9 유령 소환
+    if (g !== null) g.wallX = a.moveId !== 'strafe';                                                     // §8.7 ㉕
 
   }
 }

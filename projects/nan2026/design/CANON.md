@@ -1367,7 +1367,7 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 | `column` | 종대 스트림 | **같은 x축 일렬 종대**로 줄줄이 하강 | `speed, gapSec` | **관통 랜스 "줄 세우기"** |
 | `strafe` | 측면 횡단 | 좌/우 벽 진입 → 수평 횡단 → 반대편 이탈 | `speed, yPx` | **부메랑 "라인 정렬"**, 후방/전방위 |
 | `anchor` | 진입 체류 | 상단 진입 → `yHoldPx`에 정지 → 좌우 소폭 왕복 | `enterSpeed, yHoldPx, swayAmpPx, leaveAfterSec` | 드론/옵션, 관통 저격 |
-| `orbitDrift` | 선회 접근 | 플레이어 쪽으로 호를 그리며 접근 → `keepDistPx` 유지 | `speed, turnRateDegSec, keepDistPx` | **오빗/오라 "파고들어 몸빵"** |
+| `orbitDrift` ★v1.10 ㉕ | 선회 접근 | 플레이어 쪽으로 호를 그리며 접근 → `keepDistPx` 근처에서 **플레이어 위쪽 반원**을 진자처럼 돈다(옆벽·플레이어 높이에 닿으면 접선 방향 반전). 반경 항 `r = clamp((d−keep)/keep, −1, 1)` × speed · 접선 항 `min(turn×keep, speed) × (1 − 0.7|r|)`. ~~v1.7 식~~은 접선항(174~220px/s)이 속도(38~51)를 압도해 정규화 뒤 «옆으로만» 미끄러졌다 — 사이렌레이 41%·스토커 37% 의 생애가 아레나 밖, 한 번도 안 들어옴(사용자 「계속 화면 밖으로 피하는 몹」). 재작성 뒤 밖 0%·플레이어 아래 0%·도달률 100% | `speed, turnRateDegSec, keepDistPx` | **오빗/오라 "파고들어 몸빵"** |
 | `charge` | 돌진 | 상단 체류 → 텔레그래프 → 플레이어 방향 1회 직선 돌진 → 이탈 | `windUpSec, dashSpeed` | 위치 판단 시험 |
 
 - ★ 초안 D의 어휘를 채택한다(초안 F의 `straightDown/sineDown/…` 8종은 폐기). 근거: **D의 8종은 각각 특정 무기 패밀리와 짝지어져 설계되었고**(column↔lance, strafe↔boomerang, orbitDrift↔orbit/aura, rearIn↔omni), 그 짝이 "의미 있는 이동" 기둥의 구현체다. F의 어휘는 짝이 없다.
@@ -1498,6 +1498,7 @@ waves: [ { formationId, archetypeId, count, element, spawnEdge, eliteIndex } ]  
 | `mobPhaseMaxWaves` ★v1.10 | **56** (도달 시 추가 스폰 정지 = 무한 파밍 방지). 하한은 S54 ③ — 웨이브가 흐르는 구간이 초기(1.4초 간격) + 위기(가변, 최장 70초)뿐이라 옛 `crisisStartSec ÷ waveIntervalSec` 로는 모자란다 · ~~24~~ ~~14~~ ~~48~~ |
 | ★ **몸 수의 하한** (v1.8) | `bands[].minPerWave` — §8.7.1 |
 | ★ **`waveListExhausted`** | **`"cycle"`** — 리스트를 소진하면 **처음으로 순환**한다 (04-R7 채택, 아래) |
+| ★ **적이 있는 구간은 일정하다** (v1.10 ㉕, 사용자 2026-09-05 「화면 밖에 걸쳐 있지 않게」) | **잡몹은 아레나 옆벽 «안»에만 있다(몸 전체).** 두 겹: ① 편대 여백 `bodyMargin = 유효 반지름(엘리트 × sizeMult) + weave ampPx` — `formationPos` 가 모든 편대의 x 를 `[a.x + 여백, a.x + a.w − 여백]` 안에만 세운다(전엔 아레나 «선»에 클램프해 끝 몸이 반쯤 밖에 섰고 weave 가 거기서 더 나갔다) ② 이동 뒤 옆벽 클램프 `e.wallX`(`step`) — weave 의 오일러 오차·궤도까지 지킨다. **strafe 는 제외**(벽 밖 진입 → 횡단 → 반대편 이탈이 동사다), 보스·중간보스는 자기 이동이 좌표를 소유. 아래(y)는 «지나간다»가 규칙이라 그대로 몰수. 실측(100초 × 4스테이지·위기 포함): 옆벽 밖 0 |
 | `crisisSuspendsWaves` | **true** (**106초**에 웨이브 스포너 정지, 밀도 폭발 방지 = 관대함) · ~~95초~~ |
 | ★ **구간과 비율** (v1.10, §8.19) | `curve.shooterRatio[런포지션]` 만큼이 공격형, 나머지는 무공격 칸 `stages[].introArchetypeId`. 봉지 셔플(`rng.spawn`) — 마리수 편차 0. 초기 구간(첫 중간보스 전)만 편대 `wall`. (v1.8 «고요한 도입»·v1.9 «초입 위기»는 폐지) |
 | `spawnEdge` | `top` \| `left` \| `right` \| `bottom`. **`bottom`은 `rearSpawnAllowed[stage]`일 때만** |
@@ -3402,10 +3403,10 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 |---|---|---|
 | `lineH` | `gapPx: 64` | 수평 1열, `spawnEdge` 중앙 기준 좌우 대칭 |
 | `columnV` | `gapSec: 0.5` | **`column` 전용.** 같은 x, `gapSec` 간격으로 순차 스폰 |
-| `vWedge` | `gapPx: 56, angleDeg: 35` | V자, 선두 1기 + 좌우 대칭 |
+| `vWedge` ★v1.10 ㉕ | `gapPx: 56, angleDeg: 35` | V자, 선두 1기 + 좌우 대칭. **폭에 맞춰 접힌다**: 한 V 의 최대 단 = `floor((아레나 반폭 − 여백) / (gapPx × sin angle))`(구조 파생), 넘치는 몸은 한 단(gapPx) 뒤의 다음 V — 위기 화살 37기 = 17·17·3 의 세 겹. ~~옛 계산~~은 폭 1156px(아레나 580)라 9단부터 전부 경계에 쌓여 «양쪽 벽에 세로줄»(스크린샷) |
 | `arc` | `radiusPx: 180, spanDeg: 120` | 호, 중심 = 아레나 중앙 상단 |
 | `pincer` | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
-| `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 최소 간격 강제 |
+| `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 가장자리 여백 = `max(minSepPx, bodyMargin)` (㉕) |
 | ★ `wall` (v1.9 · **v1.10 `jitterY`** · **v1.10 ⑤ 촘촘한 격자**) | `gapPx: 20, rowGapPx: 28, perRow: 28, laneSlots: 3, laneStrideCols: 4, jitterY: 0.85` · ~~29/40/20/2/3~~ | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
 
 ★ **`pincer`만 `strafe.yPx`를 덮어쓴다**: `yPx = yStartPx + floor(i/2) × yStepPx` (i = 편대 내 인덱스). **이 예외가 없으면 `flanker.yPx`가 아키타입 고정값이라 모든 측면기가 한 줄로만 지나간다 = `strafe` 거동이 죽는다**(그리고 `boomerang`의 "라인 정렬" 시너지 논거(§8.4)가 무의미해진다). `check.mjs` **S20**: `pincer` ⟺ `moveId == "strafe"`, `columnV` ⟺ `moveId == "column"`.

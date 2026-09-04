@@ -14,10 +14,21 @@ import { DEG2RAD } from './angle.js';
  * 편대의 i번째(총 count) 개체 좌표를 out 에 쓴다. 원점(originX, originY)이 편대의 기준점이다.
  * 아레나 가로 밖으로 새지 않게 구조적으로 클램프한다(밸런스 값이 아니라 좌표계 경계다).
  */
-export function formationPos(world, formationId, i, count, originX, originY, out) {
+/**
+ * §9.9.2 · §8.7(v1.10 ㉕) 편대별 i번째 개체의 스폰 좌표.
+ *   ★ margin — «몸이 설 수 있는 폭»의 여백(px): 호출자가 몸의 반지름 + 흔들림 폭(weave ampPx)을 넘긴다. 모든 편대의 x 는
+ *     [a.x + margin, a.x + a.w − margin] 안에만 선다 — 사용자(2026-09-05): 「적이 있는 구간은 일정해야 한다. 화면 밖에 걸쳐
+ *     있지 않게」. 이전엔 x 를 아레나 «선»에 클램프해 끝 몸이 반쯤 밖에 섰고, weave 가 거기서 ±amp 만큼 더 나갔다.
+ *   ★ vWedge 는 폭에 맞춰 «접는다»(겹친 V): 한 V 에 설 수 있는 최대 단(rank)은 아레나 반폭 − margin 에서 유도하고,
+ *     넘치는 몸은 한 단 뒤(gapPx 위)의 다음 V 로 간다. 위기 화살 37기는 옛 계산으로 폭 1156px(아레나 580)라 9단부터
+ *     전부 경계에 쌓여 «양쪽 벽에 세로줄»이 됐다(스크린샷). 접으면 17·17·3 의 세 겹 V 다. 난수 0(§10.2).
+ */
+export function formationPos(world, formationId, i, count, originX, originY, out, margin = 0) {
   const a = world.data.rules.view.arena;
   const forms = world.data.stages.formations;
   const rng = world.rng.spawn;
+  const lo = a.x + margin;
+  const hi = a.x + a.w - margin;
 
   let x = originX;
   let y = originY;
@@ -36,13 +47,19 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     y = originY;
   } else if (formationId === 'vWedge') {
     const f = forms.vWedge;
-    if (i === 0) { x = originX; y = originY; }
+    const ar = f.angleDeg * DEG2RAD;
+    // 한 V 의 최대 단 — 원점에서 가까운 벽까지의 폭이 정한다(구조 파생, 리터럴 아님). 최소 1단(3기).
+    const half = Math.min(originX - lo, hi - originX);
+    const maxRank = Math.max(1, Math.floor(half / (f.gapPx * Math.sin(ar))));
+    const per = 1 + 2 * maxRank;                          // 한 V 의 몸 수
+    const chev = Math.floor(i / per);                     // 몇 번째 V 인가(0 = 선두)
+    const j = i % per;
+    if (j === 0) { x = originX; y = originY - chev * f.gapPx; }
     else {
-      const rank = Math.ceil(i / 2);
-      const side = (i % 2 === 1) ? -1 : 1;
-      const ar = f.angleDeg * DEG2RAD;
+      const rank = Math.ceil(j / 2);
+      const side = (j % 2 === 1) ? -1 : 1;
       x = originX + side * rank * f.gapPx * Math.sin(ar);
-      y = originY - rank * f.gapPx * Math.cos(ar);          // 날개가 위로·바깥으로 = 아래로 향한 V
+      y = originY - rank * f.gapPx * Math.cos(ar) - chev * f.gapPx;   // 날개가 위로·바깥으로 = 아래로 향한 V, 다음 V 는 한 단 뒤
     }
   } else if (formationId === 'wall') {
     // §8.19.2(v1.9) 도입의 «벽» — 몸을 촘촘히 세우되 줄마다 «차선»(lane)을 한 칸 비운다.
@@ -76,12 +93,13 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     //     결과·rng 소비가 기존과 **완전히 동일**하고(중앙±(a.w-2minSep)/2 = a.x+minSep…a.x+a.w-minSep),
     //     소환(mbNest)만 originX=소환자로 옮겨간다. 아래 클램프가 아레나 밖을 막는다.
     const f = forms.scatter;
-    x = originX + (rng.f() - 0.5) * (a.w - 2 * f.minSepPx);
+    const sep = Math.max(f.minSepPx, margin);            // 가장자리 여백 = max(저작 여백, 몸 + 흔들림)
+    x = originX + (rng.f() - 0.5) * (a.w - 2 * sep);
     y = originY - rng.f() * f.jitterPx;
   }
 
-  if (x < a.x) x = a.x;
-  if (x > a.x + a.w) x = a.x + a.w;
+  if (x < lo) x = lo;
+  if (x > hi) x = hi;
   out.x = x;
   out.y = y;
   return out;
