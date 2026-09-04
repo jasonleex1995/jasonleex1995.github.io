@@ -95,7 +95,15 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     if (at !== 0 && world.time - at < e.hitFloorSec) return 0;
     e.floorAt[slotIndex] = world.time;
   }
-  const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
+  // §11.6(v1.10 ⑲) 특성 배율 — 청정(HP 비율 이상이면 +) · 보스 사냥꾼(보스·중간보스에 +). 둘 다 «입구 하나»에서만.
+  let traitMul = 1;
+  {
+    const fx = world.traitFx;
+    const p = world.player;
+    if (fx.dmgMulAboveHp > 0 && p.hpMax > 0 && p.hp / p.hpMax >= fx.dmgMulAboveHpRatio) traitMul += fx.dmgMulAboveHp;
+    if (fx.bossDmgMul > 0 && (e.isBoss || e.midBossId !== '')) traitMul += fx.bossDmgMul;
+  }
+  const dealt = playerToEnemy(ctx, dmg, localMul * traitMul, stamp, e);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②
   if (hitTier(ctx.matrix, stamp, e.element) === 'super') e.dmgSuper += dealt;

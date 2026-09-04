@@ -20,7 +20,9 @@
 
 /** §9.2 — 정확히 9개, 닫힘 */
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
-  'enemies', 'bosses', 'stages', 'meta'];
+  'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
+export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'healPerKills', 'stageClearHealPct', 'barrierEverySec', 'secondWindIframeSec',
+  'dmgMulAboveHp', 'bossDmgMul', 'stanceEchoRadiusPx', 'terrainEffectMul', 'crisisMoveSpeedMul'];
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -259,7 +261,7 @@ function checkRules(c, r) {
     c.closed('rules.palette.elementCvd', r.palette.elementCvd, ELEMENTS4);
     c.closed('rules.palette.threat', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline']);
     c.closed('rules.palette.status', r.palette.status, ['band']);
-    c.closed('rules.palette.pickup', r.palette.pickup, ['xp']);
+    c.closed('rules.palette.pickup', r.palette.pickup, ['xp', 'trait']);   // v1.10 ⑲ 특성 구슬(금색 = hud.accent 채널)
     c.closed('rules.palette.hud', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent']);
     c.closed('rules.palette.bg', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed']);
@@ -545,6 +547,31 @@ function checkStages(c, s) {
   }
 }
 
+/** §11.6(v1.10 ⑲) traits.json — 특성(보스 처치 보상). 닫힌 키 · 어휘 · 값 범위. */
+function checkTraits(c, t) {
+  c.closed('traits', t, ['schemaVersion', 'offerCount', 'groups', 'traits']);
+  if (!Array.isArray(t.groups) || t.groups.length === 0) c.fail('traits.groups', '비어 있지 않은 배열이어야 한다');
+  if (!Array.isArray(t.traits)) { c.fail('traits.traits', '배열이 아니다'); return; }
+  const ids = new Set();
+  for (let i = 0; i < t.traits.length; i += 1) {
+    const x = t.traits[i];
+    const p = `traits.traits[${i}]`;
+    c.closed(p, x, ['id', 'name', 'group', 'desc', 'effect']);
+    if (typeof x.id !== 'string' || x.id === '') c.fail(`${p}.id`, '빈 문자열');
+    if (ids.has(x.id)) c.fail(`${p}.id`, `중복 id "${x.id}"`);
+    ids.add(x.id);
+    if (Array.isArray(t.groups)) c.vocab(`${p}.group`, x.group, t.groups);
+    if (!isObj(x.effect)) { c.fail(`${p}.effect`, '객체가 아니다'); continue; }
+    c.vocab(`${p}.effect.kind`, x.effect.kind, TRAIT_EFFECT_KINDS);
+    const extra = x.effect.kind === 'dmgMulAboveHp' ? ['hpRatio'] : x.effect.kind === 'stanceEchoRadiusPx' ? ['iframeSec'] : [];
+    c.closed(`${p}.effect`, x.effect, ['kind', 'value', ...extra]);
+    if (typeof x.effect.value !== 'number' || !(x.effect.value > 0)) c.fail(`${p}.effect.value`, '양수여야 한다');
+  }
+  if (typeof t.offerCount !== 'number' || !Number.isInteger(t.offerCount) || t.offerCount < 1 || t.offerCount > t.traits.length) {
+    c.fail('traits.offerCount', `정수 ∈ [1, ${t.traits.length}]`);
+  }
+}
+
 function checkMeta(c, m) {
   c.closed('meta', m, ['schemaVersion', 'xp', 'draft', 'score', 'flow', 'onboarding',
     'difficulty', 'bot', 'certify']);
@@ -729,7 +756,7 @@ export function validate(raw) {
   const given = Object.keys(raw);
   for (let i = 0; i < given.length; i += 1) {
     if (MANIFEST.indexOf(given[i]) < 0) {
-      c.fail(`data/${given[i]}.json`, '§9.2 매니페스트(정확히 9개, 닫힘) 밖의 파일');
+      c.fail(`data/${given[i]}.json`, '§9.2 매니페스트(정확히 10개, 닫힘) 밖의 파일');
     }
   }
   for (let i = 0; i < MANIFEST.length; i += 1) {
@@ -754,6 +781,7 @@ export function validate(raw) {
   checkBosses(c, raw.bosses);
   checkStages(c, raw.stages);
   checkMeta(c, raw.meta);
+  checkTraits(c, raw.traits);   // v1.10 ⑲
   if (c.errs.length > 0) throwAll(c.errs);
 
   // 구조가 성립한 뒤에만 참조·공정성을 본다 (undefined 를 훑지 않기 위해)

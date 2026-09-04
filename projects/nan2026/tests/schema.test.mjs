@@ -17,11 +17,11 @@ import { validate, MANIFEST, SCHEMA_VERSION } from '../src/core/schema.mjs';
 function clone() { return JSON.parse(JSON.stringify(loadData())); }
 
 suite('schema/positive', () => {
-  test('정상 9파일은 통과하고 같은 객체를 돌려준다 (§9.3)', () => {
+  test('정상 10파일은 통과하고 같은 객체를 돌려준다 (§9.3 · v1.10 ⑲ traits)', () => {
     const raw = clone();
     const out = validate(raw);
     assert.eq(out, raw, 'validate 는 입력 객체를 그대로 반환');
-    assert.eq(MANIFEST.length, 9, '매니페스트 = 9개');
+    assert.eq(MANIFEST.length, 10, '매니페스트 = 10개');
   });
 });
 

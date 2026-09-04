@@ -68,6 +68,19 @@ export function recomputeStamps(world) {
  * 구조는 존재하고 값이 0이다 → "살짝 굳게"가 필요해도 숫자만 바뀐다 (C-4).
  * @returns 전환이 실제로 일어났는가
  */
+/** §11.6 — 반경 r 안의 적 탄을 지운다(스탠스 공명·반응 장갑 공용, 0 alloc). 지운 수를 돌려준다. */
+export function clearEnemyBulletsAround(world, x, y, r) {
+  const it = world.enemyBullets.items;
+  let n = 0;
+  for (let i = 0; i < it.length; i += 1) {
+    const b = it[i];
+    if (!b.alive) continue;
+    const dx = b.x - x; const dy = b.y - y;
+    if (dx * dx + dy * dy <= r * r) { world.enemyBullets.release(b); n += 1; }
+  }
+  return n;
+}
+
 export function requestStance(world, element) {
   const p = world.player;
   if (p.stanceCooldown > 0) return false;
@@ -79,6 +92,12 @@ export function requestStance(world, element) {
   p.stanceCooldown = world.data.rules.player.stanceSwitchCooldown;
   // §4.3 "전환 딜레이 없음. 다음 틱부터 즉시 적용" — 재계산을 미루지 않는다.
   recomputeStamps(world);
+  // §11.6(v1.10 ⑲) 스탠스 공명 — 전환 순간 주변 적 탄 소거 + 짧은 무적(전환이 곧 회피 동사가 된다)
+  const fx = world.traitFx;
+  if (fx.stanceEchoRadiusPx > 0) {
+    clearEnemyBulletsAround(world, p.x, p.y, fx.stanceEchoRadiusPx);
+    if (p.iframeSec < fx.stanceEchoIframeSec) p.iframeSec = fx.stanceEchoIframeSec;
+  }
   return true;
 }
 

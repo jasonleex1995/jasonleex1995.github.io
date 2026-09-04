@@ -226,7 +226,7 @@
     "elementCvd": { "normal": "#F2F6FA", "fire": "#FFA83A", "water": "#2E86E0", "grass": "#1F6B3A" },
     "threat":     { "enemyBullet": "#FF2E88", "telegraph": "#FF2E88", "bulletCore": "#FFFFFF", "outline": "#0A0C10" },
     "status":     { "band": "#FFB000" },
-    "pickup":     { "xp": "#EAF2FF" },
+    "pickup":     { "xp": "#EAF2FF", "trait": "#FFC93C" },
     "enemyBody": "#20242C",
     "partDestroyed": "#3A3A3A",
     "neutralGray": "#7A8290",

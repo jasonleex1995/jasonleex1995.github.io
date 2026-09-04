@@ -316,6 +316,24 @@ function drawLeftPanel(ctx, world, pal) {
     pad, y0 + cell * 4 + 24, h.fontSmallPx, pal.hud.textDim, 'left');
   text(ctx, world, pal, 'W(불) → E · E(물) → R · R(풀) → W',
     pad, y0 + cell * 4 + 44, h.fontSmallPx, pal.hud.textDim, 'left');
+
+  // ---- §11.6(v1.10 ⑲) 보스 특성 — 상성표 아래. 없으면 제목만(빈 칸 = «보스를 잡으면 여기가 찬다»)
+  let ty = y0 + cell * 4 + 76;
+  text(ctx, world, pal, '보스 특성', pad, ty, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
+  ty += 24;
+  const tdefs = world.data.traits.traits;
+  if (world.traits.length === 0) {
+    text(ctx, world, pal, '보스를 잡으면 금색 구슬이 나온다', pad, ty, h.fontSmallPx, rgba(pal.hud.textDim, 0.6), 'left');
+  }
+  for (let i = 0; i < world.traits.length; i += 1) {
+    let name = world.traits[i]; let desc = '';
+    for (let k = 0; k < tdefs.length; k += 1) if (tdefs[k].id === world.traits[i]) { name = tdefs[k].name; desc = tdefs[k].desc; break; }
+    ctx.fillStyle = rgba(pal.hud.accent, 0.9);
+    ctx.beginPath(); ctx.arc(pad + 5, ty, 4, 0, Math.PI * 2); ctx.fill();
+    text(ctx, world, pal, name, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
+    text(ctx, world, pal, desc, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
+    ty += 34;
+  }
 }
 
 /** 우 패널 — 스탠스 키캡 · 속성 투자 pip · 무기 4슬롯 + 부여 상태 */
@@ -726,6 +744,7 @@ function categoryLabel(world, c) {
   if (cat === 'elementLevel') return '속성 투자';
   if (cat === 'passive') return '패시브';
   if (cat === 'resupply') return '보급';
+  if (cat === 'trait') return '보스 특성';
   throw new Error(`hud: 미지의 드래프트 카테고리 "${cat}" (§11.1)`);
 }
 
@@ -733,6 +752,7 @@ function cardAccent(world, pal, c) {
   if (c.category === 'elementLevel') return pal.element[c.element];
   if (c.category === 'weaponLevel' && c.isEvolution) return pal.element.normal;
   if (c.category === 'resupply') return pal.hud.accent;
+  if (c.category === 'trait') return pal.hud.accent;              // §11.6 금색 = 구슬과 같은 채널
   return pal.element.normal;
 }
 
@@ -789,6 +809,10 @@ function cardBody(world, c) {
   }
   if (c.category === 'resupply') {
     return { glyph: null, title: c.name, sub: `HP +${Math.round(c.healPct * 100)}%`, desc: '유효한 후보가 부족할 때의 폴백 카드 — 회복.' };
+  }
+  if (c.category === 'trait') {
+    const GROUP_KO = { heal: '회복', guard: '방호', power: '화력', utility: '기동' };
+    return { glyph: null, title: c.name, sub: `${GROUP_KO[c.group] || c.group} 특성 · 런 내내`, desc: c.desc };
   }
   throw new Error(`hud: 미지의 드래프트 카테고리 "${c.category}" (§11.1)`);
 }

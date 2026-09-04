@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -193,11 +193,11 @@ function vocab(check, value, allowedList, path) {
 const pascal = (s) => (typeof s === 'string' && s.length ? s[0].toUpperCase() + s.slice(1) : s);
 
 // ---------------------------------------------------------------------------
-// §9.2 파일 매니페스트 — 정확히 9개, 닫힘
+// §9.2 파일 매니페스트 — 정확히 10개, 닫힘 (v1.10 ⑲ traits)
 // ---------------------------------------------------------------------------
 const MANIFEST = [
   'rules', 'elements', 'weapons', 'passives', 'bullets',
-  'enemies', 'bosses', 'stages', 'meta',
+  'enemies', 'bosses', 'stages', 'meta', 'traits',
 ];
 const SCHEMA_VERSION = 1;   // §9.4~§9.9 의 전 인쇄 블록이 1을 인쇄한다
 
@@ -207,11 +207,11 @@ function loadAll() {
     console.error(`FATAL: data 디렉터리가 없다: ${DATA_DIR}`);
     process.exit(2);
   }
-  // 매니페스트가 닫혀 있으므로 여분 파일도 에러다 (§9.2 "정확히 9개, 닫힘")
+  // 매니페스트가 닫혀 있으므로 여분 파일도 에러다 (§9.2 "정확히 10개, 닫힘")
   const present = readdirSync(DATA_DIR).filter((f) => extname(f) === '.json');
   const expect = new Set(MANIFEST.map((n) => `${n}.json`));
   for (const f of present) {
-    if (!expect.has(f)) V('S2', `data/${f}: §9.2 매니페스트(정확히 9개, 닫힘) 밖의 파일`);
+    if (!expect.has(f)) V('S2', `data/${f}: §9.2 매니페스트(정확히 10개, 닫힘) 밖의 파일`);
   }
   for (const name of MANIFEST) {
     const p = join(DATA_DIR, `${name}.json`);
@@ -576,7 +576,7 @@ function S2_schema() {
     closedKeys('S2', r.palette.elementCvd, ELEMENTS4, 'rules.palette.elementCvd');
     closedKeys('S2', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline'], 'rules.palette.threat');
     closedKeys('S2', r.palette.status, ['band'], 'rules.palette.status');
-    closedKeys('S2', r.palette.pickup, ['xp'], 'rules.palette.pickup');
+    closedKeys('S2', r.palette.pickup, ['xp', 'trait'], 'rules.palette.pickup');   // v1.10 ⑲ 특성 구슬
     closedKeys('S2', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent'], 'rules.palette.hud');
     closedKeys('S2', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed'], 'rules.palette.bg');
@@ -3318,6 +3318,60 @@ function S58_orbitRadius() {
   EX('S58', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S59 — 특성 (§11.6 v1.10 ⑲)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자(2026-09-04): 「특성을 보스 몹 잡으면 보스 모듈에 생기는 노란색을 먹으면 선택할 수 있는 걸 만들자. 체력 회복 옵션이
+ *   필요하다.」 로더(schema.checkTraits)가 형식을 지키고, 여기는 «설계»를 지킨다:
+ *   ① 회복 묶음(heal)에 특성이 ≥ 1 — 회복원이 원데스 게임의 유일한 «구조적» 회복이다
+ *   ② 묶음마다 ≥ 1, 그리고 묶음 수 ≥ offerCount — 한 제안에 «다른 묶음»만 나오므로 offerCount 장을 채우려면 묶음이 그만큼 있어야 한다
+ *   ③ 특성 수 ≥ 스테이지 보스 수(5) + offerCount − 1 — 5번째 보스에서도 3택이 성립한다(묶음 배타를 감안한 하한이 아니라 «수»의 하한)
+ *   ④ 값의 범위: regenHpPerSec ≤ 1.0 · healPerKills ≥ 5 · stageClearHealPct ≤ 0.5 · barrierEverySec ≥ 10 · secondWindIframeSec ≤ 3
+ *      · dmgMulAboveHp ≤ 0.3 ∧ hpRatio ∈ (0.5, 1] · bossDmgMul ≤ 0.5 · stanceEchoRadiusPx ≤ 240 ∧ iframeSec ≤ 1 · terrainEffectMul ∈ [0.25, 1)
+ *      · crisisMoveSpeedMul ≤ 0.5 — 특성은 «규칙을 비트는 것»이지 스탯 패시브를 대신하지 않는다(§11.6)
+ *   ⑤ palette.pickup.trait 가 있다 — 구슬은 «보상 그 자체»라 자기 색이 있다(hud.accent 채널)
+ */
+function S59_traits() {
+  const td = D.traits;
+  if (!isObj(td) || !Array.isArray(td.traits)) { V('S59', 'traits.json 이 없다 (§11.6)'); return; }
+  let n = 0;
+  const byGroup = {};
+  for (const t of td.traits) { if (!isObj(t)) continue; byGroup[t.group] = (byGroup[t.group] || 0) + 1; }
+  n += 1;
+  if (!(byGroup.heal >= 1)) V('S59', 'traits: 회복 묶음(heal)에 특성이 0 — 사용자 요구 「체력 회복 옵션」 (§11.6 ①)');
+  n += 1;
+  for (const g of rowsQuiet(td.groups)) if (!(byGroup[g] >= 1)) V('S59', `traits.groups "${g}" 에 특성이 0 — 죽은 묶음 (§11.6 ②)`);
+  if (Array.isArray(td.groups) && num(td.offerCount) && td.groups.length < td.offerCount) V('S59', `traits: 묶음 ${td.groups.length} < offerCount ${td.offerCount} — 한 제안에 같은 묶음은 한 장이라 ${td.offerCount}장을 못 채운다 (§11.6 ②)`);
+  n += 1;
+  const bossCount = Array.isArray(D.stages && D.stages.stages) ? D.stages.stages.filter((s2) => isObj(s2) && s2.element !== null).length - 1 : 5;   // 테마 6 중 5개가 한 런에
+  const runBosses = 5;
+  if (num(td.offerCount) && td.traits.length < runBosses + td.offerCount - 1) V('S59', `traits: 특성 ${td.traits.length}개 < 보스 ${runBosses} + offerCount − 1 = ${runBosses + td.offerCount - 1} — 다섯째 보스에서 3택이 안 선다 (§11.6 ③)`);
+  void bossCount;
+  n += 1;
+  for (const t of td.traits) {
+    if (!isObj(t) || !isObj(t.effect)) continue;
+    const e = t.effect; const tag = `traits[${t.id}].effect`;
+    const bad = (m) => V('S59', `${tag}: ${m} (§11.6 ④)`);
+    switch (e.kind) {
+      case 'regenHpPerSec': if (e.value > 1.0) bad(`regenHpPerSec ${e.value} > 1.0`); break;
+      case 'healPerKills': if (!Number.isInteger(e.value) || e.value < 5) bad(`healPerKills ${e.value} — 정수 ≥ 5`); break;
+      case 'stageClearHealPct': if (e.value > 0.5) bad(`stageClearHealPct ${e.value} > 0.5`); break;
+      case 'barrierEverySec': if (e.value < 10) bad(`barrierEverySec ${e.value} < 10`); break;
+      case 'secondWindIframeSec': if (e.value > 3) bad(`secondWindIframeSec ${e.value} > 3`); break;
+      case 'dmgMulAboveHp': if (e.value > 0.3 || !num(e.hpRatio) || e.hpRatio <= 0.5 || e.hpRatio > 1) bad(`dmgMulAboveHp ${e.value} / hpRatio ${e.hpRatio}`); break;
+      case 'bossDmgMul': if (e.value > 0.5) bad(`bossDmgMul ${e.value} > 0.5`); break;
+      case 'stanceEchoRadiusPx': if (e.value > 240 || !num(e.iframeSec) || e.iframeSec > 1) bad(`stanceEchoRadiusPx ${e.value} / iframeSec ${e.iframeSec}`); break;
+      case 'terrainEffectMul': if (e.value < 0.25 || e.value >= 1) bad(`terrainEffectMul ${e.value} ∉ [0.25, 1)`); break;
+      case 'crisisMoveSpeedMul': if (e.value > 0.5) bad(`crisisMoveSpeedMul ${e.value} > 0.5`); break;
+      default: break;   // 어휘는 로더(schema)가 지킨다
+    }
+  }
+  n += 1;
+  if (!(D.rules.palette && D.rules.palette.pickup && typeof D.rules.palette.pickup.trait === 'string')) V('S59', 'rules.palette.pickup.trait 가 없다 (§11.6 ⑤)');
+  EX('S59', n);
+}
+
 
 
 
@@ -3863,7 +3917,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S58 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S59 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -3929,6 +3983,7 @@ function main() {
   S56_terrain();             // §8.21 v1.10 ⑦ 지형 장판 — 종·속성당 하나·값·통로·구간
   S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
   S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
+  S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

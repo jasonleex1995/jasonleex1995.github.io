@@ -121,6 +121,13 @@ function readInput(world, input, dt) {
   if (p.slowSec > 0) { p.slowSec -= dt; if (p.slowSec < 0) p.slowSec = 0; }
   if (p.stunSec > 0) { p.stunSec -= dt; if (p.stunSec < 0) p.stunSec = 0; }
   if (p.ghostSec > 0) { p.ghostSec -= dt; if (p.ghostSec < 0) p.ghostSec = 0; }
+  // §11.6(v1.10 ⑲) 특성 — 자연 재생 · 격벽 충전
+  const fx = world.traitFx;
+  if (fx.regenHpPerSec > 0 && p.hp > 0 && p.hp < p.hpMax) { p.hp += fx.regenHpPerSec * dt; if (p.hp > p.hpMax) p.hp = p.hpMax; }
+  if (fx.barrierEverySec > 0 && !world.traitState.barrierReady) {
+    world.traitState.barrierT += dt;
+    if (world.traitState.barrierT >= fx.barrierEverySec) { world.traitState.barrierReady = true; world.traitState.barrierT = 0; }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -135,10 +142,11 @@ function movePlayer(world, dt) {
   //   슬라이스(런 없음)는 지형이 없다(풀이 비어 -1). 효과의 «적용»은 여기가 단일 소유자다(§2.2 이동).
   const tr = world.data.rules.terrain;
   const tk = world.run === undefined ? -1 : terrainUnder(world, p.x, p.y);
+  const tfx = world.traitFx;                                       // §11.6 특성(지형 적응 terrainEffectMul · 위기 대응)
   //   slow — 기존 둔화 상태를 «이 틱만큼» 갱신한다: 배율·배지·타이머 규약(§2.7)을 그대로 재사용, 밖으로 나가면 다음 틱에 풀린다.
   if (tk === T_SLOW && p.slowSec < dt) p.slowSec = dt;
   //   heat — 안에서 차고(스턴 중엔 안 찬다: 연쇄 정지 방지) 밖에서 식는다. 다 차면 stallSec 스턴(«과열 정지») 후 0.
-  if (tk === T_HEAT && p.stunSec <= 0) p.heat += dt / tr.heat.fullSec;
+  if (tk === T_HEAT && p.stunSec <= 0) p.heat += (dt / tr.heat.fullSec) * tfx.terrainEffectMul;
   else if (tk !== T_HEAT) p.heat -= dt / tr.heat.coolSec;
   if (p.heat < 0) p.heat = 0;
   if (p.heat >= 1) { if (p.stunSec < tr.heat.stallSec) p.stunSec = tr.heat.stallSec; p.heat = 0; }
@@ -149,14 +157,19 @@ function movePlayer(world, dt) {
 
   // §2.2 파생 상한: moveSpeed × (1 + 패시브 moveSpeedMul)
   let v = rp.moveSpeed * (1 + world.stats.moveSpeedMul);
-  if (p.slowSec > 0) v *= world.data.rules.status.slowMoveSpeedMul;   // §2.7 — 강도는 불변
+  if (p.slowSec > 0) {                                                 // §2.7 — 강도는 불변
+    const mul = world.data.rules.status.slowMoveSpeedMul;
+    // §11.6 지형 적응 — 이 틱의 둔화가 지형에서 온 것이면(tk) 효과를 terrainEffectMul 만큼만 받는다(탄의 둔화는 그대로)
+    v *= (tk === T_SLOW) ? 1 - (1 - mul) * tfx.terrainEffectMul : mul;
+  }
+  if (tfx.crisisMoveSpeedMul > 0 && world.run !== undefined && world.run.crisis) v *= 1 + tfx.crisisMoveSpeedMul;   // §11.6 위기 대응
 
   if (rp.diagonalNormalize && dx !== 0 && dy !== 0) { dx *= DIAG; dy *= DIAG; }
 
   const tvx = dx * v;
   const tvy = dy * v;
   //   inertia — 지형이 §2.2 의 지수 스무딩 항을 켠다(기본 0 = 즉시 응답). 값은 rules.terrain.inertia 가 소유한다.
-  const tau = tk === T_INERTIA ? tr.inertia.responseTauSec : rp.moveResponseTau;
+  const tau = tk === T_INERTIA ? tr.inertia.responseTauSec * tfx.terrainEffectMul : rp.moveResponseTau;
   if (tau > 0) {
     // ★ 항은 존재하고 값이 0이다 — "살짝 미끄럽게"가 필요해도 숫자만 바뀐다 (§2.2 · C-4)
     const k = 1 - Math.exp(-dt / tau);
@@ -590,12 +603,24 @@ export function applyHit(world, raw, srcArch) {
   p.hit = true;
   p.iframeSec = rp.iframeSec;
 
+  // §11.6(v1.10 ⑲) 격벽 — 충전된 방패는 피격 1회를 «통째로» 막는다(피해 0, i-frame 은 그대로 = 연타 차단). 다시 충전.
+  const ts = world.traitState;
+  if (ts.barrierReady) { ts.barrierReady = false; ts.barrierT = 0; noteHit(world); return true; }
+
   // §3.2 — 피격: taken 계산 + i-frame 발동 (v1.5: 실드 폐지 = 원데스 긴박함, 방어막 없음)
   noteHit(world);
   const taken = enemyToPlayer(rp, p, raw);
   noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);     // §13.1.1 치사 지분
   p.hp -= taken;
   if (p.hp <= 0) {
+    // §11.6 재기 — 스테이지마다 한 번, 치명상을 HP 1 로 버티고 iframe 을 길게 받는다
+    const fx = world.traitFx;
+    if (fx.secondWindIframeSec > 0 && !ts.secondWindUsed) {
+      ts.secondWindUsed = true;
+      p.hp = 1;
+      p.iframeSec = fx.secondWindIframeSec;
+      return true;
+    }
     p.hp = 0;
     world.over = true;
     // §11.4 — 사인을 명시한다(두 사인: 'hp' / 'timeout'). 시뮬의 bossTimeoutRate 가 이걸 센다.
@@ -642,6 +667,15 @@ export function killEnemy(world, e) {
   addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
   // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
   if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
+  // §11.6(v1.10 ⑲) 회수 — 잡몹 N 마리마다 HP 1 (유령·중간보스 제외)
+  if (!e.ghost && e.midBossId === '' && world.traitFx.healPerKills > 0) {
+    world.traitState.kills += 1;
+    if (world.traitState.kills >= world.traitFx.healPerKills) {
+      world.traitState.kills = 0;
+      const p = world.player;
+      if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
+    }
+  }
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }
@@ -663,6 +697,14 @@ function killMidBoss(world, e) {
  *   주변 파트 파괴 = armor 면 코어 aliveArmorPartCount −1(§3.1-4 소프트게이트 1단 해제).
  *   ★ 이동 페널티(mobility)·발사 격화(armament)는 B2. 여기선 게이트·반납만 (v1.5: 코인 폐지).
  */
+/** 현재 런 포지션이 최종(테마 없음)인가. stage.isFinale 과 같은 판정이나 step 은 stage.js 를 import 하지 않는다(순환). */
+function isFinaleStage(world) {
+  const id = world.run.order[world.run.stageIndex];
+  const list = world.data.stages.stages;
+  for (let i = 0; i < list.length; i += 1) if (list[i].id === id) return list[i].element === null;
+  return false;
+}
+
 function killBossEntity(world, e) {
   const bcfg = world.data.rules.boss;
   const en = world.enemies.items;
@@ -670,6 +712,12 @@ function killBossEntity(world, e) {
   if (e.isCore) {
     if (world.run !== undefined) world.run.cleared = true;         // stage.tickRun 이 다음 틱에 소화
     for (let i = 0; i < en.length; i += 1) if (en[i].alive && en[i].isBoss) world.enemies.release(en[i]);
+    // §11.6(v1.10 ⑲) 특성 구슬 — 스테이지 보스(최종 제외)의 코어 자리에서 금색 구슬이 나와 «자석»으로 날아온다.
+    //   먹으면 traitQueue 가 1 오르고, stage.tickRun 은 구슬이 무대에 있는 동안 STAGE_CLEAR 로 넘어가지 않는다.
+    if (world.run !== undefined && !world.run.won && !isFinaleStage(world)) {
+      const q = spawnPickup(world, 'trait', 1, e.x, e.y);
+      if (q !== null) q.magnet = true;
+    }
     return;
   }
   // §8.12(v1.5) — 모듈(부위) 격파 = XP 드랍. 각 부위를 잡을 때마다 score 비례 xp 를 떨군다(플레이 피드백).
@@ -746,6 +794,7 @@ function collect(world, q) {
     if (world.tele !== undefined) world.tele.xpGained += gain;                         // §13.1.1 farmXpRatio
     return;
   }
+  if (q.kind === 'trait') { world.traitQueue += 1; return; }                            // §11.6(v1.10 ⑲) 보스의 금색 구슬 → 특성 선택 큐
   // v1.5 — 회복 픽업 폐지: 픽업 kind 는 xp 뿐. 회복 = 스테이지클리어·보급카드가 직접 hp 를 올린다.
   throw new Error(`step: 미지의 픽업 "${q.kind}"`);
 }

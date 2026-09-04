@@ -586,6 +586,11 @@ export function botDraftPick(world, draft) {
   const cards = draft.cards;
   if (cards.length === 0) return 0;
   if (b.policy.draft === 'random') return Math.floor(world.rng.bot.f() * cards.length);
+  // §11.6(v1.10 ⑲) 특성 드래프트 — 회복 묶음(heal)이 있으면 그것(원데스 봇에게 최선), 아니면 첫 장. 정책 색깔과 무관.
+  if (cards[0].category === 'trait') {
+    for (let i = 0; i < cards.length; i += 1) if (cards[i].group === 'heal') return i;
+    return 0;
+  }
 
   // ★ (1) 진화 카드(Lv7→Lv8)가 있으면 즉시 — 진화는 후반 화력의 «단일 최대 배수»(뱀서식). 놓치지 않는다.
   //   ★ 정책 다양성 보존: 이건 어떤 정책이든 하는 «명백한 최선»이라 정책 색깔을 지우지 않는다(진화 카드는 희소).

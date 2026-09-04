@@ -25,7 +25,7 @@ import { validate, MANIFEST } from './core/schema.mjs';
 import { createWorld } from './core/state.js';
 import { step, makeInput, TICK_HZ } from './core/step.js';
 import { setBotPolicy, botInput, botDraftPick } from './core/bot.js';   // 셀프플레이 데모(?demo)
-import { buildDraft, applyCard } from './core/draft.js';
+import { buildDraft, buildTraitDraft, applyCard } from './core/draft.js';
 import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
@@ -468,6 +468,17 @@ async function boot() {
     return true;
   }
 
+  // §11.6(v1.10 ⑲) 특성 3택 — 같은 DRAFT 화면·같은 입력(tickDraft/pick). 후보가 0장이면(전부 보유) 큐만 비운다.
+  function openTraitDraft() {
+    const td = buildTraitDraft(world);
+    if (td.cards.length === 0) { world.traitQueue = 0; return false; }
+    draft = td;
+    cursor = 0;
+    acc = 0;
+    enter('DRAFT');
+    return true;
+  }
+
   // ★ v1.5 — 상점 입력(tickShop)은 폐지됐다: 경제 제거.
 
   function tickDraft(confirmE) {
@@ -574,8 +585,10 @@ async function boot() {
         steps += 1;
         // §11.4(v1.5) — 사망 = 즉시 결과. 컨티뉴 폐지 = 원데스=게임오버.
         if (world.over) { enter('RESULTS'); break; }
-        // §6.5(v1.5) STAGE_CLEAR → 회복 → 바로 다음 스테이지 배너 (상점 폐지).
+        // §6.5(v1.5) STAGE_CLEAR → (§11.6 특성 선택) → 회복 → 바로 다음 스테이지 배너 (상점 폐지).
         if (world.run.phase === PHASE.STAGE_CLEAR) {
+          // §11.6(v1.10 ⑲) 보스의 금색 구슬을 먹었으면(traitQueue) 먼저 특성 3택 — 고르면 다음 프레임에 여기로 다시 온다
+          if (world.traitQueue > 0 && openTraitDraft()) break;
           applyStageClearHeal(world);
           advanceStage(world);
           enterBanner();

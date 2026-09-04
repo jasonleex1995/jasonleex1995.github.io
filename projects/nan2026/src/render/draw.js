@@ -147,7 +147,7 @@ export function resolvePalette(rules) {
       outline: f(p.threat.outline),
     },
     status: { band: f(p.status.band) },
-    pickup: { xp: f(p.pickup.xp) },
+    pickup: { xp: f(p.pickup.xp), trait: f(p.pickup.trait) },
     enemyBody: f(p.enemyBody),
     partDestroyed: f(p.partDestroyed),
     neutralGray: f(p.neutralGray),
@@ -662,7 +662,20 @@ function drawPickups(ctx, world, pal, interp, alpha) {
     if (!q.alive) continue;
     const x = lerpX(interp, interp.pickups, q, alpha);
     const y = lerpY(interp, interp.pickups, q, alpha);
-    // v1.5 — 픽업 kind 는 xp 뿐 (회복 픽업 폐지). 마름모, 값이 클수록 크게 (플레이테스트 #5b)
+    if (q.kind === 'trait') {
+      // §11.6(v1.10 ⑲) 특성 구슬 — 금색(pickup.trait = hud.accent 채널) 원 + 맥동하는 테두리 링. §7.8 의 «≤6px 납작»
+      //   규칙은 XP 픽업의 것이고, 이 구슬은 판에 하나뿐인 «보상 그 자체»라 크게(반지름 9) 보인다.
+      const pulse = 0.5 + 0.5 * Math.sin(world.time * Math.PI * 2 * 1.5);
+      ctx.fillStyle = pal.pickup.trait;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = rgba(pal.pickup.trait, 0.35 + 0.45 * pulse);
+      ctx.beginPath(); ctx.arc(x, y, 13 + pulse * 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = rgba(pal.threat.bulletCore, 0.9);
+      ctx.beginPath(); ctx.arc(x - 3, y - 3, 2.5, 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
+    // v1.5 — 픽업 kind 는 xp (회복 픽업 폐지) · v1.10 ⑲ trait. 마름모, 값이 클수록 크게 (플레이테스트 #5b)
     ctx.fillStyle = pal.pickup.xp;
     const s = 2.2 + Math.min(q.value, 24) * 0.09;            // 1→2.3 · 6→2.7 · 12→3.3 · 병합24+→4.4
     glyphPath(ctx, 'water', x, y, s);

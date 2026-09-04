@@ -173,6 +173,58 @@ function makeEnemyBullet() {
   };
 }
 
+/** §11.6 — 특성 효과의 평면 표현. 0/1 = «없음». 핫패스(step·damage·stance)는 이것만 읽는다(문자열 비교 0). */
+export function makeTraitFx() {
+  return {
+    regenHpPerSec: 0, healPerKills: 0, stageClearHealPct: -1, barrierEverySec: 0, secondWindIframeSec: 0,
+    dmgMulAboveHp: 0, dmgMulAboveHpRatio: 1, bossDmgMul: 0, stanceEchoRadiusPx: 0, stanceEchoIframeSec: 0,
+    terrainEffectMul: 1, crisisMoveSpeedMul: 0,
+  };
+}
+
+/** §11.6 — 보유 특성으로 traitFx 를 다시 만든다(획득 순서 무관·결정적). 미지의 kind 는 폴백 없이 던진다(§9.3). */
+export function recomputeTraitFx(world) {
+  const fx = world.traitFx;
+  const base = makeTraitFx();
+  for (const k of Object.keys(base)) fx[k] = base[k];
+  const defs = world.data.traits.traits;
+  for (let i = 0; i < world.traits.length; i += 1) {
+    let def = null;
+    for (let j = 0; j < defs.length; j += 1) if (defs[j].id === world.traits[i]) { def = defs[j]; break; }
+    if (def === null) throw new Error(`state: 미지의 특성 "${world.traits[i]}" (§11.6)`);
+    const e = def.effect;
+    switch (e.kind) {
+      case 'regenHpPerSec': fx.regenHpPerSec += e.value; break;
+      case 'healPerKills': fx.healPerKills = e.value; break;
+      case 'stageClearHealPct': fx.stageClearHealPct = e.value; break;
+      case 'barrierEverySec': fx.barrierEverySec = e.value; break;
+      case 'secondWindIframeSec': fx.secondWindIframeSec = e.value; break;
+      case 'dmgMulAboveHp': fx.dmgMulAboveHp = e.value; fx.dmgMulAboveHpRatio = e.hpRatio; break;
+      case 'bossDmgMul': fx.bossDmgMul = e.value; break;
+      case 'stanceEchoRadiusPx': fx.stanceEchoRadiusPx = e.value; fx.stanceEchoIframeSec = e.iframeSec; break;
+      case 'terrainEffectMul': fx.terrainEffectMul = e.value; break;
+      case 'crisisMoveSpeedMul': fx.crisisMoveSpeedMul = e.value; break;
+      default: throw new Error(`state: 미지의 특성 효과 "${e.kind}" (§11.6)`);
+    }
+  }
+  return fx;
+}
+
+/** §11.6 — 특성 획득. 이미 가진 것은 false. 같은 묶음(group)을 둘 가질 수 없다(드래프트가 먼저 거르지만 여기서도 지킨다). */
+export function applyTrait(world, traitId) {
+  if (world.traits.indexOf(traitId) >= 0) return false;
+  const defs = world.data.traits.traits;
+  let def = null;
+  for (let j = 0; j < defs.length; j += 1) if (defs[j].id === traitId) { def = defs[j]; break; }
+  if (def === null) throw new Error(`state: 미지의 특성 "${traitId}" (§11.6)`);
+  for (let i = 0; i < world.traits.length; i += 1) {
+    for (let j = 0; j < defs.length; j += 1) if (defs[j].id === world.traits[i] && defs[j].group === def.group) return false;
+  }
+  world.traits.push(traitId);
+  recomputeTraitFx(world);
+  return true;
+}
+
 function makePickup() {
   return { alive: false, idx: 0, gen: 0, kind: '', value: 0, x: 0, y: 0, vx: 0, vy: 0, magnet: false };
 }
@@ -475,6 +527,12 @@ export function createWorld(opts) {
 
     // §6.4 — 레벨업 드래프트 큐. 소화는 호출자(상태 기계)의 몫이며 core 는 세기만 한다
     draftQueue: 0,
+    // §11.6(v1.10 ⑲) 특성 — 보스 처치 보상. traits = 보유 id 열(획득 순), traitQueue = 아직 안 고른 구슬 수,
+    //   traitFx = 핫패스가 읽는 평면 효과(applyTrait 가 재계산), traitState = 런 안의 카운터(방패·처치 수·재기 사용 여부).
+    traits: [],
+    traitQueue: 0,
+    traitFx: makeTraitFx(),
+    traitState: { barrierT: 0, barrierReady: false, kills: 0, secondWindUsed: false },
     draftsSeen: 0,
     elementPity: 0,      // §11.1 elementCardPity — 속성 카드가 "등장"하지 않은 연속 드래프트 수
     autoEquipDone: false, // §9.9 onboarding.autoEquipFirstElement — 투자 0→1 최초 전이에서만

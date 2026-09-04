@@ -38,7 +38,7 @@ import { spawnBoss } from '../src/core/boss.js';
 import {
   initRun, tickRun, advanceStage, applyStageClearHeal, PHASE,
 } from '../src/core/stage.js';
-import { buildDraft, applyCard } from '../src/core/draft.js';
+import { buildDraft, buildTraitDraft, applyCard } from '../src/core/draft.js';
 import { setBotPolicy, botInput, botDraftPick } from '../src/core/bot.js';
 import { tally } from '../src/core/score.js';
 
@@ -156,6 +156,12 @@ export function driveRun(data, seed, opts) {
 
     // ── 결정 지점 2: 스테이지 클리어 → 회복 → 다음 스테이지 (v1.5: 상점 폐지) ────
     if (world.run.phase === PHASE.STAGE_CLEAR) {
+      // §11.6(v1.10 ⑲) 특성 3택 — 봇은 회복 묶음 우선(botDraftPick)
+      while (world.traitQueue > 0) {
+        const td = buildTraitDraft(world);
+        if (td.cards.length === 0) { world.traitQueue = 0; break; }
+        applyCard(world, td.cards[botDraftPick(world, td)]);
+      }
       applyStageClearHeal(world);
       r.stagesCleared += 1;
       advanceStage(world);

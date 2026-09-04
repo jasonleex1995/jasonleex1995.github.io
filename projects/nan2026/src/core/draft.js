@@ -17,7 +17,7 @@
  *   선택이 아니라 자동 최적화가 된다.
  */
 
-import { giveWeapon, levelUpWeapon, givePassive } from './state.js';
+import { giveWeapon, levelUpWeapon, givePassive, applyTrait } from './state.js';
 import { WEAPON_MAX_LEVEL, WEAPON_EVOLVE_LEVEL } from './schema.mjs';
 import { investElement, investTotal, requestStance } from './stance.js';
 
@@ -26,6 +26,7 @@ const CAT_WEAPON_LEVEL = 'weaponLevel';
 const CAT_ELEMENT_LEVEL = 'elementLevel';
 const CAT_PASSIVE = 'passive';
 const CAT_RESUPPLY = 'resupply';
+const CAT_TRAIT = 'trait';       // §11.6(v1.10 ⑲) 보스 특성 — 별도 드래프트(buildTraitDraft)
 
 const MAX_WEAPON_LEVEL = WEAPON_MAX_LEVEL;   // §9.5(v1.10 ⑱) — Lv10 종료. Lv8 = 진화(WEAPON_EVOLVE_LEVEL), Lv9·10 = 진화체 강화
 
@@ -281,9 +282,42 @@ export function applyCard(world, card) {
     // v1.5 — 보급 폴백 = 회복(코인 폐지). healPct × hpMax 만큼 즉시 회복.
     const p = world.player;
     p.hp = Math.min(p.hpMax, p.hp + card.healPct * p.hpMax);
+  } else if (card.category === CAT_TRAIT) {
+    // §11.6 — 특성 드래프트는 레벨업 큐가 아니라 traitQueue 를 소비한다
+    applyTrait(world, card.traitId);
+    if (world.traitQueue > 0) world.traitQueue -= 1;
+    return;
   } else {
     throw new Error(`draft: 미지의 카테고리 "${card.category}" (§11.1)`);
   }
   world.draftsSeen += 1;
   if (world.draftQueue > 0) world.draftQueue -= 1;
+}
+
+/**
+ * §11.6(v1.10 ⑲) 특성 드래프트 — 보스의 금색 구슬을 먹었을 때(traitQueue > 0) 연다.
+ *   후보 = 아직 없는 특성 중 «이미 가진 묶음(group)» 이 아닌 것. rng.draft 로 섞은 뒤 offerCount 장을 고르되
+ *   한 제안 안에 같은 묶음은 한 장만(회복 3종이 나란히 나오지 않게). 후보가 모자라면 그만큼만 낸다(폴백 카드 없음 —
+ *   특성은 «있으면 좋은 것»이지 레벨업이 아니다). 결정적(§10.2 draft 스트림).
+ */
+export function buildTraitDraft(world) {
+  const td = world.data.traits;
+  const owned = new Set(world.traits);
+  const ownedGroups = new Set();
+  for (const t of td.traits) if (owned.has(t.id)) ownedGroups.add(t.group);
+  const pool = [];
+  for (const t of td.traits) if (!owned.has(t.id) && !ownedGroups.has(t.group)) pool.push(t);
+  for (let i = pool.length - 1; i > 0; i -= 1) {                 // Fisher–Yates (rng.draft)
+    const j = Math.floor(world.rng.draft.f() * (i + 1));
+    const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  const cards = [];
+  const groupsSeen = new Set();
+  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) {
+    const t = pool[i];
+    if (groupsSeen.has(t.group)) continue;
+    groupsSeen.add(t.group);
+    cards.push({ category: CAT_TRAIT, key: `${CAT_TRAIT}:${t.id}`, traitId: t.id, name: t.name, desc: t.desc, group: t.group, weight: 1 });
+  }
+  return { cards, pityBefore: world.elementPity };
 }

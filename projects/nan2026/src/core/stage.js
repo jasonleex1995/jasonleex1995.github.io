@@ -169,6 +169,9 @@ export function tickRun(world, dt) {
     //   신호는 항상 다음 틱에 소비되는데, 그 틱의 bossTimer 감소가 먼저 0 을 넘으면 격파가 시간초과
     //   패배로 뒤집힌다 — 순서를 역전해 막는다.
     if (run.cleared) {
+      // §11.6(v1.10 ⑲) — 특성 구슬이 아직 무대에 있으면(플레이어에게 날아오는 중) 그것을 먹을 때까지 기다린다.
+      //   보스는 이미 죽었고 탄도 없다 — «구슬을 먹으면 선택»이 사실이 되게 한다(즉시 전이하면 구슬이 사라진다).
+      if (traitPickupAlive(world)) return;
       run.cleared = false;
       // §11.3 — 보스 격파 보너스 + 잔여 타이머의 시간 보너스(토큰을 쓴 보스전은 0)
       addBossClear(world, run.bossTimer);
@@ -201,8 +204,16 @@ export function tickRun(world, dt) {
 }
 
 /** §2.1 — 스테이지 클리어 회복(flow.stageClearHealPct). 드라이버가 HEAL 연출 시점에 부른다. */
+/** §11.6 — 무대에 살아 있는 특성 구슬이 있는가 */
+export function traitPickupAlive(world) {
+  const it = world.pickups.items;
+  for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].kind === 'trait') return true;
+  return false;
+}
+
 export function applyStageClearHeal(world) {
-  const pct = world.data.meta.flow.stageClearHealPct;
+  // §11.6(v1.10 ⑲) 보급 강화 특성이 있으면 그 비율(-1 = 없음 → flow 기본값)
+  const pct = world.traitFx.stageClearHealPct >= 0 ? world.traitFx.stageClearHealPct : world.data.meta.flow.stageClearHealPct;
   const p = world.player;
   const heal = pct * p.hpMax;
   p.hp += heal;
@@ -217,6 +228,7 @@ export function advanceStage(world) {
   const run = world.run;
   clearTerrain(world);             // §8.21 — 이전 테마의 지형은 넘어가지 않는다
   run.wipeT = -1;
+  world.traitState.secondWindUsed = false;   // §11.6 재기 — 스테이지마다 한 번
   run.stageIndex += 1;
   run.phase = PHASE.MOB;
   run.phaseT = 0;
