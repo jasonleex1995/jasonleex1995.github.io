@@ -295,25 +295,23 @@ export function applyCard(world, card) {
 }
 
 /**
- * §11.6(v1.10 ⑲ · ㉑) 특성 드래프트 — 보스의 금색 구슬을 먹었을 때(traitQueue > 0) 연다.
- *   후보 = 아직 없는 특성 전부(★ ㉑: 묶음 배타 없음 — 같은 테마를 여러 개 가져도 된다). rng.draft 로 섞은 뒤
- *   1차: 테마(group)마다 한 장씩 offerCount 까지(세 장이 서로 다른 선택이 되게), 2차: 아직 모자라면 남은 후보로 채운다
- *   (테마가 바닥나도 제안은 offerCount 장 — S59 ③ 이 «후보 수»로 이를 보증한다). 폴백 카드 없음. 결정적(§10.2 draft 스트림).
+ * §11.6(v1.10 ㉒) 특성 드래프트 — 보스의 금색 구슬을 먹었을 때(traitQueue > 0) 연다.
+ *   사용자(2026-09-05): 「딱 3개(자연 재생·흡혈·쉴드 생성)에 대해서 그냥 선택하게 만들자. 선택하면 쿨타임이 줄거나 회복 폭이
+ *   늘어나는 방식」. 제안 = **세 특성 전부, 데이터 순서 그대로**(무작위 없음 — 같은 자리는 늘 같은 특성이라 «셋 중 하나»가 화면에서
+ *   읽힌다). 카드는 현재 레벨과 다음 값을 든다(from = 지금 값 또는 null, to = 다음 값). maxLevel 인 특성은 안 나온다
+ *   (구슬은 maxLevel 개뿐이라 정상 런에서는 일어나지 않는다). 폴백 카드 없음. rng 를 쓰지 않는다.
  */
 export function buildTraitDraft(world) {
   const td = world.data.traits;
-  const owned = new Set(world.traits);
-  const pool = [];
-  for (const t of td.traits) if (!owned.has(t.id)) pool.push(t);
-  for (let i = pool.length - 1; i > 0; i -= 1) {                 // Fisher–Yates (rng.draft)
-    const j = Math.floor(world.rng.draft.f() * (i + 1));
-    const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
-  }
   const cards = [];
-  const taken = new Set();
-  const groupsSeen = new Set();
-  const push = (t) => { taken.add(t.id); groupsSeen.add(t.group); cards.push({ category: CAT_TRAIT, key: `${CAT_TRAIT}:${t.id}`, traitId: t.id, name: t.name, desc: t.desc, group: t.group, weight: 1 }); };
-  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) if (!groupsSeen.has(pool[i].group)) push(pool[i]);   // 1차 — 테마별 하나
-  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) if (!taken.has(pool[i].id)) push(pool[i]);            // 2차 — 남은 것으로
+  for (let i = 0; i < td.traits.length; i += 1) {
+    const t = td.traits[i];
+    const lv = world.traits[t.id];
+    if (lv >= td.maxLevel) continue;
+    cards.push({
+      category: CAT_TRAIT, key: `${CAT_TRAIT}:${t.id}`, traitId: t.id, name: t.name, desc: t.desc, kind: t.effect.kind,
+      level: lv, from: lv > 0 ? t.effect.values[lv - 1] : null, to: t.effect.values[lv], weight: 1,
+    });
+  }
   return { cards, pityBefore: world.elementPity };
 }

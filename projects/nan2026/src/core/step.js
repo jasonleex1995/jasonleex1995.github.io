@@ -23,7 +23,7 @@ import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } f
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
-import { recomputeEff, spawnPickup, pushHitFx, xpToNext, markEffDirty } from './state.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 import { DEG2RAD, wrapAngle } from './angle.js';
 
@@ -121,16 +121,12 @@ function readInput(world, input, dt) {
   if (p.slowSec > 0) { p.slowSec -= dt; if (p.slowSec < 0) p.slowSec = 0; }
   if (p.stunSec > 0) { p.stunSec -= dt; if (p.stunSec < 0) p.stunSec = 0; }
   if (p.ghostSec > 0) { p.ghostSec -= dt; if (p.ghostSec < 0) p.ghostSec = 0; }
-  // §11.6(v1.10 ⑲) 특성 — 자연 재생 · 격벽 충전
+  // §11.6(v1.10 ⑲·㉒) 특성 — 자연 재생 · 쉴드 충전
   const fx = world.traitFx;
   if (fx.regenHpPerSec > 0 && p.hp > 0 && p.hp < p.hpMax) { p.hp += fx.regenHpPerSec * dt; if (p.hp > p.hpMax) p.hp = p.hpMax; }
-  if (fx.barrierEverySec > 0 && !world.traitState.barrierReady) {
-    world.traitState.barrierT += dt;
-    if (world.traitState.barrierT >= fx.barrierEverySec) { world.traitState.barrierReady = true; world.traitState.barrierT = 0; }
-  }
-  if (world.traitState.surgeT > 0) {                                                    // 전환 가속 창 — 끝나는 틱에 eff 캐시 무효화
-    world.traitState.surgeT -= dt;
-    if (world.traitState.surgeT <= 0) { world.traitState.surgeT = 0; markEffDirty(world); }
+  if (fx.shieldEverySec > 0 && !world.traitState.shieldReady) {                      // 쉴드 생성 — 레벨이 오르면 everySec 이 줄어든다
+    world.traitState.shieldT += dt;
+    if (world.traitState.shieldT >= fx.shieldEverySec) { world.traitState.shieldReady = true; world.traitState.shieldT = 0; }
   }
 }
 
@@ -608,9 +604,9 @@ export function applyHit(world, raw, srcArch) {
   p.hit = true;
   p.iframeSec = rp.iframeSec;
 
-  // §11.6(v1.10 ⑲) 격벽 — 충전된 방패는 피격 1회를 «통째로» 막는다(피해 0, i-frame 은 그대로 = 연타 차단). 다시 충전.
+  // §11.6(v1.10 ⑲·㉒) 쉴드 — 충전된 쉴드는 피격 1회를 «통째로» 막는다(피해 0, i-frame 은 그대로 = 연타 차단). 다시 충전.
   const ts = world.traitState;
-  if (ts.barrierReady) { ts.barrierReady = false; ts.barrierT = 0; noteHit(world); return true; }
+  if (ts.shieldReady) { ts.shieldReady = false; ts.shieldT = 0; noteHit(world); return true; }
 
   // §3.2 — 피격: taken 계산 + i-frame 발동 (v1.5: 실드 폐지 = 원데스 긴박함, 방어막 없음)
   noteHit(world);
@@ -618,14 +614,6 @@ export function applyHit(world, raw, srcArch) {
   noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);     // §13.1.1 치사 지분
   p.hp -= taken;
   if (p.hp <= 0) {
-    // §11.6 재기 — 스테이지마다 한 번, 치명상을 HP 1 로 버티고 iframe 을 길게 받는다
-    const fx = world.traitFx;
-    if (fx.secondWindIframeSec > 0 && !ts.secondWindUsed) {
-      ts.secondWindUsed = true;
-      p.hp = 1;
-      p.iframeSec = fx.secondWindIframeSec;
-      return true;
-    }
     p.hp = 0;
     world.over = true;
     // §11.4 — 사인을 명시한다(두 사인: 'hp' / 'timeout'). 시뮬의 bossTimeoutRate 가 이걸 센다.
@@ -672,15 +660,6 @@ export function killEnemy(world, e) {
   addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
   // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
   if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
-  // §11.6(v1.10 ⑲) 회수 — 잡몹 N 마리마다 HP 1 (유령·중간보스 제외)
-  if (!e.ghost && e.midBossId === '' && world.traitFx.healPerKills > 0) {
-    world.traitState.kills += 1;
-    if (world.traitState.kills >= world.traitFx.healPerKills) {
-      world.traitState.kills = 0;
-      const p = world.player;
-      if (p.hp < p.hpMax) p.hp = Math.min(p.hpMax, p.hp + 1);
-    }
-  }
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }

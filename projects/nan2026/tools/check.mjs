@@ -458,6 +458,7 @@ const RULES_ROOT_17 = ['loop', 'view', 'collide', 'caps', 'player', 'status', 'e
 const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];
 const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fire' };   // §8.21 ② (schema.mjs 와 같은 사전 — check 는 독립 사본)
 const TERRAIN_MIXED = 'mixed';                                                     // §8.21 ③ finale 순환
+const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 ㉒ (schema.mjs 와 같은 어휘 — check 는 독립 사본)
 const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 구간 어휘
 
 function S2_schema() {
@@ -3320,61 +3321,45 @@ function S58_orbitRadius() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  S59 — 특성 (§11.6 v1.10 ⑲)
+//  S59 — 특성 (§11.6 v1.10 ⑲ · ㉒)
 // ─────────────────────────────────────────────────────────────────────────────
 /**
- * 사용자(2026-09-04): 「특성을 보스 몹 잡으면 보스 모듈에 생기는 노란색을 먹으면 선택할 수 있는 걸 만들자. 체력 회복 옵션이
- *   필요하다.」 로더(schema.checkTraits)가 형식을 지키고, 여기는 «설계»를 지킨다:
- *   ① 회복 테마(heal)에 특성이 ≥ 1 — 회복원이 원데스 게임의 유일한 «구조적» 회복이다
- *   ② 테마(group)마다 ≥ 1 — 죽은 테마 금지. ★ v1.10 ㉑(사용자 2026-09-05 「테마를 확실하게, 여러 개 먹어도 되게」): 묶음 배타가
- *      없어졌으므로 «테마 수 ≥ offerCount» 는 더 이상 조건이 아니다(2차 채움이 제안을 채운다) — 대신 테마마다 특성 수가 같다(균형: 3×4)
- *   ③ 특성 수 ≥ 스테이지 보스 수(5) + offerCount − 1 — 5번째 보스에서도 3택이 «수»로 성립한다(배타가 없으니 이것이 정확한 하한)
- *   ④ 값의 범위: regenHpPerSec ≤ 1.0 · healPerKills ≥ 5 · stageClearHealPct ≤ 0.5 · barrierEverySec ≥ 10 · secondWindIframeSec ≤ 3
- *      · defenseAdd ∈ [1, 3](§2.1 상한 8 안, 특성은 하나뿐이라 3 이 곧 런 최대) · dmgMulAboveHp ≤ 0.3 ∧ hpRatio ∈ (0.5, 1]
- *      · bossDmgMul ≤ 0.5 · lowHpDmgMul ≤ 0.5 ∧ hpRatio ∈ (0, 0.5] · stanceEchoRadiusPx ≤ 240 ∧ iframeSec ≤ 1
- *      · stanceSurgeFireMul ≤ 0.5 ∧ sec ∈ (0, 3] · stanceMagnetRadiusPx ∈ [player.magnetRadius, arena.h]
- *      — 특성은 «규칙을 비트는 것»이지 스탯 패시브를 대신하지 않는다(§11.6)
- *   ⑤ palette.pickup.trait 가 있다 — 구슬은 «보상 그 자체»라 자기 색이 있다(hud.accent 채널)
+ * 사용자(2026-09-05): 「딱 3개 — 자연 재생·흡혈·쉴드 생성 — 중에서 선택하게 만들자. 선택하면 쿨타임이 줄거나 회복 폭이 늘어나는
+ *   방식으로.」 로더(schema.checkTraits)가 형식(닫힌 키·kind 어휘·1:1·values 길이 = maxLevel·양수)을 지키고, 여기는 «설계»를 지킨다:
+ *   ① maxLevel = 한 런의 구슬 수(스테이지 보스 5 — 최종은 구슬이 없다) — 다섯 번 고르면 정확히 다섯 레벨이 있다
+ *   ② 효과 어휘 3종이 전부 쓰인다 — 안 쓰이는 kind 는 죽은 어휘 (특성 수 = 어휘 수 = 3)
+ *   ③ 레벨은 «좋아지는 방향»으로 단조: 재생·흡혈은 증가, 쉴드 주기는 감소 — 같은 카드를 다시 골랐는데 나빠지면 안 된다
+ *   ④ 값의 범위: regenHpPerSec ≤ 2.0(초당 2 = 100 HP 를 50초에 — 원데스 긴박함의 하한) · lifestealPct ≤ 0.03(봇 실측 DPS 51 → 1.5 HP/s)
+ *      · shieldEverySec ≥ fairness.iframeSec(1.0) × 5 — 쉴드가 i-frame 보다 촘촘하면 «맞을 수 없는» 기체가 된다
+ *   ⑤ palette.pickup.trait 가 있다 — 구슬은 «보상 그 자체»라 자기 색이 있다(hud.accent 채널). 쉴드 링도 이 색
  */
 function S59_traits() {
   const td = D.traits;
   if (!isObj(td) || !Array.isArray(td.traits)) { V('S59', 'traits.json 이 없다 (§11.6)'); return; }
   let n = 0;
-  const byGroup = {};
-  for (const t of td.traits) { if (!isObj(t)) continue; byGroup[t.group] = (byGroup[t.group] || 0) + 1; }
+  const runBosses = 5;   // 한 런 = 테마 5 + 최종(구슬 없음)
   n += 1;
-  if (!(byGroup.heal >= 1)) V('S59', 'traits: 회복 묶음(heal)에 특성이 0 — 사용자 요구 「체력 회복 옵션」 (§11.6 ①)');
+  if (td.maxLevel !== runBosses) V('S59', `traits.maxLevel = ${td.maxLevel} ≠ 한 런의 구슬 수 ${runBosses} — 다섯 번 고르면 정확히 다섯 레벨이어야 한다 (§11.6 ①)`);
   n += 1;
-  for (const g of rowsQuiet(td.groups)) if (!(byGroup[g] >= 1)) V('S59', `traits.groups "${g}" 에 특성이 0 — 죽은 테마 (§11.6 ②)`);
-  {
-    const sizes = Array.isArray(td.groups) ? td.groups.map((g) => byGroup[g] || 0) : [];
-    if (sizes.length > 0 && Math.min(...sizes) !== Math.max(...sizes)) V('S59', `traits: 테마별 특성 수 ${JSON.stringify(sizes)} — 테마가 «확실»하려면 수가 같아야 한다 (§11.6 ②, v1.10 ㉑)`);
-  }
-  n += 1;
-  const bossCount = Array.isArray(D.stages && D.stages.stages) ? D.stages.stages.filter((s2) => isObj(s2) && s2.element !== null).length - 1 : 5;   // 테마 6 중 5개가 한 런에
-  const runBosses = 5;
-  if (num(td.offerCount) && td.traits.length < runBosses + td.offerCount - 1) V('S59', `traits: 특성 ${td.traits.length}개 < 보스 ${runBosses} + offerCount − 1 = ${runBosses + td.offerCount - 1} — 다섯째 보스에서 3택이 안 선다 (§11.6 ③)`);
-  void bossCount;
-  n += 1;
+  const used = new Set(td.traits.filter(isObj).map((t) => isObj(t.effect) ? t.effect.kind : ''));
+  for (const k of TRAIT_EFFECT_KINDS) if (!used.has(k)) V('S59', `특성 효과 "${k}" 를 쓰는 특성이 0 — 죽은 어휘 (§11.6 ②)`);
+  if (td.traits.length !== TRAIT_EFFECT_KINDS.length) V('S59', `특성 ${td.traits.length}개 ≠ 효과 어휘 ${TRAIT_EFFECT_KINDS.length} — 1:1 (§11.6 ②)`);
   for (const t of td.traits) {
-    if (!isObj(t) || !isObj(t.effect)) continue;
-    const e = t.effect; const tag = `traits[${t.id}].effect`;
-    const bad = (m) => V('S59', `${tag}: ${m} (§11.6 ④)`);
-    switch (e.kind) {
-      case 'regenHpPerSec': if (e.value > 1.0) bad(`regenHpPerSec ${e.value} > 1.0`); break;
-      case 'healPerKills': if (!Number.isInteger(e.value) || e.value < 5) bad(`healPerKills ${e.value} — 정수 ≥ 5`); break;
-      case 'stageClearHealPct': if (e.value > 0.5) bad(`stageClearHealPct ${e.value} > 0.5`); break;
-      case 'barrierEverySec': if (e.value < 10) bad(`barrierEverySec ${e.value} < 10`); break;
-      case 'secondWindIframeSec': if (e.value > 3) bad(`secondWindIframeSec ${e.value} > 3`); break;
-      case 'dmgMulAboveHp': if (e.value > 0.3 || !num(e.hpRatio) || e.hpRatio <= 0.5 || e.hpRatio > 1) bad(`dmgMulAboveHp ${e.value} / hpRatio ${e.hpRatio}`); break;
-      case 'bossDmgMul': if (e.value > 0.5) bad(`bossDmgMul ${e.value} > 0.5`); break;
-      case 'stanceEchoRadiusPx': if (e.value > 240 || !num(e.iframeSec) || e.iframeSec > 1) bad(`stanceEchoRadiusPx ${e.value} / iframeSec ${e.iframeSec}`); break;
-      case 'defenseAdd': if (!Number.isInteger(e.value) || e.value < 1 || e.value > 3) bad(`defenseAdd ${e.value} ∉ [1, 3] — §2.1 방어 상한 8 안의 «한 장»`); break;
-      case 'lowHpDmgMul': if (e.value > 0.5 || !num(e.hpRatio) || e.hpRatio <= 0 || e.hpRatio > 0.5) bad(`lowHpDmgMul ${e.value} / hpRatio ${e.hpRatio}`); break;
-      case 'stanceSurgeFireMul': if (e.value > 0.5 || !num(e.sec) || e.sec <= 0 || e.sec > 3) bad(`stanceSurgeFireMul ${e.value} / sec ${e.sec}`); break;
-      case 'stanceMagnetRadiusPx': {
-        const lo = D.rules.player.magnetRadius; const hi = D.rules.view.arena.h;
-        if (e.value < lo || e.value > hi) bad(`stanceMagnetRadiusPx ${e.value} ∉ [magnetRadius ${lo}, arena.h ${hi}] — 자석보다 작으면 죽은 특성`);
+    if (!isObj(t) || !isObj(t.effect) || !Array.isArray(t.effect.values)) continue;
+    const v = t.effect.values; const tag = `traits[${t.id}].effect`;
+    n += 1;
+    const dec = t.effect.kind === 'shieldEverySec';
+    for (let i = 1; i < v.length; i += 1) {
+      if (dec ? !(v[i] < v[i - 1]) : !(v[i] > v[i - 1])) V('S59', `${tag}.values[${i}] = ${v[i]} — ${dec ? '주기는 레벨마다 줄어야' : '레벨마다 늘어야'} 한다 (§11.6 ③)`);
+    }
+    n += 1;
+    const mx = Math.max(...v); const mn = Math.min(...v);
+    switch (t.effect.kind) {
+      case 'regenHpPerSec': if (mx > 2.0) V('S59', `${tag}: 최대 ${mx} > 2.0 HP/s (§11.6 ④)`); break;
+      case 'lifestealPct': if (mx > 0.03) V('S59', `${tag}: 최대 ${mx} > 0.03 (§11.6 ④)`); break;
+      case 'shieldEverySec': {
+        const lo = D.rules.player.iframeSec * 5;
+        if (mn < lo) V('S59', `${tag}: 최소 ${mn}초 < i-frame × 5 = ${lo}초 — 쉴드가 무적보다 촘촘하다 (§11.6 ④)`);
         break;
       }
       default: break;   // 어휘는 로더(schema)가 지킨다

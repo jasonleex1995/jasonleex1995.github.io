@@ -1,31 +1,12 @@
 {
   "schemaVersion": 1,
-  "offerCount": 3,
-  "groups": ["heal", "guard", "power", "stance"],
+  "maxLevel": 5,
   "traits": [
-    { "id":"regen",        "name":"자연 재생",   "group":"heal",   "desc":"초당 0.5 HP 가 회복된다",
-      "effect": { "kind":"regenHpPerSec",       "value":0.5 } },
-    { "id":"salvage",      "name":"회수",       "group":"heal",   "desc":"잡몹 12마리를 처치할 때마다 HP 1",
-      "effect": { "kind":"healPerKills",        "value":12 } },
-    { "id":"resupply",     "name":"보급 강화",   "group":"heal",   "desc":"스테이지 클리어 회복 20% → 40%",
-      "effect": { "kind":"stageClearHealPct",   "value":0.40 } },
-    { "id":"barrier",      "name":"격벽",       "group":"guard",  "desc":"20초마다 피격 1회를 막는 방패가 생긴다",
-      "effect": { "kind":"barrierEverySec",     "value":20 } },
-    { "id":"secondWind",   "name":"재기",       "group":"guard",  "desc":"스테이지마다 한 번, 치명상을 HP 1로 버티고 2초 무적",
-      "effect": { "kind":"secondWindIframeSec", "value":2.0 } },
-    { "id":"armor",        "name":"장갑",       "group":"guard",  "desc":"받는 피해 −3 (원래의 25% 아래로는 안 내려간다)",
-      "effect": { "kind":"defenseAdd",          "value":3 } },
-    { "id":"clean",        "name":"청정",       "group":"power",  "desc":"HP 90% 이상일 때 피해 +15%",
-      "effect": { "kind":"dmgMulAboveHp",       "value":0.15, "hpRatio":0.90 } },
-    { "id":"bossHunter",   "name":"보스 사냥꾼",  "group":"power",  "desc":"중간보스·보스에게 피해 +25%",
-      "effect": { "kind":"bossDmgMul",          "value":0.25 } },
-    { "id":"execute",      "name":"처형",       "group":"power",  "desc":"HP 25% 이하인 적에게 피해 +40%",
-      "effect": { "kind":"lowHpDmgMul",         "value":0.40, "hpRatio":0.25 } },
-    { "id":"stanceEcho",   "name":"스탠스 공명",  "group":"stance", "desc":"스탠스를 바꾸는 순간 반경 150px 의 적 탄이 지워지고 0.4초 무적",
-      "effect": { "kind":"stanceEchoRadiusPx",  "value":150, "iframeSec":0.4 } },
-    { "id":"stanceSurge",  "name":"전환 가속",   "group":"stance", "desc":"스탠스를 바꾼 뒤 1.5초 동안 모든 무기의 발사 주기 −30%",
-      "effect": { "kind":"stanceSurgeFireMul",  "value":0.30, "sec":1.5 } },
-    { "id":"stanceMagnet", "name":"전환 회수",   "group":"stance", "desc":"스탠스를 바꾸는 순간 반경 400px 의 픽업이 전부 자석에 붙는다",
-      "effect": { "kind":"stanceMagnetRadiusPx","value":400 } }
+    { "id":"regen",     "name":"자연 재생",  "desc":"초당 N HP 가 회복된다",
+      "effect": { "kind":"regenHpPerSec",  "values":[0.5, 0.75, 1.0, 1.25, 1.5] } },
+    { "id":"lifesteal", "name":"흡혈",      "desc":"적에게 준 피해의 N% 가 HP 로 돌아온다",
+      "effect": { "kind":"lifestealPct",   "values":[0.008, 0.011, 0.014, 0.017, 0.020] } },
+    { "id":"shield",    "name":"쉴드 생성",  "desc":"N초마다 피격 1회를 통째로 막는 쉴드가 생긴다",
+      "effect": { "kind":"shieldEverySec", "values":[20, 16, 13, 11, 9] } }
   ]
 }

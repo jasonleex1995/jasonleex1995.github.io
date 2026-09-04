@@ -173,56 +173,50 @@ function makeEnemyBullet() {
   };
 }
 
-/** §11.6 — 특성 효과의 평면 표현. 0/1 = «없음». 핫패스(step·damage·stance)는 이것만 읽는다(문자열 비교 0). */
+/** §11.6(v1.10 ㉒) — 특성 효과의 평면 표현. 0 = «없음». 핫패스(step·damage)는 이것만 읽는다(문자열 비교 0). */
 export function makeTraitFx() {
-  return {
-    regenHpPerSec: 0, healPerKills: 0, stageClearHealPct: -1,
-    barrierEverySec: 0, secondWindIframeSec: 0, defenseAdd: 0,
-    dmgMulAboveHp: 0, dmgMulAboveHpRatio: 1, bossDmgMul: 0, lowHpDmgMul: 0, lowHpDmgRatio: 0,
-    stanceEchoRadiusPx: 0, stanceEchoIframeSec: 0, stanceSurgeFireMul: 0, stanceSurgeSec: 0, stanceMagnetRadiusPx: 0,
-  };
+  return { regenHpPerSec: 0, lifestealPct: 0, shieldEverySec: 0 };
 }
 
-/** §11.6 — 보유 특성으로 traitFx 를 다시 만든다(획득 순서 무관·결정적). 미지의 kind 는 폴백 없이 던진다(§9.3). */
+/** §11.6 — 보유 레벨 표 {id: 0..maxLevel}. 0 = 없음. 키 집합은 데이터가 정한다(특성이 늘면 여기가 따라온다). */
+export function makeTraitLevels(data) {
+  const lv = {};
+  const defs = data.traits.traits;
+  for (let i = 0; i < defs.length; i += 1) lv[defs[i].id] = 0;
+  return lv;
+}
+
+/** §11.6 — 보유 레벨로 traitFx 를 다시 만든다(결정적). 값은 «그 레벨의 절대값»(values[lv-1]). 미지의 kind 는 폴백 없이 던진다(§9.3). */
 export function recomputeTraitFx(world) {
   const fx = world.traitFx;
   const base = makeTraitFx();
   for (const k of Object.keys(base)) fx[k] = base[k];
   const defs = world.data.traits.traits;
-  for (let i = 0; i < world.traits.length; i += 1) {
-    let def = null;
-    for (let j = 0; j < defs.length; j += 1) if (defs[j].id === world.traits[i]) { def = defs[j]; break; }
-    if (def === null) throw new Error(`state: 미지의 특성 "${world.traits[i]}" (§11.6)`);
-    const e = def.effect;
-    switch (e.kind) {
-      case 'regenHpPerSec': fx.regenHpPerSec += e.value; break;
-      case 'healPerKills': fx.healPerKills = e.value; break;
-      case 'stageClearHealPct': fx.stageClearHealPct = e.value; break;
-      case 'barrierEverySec': fx.barrierEverySec = e.value; break;
-      case 'secondWindIframeSec': fx.secondWindIframeSec = e.value; break;
-      case 'dmgMulAboveHp': fx.dmgMulAboveHp = e.value; fx.dmgMulAboveHpRatio = e.hpRatio; break;
-      case 'bossDmgMul': fx.bossDmgMul = e.value; break;
-      case 'stanceEchoRadiusPx': fx.stanceEchoRadiusPx = e.value; fx.stanceEchoIframeSec = e.iframeSec; break;
-      case 'defenseAdd': fx.defenseAdd += e.value; break;
-      case 'lowHpDmgMul': fx.lowHpDmgMul = e.value; fx.lowHpDmgRatio = e.hpRatio; break;
-      case 'stanceSurgeFireMul': fx.stanceSurgeFireMul = e.value; fx.stanceSurgeSec = e.sec; break;
-      case 'stanceMagnetRadiusPx': fx.stanceMagnetRadiusPx = e.value; break;
-      default: throw new Error(`state: 미지의 특성 효과 "${e.kind}" (§11.6)`);
+  for (let i = 0; i < defs.length; i += 1) {
+    const def = defs[i];
+    const lv = world.traits[def.id];
+    if (lv === undefined) throw new Error(`state: 특성 레벨 표에 "${def.id}" 가 없다 (§11.6)`);
+    if (lv <= 0) continue;
+    const v = def.effect.values[lv - 1];
+    switch (def.effect.kind) {
+      case 'regenHpPerSec': fx.regenHpPerSec = v; break;
+      case 'lifestealPct': fx.lifestealPct = v; break;
+      case 'shieldEverySec': fx.shieldEverySec = v; break;
+      default: throw new Error(`state: 미지의 특성 효과 "${def.effect.kind}" (§11.6)`);
     }
   }
-  // §3.2 방어력 — 정액 감산의 유일한 획득 경로(v1.5 상점 폐지 뒤 잠들어 있던 항을 특성 «장갑»이 깨운다). 여기가 단일 소유자.
-  world.player.defense = world.data.rules.player.defenseBase + fx.defenseAdd;
   return fx;
 }
 
-/** §11.6 — 특성 획득. 이미 가진 것은 false. ★ v1.10 ㉑(사용자 2026-09-05): 묶음 배타 없음 — 같은 테마를 여러 개 가져도 된다. */
+/**
+ * §11.6(v1.10 ㉒) — 특성 한 레벨 획득. 사용자(2026-09-05): 「딱 3개 — 자연 재생·흡혈·쉴드 생성 — 중에서 선택하게 하고,
+ *   선택하면 쿨타임이 줄거나 회복 폭이 늘어나는 방식」. maxLevel(= 한 런의 구슬 수)이면 false. 미지의 id 는 던진다.
+ */
 export function applyTrait(world, traitId) {
-  if (world.traits.indexOf(traitId) >= 0) return false;
-  const defs = world.data.traits.traits;
-  let def = null;
-  for (let j = 0; j < defs.length; j += 1) if (defs[j].id === traitId) { def = defs[j]; break; }
-  if (def === null) throw new Error(`state: 미지의 특성 "${traitId}" (§11.6)`);
-  world.traits.push(traitId);
+  const lv = world.traits[traitId];
+  if (lv === undefined) throw new Error(`state: 미지의 특성 "${traitId}" (§11.6)`);
+  if (lv >= world.data.traits.maxLevel) return false;
+  world.traits[traitId] = lv + 1;
   recomputeTraitFx(world);
   return true;
 }
@@ -309,11 +303,6 @@ function makeStats() {
   };
 }
 
-/** 모든 슬롯의 eff 캐시를 무효화한다 — 스탯 변경(recomputeStats)과 전환 가속 창의 시작·끝(§11.6 ㉑)이 부른다. */
-export function markEffDirty(world) {
-  for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;
-}
-
 /** 보유 패시브 → 스탯 캐시. 패시브 변경 시에만 호출한다 */
 export function recomputeStats(world) {
   const st = world.stats;
@@ -338,7 +327,7 @@ export function recomputeStats(world) {
   world.player.hpMax = base + st.maxHpAdd;
   if (world.player.hpMax > prevMax) world.player.hp += world.player.hpMax - prevMax;
   if (world.player.hp > world.player.hpMax) world.player.hp = world.player.hpMax;
-  markEffDirty(world);
+  for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -406,10 +395,7 @@ export function recomputeEff(world, slot) {
   const st = world.stats;
 
   // H1 — fireRateMul 은 10 패밀리 전부에 적용된다. 주기(간격)이므로 나눗셈
-  //   §11.6 전환 가속(특성) — 전환 뒤 stanceSurgeSec 동안 같은 가산 풀에 얹힌다(오버클럭과 같은 훅 = 무효 패밀리도 같다).
-  //   eff 는 캐시라 창의 시작(requestStance)과 끝(step 타이머)이 markEffDirty 로 정확히 두 번 무효화한다.
-  const surge = world.traitState.surgeT > 0 ? world.traitFx.stanceSurgeFireMul : 0;
-  eff[hooks.rateKey] = eff[hooks.rateKey] / (1 + st.fireRateMul + surge);
+  eff[hooks.rateKey] = eff[hooks.rateKey] / (1 + st.fireRateMul);
 
   // H2 — areaMul 은 "닿는 범위"만. 산포(spreadDeg·jitterDeg·arcDeg)는 areaKeys 에 없다
   for (let i = 0; i < hooks.areaKeys.length; i += 1) {
@@ -537,12 +523,12 @@ export function createWorld(opts) {
 
     // §6.4 — 레벨업 드래프트 큐. 소화는 호출자(상태 기계)의 몫이며 core 는 세기만 한다
     draftQueue: 0,
-    // §11.6(v1.10 ⑲) 특성 — 보스 처치 보상. traits = 보유 id 열(획득 순), traitQueue = 아직 안 고른 구슬 수,
-    //   traitFx = 핫패스가 읽는 평면 효과(applyTrait 가 재계산), traitState = 런 안의 카운터(방패·처치 수·재기 사용 여부).
-    traits: [],
+    // §11.6(v1.10 ⑲·㉒) 특성 — 보스 처치 보상. traits = {id: 레벨}(0 = 없음), traitQueue = 아직 안 고른 구슬 수,
+    //   traitFx = 핫패스가 읽는 평면 효과(applyTrait 가 재계산), traitState = 런 안의 카운터(쉴드 충전).
+    traits: makeTraitLevels(opts.data),
     traitQueue: 0,
     traitFx: makeTraitFx(),
-    traitState: { barrierT: 0, barrierReady: false, kills: 0, secondWindUsed: false, surgeT: 0 },   // surgeT: 전환 가속 잔여(초)
+    traitState: { shieldT: 0, shieldReady: false },
     draftsSeen: 0,
     elementPity: 0,      // §11.1 elementCardPity — 속성 카드가 "등장"하지 않은 연속 드래프트 수
     autoEquipDone: false, // §9.9 onboarding.autoEquipFirstElement — 투자 0→1 최초 전이에서만

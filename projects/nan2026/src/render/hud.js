@@ -322,18 +322,22 @@ function drawLeftPanel(ctx, world, pal) {
   text(ctx, world, pal, '보스 특성', pad, ty, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   ty += 24;
   const tdefs = world.data.traits.traits;
-  if (world.traits.length === 0) {
-    text(ctx, world, pal, '보스를 잡으면 금색 구슬이 나온다', pad, ty, h.fontSmallPx, rgba(pal.hud.textDim, 0.6), 'left');
-  }
-  for (let i = 0; i < world.traits.length; i += 1) {
-    let name = world.traits[i]; let desc = '';
-    for (let k = 0; k < tdefs.length; k += 1) if (tdefs[k].id === world.traits[i]) { name = tdefs[k].name; desc = tdefs[k].desc; break; }
+  let any = false;
+  for (let i = 0; i < tdefs.length; i += 1) {
+    const def = tdefs[i];
+    const lv = world.traits[def.id];
+    if (lv <= 0) continue;
+    any = true;
+    // §11.6 ㉒ — 이름 · Lv · 지금 값(효과 kind 의 표기법). 쉴드는 충전 상태도(«지금 막을 수 있는가»가 곧 조작 정보)
+    const val = fmtTrait(def.effect.kind, def.effect.values[lv - 1]);
+    const state = def.effect.kind === 'shieldEverySec' ? (world.traitState.shieldReady ? ' · 준비됨' : ' · 충전 중') : '';
     ctx.fillStyle = rgba(pal.hud.accent, 0.9);
     ctx.beginPath(); ctx.arc(pad + 5, ty, 4, 0, Math.PI * 2); ctx.fill();
-    text(ctx, world, pal, name, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
-    text(ctx, world, pal, desc, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
+    text(ctx, world, pal, `${def.name} Lv.${lv}`, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
+    text(ctx, world, pal, `${val}${state}`, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
     ty += 34;
   }
+  if (!any) text(ctx, world, pal, '보스를 잡으면 금색 구슬이 나온다', pad, ty, h.fontSmallPx, rgba(pal.hud.textDim, 0.6), 'left');
 }
 
 /** 우 패널 — 스탠스 키캡 · 속성 투자 pip · 무기 4슬롯 + 부여 상태 */
@@ -586,6 +590,14 @@ const STAT_FMT = {
   ghostSecOnHit: 'sec', hitBulletClearRadius: 'px',
 };
 
+/** §11.6 ㉒ 특성 효과의 표기법 — kind 마다 단위가 다르다(초당 HP · 피해의 % · 초). 미지의 kind 는 숫자 그대로(숨기지 않는다). */
+function fmtTrait(kind, v) {
+  if (kind === 'regenHpPerSec') return `초당 ${num(v)} HP`;
+  if (kind === 'lifestealPct') return `${num(v * 100)}%`;
+  if (kind === 'shieldEverySec') return `${num(v)}초마다`;
+  return num(v);
+}
+
 /** 무기 파라미터의 한글 이름. 없는 키는 원래 이름을 그대로 보인다(조용히 숨기지 않는다). */
 const PARAM_KO = {
   dmg: '피해', cooldownSec: '발사 주기', count: '발사체 수', spreadDeg: '산포',
@@ -670,6 +682,11 @@ function cardDelta(world, c) {
       out.push(`${fmtStat(kind, def.values[c.from - 1])} → ${fmtStat(kind, to)}`);
       return out;
     }
+    return out;
+  }
+  if (c.category === 'trait') {
+    // §11.6 ㉒ — 증분 줄: 「얼마나 좋아지는가」. 표기는 효과 kind 가 정한다(초당 HP · % · 초)
+    out.push(c.from === null ? fmtTrait(c.kind, c.to) : `${fmtTrait(c.kind, c.from)} → ${fmtTrait(c.kind, c.to)}`);
     return out;
   }
   if (c.category === 'weaponLevel') {
@@ -811,8 +828,9 @@ function cardBody(world, c) {
     return { glyph: null, title: c.name, sub: `HP +${Math.round(c.healPct * 100)}%`, desc: '유효한 후보가 부족할 때의 폴백 카드 — 회복.' };
   }
   if (c.category === 'trait') {
-    const GROUP_KO = { heal: '회복', guard: '방호', power: '화력', stance: '스탠스' };   // §11.6 테마 4(v1.10 ㉑)
-    return { glyph: null, title: c.name, sub: `${GROUP_KO[c.group] || c.group} 특성 · 런 내내`, desc: c.desc };
+    // §11.6(v1.10 ㉒) — 셋 중 하나. 처음이면 «획득», 이미 있으면 «Lv n → n+1 강화»(패시브 카드와 같은 문법)
+    const sub = c.level === 0 ? '보스 특성 · 런 내내' : `보스 특성 · Lv.${c.level} → ${c.level + 1} 강화`;
+    return { glyph: null, title: c.name, sub, desc: c.desc };
   }
   throw new Error(`hud: 미지의 드래프트 카테고리 "${c.category}" (§11.1)`);
 }

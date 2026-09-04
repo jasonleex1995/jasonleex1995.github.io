@@ -864,6 +864,14 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
     ctx.globalAlpha = ph > 0 ? 1.0 : 0.35;
   }
 
+  // §11.6(v1.10 ㉒) 쉴드 — 충전돼 있으면 기체 둘레에 금색(구슬과 같은 채널) 얇은 링. «지금 한 대는 공짜»가 보여야 조작 정보다.
+  //   반지름은 스프라이트에서 파생(리터럴 아님) · 색은 palette.pickup.trait — 새 키 0.
+  if (world.traitState.shieldReady) {
+    ctx.strokeStyle = rgba(pal.pickup.trait, 0.85);
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, rp.spriteRadius * 1.45, 0, Math.PI * 2); ctx.stroke();
+  }
+
   // ④ 림 오라 — 현재 스탠스 색 소프트 글로우, 알파 0.40
   const grad = ctx.createRadialGradient(x, y, rp.spriteRadius * 0.4, x, y, rp.spriteRadius * 1.8);
   grad.addColorStop(0, rgba(stanceColor, vs.auraAlpha));

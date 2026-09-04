@@ -586,9 +586,9 @@ export function botDraftPick(world, draft) {
   const cards = draft.cards;
   if (cards.length === 0) return 0;
   if (b.policy.draft === 'random') return Math.floor(world.rng.bot.f() * cards.length);
-  // §11.6(v1.10 ⑲) 특성 드래프트 — 회복 묶음(heal)이 있으면 그것(원데스 봇에게 최선), 아니면 첫 장. 정책 색깔과 무관.
+  // §11.6(v1.10 ㉒) 특성 드래프트 — 셋 다 회복이다. 봇은 «자연 재생»(조건 없는 회복 = 원데스 봇에게 최선)을 올리고, 만렙이면 첫 장.
   if (cards[0].category === 'trait') {
-    for (let i = 0; i < cards.length; i += 1) if (cards[i].group === 'heal') return i;
+    for (let i = 0; i < cards.length; i += 1) if (cards[i].traitId === 'regen') return i;
     return 0;
   }
 

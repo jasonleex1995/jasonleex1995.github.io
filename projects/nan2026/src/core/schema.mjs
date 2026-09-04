@@ -21,12 +21,7 @@
 /** §9.2 — 정확히 9개, 닫힘 */
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
   'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
-export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'healPerKills', 'stageClearHealPct',            // 회복
-  'barrierEverySec', 'secondWindIframeSec', 'defenseAdd',                                          // 방호
-  'dmgMulAboveHp', 'bossDmgMul', 'lowHpDmgMul',                                                    // 화력
-  'stanceEchoRadiusPx', 'stanceSurgeFireMul', 'stanceMagnetRadiusPx'];                             // 스탠스 (v1.10 ㉑ — 12종, 테마 4 × 3)
-/** §11.6 ④ 효과 kind 별 «추가 키» — 로더가 닫힌 키로 지킨다(없는 kind 는 value 만). */
-export const TRAIT_EFFECT_EXTRA = { dmgMulAboveHp: ['hpRatio'], lowHpDmgMul: ['hpRatio'], stanceEchoRadiusPx: ['iframeSec'], stanceSurgeFireMul: ['sec'] };
+export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 v1.10 ㉒ — 특성 3종과 1:1(재생·흡혈·쉴드)
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -558,27 +553,27 @@ function checkStages(c, s) {
 
 /** §11.6(v1.10 ⑲) traits.json — 특성(보스 처치 보상). 닫힌 키 · 어휘 · 값 범위. */
 function checkTraits(c, t) {
-  c.closed('traits', t, ['schemaVersion', 'offerCount', 'groups', 'traits']);
-  if (!Array.isArray(t.groups) || t.groups.length === 0) c.fail('traits.groups', '비어 있지 않은 배열이어야 한다');
+  c.closed('traits', t, ['schemaVersion', 'maxLevel', 'traits']);
+  if (!Number.isInteger(t.maxLevel) || t.maxLevel < 1) c.fail('traits.maxLevel', '양의 정수여야 한다 (= 한 런의 구슬 수, §11.6)');
   if (!Array.isArray(t.traits)) { c.fail('traits.traits', '배열이 아니다'); return; }
   const ids = new Set();
+  const kinds = new Set();
   for (let i = 0; i < t.traits.length; i += 1) {
     const x = t.traits[i];
     const p = `traits.traits[${i}]`;
-    c.closed(p, x, ['id', 'name', 'group', 'desc', 'effect']);
+    c.closed(p, x, ['id', 'name', 'desc', 'effect']);
     if (typeof x.id !== 'string' || x.id === '') c.fail(`${p}.id`, '빈 문자열');
     if (ids.has(x.id)) c.fail(`${p}.id`, `중복 id "${x.id}"`);
     ids.add(x.id);
-    if (Array.isArray(t.groups)) c.vocab(`${p}.group`, x.group, t.groups);
     if (!isObj(x.effect)) { c.fail(`${p}.effect`, '객체가 아니다'); continue; }
+    c.closed(`${p}.effect`, x.effect, ['kind', 'values']);
     c.vocab(`${p}.effect.kind`, x.effect.kind, TRAIT_EFFECT_KINDS);
-    const extra = TRAIT_EFFECT_EXTRA[x.effect.kind] || [];
-    c.closed(`${p}.effect`, x.effect, ['kind', 'value', ...extra]);
-    for (const k of extra) if (typeof x.effect[k] !== 'number' || !(x.effect[k] > 0)) c.fail(`${p}.effect.${k}`, '양수여야 한다');
-    if (typeof x.effect.value !== 'number' || !(x.effect.value > 0)) c.fail(`${p}.effect.value`, '양수여야 한다');
-  }
-  if (typeof t.offerCount !== 'number' || !Number.isInteger(t.offerCount) || t.offerCount < 1 || t.offerCount > t.traits.length) {
-    c.fail('traits.offerCount', `정수 ∈ [1, ${t.traits.length}]`);
+    if (kinds.has(x.effect.kind)) c.fail(`${p}.effect.kind`, `"${x.effect.kind}" 를 쓰는 특성이 둘 — 효과와 특성은 1:1 (§11.6)`);
+    kinds.add(x.effect.kind);
+    // values = 레벨별 절대값(패시브 §9.6 과 같은 규약: 증분이 아니다). 길이 = maxLevel, 전부 양수
+    if (c.arr(`${p}.effect.values`, x.effect.values, t.maxLevel)) {
+      for (let k = 0; k < x.effect.values.length; k += 1) if (typeof x.effect.values[k] !== 'number' || !(x.effect.values[k] > 0)) c.fail(`${p}.effect.values[${k}]`, '양수여야 한다');
+    }
   }
 }
 

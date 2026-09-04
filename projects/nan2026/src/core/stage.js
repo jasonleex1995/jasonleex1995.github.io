@@ -214,8 +214,7 @@ export function traitPickupAlive(world) {
 }
 
 export function applyStageClearHeal(world) {
-  // §11.6(v1.10 ⑲) 보급 강화 특성이 있으면 그 비율(-1 = 없음 → flow 기본값)
-  const pct = world.traitFx.stageClearHealPct >= 0 ? world.traitFx.stageClearHealPct : world.data.meta.flow.stageClearHealPct;
+  const pct = world.data.meta.flow.stageClearHealPct;
   const p = world.player;
   const heal = pct * p.hpMax;
   p.hp += heal;
@@ -230,7 +229,6 @@ export function advanceStage(world) {
   const run = world.run;
   clearTerrain(world);             // §8.21 — 이전 테마의 지형은 넘어가지 않는다
   run.wipeT = -1;
-  world.traitState.secondWindUsed = false;   // §11.6 재기 — 스테이지마다 한 번
   run.stageIndex += 1;
   run.phase = PHASE.MOB;
   run.phaseT = 0;

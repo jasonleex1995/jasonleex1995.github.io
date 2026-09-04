@@ -95,16 +95,16 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     if (at !== 0 && world.time - at < e.hitFloorSec) return 0;
     e.floorAt[slotIndex] = world.time;
   }
-  // §11.6(v1.10 ⑲) 특성 배율 — 청정(HP 비율 이상이면 +) · 보스 사냥꾼(보스·중간보스에 +). 둘 다 «입구 하나»에서만.
-  let traitMul = 1;
+  const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
+  // §11.6(v1.10 ㉒) 흡혈 — «실제로 깎은 HP»의 lifestealPct 만큼 회복(오버킬은 안 센다: 잡몹 hp 6 에 피해 17 이면 6 만). 입구 하나.
   {
     const fx = world.traitFx;
-    const p = world.player;
-    if (fx.dmgMulAboveHp > 0 && p.hpMax > 0 && p.hp / p.hpMax >= fx.dmgMulAboveHpRatio) traitMul += fx.dmgMulAboveHp;
-    if (fx.bossDmgMul > 0 && (e.isBoss || e.midBossId !== '')) traitMul += fx.bossDmgMul;
-    if (fx.lowHpDmgMul > 0 && e.hpMax > 0 && e.hp / e.hpMax <= fx.lowHpDmgRatio) traitMul += fx.lowHpDmgMul;   // 처형(v1.10 ㉑) — 이 개체(부위 포함)의 잔여 HP
+    if (fx.lifestealPct > 0) {
+      const removed = e.hp > 0 ? (dealt < e.hp ? dealt : e.hp) : 0;
+      const p = world.player;
+      if (removed > 0 && p.hp > 0 && p.hp < p.hpMax) { p.hp += removed * fx.lifestealPct; if (p.hp > p.hpMax) p.hp = p.hpMax; }
+    }
   }
-  const dealt = playerToEnemy(ctx, dmg, localMul * traitMul, stamp, e);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②
   if (hitTier(ctx.matrix, stamp, e.element) === 'super') e.dmgSuper += dealt;
