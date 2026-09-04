@@ -100,15 +100,18 @@ function buildSpawner(world, stageId, curveIdx) {
   //   crisisWaves 가 선언한 종이 평범한 웨이브에 섞여 나오면 §8.10 위기의 «장면»이 미리 새 버린다(실측).
   const crisisArch = Object.create(null);
   const phz = world.data.stages.phase;
-  crisisArch[phz.crisisBodyId] = true;
   crisisArch[phz.crisisShooterId] = true;
   {
-    // v1.10 ⑥ — 새떼의 두 종: 몸(무공격) + 공격형. 폴백 금지(§9.3) — 어긋나면 여기서 터진다.
-    const b = archIndex[phz.crisisBodyId]; const sh = archIndex[phz.crisisShooterId];
-    if (b === undefined) throw new Error(`enemies: crisisBodyId "${phz.crisisBodyId}" 미지 (§8.10)`);
+    // v1.10 ⑫ — 새떼의 종: 몸(무공격, 서브웨이브 레코드 bodyId — 흔들며 오는 새떼 / 직선 화살) + 공격형(phase). 폴백 금지(§9.3).
+    const sh = archIndex[phz.crisisShooterId];
     if (sh === undefined) throw new Error(`enemies: crisisShooterId "${phz.crisisShooterId}" 미지 (§8.10)`);
-    if (b.attack !== null) throw new Error(`enemies: crisisBodyId "${b.id}" 가 쏜다 — 새떼의 몸은 무공격 (§8.10)`);
     if (sh.attack === null) throw new Error(`enemies: crisisShooterId "${sh.id}" 가 안 쏜다 (§8.10)`);
+    for (let i = 0; i < phz.crisisWaves.length; i += 1) {
+      const b = archIndex[phz.crisisWaves[i].bodyId];
+      if (b === undefined) throw new Error(`enemies: crisisWaves[${i}].bodyId "${phz.crisisWaves[i].bodyId}" 미지 (§8.10)`);
+      if (b.attack !== null) throw new Error(`enemies: crisisWaves[${i}].bodyId "${b.id}" 가 쏜다 — 새떼의 몸은 무공격 (§8.10)`);
+      crisisArch[b.id] = true;
+    }
   }
 
   // ★ 로스터 — **정본이 저작한 stages[].roster 를 쓴다** (§8.3 · §8.6 · §9.9).
@@ -151,20 +154,18 @@ function buildSpawner(world, stageId, curveIdx) {
   if (shooters.length === 0) throw new Error(`enemies: 스테이지 "${stageId}" 로스터에 공격형이 없다 (§8.19)`);
   // 봉지 — 웨이브마다 «공격형 자리»를 섞어 뽑는다. 크기는 풀 상한(caps.enemies), 핫패스 0 alloc.
   const bag = new Uint8Array(world.data.rules.caps.enemies);
-  // §8.2(v1.10 ④) 속성 봉지 — 비율의 출처는 «해금된 저작 리스트»의 count 가중 속성 분포(S8 이 mix ±3%p 를 지킨다).
-  //   v1.10 ①~③ 은 웨이브 레코드의 element 를 몸 전부에 찍었는데, 비율 모델이 몸 수를 밴드 하한(16)·예산으로
-  //   고쳐 쓰니 «작은 비테마 웨이브(2~6)» 가 16 이 되고 «큰 테마 웨이브(22~49)» 는 잘려 70/10/10/10 이
-  //   41/20/20/20 으로 무너졌다(실측 forest·bog 포지션 1). 개체 단위 봉지는 웨이브마다 정확히 mix 다.
+  // §8.2(v1.10 ④·⑬) 속성 봉지 — 비율의 출처는 **stages[].mix**(런타임의 유일한 출처, S8 이 «테마 + 먹이 2속성»을 지킨다).
+  //   v1.10 ④ 까지는 해금 리스트의 count 가중 분포에서 파생했으나, ⑬ 이 waves[].element 를 지웠다(한 스테이지 2속성 —
+  //   「늪이면 풀·물만」, 사용자 2026-09-04). 개체 단위 봉지라 웨이브마다 정확히 mix 다.
   const elemOrder = world.data.elements.order;
   const elemW = new Float64Array(elemOrder.length);
   let elemTot = 0;
-  for (let i = 0; i < waves.length; i += 1) {
-    const k = elemOrder.indexOf(waves[i].element);
-    if (k < 0) throw new Error(`enemies: 웨이브 element "${waves[i].element}" ∉ elements.order (§4.1)`);
-    elemW[k] += waves[i].count;
-    elemTot += waves[i].count;
+  for (let k = 0; k < elemOrder.length; k += 1) {
+    const v = stage.mix[elemOrder[k]];
+    if (typeof v !== 'number' || v < 0) throw new Error(`enemies: stages[${stageId}].mix.${elemOrder[k]} 가 수가 아니다 (§8.2)`);
+    elemW[k] = v; elemTot += v;
   }
-  if (elemTot <= 0) throw new Error(`enemies: "${stageId}" 해금 리스트의 count 합이 0 (§8.2)`);
+  if (elemTot <= 0) throw new Error(`enemies: "${stageId}" mix 합이 0 (§8.2)`);
   for (let k = 0; k < elemW.length; k += 1) elemW[k] /= elemTot;
   const ebag = new Uint8Array(world.data.rules.caps.enemies);
   const equota = new Int32Array(elemOrder.length);
@@ -392,10 +393,13 @@ function spawnWave(world, s) {
   let liveShoot = threatLive(world);
   let liveChaff = introLive(world);
   for (let i = 0; i < count; i += 1) {
-    const shoot = bag[i] === 1;
-    const d = shoot ? def : introDef;
+    let shoot = bag[i] === 1;
     // §8.7 초과 정책 = defer — 예산은 «자기 몫»을 센다(공격형 = 위협, 무공격 = 도입).
-    if (shoot) { if (liveShoot >= shootMax) continue; liveShoot += 1; }
+    // ★ v1.10 ⑪ 공격형 예산이 찼으면 그 칸은 «몸»으로 선다 — 비율은 상한이지 밀도의 구멍이 아니다. 안 그러면 후반
+    //   (비율 55~70%)에서 예산에 막힌 칸이 통째로 비어 벽이 헐거워졌다(실측 포지션 5: 21초 178기 vs 포지션 1: 392기).
+    if (shoot && liveShoot >= shootMax) shoot = false;
+    const d = shoot ? def : introDef;
+    if (shoot) liveShoot += 1;
     else { if (liveChaff >= chaffMax) continue; liveChaff += 1; }
     placement(world, wave, i, count, _pos, d, early ? phase.introFormationId : undefined);
     // §8.6 — 엘리트 = 두 경로의 OR:
@@ -459,15 +463,15 @@ function spawnCrisisSubWave(world, s, subWave) {
   const recs = ph.crisisWaves;
   const swarmMax = world.data.rules.fairness.swarmConcurrentMax;
   const el = crisisElement(s, subWave);
-  const body = s.archIndex[ph.crisisBodyId];
   const shooter = s.archIndex[ph.crisisShooterId];
-  const hpBody = enemyHp(world, body);
   const hpShoot = enemyHp(world, shooter);
   const ratio = world.data.stages.curve.shooterRatio[s.curveIdx];
 
   for (let i = 0; i < recs.length; i += 1) {
     const r = recs[i];
     if (r.subWave !== subWave) continue;
+    const body = s.archIndex[r.bodyId];             // v1.10 ⑫ 서브웨이브의 몸 종(arc 새떼 / vWedge 화살)
+    const hpBody = enemyHp(world, body);
     const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(사이클 총량 보존)
     const nShoot = Math.round(count * ratio);
     const bag = s.cbag;
@@ -523,7 +527,12 @@ function sectionSpeedMul(world) {
   const m = ph.sectionSpeedMul;
   if (run.crisis) return m.crisis;
   const mbAt = ph.midBossAtSec[world.spawner.curveIdx];
-  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) return m.early;
+  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) {
+    // §8.19 ①(v1.10 ⑪) 배수 — 스폰이 멈춘 뒤 남은 무리는 «빠르게 흘러 나간다»(drain 2.2). 초기 속도(0.72)로는
+    //   벽 한 벌이 19.5초 걸려 중간보스가 올 때 200기가 남았다(플레이 피드백: 「초반 몹이 다 안 사라졌는데 중간보스」).
+    if (run.phaseT >= mbAt[0] - ph.earlyDrainSec) return m.drain;
+    return m.early;
+  }
   return m.mid;
 }
 
@@ -662,7 +671,11 @@ export function enemies(world, dt) {
   //   ★ 이 분리가 없으면 벽이 창을 넘어 내려오는 동안 정상 스포너가 통째로 굶는다.
   const wLive = waveLive(world);
   const tLive = threatLive(world);
-  if (tLive < concurrentMax && wavesLeft) {
+  // ★ v1.10 ⑪ 바깥 게이트는 «두 예산 중 하나라도» 자리가 있으면 연다 — 공격형 예산(42×배율)만 보면 후반(비율 55~70%)에서
+  //   공격형이 차는 순간 웨이브 전체가 서서 벽이 헐거워졌다(실측 포지션 5: 21초 183기). 안의 봉지가 예산 찬 공격형 칸을
+  //   몸으로 돌리므로(fallback), 몸 예산(introConcurrentMax)에 자리가 있으면 웨이브는 선다.
+  const cLive = introLive(world);
+  if ((tLive < concurrentMax || cLive < world.data.rules.fairness.introConcurrentMax) && wavesLeft) {
     // §8.7 waveClearAdvance — 전멸(live 0)이면 즉시 다음, 아니면 waveIntervalSec 간격.
     if (wLive === 0 || world.time >= s.nextWaveT) {
       spawnWave(world, s);

@@ -117,7 +117,7 @@ suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
     assert.gte(Object.keys(byEl).length, 2, '한 웨이브 안에 ≥2 속성 (개체 단위 봉지)');
   });
 
-  test('속성 봉지의 가중치 = 해금 리스트의 count 가중 분포 (stages[].mix ±3%p 를 S8 이 지킨다)', () => {
+  test('속성 봉지의 가중치 = stages[].mix (v1.10 ⑬ — 런타임의 유일한 출처)', () => {
     const w = mk(3);
     silence(w);
     step(w, makeInput(), dt);
@@ -127,7 +127,7 @@ suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
     for (let k = 0; k < s.elemOrder.length; k += 1) {
       sum += s.elemW[k];
       const want = stage.mix[s.elemOrder[k]];
-      assert.ok(Math.abs(s.elemW[k] - want) <= 0.05 + 1e-9, `${s.elemOrder[k]}: 가중치 ${s.elemW[k].toFixed(3)} ≈ mix ${want}`);
+      assert.near(s.elemW[k], want, 1e-9, `${s.elemOrder[k]}: 가중치 = mix ${want}`);
     }
     assert.ok(Math.abs(sum - 1) < 1e-9, '가중치 합 1');
   });
@@ -145,12 +145,13 @@ suite('enemies · element 편성 주입 (§8.6 — 상성의 핵심)', () => {
       for (const el of live) seen.add(el);
       if (live.size > maxDistinctAlive) maxDistinctAlive = live.size;
     }
-    // sea stage-1 해금 웨이브의 element 집합 = water/grass/fire/normal
-    assert.ok(seen.has('water'), 'water 등장');
-    assert.ok(seen.has('grass'), 'grass 등장');
-    assert.ok(seen.has('fire'), 'fire 등장');
-    assert.gte(seen.size, 3, '≥3 종의 element 가 등장');
-    assert.gte(maxDistinctAlive, 2, '한 화면에 ≥2 종의 element 가 동시에 살아 있다 (실제 혼재)');
+    // v1.10 ⑬ — 한 스테이지는 «테마 + 먹이» 2속성뿐이다(sea = 물 + 불). 노말·풀은 나오지 않는다.
+    const stage = w.data.stages.stages.find((s2) => s2.id === 'sea');
+    const want = Object.keys(stage.mix).filter((el) => stage.mix[el] > 0).sort();
+    assert.deepEq([...seen].sort(), want, `등장 속성 = mix 의 0 아닌 키 ${want}`);
+    assert.eq(seen.size, 2, '정확히 2속성');
+    assert.ok(!seen.has('normal'), '노말 없음');
+    assert.gte(maxDistinctAlive, 2, '한 화면에 2속성이 동시에 살아 있다 (실제 혼재 — 스탠스를 바꿀 이유)');
   });
 });
 

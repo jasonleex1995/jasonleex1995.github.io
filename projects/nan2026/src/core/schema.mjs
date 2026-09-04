@@ -498,18 +498,18 @@ function checkStages(c, s) {
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance',
     'phaseEndAutocollect', 'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage',
-    'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisBodyId', 'crisisShooterId',
+    'crisisStartSec', 'crisisCycleSec', 'crisisSuspendsWaves', 'crisisSwarmLoop', 'crisisOnMidBossClear', 'crisisTotal', 'crisisShooterId',
     'crisisSubWaves', 'crisisWaves', 'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves', 'midBossAtSec', 'midBossFirstId', 'midBossElementRule',
     'midBossForcedLeaveOnCrisis', 'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec',
     'statusStunMaxPerStage']);
   if (isObj(s.phase) && Array.isArray(s.phase.crisisWaves)) {
     for (let i = 0; i < s.phase.crisisWaves.length; i += 1) {
       c.closed(`stages.phase.crisisWaves[${i}]`, s.phase.crisisWaves[i],
-        ['subWave', 'formationId', 'count', 'spawnEdge']);          // v1.10 ⑥ archetypeId 삭제 — 몸/공격형은 phase.crisisBodyId/ShooterId + 봉지
+        ['subWave', 'formationId', 'bodyId', 'count', 'spawnEdge']);   // v1.10 ⑫ bodyId(서브웨이브의 몸 종) · 공격형은 phase.crisisShooterId + 봉지
     }
   }
   // §9.9.2 — 편대 6종 + 파라미터
-  if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'mid', 'crisis']);
+  if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'drain', 'mid', 'crisis']);
   c.closed('stages.formations', s.formations, FORMATION_IDS);
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
@@ -536,7 +536,7 @@ function checkStages(c, s) {
     }
     if (c.arr(`${p}.waves`, t.waves)) {
       for (let j = 0; j < t.waves.length; j += 1) {
-        c.closed(`${p}.waves[${j}]`, t.waves[j], ['formationId', 'archetypeId', 'count', 'element',
+        c.closed(`${p}.waves[${j}]`, t.waves[j], ['formationId', 'archetypeId', 'count',
           'spawnEdge', 'eliteIndex', 'unlockStageMin']);
       }
     }
@@ -632,8 +632,7 @@ function checkRefs(c, d) {
     for (let j = 0; Array.isArray(t.waves) && j < t.waves.length; j += 1) {
       need(archIds, t.waves[j].archetypeId, `stages.stages[${t.id}].waves[${j}].archetypeId`);
       need(formIds, t.waves[j].formationId, `stages.stages[${t.id}].waves[${j}].formationId`);
-      // §4.1 — 웨이브가 주입하는 속성은 4속성 어휘 안이어야 한다
-      c.vocab(`stages.stages[${t.id}].waves[${j}].element`, t.waves[j].element, ELEMENTS4);
+      // v1.10 ⑬ — 웨이브는 속성을 주입하지 않는다(몸마다 stages[].mix 봉지, §8.2). waves[].element 는 삭제됐다.
     }
   }
   need(stageIds, d.stages.themeDraw.finalStageId, 'stages.themeDraw.finalStageId');

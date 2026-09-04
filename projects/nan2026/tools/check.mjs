@@ -521,6 +521,7 @@ function S2_schema() {
 
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   // §8.21(v1.10 ⑦) 지형 장판
+  if (isObj(D.stages && D.stages.phase) && isObj(D.stages.phase.sectionSpeedMul)) closedKeys('S2', D.stages.phase.sectionSpeedMul, ['early', 'drain', 'mid', 'crisis'], 'stages.phase.sectionSpeedMul');   // v1.10 ⑪ drain
   closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat'], 'rules.terrain');
   if (isObj(r.terrain)) {
     closedKeys('S2', r.terrain.inertia, ['responseTauSec'], 'rules.terrain.inertia');
@@ -835,7 +836,7 @@ function S2_files() {
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
     'waveClearAdvance', 'phaseEndAutocollect',
-    'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisBodyId', 'crisisShooterId',
+    'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
     'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
     'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
@@ -851,7 +852,7 @@ function S2_files() {
     V('S2', 'stages.phase.crisisSubWaveIntervalSec: 파생값이지 키가 아니다 — §9.9.3 (= crisisCycleSec / crisisSubWaves)');
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
-    closedKeys('S2', cw, ['subWave', 'formationId', 'count', 'spawnEdge'], 'stages.phase.crisisWaves[]');   // v1.10 ⑥ archetypeId 삭제
+    closedKeys('S2', cw, ['subWave', 'formationId', 'bodyId', 'count', 'spawnEdge'], 'stages.phase.crisisWaves[]');   // v1.10 ⑫ bodyId
   }
   // §9.9.2 formations — 6종 + 파라미터
   closedKeys('S2', D.stages.formations, FORMATION_IDS, 'stages.formations');
@@ -883,7 +884,7 @@ function S2_files() {
     }
     // ★ v1.3: waves[] = 7필드 (unlockStageMin 신설 — S8의 통과 여부가 미정이었다)
     rowsQuiet(t.waves).forEach((w, i) => {
-      closedKeys('S2', w, ['formationId', 'archetypeId', 'count', 'element', 'spawnEdge', 'eliteIndex',
+      closedKeys('S2', w, ['formationId', 'archetypeId', 'count', 'spawnEdge', 'eliteIndex',
         'unlockStageMin'], `stages.stages[${t.id}].waves[${i}]`);
       // §8.7: atSec 절대 타임라인은 폐기 — 순서 리스트다
       if (has(w, 'atSec')) {
@@ -998,7 +999,7 @@ function refIntegrity() {
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
     need(formIds, cw && cw.formationId, 'stages.phase.crisisWaves[].formationId');
   }
-  need(archIds, D.stages.phase && D.stages.phase.crisisBodyId, 'stages.phase.crisisBodyId');          // v1.10 ⑥
+  for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) need(archIds, cw && cw.bodyId, 'stages.phase.crisisWaves[].bodyId');   // v1.10 ⑫
   need(archIds, D.stages.phase && D.stages.phase.crisisShooterId, 'stages.phase.crisisShooterId');
   need(emitIds, D.rules.boss && D.rules.boss.coreEmitterId, 'rules.boss.coreEmitterId');   // §9.8.1 v1.5
   for (const id of rowsQuiet(D.rules.boss && D.rules.boss.midBossSummonsAllowed)) {
@@ -1149,7 +1150,6 @@ function S3_vocab() {
       if (!isObj(w)) return;
       vocab('S3', w.formationId, FORMATION_IDS, `stages.stages[${t.id}].waves[${i}].formationId`);
       vocab('S3', w.spawnEdge, SPAWN_EDGES, `stages.stages[${t.id}].waves[${i}].spawnEdge`);
-      vocab('S3', w.element, ELEMENTS4, `stages.stages[${t.id}].waves[${i}].element`);
     });
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
@@ -1551,65 +1551,36 @@ function preyOf(el) {      // matrix[el][p] == 2.0 인 p
 }
 
 function S8_mix() {
-  const FINAL_ID = FINAL();
+  // ★ v1.10 ⑬ — 사용자 결정(2026-09-04): 「한 스테이지에 나오는 속성은 2개로만」. 늪이면 풀·물만 — 화염까지 나오면 스탠스
+  //   선택이 어렵다. mix 는 이제 «런타임의 유일한 출처»(스포너의 속성 봉지가 읽는다, §8.2)이고 waves[].element 는 삭제됐다.
+  //   규칙: 테마 T 의 mix 는 정확히 두 속성 — T(≥ 0.5) + prey(T)(T 가 이기는 속성), 나머지 0. 노말 0. 최종은 물·불·풀 3속성, 노말 0.
+  //   왜 prey 인가: 사용자 예 「늪 = 풀 + 물」(풀이 물을 이긴다). 정답 스탠스(counter) 하나로 다 갈면 재미가 없고, 「풀로 다
+  //   쏘다가 물이 없으면 불로」 — 두 스탠스를 오가는 선택이 생긴다(§4.2).
   let cells = 0;
+  const FINAL_ID = FINAL();
   for (const t of rows('S8', D.stages.stages, 'stages.stages',
-    '§8.2 — 혼합 비율 게이트가 0행을 보면 70/10/10/10 을 아무도 검사하지 않는다')) {
+    '§8.2 — 속성 규칙이 0행을 보면 «2속성 한정»을 아무도 검사하지 않는다')) {
     if (!isObj(t) || !isObj(t.mix)) continue;
     const tag = `stages.stages[${t.id}]`;
-
-    // mix 는 4속성 실제 키로 전개된 가중치 맵 하나 (§8.2)
     closedKeys('S8', t.mix, ELEMENTS4, `${tag}.mix`);
     const sum = Object.values(t.mix).filter(num).reduce((x, y) => x + y, 0);
     if (Math.abs(sum - 1.0) > 1e-6) V('S8', `${tag}.mix: 합 ${sum} ≠ 1.0 (§8.2)`);
-
-    // (1) 저작 리스트의 원시 개체 수 기준 비율 vs mix — ±3%p, 스테이지별
-    const isFinale = t.id === FINAL_ID;
-    const stageAxis = isFinale ? [6] : [1, 2, 3, 4, 5];
-    for (const s of stageAxis) {
-      const cnt = { normal: 0, fire: 0, water: 0, grass: 0 };
-      let tot = 0;
-      let skipped = 0;
-      for (const w of rowsQuiet(t.waves)) {
-        if (!isObj(w)) continue;
-        if (!num(w.unlockStageMin) || isAmb(w.unlockStageMin)) { skipped += 1; continue; }
-        if (w.unlockStageMin > s) continue;                    // ★ v1.3: 저작 리스트의 정의
-        if (!num(w.count) || isAmb(w.element)) { skipped += 1; continue; }
-        if (!has(cnt, w.element)) continue;
-        cnt[w.element] += w.count; tot += w.count;             // ★ v1.4: 엘리트를 빼지 않는다
-      }
-      if (skipped) A(`${tag}.waves`, `${skipped}개 웨이브가 모호/미확정 값을 포함해 S8 @ s${s} 분모에서 빠졌다`);
-      if (tot <= 0) {
-        V('S8', `${tag} @ 스테이지 ${s}: 저작 리스트(unlockStageMin ≤ ${s})가 0개체 — 분모가 없다 = 이 셀은 검사되지 않는다`);
-        continue;
-      }
-      cells += 1;
-      for (const el of ELEMENTS4) {
-        const actualPp = (cnt[el] / tot) * 100;
-        const wantPp = (num(t.mix[el]) ? t.mix[el] : 0) * 100;
-        if (Math.abs(actualPp - wantPp) > MIX_TOL_PP + 1e-9) {
-          V('S8', `${tag} @ 스테이지 ${s}: 저작 리스트 ${el} = ${actualPp.toFixed(2)}%p vs mix ${wantPp.toFixed(2)}%p `
-            + `— |Δ| ${Math.abs(actualPp - wantPp).toFixed(2)} > ${MIX_TOL_PP}%p (§8.2.1)`);
-        }
-      }
+    cells += 1;
+    if (num(t.mix.normal) && t.mix.normal !== 0) V('S8', `${tag}.mix.normal = ${t.mix.normal} ≠ 0 — 잡몹에 노말은 없다 (§8.2 v1.10 ⑬)`);
+    const isFin = t.id === FINAL_ID || t.element === null;
+    if (isFin) {
+      for (const el of ['water', 'fire', 'grass']) if (!num(t.mix[el]) || t.mix[el] <= 0) V('S8', `${tag}.mix.${el} = ${t.mix[el]} — 최종은 물·불·풀 셋 다 나온다 (§8.16)`);
+      continue;
     }
-
-    // (2) mix 가 counter/prey 규칙을 따르는지 — 테마 속성이 있는 테마만 (§8.2)
-    if (isFinale || t.element === null) continue;   // §8.16: 최종은 테마 속성이 없다
-    const T = t.element, c = counterOf(T), p = preyOf(T);
-    if (!c || !p) { C('S8', `${tag}: counter/prey 를 elements.matrix 에서 유도할 수 없다 (element=${JSON.stringify(T)})`); continue; }
-    const want = { [T]: 0.70, [c]: 0.10, [p]: 0.10, normal: 0.10 };
-    for (const el of ELEMENTS4) {
-      if (Math.abs((num(t.mix[el]) ? t.mix[el] : 0) - want[el]) > 1e-9) {
-        V('S8', `${tag}.mix.${el} = ${t.mix[el]} ≠ ${want[el]} — 70/10/10/10 규칙 (T=${T}, counter=${c}, prey=${p}) (§8.2)`);
-      }
+    const T = t.element, p = preyOf(T);
+    if (!p) { C('S8', `${tag}: prey 를 elements.matrix 에서 유도할 수 없다 (element=${JSON.stringify(T)})`); continue; }
+    const nonZero = ELEMENTS4.filter((el) => num(t.mix[el]) && t.mix[el] > 0);
+    if (nonZero.length !== 2 || !nonZero.includes(T) || !nonZero.includes(p)) {
+      V('S8', `${tag}.mix: 0 이 아닌 속성 = [${nonZero.join(', ')}] ≠ [테마 ${T}, 먹이 ${p}] — 한 스테이지는 «테마 + 먹이» 2속성 (§8.2 v1.10 ⑬)`);
     }
+    if (num(t.mix[T]) && t.mix[T] < 0.5) V('S8', `${tag}.mix.${T} = ${t.mix[T]} < 0.5 — 테마가 다수여야 한다 (§8.2)`);
   }
   EX('S8', cells);
-  if (cells && cells !== 31) {
-    C('S8', `S8 의 정의역이 ${cells}셀 — §13.4-S8 의 실측 주석은 "전 31셀"(pool 6테마 × s1~s5 + finale × s6)이다. `
-      + `셀 수가 다르면 그 주석이 가리키는 대상이 바뀐 것이다`);
-  }
 }
 
 // ===========================================================================
@@ -1709,7 +1680,7 @@ function S9_structure() {
     });
   }
   const swarms = ARCHETYPES().filter((a) => isObj(a) && /^swarm/.test(a.id));
-  if (swarms.length !== 2) V('S9', `enemies.archetypes: 새떼 전용 아키타입 ${swarms.length}종 ≠ 2 (swarmChaff, swarmLancer — §8.6)`);
+  if (swarms.length !== 3) V('S9', `enemies.archetypes: 새떼 전용 아키타입 ${swarms.length}종 ≠ 3 (swarmChaff·swarmDart·swarmLancer — §8.6 v1.10 ⑫)`);
 
   // (6) §8.16: 최종의 위기 = 6서브웨이브 물×2 → 불×2 → 풀×2
   const ph = st.phase || {};
@@ -2084,8 +2055,8 @@ function S20_formationExclusivity() {
   }
   for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
     if (!isObj(cw)) continue;
-    // v1.10 ⑥ — 서브웨이브 하나에 몸(crisisBodyId)과 공격형(crisisShooterId)이 봉지로 섞인다: 둘 다 그 편대에 맞아야 한다
-    for (const id of [D.stages.phase.crisisBodyId, D.stages.phase.crisisShooterId]) {
+    // v1.10 ⑫ — 서브웨이브 하나에 몸(레코드 bodyId)과 공격형(phase.crisisShooterId)이 봉지로 섞인다: 둘 다 그 편대에 맞아야 한다
+    for (const id of [cw.bodyId, D.stages.phase.crisisShooterId]) {
       check(cw.formationId, id, `stages.phase.crisisWaves[subWave ${cw.subWave}, ${id}]`);
     }
   }
@@ -2345,7 +2316,8 @@ function S26_concurrentBudget() {
     //   초 만에 빠져나간다. 무대 상한 = 사이클 총량 × min(1, 체류 ÷ 사이클). 체류가 사이클보다 길면 옛 식(전량)으로 돌아간다.
     const arch = {}; for (const a of ARCHETYPES()) if (isObj(a)) arch[a.id] = a;
     let vMin = Infinity;
-    for (const id of [ph.crisisBodyId, ph.crisisShooterId]) {
+    const swarmIds = [ph.crisisShooterId]; for (const cw of rowsQuiet(ph.crisisWaves)) if (isObj(cw)) swarmIds.push(cw.bodyId);
+    for (const id of swarmIds) {
       const a = arch[id]; const v = a && a.moveParams && a.moveParams.speed;
       if (num(v) && v > 0 && v < vMin) vMin = v;
     }
@@ -2390,14 +2362,19 @@ function S27_eliteLegality() {
       if (!isObj(w)) return;
       if (w.eliteIndex === null || w.eliteIndex === undefined || isAmb(w.eliteIndex)) return;
       n += 1;
-      const tag = `stages.stages[${t.id}].waves[${i}] (${w.archetypeId}, element=${JSON.stringify(w.element)}, eliteIndex=${w.eliteIndex})`;
+      const tag = `stages.stages[${t.id}].waves[${i}] (${w.archetypeId}, eliteIndex=${w.eliteIndex})`;
       const a = archById.get(w.archetypeId);
       if (a && !isAmb(a.band) && !bandAllowed.includes(a.band)) {
         V('S27', `${tag}: band "${a.band}" ∉ elite.bandAllowed [${bandAllowed.join(', ')}] (§8.6/S27)`);
       }
-      if (!isAmb(w.element) && !elemAllowed.includes(w.element)) {
-        V('S27', `${tag}: element ${JSON.stringify(w.element)} ∉ elite.elementAllowed [${elemAllowed.join(', ')}] (§8.6/S27). `
-          + `★ 제거하려면 eliteIndex: null. 옮기려면 그 웨이브에 element != "normal" 인 개체가 있어야 한다 (§23.2-D7)`);
+      // v1.10 ⑬ — 웨이브에 element 가 없다(몸마다 mix 봉지). 속성 자격은 «그 스테이지의 mix 에 elementAllowed 밖 속성이 없다»로 본다
+      //   (S8 이 mix.normal == 0 을 지키므로 사실상 항상 참 — 여기서는 mix 의 0 이 아닌 키만 확인한다).
+      if (isObj(t.mix)) {
+        for (const el of Object.keys(t.mix)) {
+          if (num(t.mix[el]) && t.mix[el] > 0 && !elemAllowed.includes(el)) {
+            V('S27', `${tag}: 이 스테이지 mix 에 elite.elementAllowed 밖 속성 "${el}" (${t.mix[el]}) — 베이크된 엘리트가 그 속성으로 설 수 있다 (§8.6/S27)`);
+          }
+        }
       }
       // eliteIndex 는 그 웨이브의 개체 인덱스여야 한다
       if (num(w.eliteIndex) && num(w.count) && (w.eliteIndex < 0 || w.eliteIndex >= w.count)) {
@@ -2546,21 +2523,27 @@ function S31_crisisComposition() {
     if (subs.has(cw.subWave)) V('S31', `stages.phase.crisisWaves: subWave ${cw.subWave} 레코드가 둘 — v1.10 ⑥ 은 서브웨이브당 레코드 하나(몸/공격형은 봉지가 가른다)`);
     subs.add(cw.subWave);
   }
-  // v1.10 ⑥ — 몸/공격형은 phase 가 지명한다: 둘 다 swarm* · 몸은 attack null · 공격형은 attack ≠ null · 둘 다 chaff 밴드(몸 수는 chaff 로 센다)
+  // v1.10 ⑫ — 몸은 레코드가(bodyId, 서브웨이브마다 달라도 된다: arc = 흔들며 오는 새떼, vWedge = 직선 화살), 공격형은 phase 가 지명한다.
+  //   둘 다 swarm* · 몸은 attack null · 공격형은 attack ≠ null · 몸 ≠ 공격형. 「좌우로 흔들며 빨리 오는 애도, 직선으로 쭉 오는 애도」(사용자 2026-09-04).
   {
     const arch = {}; for (const a of ARCHETYPES()) if (isObj(a)) arch[a.id] = a;
-    const body = arch[ph.crisisBodyId]; const shooter = arch[ph.crisisShooterId];
-    if (!body) V('S31', `stages.phase.crisisBodyId "${ph.crisisBodyId}" 미지`);
-    else {
-      if (!/^swarm/.test(body.id)) V('S31', `crisisBodyId "${body.id}" 가 swarm* 가 아니다 — 위기 세션은 새떼 전용 (§8.10)`);
-      if (body.attack !== null) V('S31', `crisisBodyId "${body.id}" 가 쏜다 — 새떼의 «몸»은 무공격이어야 한다 (§8.10 v1.10 ⑥)`);
-    }
+    const shooter = arch[ph.crisisShooterId];
     if (!shooter) V('S31', `stages.phase.crisisShooterId "${ph.crisisShooterId}" 미지`);
     else {
       if (!/^swarm/.test(shooter.id)) V('S31', `crisisShooterId "${shooter.id}" 가 swarm* 가 아니다 (§8.10)`);
       if (!isObj(shooter.attack)) V('S31', `crisisShooterId "${shooter.id}" 가 안 쏜다 — 새떼의 «공격형»은 attack ≠ null (§8.10 v1.10 ⑥)`);
     }
-    if (body && shooter && body.id === shooter.id) V('S31', 'crisisBodyId == crisisShooterId — 봉지가 가를 두 종이 하나다');
+    const moves = new Set();
+    for (const cw of cws) {
+      if (!isObj(cw)) continue;
+      const body = arch[cw.bodyId];
+      if (!body) { V('S31', `crisisWaves subWave ${cw.subWave}: bodyId "${cw.bodyId}" 미지`); continue; }
+      if (!/^swarm/.test(body.id)) V('S31', `crisisWaves subWave ${cw.subWave}: bodyId "${body.id}" 가 swarm* 가 아니다 — 위기 세션은 새떼 전용 (§8.10)`);
+      if (body.attack !== null) V('S31', `crisisWaves subWave ${cw.subWave}: bodyId "${body.id}" 가 쏜다 — 새떼의 «몸»은 무공격 (§8.10)`);
+      if (shooter && body.id === shooter.id) V('S31', `crisisWaves subWave ${cw.subWave}: bodyId == crisisShooterId — 봉지가 가를 두 종이 하나다`);
+      moves.add(body.moveId);
+    }
+    if (moves.size < 2) V('S31', `crisisWaves: 몸의 이동 동사가 ${moves.size}종 — «흔들며 오는 새떼 + 직선 화살» 둘은 있어야 위기가 읽힌다 (§8.10 v1.10 ⑫)`);
   }
   if (num(ph.crisisTotal) && sum !== ph.crisisTotal) {
     V('S31', `stages.phase.crisisWaves: Σ count = ${sum} ≠ crisisTotal(${ph.crisisTotal}) (§8.10/S31)`);
@@ -3081,7 +3064,7 @@ function S54_sectionsAndRatio() {
   // ② 겹침 — 정상 로스터에 서는 «하강»종의 최속 통과 시간
   const a = D.rules.view.arena; const iv = ph.waveIntervalSec;
   const arch = {}; for (const x of D.enemies.archetypes) arch[x.id] = x;
-  const crisisOnly = {}; crisisOnly[ph.crisisBodyId] = 1; crisisOnly[ph.crisisShooterId] = 1;   // v1.10 ⑥
+  const crisisOnly = {}; crisisOnly[ph.crisisShooterId] = 1; for (const c of (ph.crisisWaves || [])) crisisOnly[c.bodyId] = 1;   // v1.10 ⑫
   let fastest = Infinity; let who = '';
   for (const s2 of st.stages) for (const ro of (s2.roster || [])) {
     const x = arch[ro.archetypeId]; if (!x || crisisOnly[x.id]) continue;
@@ -3137,6 +3120,23 @@ function S54_sectionsAndRatio() {
     n += 1;
     const got = new Set(c.map((id) => el[id]));
     if (got.size < els.size) V('S54', `themeDraw ${k}/${pool.length} 조합 [${c.join(',')}] 에 속성 ${[...els].filter((e) => !got.has(e)).join('·')} 이 없다 — 스테이지 1~5 에서 물·불·풀을 다 겪어야 한다 (§8.1)`);
+  }
+  // ⑦ (v1.10 ⑪) 배수가 무리를 비운다: earlyDrainSec × 도입종 하강속도 × sectionSpeedMul.drain ≥ arena.h + 2r
+  //    — 배수 시작 직전에 스폰된 줄이 중간보스 등장 전에 아레나 아래로 «나간다». 안 그러면 중간보스 구간이 «중간보스 + 벽»이다.
+  n += 1;
+  {
+    const sm = ph.sectionSpeedMul;
+    const a2 = D.rules.view && D.rules.view.arena;
+    const arch2 = {}; for (const x of (D.enemies.archetypes || [])) arch2[x.id] = x;
+    if (isObj(sm) && num(sm.drain) && num(ph.earlyDrainSec) && isObj(a2)) {
+      for (const s2 of st.stages) {
+        const x = arch2[s2.introArchetypeId]; if (!x) continue;
+        const sp = x.moveParams && x.moveParams.speed; if (!num(sp)) continue;
+        const travel = ph.earlyDrainSec * sp * sm.drain;
+        const need = a2.h + 2 * x.radius;
+        if (travel < need) V('S54', `stages[${s2.id}]: 배수 ${ph.earlyDrainSec}초 × ${x.id} ${sp}px/s × drain ${sm.drain} = ${travel.toFixed(0)}px < 아레나 ${need}px — 중간보스가 올 때 벽이 남는다 (§8.19 ① 배수)`);
+      }
+    }
   }
   EX('S54', n);
 }

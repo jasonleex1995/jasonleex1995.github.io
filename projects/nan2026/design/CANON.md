@@ -1237,19 +1237,25 @@ v1.1: 「`view.spawnLineY`(**−40**) **바로 아래**」. 그러나 **`spawnLi
 - ★ **스테이지 1 배치 항상 가능 (증명)**: `introOk` 3종 중 최대 1종만 탈락 → 항상 ≥2종이 런에 포함.
 - → 초안 F의 `guaranteeElements`(거부 샘플링 필요) + `firstStageFrom` 2종은 **폐기**한다. 구조가 이미 증명한다.
 
-### 8.2 속성 혼합 — 70/10/10/10 (확정)
+### 8.2 속성 혼합 — ~~70/10/10/10~~ → **테마 70 + 먹이 30, 한 스테이지 2속성** (v1.10 ⑬ 개정)
 
-테마 속성을 `T`, 상성상 `T`를 이기는 속성을 `counter`(= 플레이어의 정답 스탠스), `T`가 이기는 속성을 `prey`라 할 때:
+> **사용자 결정(2026-09-04)**: 「늪이라고 하면 물·풀만 있어야 하는데 화염도 나와서 속성 선택이 어려워. 물·풀만 있다면 풀로 다 쏘고,
+> 물이 없다 싶으면 불로 바꿀 것 같다. **한 스테이지에 나오는 속성은 2개로만 한정**하는 게 좋겠다.」
 
-| 구간 | 값 | 정답 스탠스(`counter`)로 때릴 때 |
-|---|---|---|
-| 테마 `T` | **0.70** | **×2** |
-| `counter` | 0.10 | ×1 |
-| `prey` | 0.10 | **×0.5** ← 특화의 세금 |
-| 노말 | 0.10 | ×1 |
+테마 속성을 `T`, 상성상 `T`를 이기는 속성을 `counter`(= 정답 스탠스), `T`가 이기는 속성을 `prey`(먹이)라 할 때:
 
-- 예) 화산(불): 불 70 / 물 10 / 풀 10 / 노말 10. 정답 = **물 스탠스**.
-- **데이터 표현**: `stages[].mix`는 **4속성 실제 키로 전개된 가중치 맵 하나**다. 화산이면 `{fire: 0.70, water: 0.10, grass: 0.10, normal: 0.10}`. counter/prey 규칙은 **빌드타임 생성 규칙**이며 `check.mjs`가 준수를 검증한다. → **스키마 하나, 예외 0.**
+| 구간 | 값 | `counter` 스탠스 | `T` 스탠스 |
+|---|---|---|---|
+| 테마 `T` | **0.70** | **×2** | ×1 |
+| `prey` (먹이) | **0.30** | **×0.5** ← 정답에 안주하면 세금 | **×2** |
+| ~~`counter`~~ · ~~노말~~ | **0** | — | — |
+
+- 예) 늪(풀): 풀 70 / 물 30. 짝은 **테마 + 먹이**로 통일 — 물 테마(바다·빙원) = 물 + 불, 불 테마(화산·사막) = 불 + 풀, 풀 테마(숲·늪) = 풀 + 물.
+  «불 스탠스 하나로 다 갈기»가 아니라 「풀로 물까지 다 쏘다가(×1/×2), 물이 없으면 불로(×2)」 — **두 스탠스를 오가는 선택**이 생긴다.
+  짝이 기계적(먹이)이라 바다에 불이 오는 등 겉모습은 어색할 수 있다 — 스킨은 다음 패스.
+- 최종은 물 34 / 불 33 / 풀 33(세 속성 회전, §8.16). **노말 잡몹은 없다**(전 스테이지 0).
+- ~~예) 화산(불): 불 70 / 물 10 / 풀 10 / 노말 10.~~
+- **데이터 표현**: `stages[].mix`는 **4속성 실제 키로 전개된 가중치 맵 하나**다. 화산이면 `{fire: 0.70, water: 0, grass: 0.30, normal: 0}`. ★ v1.10 ⑬: **mix 가 런타임의 유일한 출처**다 — 스포너의 속성 봉지(⑤ 아래)가 mix 를 읽고, `waves[].element` 는 **삭제**됐다(156 레코드). S8: 테마 스테이지는 0 이 아닌 키가 정확히 `{T, prey(T)}`, `T ≥ 0.5`, `normal == 0`; 최종은 물·불·풀 > 0. → **스키마 하나, 예외 0.**
 - **비율의 기준 = 스테이지 잡몹 총 개체 수** (HP 총량 아님, 스폰 확률 아님).
 - ~~**롤 granularity = 웨이브 단위** (개체 단위 롤 금지)~~ → ★ **v1.10 ④: 속성 봉지 = 개체 단위.** 스포너가 «해금된 저작 리스트»의 count 가중 속성 분포를 가중치로 삼아(`elemW`, 리스트 파생 — 새 키 0), **웨이브마다 count 칸을 최대 나머지법으로 나눠 채우고 `rng.spawn` 으로 섞는다**(§8.19 ③ 봉지와 같은 원리). 그래서 한 웨이브 안에 «정확히» mix 비율의 속성이 섞이고, 화면은 매 순간 ≈ 70/10/10/10 이다.
   **왜 뒤집었나 (실측 회귀):** v1.10 ①~③ 의 비율 모델은 몸 수를 밴드 하한(chaff 16)·예산으로 고쳐 쓴다. 웨이브 단위 롤에서는 «작은 비테마 웨이브(2~6마리)» 가 16 이 되고 «큰 테마 웨이브(22~49)» 는 예산에 잘려, 저작 리스트가 70/10/10/10 인데 **실제 스폰은 41/20/20/20** 이었다(forest·bog 포지션 1, 4시드 972기). S8 은 저작 리스트만 보므로 초록불이었다 — 사용자 지적(2026-09-04)「테마의 속성이 잘 안 느껴져」가 계측기였다. 개체 단위 봉지 뒤 실측 69/12/12/6(forest s1)·69/12/12/7(volcano s3)·finale 32/31/29/8.
@@ -1612,10 +1618,10 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | ★ **`stages.phase.crisisCycleSec`** ★v1.10 ⑥ | **9** — 새떼 **한 사이클**(`crisisSubWaves` 6파, 균등 간격 1.5초)의 길이. ~~`crisisDurationSec` 25 → 14~~ 를 **개명** — 위기의 «길이»가 아니라 사이클의 길이이므로 이름이 거짓이었다 |
 | ★ **`stages.phase.crisisSwarmLoop`** ★v1.10 ⑥ | **true** — 사이클을 **페이즈 끝까지 반복**한다. 사용자(2026-09-04): 「위기 구간은 거의 날아오는 적 피하기 — 빠른 무리가 쭈르륵 내려오면서 피하거나, 부숴서 길을 내야만 하는 느낌」. false 면 한 사이클(옛 v1.3~v1.10 ⑤). S55 ④: `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)` |
 | `stages.phase.crisisSuspendsWaves` ★v1.10 ⑥ | **true** — 위기 = **새떼만**. v1.10 ② 가 false 로 «정상 웨이브 + 새떼 14초» 를 시도했으나 「초기 구간의 빠른 판」이라 정체성이 없었다(플레이 피드백). 초기 = 느리고 큰 벽을 뚫는 구간 / 위기 = 작고 빠른 무리를 정답 스탠스로 갈아버리는 구간 |
-| `stages.phase.crisisTotal` ★v1.10 ⑥ | **150 × `swarmTotalScale[stage]`** = 사이클당 몸 수(서브웨이브 25 × 6). `swarmTotalScale` **`[0.8, 0.9, 1.0, 1.1, 1.2, 1.3]`** — 밀도는 전 포지션 높고, 난이도 축은 «쏘는 비율»과 속도다 · ~~60~~ ~~84~~ ~~[0.55,…,1.15]~~ |
+| `stages.phase.crisisTotal` ★v1.10 ⑫ | **220 × `swarmTotalScale[stage]`** = 사이클당 몸 수(서브웨이브 ~37 × 6). `swarmTotalScale` **`[0.8, 0.85, 0.9, 0.95, 1.0, 1.0]`** — 밀도는 전 포지션 높고(실측 무대 59~132), 난이도 축은 «쏘는 비율»과 속도. 상한은 S22(새떼 XP 율 ≤ 초기의 0.30 — 최종 0.285) · ~~150 × [0.8…1.3]~~ ~~60~~ ~~84~~ |
 | `stages.phase.crisisSubWaves` | 6 (`arc`/`vWedge` 교대 — S9 의 3속성 × 2 회전이 이것을 전제) |
-| ★ **`stages.phase.crisisBodyId` / `crisisShooterId`** ★v1.10 ⑥ | **`"swarmChaff"` / `"swarmLancer"`** — 새떼의 두 종. 서브웨이브 몸 수 `count` 중 **`round(count × curve.shooterRatio[pos])`** 이 공격형, 나머지 몸 — **정상 웨이브와 같은 곡선**(§8.19 ②, 새 키 0)으로 「탄환을 쏘는 것은 stage 가 올라감에 따라 비율이 높아지게」. 봉지(`rng.spawn`)라 마릿수 편차 0. 몸은 `attack null`·공격형은 `attack ≠ null`·둘 다 swarm* (S31) |
-| ★ `stages.phase.crisisWaves` ★v1.10 ⑥ | **6 레코드** — 서브웨이브당 **하나** `{subWave, formationId, count, spawnEdge}`. ~~12 레코드(서브웨이브당 swarmChaff 9 + swarmLancer 1)~~ — `archetypeId` 는 **삭제**(두 종의 갈림은 봉지가 한다) |
+| ★ **`crisisWaves[].bodyId` / `stages.phase.crisisShooterId`** ★v1.10 ⑫ | 몸은 **서브웨이브 레코드**가(`bodyId`) — `arc` 파 = **`swarmChaff`**(좌우로 흔들며 128) · `vWedge` 파 = **`swarmDart`**(직선으로 쭉, 165) — 「좌우로 약간 흔들면서 빨리 오는 애도, 직선으로 쭉 빨리 오는 애도」(사용자 2026-09-04). S31 이 몸의 이동 동사 ≥ 2종을 강제. 공격형은 `phase.crisisShooterId` **`"swarmLancer"`**(`lancerStraight` everySec 6 → **2.0**: 체류 중 두 발). 서브웨이브 `count` 중 **`round(count × curve.shooterRatio[pos])`** 이 공격형(정상 웨이브와 같은 곡선, §8.19 ②). 몸의 HP: chaff **6**·dart **5**(line ×2.5)·lancer **6** = 1스테이지 벌컨 2방(「대부분 한 방에 죽어 잘 모르겠다」 → 이제 두 방) — 속도↔HP 단조(빠를수록 약함)를 지킨다. ~~crisisBodyId 단일~~ |
+| ★ `stages.phase.crisisWaves` ★v1.10 ⑫ | **6 레코드** — 서브웨이브당 **하나** `{subWave, formationId, bodyId, count, spawnEdge}`. ~~12 레코드~~ · `archetypeId` 삭제(⑥) · `bodyId` 추가(⑫) |
 | `crisisFailCondition` | **없음** (**규칙이며 키가 아니다** — 「실패 조건이 존재하지 않는다」는 밸런싱 대상이 아니다) |
 | ★ `stages[].crisisElementRule` | **`"themePure"` \| `"finaleRotating"`** — ★ **v1.3: 어휘가 2값으로 넓어지고 거처가 테마 엔트리로 갔다, 아래** |
 
@@ -1969,7 +1975,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 
 | 키 | 뜻 | 곡선 |
 |---|---|---|
-| `mobFireRateScale` | 잡몹 이미터 시간의 흐름 배율. 1 미만이면 발사가 뜸해진다 | `[0.42, 0.60, 0.80, 1.00, 1.10, 1.25]` |
+| `mobFireRateScale` | 잡몹 이미터 시간의 흐름 배율. 1 미만이면 발사가 뜸해진다 | `[0.42, 0.42, 0.62, 0.85, 1.05, 1.25]` ★v1.10 ⑪ — 1→2 를 같게: 실측 탄 총량이 248 → 581(×2.3)로 뛰어 「스테이지 1·2 체감이 너무 다르다」(피드백). 개정 뒤 248 → 437 → 560 → 684 → 969 → 1898 · ~~[0.42, 0.60, 0.80, 1.00, 1.10, 1.25]~~ |
 | `mobBulletDmgScale` | 잡몹 탄 피해 배율 (최소 1 보장) | `[0.65, 0.8, 0.95, 1.1, 1.25, 1.4]` |
 
 **★ 적용 범위** — 잡몹만이다. **보스·중간보스는 제외**한다:
@@ -1997,7 +2003,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 | 구간 | 언제 | 웨이브 | 그 밖에 | 속도 |
 |---|---|---|---|---|
 | **초기** | 0 ~ `midBossAtSec[pos][0] − earlyDrainSec` | 간격 `earlyWaveIntervalSec`(1.4) · 편대 `introFormationId`(wall) — «우루루» | — | `sectionSpeedMul.early` 0.72 |
-| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | early |
+| **배수** | ~ `midBossAtSec[pos][0]` | **0** — 무리가 화면을 빠져나갈 시간 | — | ★ `sectionSpeedMul.drain` **2.2** (v1.10 ⑪) — 스폰이 멈춘 무리가 «빠르게 흘러 나간다». early 0.72 로는 벽 한 벌이 19.5초라 중간보스가 올 때 200기가 남았다(피드백: 「초반 몹이 다 안 사라졌는데 중간보스」). 실측 30초 잔존 포지션 1: 0 · 5: 9. S54 ⑦ = `earlyDrainSec × 하강속도 × drain ≥ arena.h + 2r` |
 | **중간보스** | `midBossAtSec[pos][0]` ~ 위기 | **0** (`midBossSuspendsWaves`) — 몹이 적어야 «피할 수» 있다 | 첫 마리 = 소환자(`midBossFirstId`) → 유령이 «적당히» 흐른다(실측 13~20). 나머지는 다른 형태. 타이머 이탈 없음 | `sectionSpeedMul.mid` 1.0 |
 | **위기** | **전원 격파 즉시**(`crisisOnMidBossClear`) 또는 `crisisStartSec`(80, 상한) ~ `mobPhaseSec` | **0** (`crisisSuspendsWaves` true) — 대신 **새떼 사이클 반복**(`crisisSwarmLoop`, §8.10): 1.5초마다 호·쐐기 25기(× `swarmTotalScale`), 반지름 6~7, 속도 128·102 × 1.45, 테마 속성 100%, 공격형 = `shooterRatio[pos]` | 남은 중간보스는 퇴장 연출로 빠져나간다 | `sectionSpeedMul.crisis` 1.45 |
 | **보스** | `mobPhaseSec` 이후 | — | §8.11~ | — |
@@ -2024,7 +2030,10 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 (S23 「테마당 4종」을 건드리지 않는다).
 
 **④ 공정성 예산은 포지션 곡선을 탄다 — `curve.threatBudgetScale`.** 공격형 예산 `enemyConcurrentMax`(42) ×
-`[1.0, 1.0, 1.25, 1.6, 1.9, 2.1]`. 비율 55~70% 를 42 로는 못 세운다(실측: 5·6 이 42·50% 에 멈췄다).
+`[1.0, 1.0, 1.25, 1.7, 2.3, 2.4]`(v1.10 ⑪ · ~~[1.0, 1.0, 1.25, 1.6, 1.9, 2.1]~~). 비율 55~70% 를 42 로는 못 세운다(실측: 5·6 이 42·50% 에 멈췄다).
+★ v1.10 ⑪ **예산은 상한이지 밀도의 구멍이 아니다** — 공격형 예산이 찬 봉지 칸은 «몸»으로 선다(fallback), 그리고 바깥 게이트는
+«두 예산 중 하나라도» 자리가 있으면 연다. 안 그러면 후반(비율 55~70%)에서 공격형이 차는 순간 웨이브 전체가 서서 벽이
+헐거워졌다(실측 포지션 5: 21초 183기 → 개정 뒤 362기, 세로 덮임 100%).
 ★ 루프 안의 예산과 «웨이브를 시작할지 정하는 바깥 게이트»가 **같은 배율**을 봐야 한다 — 안만 올리면
 웨이브 간격이 2.65 → 8초로 벌어진다(실측 포지션 6, threatLive 49 에서 정지).
 
@@ -2039,7 +2048,7 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 (차선 순틈 64 ≥ 46) · `chaff.minPerWave 30` · `introConcurrentMax 400` · `caps.enemies 576`. 무공격 몸이 쏘는 적(6~7)보다 크면
 안 된다 — 위협의 크기 서열이 뒤집힌다. 실측 포지션 1: 21초 391기, 세로 덮임 100%, 최대 빈틈 0px.
 
-**⑥ 속도가 구간의 성격이다 — `phase.sectionSpeedMul`.** `{ early: 0.72, mid: 1.0, crisis: 1.45 }`. 사용자:
+**⑥ 속도가 구간의 성격이다 — `phase.sectionSpeedMul`.** `{ early: 0.72, drain: 2.2, mid: 1.0, crisis: 1.45 }`(v1.10 ⑪ drain 추가). 사용자:
 「초기 구간은 느려서 천천히 내려오는 느낌, 위기 구간은 전반적으로 속도가 좀 많이 빠른 느낌」. `applyMovement` 가
 하강·횡속도에 곱한다. 유령·중간보스·보스는 각자 소관이라 안 탄다.
 
@@ -2395,7 +2404,7 @@ data/bosses.json     data/stages.json     data/meta.json
                "maxBulletSpeed":260, "maxAimedBulletSpeed":200, "statusBulletSpeedMul":0.6,
                "minBulletRadiusPx":4, "minGapWidthPx":46, "minSpawnRadiusPx":140,
                "maxSimultaneousEnemyBullets":320,
-               "enemyConcurrentMax":40, "swarmConcurrentMax":120,
+               "enemyConcurrentMax":40, "swarmConcurrentMax":200,
                "telegraphConcurrentMaxPerEntity":2,
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
@@ -3256,14 +3265,14 @@ tetrarchThroneP1  ...
              "crisisPerStage":1,
              "crisisStartSec":80, "crisisCycleSec":9,
              "crisisSuspendsWaves":true, "crisisSwarmLoop":true, "crisisOnMidBossClear":true,
-             "crisisTotal":150, "crisisSubWaves":6, "crisisBodyId":"swarmChaff", "crisisShooterId":"swarmLancer",
+             "crisisTotal":220, "crisisSubWaves":6, "crisisShooterId":"swarmLancer",
              "crisisWaves":[
-               { "subWave":1, "formationId":"arc",    "count":25, "spawnEdge":"top" },
-               { "subWave":2, "formationId":"vWedge", "count":25, "spawnEdge":"top" },
-               { "subWave":3, "formationId":"arc",    "count":25, "spawnEdge":"top" },
-               { "subWave":4, "formationId":"vWedge", "count":25, "spawnEdge":"top" },
-               { "subWave":5, "formationId":"arc",    "count":25, "spawnEdge":"top" },
-               { "subWave":6, "formationId":"vWedge", "count":25, "spawnEdge":"top" } ],
+               { "subWave":1, "formationId":"arc",    "bodyId":"swarmChaff", "count":37, "spawnEdge":"top" },
+               { "subWave":2, "formationId":"vWedge", "bodyId":"swarmDart",  "count":37, "spawnEdge":"top" },
+               { "subWave":3, "formationId":"arc",    "bodyId":"swarmChaff", "count":36, "spawnEdge":"top" },
+               { "subWave":4, "formationId":"vWedge", "bodyId":"swarmDart",  "count":37, "spawnEdge":"top" },
+               { "subWave":5, "formationId":"arc",    "bodyId":"swarmChaff", "count":37, "spawnEdge":"top" },
+               { "subWave":6, "formationId":"vWedge", "bodyId":"swarmDart",  "count":36, "spawnEdge":"top" } ],
              "midBossAtSec":[[30,30],[30,30],[30,30,40],[30,30,40],[30,30,40,50],[30,30,40,50,60]],
              "midBossFirstId":"mbNest", "midBossElementRule":"themeElseNonTheme",
              "midBossForcedLeaveOnCrisis":true,
@@ -3273,9 +3282,9 @@ tetrarchThroneP1  ...
   "stages": [{ "id":"sea", "name":"바다", "element":"water", "introOk":true,
                "bossId":"manta", "crisisElementRule":"themePure", "terrainKind":"inertia",   // §8.21 v1.10 ⑦ (finale 은 null)
                "roster":[{"archetypeId":"drifter","unlockStageMin":1}, "..."],
-               "mix":{"water":0.70,"fire":0.10,"grass":0.10,"normal":0.10},
+               "mix":{"water":0.70,"fire":0.30,"grass":0.00,"normal":0.00},   // v1.10 ⑬ 테마 + 먹이
                "waves":[{ "formationId":"vWedge","archetypeId":"drifter","count":7,
-                          "element":"water","spawnEdge":"top","eliteIndex":null,
+                          "spawnEdge":"top","eliteIndex":null,                       // v1.10 ⑬ element 삭제 — 속성은 mix 봉지
                           "unlockStageMin":1 }] },      // 예시 — waves[] 원소 1개의 형태
              { "id":"finale", "name":"최종", "element":null, "introOk":false,
                "bossId":"tetrarch", "crisisElementRule":"finaleRotating",
@@ -4053,7 +4062,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | `enemyConcurrentMax` | **42** · ~~40~~ | ★ **런타임 `defer`** + S26(웨이브 1개의 `count` 합 ≤ 42) + `capHits`가 발화를 센다 |
 | ★ **이 값이 «세는 것»** (v1.8) | 웨이브가 낸 잡몹**뿐** | 보스·중간보스(§8.9)와 유령 소환(§8.9-R9)은 **웨이브 예산 밖**이다. 유령은 자기 몫으로 **같은 `enemyConcurrentMax`** 를 갖는다(`telegraphConcurrentMaxGlobal` 과 같은 **재사용식 파생** — 새 키 0). 세 몫의 합 **42 + 42 + max(`midBossCount`) 5 = 89 ≤ `caps.enemies` 128** 을 **S12** 가 강제한다. ★ v1.8 이전엔 소환에 예산 검사가 **아예 없었고** 웨이브 게이트가 유령까지 세어, **예산 있는 개체가 예산 없는 개체에 굶었다**(실측 유령 동시 최악 110 · 풀 최악 123/128 = 96%). 「캡에 닿는 콘텐츠는 콘텐츠 버그다」가 이 절의 첫 문장이다 |
 | ★ **`introConcurrentMax`** (v1.9 · **v1.10 ⑤ 400**) | **400** · ~~216~~ | 무공격 몸(도입 밴드 chaff)의 자기 몫. 몸이 작아진 만큼(반지름 13 → 8) 수로 채운다 — 21초에 391기·세로 덮임 100%(실측). S12 가 「웨이브 42×max(threatBudgetScale) + 유령 42 + 도입 400 + 중간보스 5 < caps.enemies 576」을 강제 |
-| `swarmConcurrentMax` | **120** · ~~100~~ ~~70~~ | 새떼 전용 예외. 동일. ★ 위기 중 `spawnCrisis` 의 게이트는 «전역 live» 를 세므로 유령이 남아 있어도 위기 총 개체는 100 을 넘지 않는다 |
+| `swarmConcurrentMax` | **200** · ~~120~~ ~~100~~ ~~70~~ | 새떼 전용 예외. 동일. ★ 위기 중 `spawnCrisis` 의 게이트는 «전역 live» 를 세므로 유령이 남아 있어도 위기 총 개체는 100 을 넘지 않는다 |
 | ~~`crisisWaveResidualMax`~~ ★v1.10 ⑥ | **폐지** — 읽는 곳이 0 이었다(런타임은 한 번도 안 읽었다). 위기 중 무대 = 새떼 + 남은 유령이라 S12 의 위기 행은 `swarmConcurrentMax + enemyConcurrentMax(유령 몫) < caps.enemies` 로 바뀌었다 |
 | `maxSimultaneousEnemyBullets` | **320** | 보스 `patternSet` 3페이즈 전개 시뮬 |
 | `telegraphConcurrentMaxPerEntity` | **2** | 보스·중간보스·잡몹 **1개체** 기준 정적 검사 |
