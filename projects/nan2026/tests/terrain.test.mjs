@@ -2,13 +2,13 @@
  * tests/terrain.test.mjs — 지형 장판 (§8.21, v1.10 ⑦)의 정본 계약.
  *
  * 커버:
- *   스폰   — MOB 에서 everySec 마다, 무대에 maxOnScreen 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 3종 순환(mixed)
+ *   스폰   — MOB 에서 everySec 마다, 무대에 maxOnScreen 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 3종 가방(mixed — 무작위 순서, 3개마다 전부)
  *   흐름   — scrollSpeedPx 로 내려가고 아레나 아래로 나가면 반납 / advanceStage 가 무대를 비운다
  *   효과   — slow: 안에서 둔화(status.slowMoveSpeedMul) · 밖으로 나가면 다음 틱에 풀림
  *            inertia: 안에서 방향을 뒤집으면 vx 가 «서서히» 뒤집힌다(tau) · 밖에서는 즉시
  *            heat: fullSec 만에 차고 → stallSec 스턴 → 0 · 밖에서 coolSec 에 식는다 · 스턴 중엔 안 찬다
  *   무해   — 어느 지형 안에 서 있어도 HP 가 줄지 않는다(피해 0 = 사용자 결정 「유틸 방해」)
- *   저항   — 패시브 «자세 안정기»(terrainResist)가 세 지형의 효과를 (1 − Σ) 배로 줄인다 · 탄의 둔화는 그대로 (§8.21 ⑥ v1.10 ⑳)
+ *   저항   — 패시브 «자세 안정기»(terrainResist)가 세 지형의 효과를 (1 − Σ) 배로 줄이고 Lv10 은 면역 · 탄의 둔화는 그대로 (§8.21 ⑥ v1.10 ⑳·㉑)
  *   결정성 — 같은 시드 = 같은 위치(rng.terrain)
  */
 
@@ -77,7 +77,16 @@ suite('terrain — 스폰·흐름 (§8.21)', () => {
     assert.ok(!t.alive || t.gen !== gen, '아래로 나가면 반납');
   });
 
-  test('최종 스테이지(mixed)는 3종이 slow→inertia→heat 순으로 돌아가며 나온다 · advanceStage 는 무대를 비운다', () => {
+  test('최종 스테이지(mixed)는 3종이 «가방»으로 나온다 — 3개마다 전부 한 번씩, 순서는 시드마다 다르다 · advanceStage 는 무대를 비운다', () => {
+    /** 놓인 순서대로 종을 기록한다(풀 인덱스는 재사용될 수 있으니 gen:idx 로 새 것을 가른다) */
+    function observe(w, want) {
+      const seen = []; const known = new Set();
+      for (let i = 0; i < 60 * 60 && seen.length < want; i += 1) {
+        step(w, makeInput(), dt);
+        for (const t of live(w)) { const key = `${t.gen}:${w.terrain.items.indexOf(t)}`; if (!known.has(key)) { known.add(key); seen.push(t.kind); } }
+      }
+      return seen;
+    }
     const w = mkRun(3, 'bog', 4);
     w.run.order[5] = 'finale';
     tick(w, 60 * 8);
@@ -87,19 +96,21 @@ suite('terrain — 스폰·흐름 (§8.21)', () => {
     advanceStage(w);
     assert.eq(live(w).length, 0, '전이에서 비운다');
     assert.eq(w.player.heat, 0, '열도 0');
-    assert.eq(w.run.terrainSeq, 0, '순환 카운터 0');
+    assert.eq(w.run.terrainBagN, 0, '가방은 비어서 시작(다음에 섞는다)');
     const st = w.data.stages.stages.find((x) => x.id === 'finale');
     assert.eq(st.terrainKind, TERRAIN_MIXED, 'finale = mixed (§8.21 ③)');
-    // 스폰 순서를 «놓인 순서»로 본다 — 풀 인덱스는 재사용될 수 있으니 gen 이 아니라 관찰 시각으로 기록한다
-    const seen = [];
-    const known = new Set();
-    for (let i = 0; i < 60 * 40 && seen.length < 4; i += 1) {          // 4번째는 첫 장판이 아래로 나가야(≈20s) 자리가 난다(maxOnScreen 3)
-      step(w, makeInput(), dt);
-      for (const t of live(w)) { const key = `${t.gen}:${w.terrain.items.indexOf(t)}`; if (!known.has(key)) { known.add(key); seen.push(t.kind); } }
+    const seen = observe(w, 6);
+    assert.eq(seen.length, 6, `60초 안에 6개 (실제 ${seen.length})`);
+    const all = TERRAIN_KINDS.map((_, i) => i).join(',');
+    assert.eq(seen.slice(0, 3).sort().join(','), all, '첫 3개 = 3종 전부');
+    assert.eq(seen.slice(3, 6).sort().join(','), all, '다음 3개 = 3종 전부');
+    // 순서는 시드가 정한다 — 여러 시드에서 첫 가방의 순서가 전부 같지는 않다(고정 순환이 아니다)
+    const orders = new Set();
+    for (let seed = 1; seed <= 6; seed += 1) {
+      const w2 = mkRun(seed, 'finale', 5);
+      orders.add(observe(w2, 3).join(','));
     }
-    assert.eq(seen.length, 4, `40초 안에 4개 (실제 ${seen.length})`);
-    assert.eq(seen.join(','), [T_SLOW, T_INERTIA, T_HEAT, T_SLOW].join(','), '순환 slow→inertia→heat→slow');
-    assert.eq(w.run.terrainSeq, 4, '카운터 = 놓은 수');
+    assert.gt(orders.size, 1, `시드마다 순서가 다르다 (${[...orders].join(' | ')})`);
   });
 
   test('결정성 — 같은 시드 = 같은 위치, 다른 시드 = 다른 위치 (rng.terrain)', () => {
@@ -185,28 +196,38 @@ suite('terrain — 효과 (§8.21 · §2.2 · §2.7)', () => {
   });
 });
 
-suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳)', () => {
-  /** Lv10 까지 올린 저항 배율 (1 − Σ) — 데이터에서 끌어온다 */
-  function maxOut(w) {
+suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳·㉑)', () => {
+  /** 저항 패시브를 n 레벨 «더» 올리고 배율 (1 − Σ) 을 돌려준다 — 값은 데이터에서 */
+  function raise(w, n) {
     const ps = w.data.passives;
     const def = ps.passives.find((x) => x.stat === 'terrainResist');
     assert.ok(def !== undefined, 'terrainResist 를 쓰는 패시브가 있다');
-    for (let k = 0; k < ps.maxLevel; k += 1) assert.ok(givePassive(w, def.id), `${def.id} Lv${k + 1}`);
-    const r = def.values[ps.maxLevel - 1];
-    assert.near(w.stats.terrainResist, r, 1e-9, 'Σ = Lv10 값');
-    assert.ok(r > 0 && r < 1, `저항은 (0,1) — 면역이 아니다 (${r})`);
-    return 1 - r;
+    for (let k = 0; k < n; k += 1) assert.ok(givePassive(w, def.id), `${def.id} +1`);
+    const lv = w.passives.find((x) => x.id === def.id).level;
+    assert.near(w.stats.terrainResist, def.values[lv - 1], 1e-9, `Σ = Lv${lv} 값`);
+    return 1 - def.values[lv - 1];
   }
+  const MID = 5;
 
-  test('slow — 둔화 «깊이»가 (1 − Σ) 배로 준다 · 탄의 둔화(slowSec 직접)는 그대로', () => {
+  test('Lv10 = 면역 — 값이 정확히 1.00 (사용자 결정: 상한은 100%)', () => {
+    const w = mkRun(3, 'bog');
+    const def = w.data.passives.passives.find((x) => x.stat === 'terrainResist');
+    assert.eq(def.values[w.data.passives.maxLevel - 1], 1, '만렙 = 1.00');
+    for (let i = 1; i < def.values.length; i += 1) assert.gt(def.values[i], def.values[i - 1], '단조 증가');
+  });
+
+  test('slow — 둔화 «깊이»가 (1 − Σ) 배로 준다 · 면역이면 정속 · 탄의 둔화(slowSec 직접)는 그대로', () => {
     const w = mkRun(3, 'bog');
     const rp = w.data.rules.player; const mul = w.data.rules.status.slowMoveSpeedMul;
-    const tm = maxOut(w);
+    const tm = raise(w, MID);
     const t = standInFirst(w);
     const inp = makeInput(); inp.right = true;
     tick(w, 3, inp);
     assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '장판 안');
     assert.near(Math.abs(w.player.vx), rp.moveSpeed * (1 - (1 - mul) * tm), 1e-6, `속도 = 기준 × (1 − (1 − ${mul}) × ${tm.toFixed(2)})`);
+    raise(w, w.data.passives.maxLevel - MID);                       // 만렙까지
+    w.player.x = t.x; w.player.y = t.y; tick(w, 3, inp);
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed, 1e-6, '면역 = 정속');
     // 밖에서 탄의 둔화 — 지형 저항의 대상이 아니다
     w.player.x = t.x + t.radius + 200; w.player.y = 600;
     tick(w, 2, inp);
@@ -215,10 +236,10 @@ suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳)'
     assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6, '탄 둔화는 전부 받는다');
   });
 
-  test('inertia — τ 가 (1 − Σ) 배로 짧아진다(뒤집히는 데 τ·tm·ln2)', () => {
+  test('inertia — τ 가 (1 − Σ) 배로 짧아진다 · 면역이면 즉시 뒤집힌다', () => {
     const w = mkRun(4, 'glacier');
     const tr = w.data.rules.terrain;
-    const tm = maxOut(w);
+    const tm = raise(w, MID);
     const t = standInFirst(w);
     const right = makeInput(); right.right = true;
     const left = makeInput(); left.left = true;
@@ -229,18 +250,28 @@ suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳)'
     while (w.player.vx > 0 && n < 600) { w.player.x = t.x; w.player.y = t.y; step(w, left, dt); n += 1; }
     const expect = Math.log(2) * tr.inertia.responseTauSec * tm / dt;
     assert.ok(Math.abs(n - expect) <= 2, `뒤집히는 데 ${n}틱 ≈ τ·tm·ln2 = ${expect.toFixed(1)}틱`);
+    raise(w, w.data.passives.maxLevel - MID);
+    w.player.x = t.x; w.player.y = t.y; tick(w, 5, right);
+    w.player.x = t.x; w.player.y = t.y; step(w, left, dt);
+    assert.lt(w.player.vx, 0, '면역 = 한 틱에 뒤집힌다');
   });
 
-  test('heat — 충전이 (1 − Σ) 배로 느려진다: 정지까지 fullSec ÷ (1 − Σ)', () => {
+  test('heat — 충전이 (1 − Σ) 배로 느려진다 · 면역이면 영영 안 찬다', () => {
     const w = mkRun(5, 'volcano');
     const tr = w.data.rules.terrain;
-    const tm = maxOut(w);
+    const tm = raise(w, MID);
     const t = standInFirst(w);
     let stunAt = -1; let n = 0;
     while (stunAt < 0 && n < 60 * 20) { w.player.x = t.x; w.player.y = t.y; step(w, makeInput(), dt); n += 1; if (w.player.stunSec > 0) stunAt = n; }
-    assert.ok(stunAt > 0, '정지가 온다 (저항이지 면역이 아니다)');
+    assert.ok(stunAt > 0, '정지가 온다');
     const expect = tr.heat.fullSec / tm;
     assert.ok(Math.abs(stunAt * dt - expect) <= 2 * dt, `fullSec/(1−Σ) = ${expect.toFixed(2)}s 만에 정지 (실제 ${(stunAt * dt).toFixed(2)})`);
+    let m = 0; while (w.player.stunSec > 0 && m < 200) { w.player.x = t.x; w.player.y = t.y; step(w, makeInput(), dt); m += 1; }
+    raise(w, w.data.passives.maxLevel - MID);
+    w.player.heat = 0;
+    for (let i = 0; i < 60 * 10; i += 1) { w.player.x = t.x; w.player.y = t.y; step(w, makeInput(), dt); }
+    assert.eq(w.player.heat, 0, '면역 = 10초 서 있어도 열 0');
+    assert.eq(w.player.stunSec, 0, '정지 없음');
   });
 
   test('이동 속도 배율은 어휘에 없다 — stats 에 moveSpeedMul 이 없고 자석은 moveSpeed 그대로', () => {

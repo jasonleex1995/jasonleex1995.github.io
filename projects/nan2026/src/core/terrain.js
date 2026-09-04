@@ -37,16 +37,27 @@ function kindIndex(kind) {
 }
 
 /**
- * §8.21 ③ 이 스테이지가 «다음에 놓을» 종 — 테마 스테이지는 그 테마의 하나. finale(`mixed`, v1.10 ⑳)은 3종이
- *   slow → inertia → heat 순으로 돌아가며 나온다(run.terrainSeq — 놓을 때마다 +1, 보스 등장 무리 3개 = 하나씩 전부).
- *   테마가 없으니 «전부 나온다»가 finale 의 정체성(§8.9 의 3속성 순환과 같은 문법). null = 지형 없음(-1).
+ * §8.21 ③ 이 스테이지가 «다음에 놓을» 종 — 테마 스테이지는 그 테마의 하나. finale(`mixed`, v1.10 ⑳·㉑)은 3종이
+ *   **무작위 순서**로 나오되 «3개마다 전부 한 번씩»이다 — 가방(bag): 비면 3종을 rng.terrain 으로 섞어 채우고 하나씩 꺼낸다
+ *   (§8.2 의 속성 가방과 같은 문법). 사용자(2026-09-05): 「최종이니까 3종이 다 랜덤하게 나오는 게 좋겠다」. 고정 순환은
+ *   외워지고, 순수 무작위는 한 종이 안 나오는 런을 만든다 — 가방이 둘 다 피한다. 보스 등장 무리 3개 = 하나씩 전부(순서만 무작위).
+ *   null = 지형 없음(-1). 결정적(rng.terrain 스트림).
  */
 function nextKind(world, st) {
   if (st.terrainKind === null) return -1;
   if (st.terrainKind !== TERRAIN_MIXED) return kindIndex(st.terrainKind);
-  const k = world.run.terrainSeq % TERRAIN_KINDS.length;
-  world.run.terrainSeq += 1;
-  return k;
+  const run = world.run;
+  const bag = run.terrainBag;
+  if (run.terrainBagN === 0) {
+    for (let i = 0; i < TERRAIN_KINDS.length; i += 1) bag[i] = i;
+    for (let i = TERRAIN_KINDS.length - 1; i > 0; i -= 1) {           // Fisher–Yates (rng.terrain)
+      const j = Math.floor(world.rng.terrain.f() * (i + 1));
+      const tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
+    }
+    run.terrainBagN = TERRAIN_KINDS.length;
+  }
+  run.terrainBagN -= 1;
+  return bag[run.terrainBagN];
 }
 
 /**
@@ -158,7 +169,7 @@ export function clearTerrain(world) {
   const it = world.terrain.items;
   for (let i = 0; i < it.length; i += 1) if (it[i].alive) world.terrain.release(it[i]);
   world.run.terrainNextT = 0;
-  world.run.terrainSeq = 0;
+  world.run.terrainBagN = 0;                                    // finale 가방은 스테이지마다 새로 섞는다
   world.player.heat = 0;
 }
 

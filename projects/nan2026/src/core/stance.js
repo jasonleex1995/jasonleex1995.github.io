@@ -98,6 +98,22 @@ export function requestStance(world, element) {
     clearEnemyBulletsAround(world, p.x, p.y, fx.stanceEchoRadiusPx);
     if (p.iframeSec < fx.stanceEchoIframeSec) p.iframeSec = fx.stanceEchoIframeSec;
   }
+  // §11.6(v1.10 ㉑) 전환 가속 — 전환 뒤 stanceSurgeSec 동안 발사 주기 −N%(recomputeEff H1 이 읽는다). 연타해도 창이 «다시 시작»될 뿐 쌓이지 않는다
+  if (fx.stanceSurgeFireMul > 0) {
+    world.traitState.surgeT = fx.stanceSurgeSec;
+    for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;   // = state.markEffDirty (state→stance 순환이라 여기선 인라인)
+  }
+  // §11.6(v1.10 ㉑) 전환 회수 — 반경 안의 픽업이 전부 자석에 붙는다(회수 2단계의 1단계를 «전환»이 대신 켠다, §2.6)
+  if (fx.stanceMagnetRadiusPx > 0) {
+    const r2 = fx.stanceMagnetRadiusPx * fx.stanceMagnetRadiusPx;
+    const it = world.pickups.items;
+    for (let i = 0; i < it.length; i += 1) {
+      const q = it[i];
+      if (!q.alive || q.magnet) continue;
+      const dx = q.x - p.x; const dy = q.y - p.y;
+      if (dx * dx + dy * dy <= r2) q.magnet = true;
+    }
+  }
   return true;
 }
 

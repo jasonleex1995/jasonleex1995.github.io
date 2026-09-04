@@ -811,7 +811,7 @@ function cardBody(world, c) {
     return { glyph: null, title: c.name, sub: `HP +${Math.round(c.healPct * 100)}%`, desc: '유효한 후보가 부족할 때의 폴백 카드 — 회복.' };
   }
   if (c.category === 'trait') {
-    const GROUP_KO = { heal: '회복', guard: '방호', power: '화력', utility: '기동' };
+    const GROUP_KO = { heal: '회복', guard: '방호', power: '화력', stance: '스탠스' };   // §11.6 테마 4(v1.10 ㉑)
     return { glyph: null, title: c.name, sub: `${GROUP_KO[c.group] || c.group} 특성 · 런 내내`, desc: c.desc };
   }
   throw new Error(`hud: 미지의 드래프트 카테고리 "${c.category}" (§11.1)`);

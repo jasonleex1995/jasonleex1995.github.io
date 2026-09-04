@@ -3325,12 +3325,15 @@ function S58_orbitRadius() {
 /**
  * 사용자(2026-09-04): 「특성을 보스 몹 잡으면 보스 모듈에 생기는 노란색을 먹으면 선택할 수 있는 걸 만들자. 체력 회복 옵션이
  *   필요하다.」 로더(schema.checkTraits)가 형식을 지키고, 여기는 «설계»를 지킨다:
- *   ① 회복 묶음(heal)에 특성이 ≥ 1 — 회복원이 원데스 게임의 유일한 «구조적» 회복이다
- *   ② 묶음마다 ≥ 1, 그리고 묶음 수 ≥ offerCount — 한 제안에 «다른 묶음»만 나오므로 offerCount 장을 채우려면 묶음이 그만큼 있어야 한다
- *   ③ 특성 수 ≥ 스테이지 보스 수(5) + offerCount − 1 — 5번째 보스에서도 3택이 성립한다(묶음 배타를 감안한 하한이 아니라 «수»의 하한)
+ *   ① 회복 테마(heal)에 특성이 ≥ 1 — 회복원이 원데스 게임의 유일한 «구조적» 회복이다
+ *   ② 테마(group)마다 ≥ 1 — 죽은 테마 금지. ★ v1.10 ㉑(사용자 2026-09-05 「테마를 확실하게, 여러 개 먹어도 되게」): 묶음 배타가
+ *      없어졌으므로 «테마 수 ≥ offerCount» 는 더 이상 조건이 아니다(2차 채움이 제안을 채운다) — 대신 테마마다 특성 수가 같다(균형: 3×4)
+ *   ③ 특성 수 ≥ 스테이지 보스 수(5) + offerCount − 1 — 5번째 보스에서도 3택이 «수»로 성립한다(배타가 없으니 이것이 정확한 하한)
  *   ④ 값의 범위: regenHpPerSec ≤ 1.0 · healPerKills ≥ 5 · stageClearHealPct ≤ 0.5 · barrierEverySec ≥ 10 · secondWindIframeSec ≤ 3
- *      · dmgMulAboveHp ≤ 0.3 ∧ hpRatio ∈ (0.5, 1] · bossDmgMul ≤ 0.5 · stanceEchoRadiusPx ≤ 240 ∧ iframeSec ≤ 1 · terrainEffectMul ∈ [0.25, 1)
- *      · crisisMoveSpeedMul ≤ 0.5 — 특성은 «규칙을 비트는 것»이지 스탯 패시브를 대신하지 않는다(§11.6)
+ *      · defenseAdd ∈ [1, 3](§2.1 상한 8 안, 특성은 하나뿐이라 3 이 곧 런 최대) · dmgMulAboveHp ≤ 0.3 ∧ hpRatio ∈ (0.5, 1]
+ *      · bossDmgMul ≤ 0.5 · lowHpDmgMul ≤ 0.5 ∧ hpRatio ∈ (0, 0.5] · stanceEchoRadiusPx ≤ 240 ∧ iframeSec ≤ 1
+ *      · stanceSurgeFireMul ≤ 0.5 ∧ sec ∈ (0, 3] · stanceMagnetRadiusPx ∈ [player.magnetRadius, arena.h]
+ *      — 특성은 «규칙을 비트는 것»이지 스탯 패시브를 대신하지 않는다(§11.6)
  *   ⑤ palette.pickup.trait 가 있다 — 구슬은 «보상 그 자체»라 자기 색이 있다(hud.accent 채널)
  */
 function S59_traits() {
@@ -3342,8 +3345,11 @@ function S59_traits() {
   n += 1;
   if (!(byGroup.heal >= 1)) V('S59', 'traits: 회복 묶음(heal)에 특성이 0 — 사용자 요구 「체력 회복 옵션」 (§11.6 ①)');
   n += 1;
-  for (const g of rowsQuiet(td.groups)) if (!(byGroup[g] >= 1)) V('S59', `traits.groups "${g}" 에 특성이 0 — 죽은 묶음 (§11.6 ②)`);
-  if (Array.isArray(td.groups) && num(td.offerCount) && td.groups.length < td.offerCount) V('S59', `traits: 묶음 ${td.groups.length} < offerCount ${td.offerCount} — 한 제안에 같은 묶음은 한 장이라 ${td.offerCount}장을 못 채운다 (§11.6 ②)`);
+  for (const g of rowsQuiet(td.groups)) if (!(byGroup[g] >= 1)) V('S59', `traits.groups "${g}" 에 특성이 0 — 죽은 테마 (§11.6 ②)`);
+  {
+    const sizes = Array.isArray(td.groups) ? td.groups.map((g) => byGroup[g] || 0) : [];
+    if (sizes.length > 0 && Math.min(...sizes) !== Math.max(...sizes)) V('S59', `traits: 테마별 특성 수 ${JSON.stringify(sizes)} — 테마가 «확실»하려면 수가 같아야 한다 (§11.6 ②, v1.10 ㉑)`);
+  }
   n += 1;
   const bossCount = Array.isArray(D.stages && D.stages.stages) ? D.stages.stages.filter((s2) => isObj(s2) && s2.element !== null).length - 1 : 5;   // 테마 6 중 5개가 한 런에
   const runBosses = 5;
@@ -3363,8 +3369,14 @@ function S59_traits() {
       case 'dmgMulAboveHp': if (e.value > 0.3 || !num(e.hpRatio) || e.hpRatio <= 0.5 || e.hpRatio > 1) bad(`dmgMulAboveHp ${e.value} / hpRatio ${e.hpRatio}`); break;
       case 'bossDmgMul': if (e.value > 0.5) bad(`bossDmgMul ${e.value} > 0.5`); break;
       case 'stanceEchoRadiusPx': if (e.value > 240 || !num(e.iframeSec) || e.iframeSec > 1) bad(`stanceEchoRadiusPx ${e.value} / iframeSec ${e.iframeSec}`); break;
-      case 'terrainEffectMul': if (e.value < 0.25 || e.value >= 1) bad(`terrainEffectMul ${e.value} ∉ [0.25, 1)`); break;
-      case 'crisisMoveSpeedMul': if (e.value > 0.5) bad(`crisisMoveSpeedMul ${e.value} > 0.5`); break;
+      case 'defenseAdd': if (!Number.isInteger(e.value) || e.value < 1 || e.value > 3) bad(`defenseAdd ${e.value} ∉ [1, 3] — §2.1 방어 상한 8 안의 «한 장»`); break;
+      case 'lowHpDmgMul': if (e.value > 0.5 || !num(e.hpRatio) || e.hpRatio <= 0 || e.hpRatio > 0.5) bad(`lowHpDmgMul ${e.value} / hpRatio ${e.hpRatio}`); break;
+      case 'stanceSurgeFireMul': if (e.value > 0.5 || !num(e.sec) || e.sec <= 0 || e.sec > 3) bad(`stanceSurgeFireMul ${e.value} / sec ${e.sec}`); break;
+      case 'stanceMagnetRadiusPx': {
+        const lo = D.rules.player.magnetRadius; const hi = D.rules.view.arena.h;
+        if (e.value < lo || e.value > hi) bad(`stanceMagnetRadiusPx ${e.value} ∉ [magnetRadius ${lo}, arena.h ${hi}] — 자석보다 작으면 죽은 특성`);
+        break;
+      }
       default: break;   // 어휘는 로더(schema)가 지킨다
     }
   }

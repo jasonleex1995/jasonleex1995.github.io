@@ -176,9 +176,10 @@ function makeEnemyBullet() {
 /** §11.6 — 특성 효과의 평면 표현. 0/1 = «없음». 핫패스(step·damage·stance)는 이것만 읽는다(문자열 비교 0). */
 export function makeTraitFx() {
   return {
-    regenHpPerSec: 0, healPerKills: 0, stageClearHealPct: -1, barrierEverySec: 0, secondWindIframeSec: 0,
-    dmgMulAboveHp: 0, dmgMulAboveHpRatio: 1, bossDmgMul: 0, stanceEchoRadiusPx: 0, stanceEchoIframeSec: 0,
-    terrainEffectMul: 1, crisisMoveSpeedMul: 0,
+    regenHpPerSec: 0, healPerKills: 0, stageClearHealPct: -1,
+    barrierEverySec: 0, secondWindIframeSec: 0, defenseAdd: 0,
+    dmgMulAboveHp: 0, dmgMulAboveHpRatio: 1, bossDmgMul: 0, lowHpDmgMul: 0, lowHpDmgRatio: 0,
+    stanceEchoRadiusPx: 0, stanceEchoIframeSec: 0, stanceSurgeFireMul: 0, stanceSurgeSec: 0, stanceMagnetRadiusPx: 0,
   };
 }
 
@@ -202,24 +203,25 @@ export function recomputeTraitFx(world) {
       case 'dmgMulAboveHp': fx.dmgMulAboveHp = e.value; fx.dmgMulAboveHpRatio = e.hpRatio; break;
       case 'bossDmgMul': fx.bossDmgMul = e.value; break;
       case 'stanceEchoRadiusPx': fx.stanceEchoRadiusPx = e.value; fx.stanceEchoIframeSec = e.iframeSec; break;
-      case 'terrainEffectMul': fx.terrainEffectMul = e.value; break;
-      case 'crisisMoveSpeedMul': fx.crisisMoveSpeedMul = e.value; break;
+      case 'defenseAdd': fx.defenseAdd += e.value; break;
+      case 'lowHpDmgMul': fx.lowHpDmgMul = e.value; fx.lowHpDmgRatio = e.hpRatio; break;
+      case 'stanceSurgeFireMul': fx.stanceSurgeFireMul = e.value; fx.stanceSurgeSec = e.sec; break;
+      case 'stanceMagnetRadiusPx': fx.stanceMagnetRadiusPx = e.value; break;
       default: throw new Error(`state: 미지의 특성 효과 "${e.kind}" (§11.6)`);
     }
   }
+  // §3.2 방어력 — 정액 감산의 유일한 획득 경로(v1.5 상점 폐지 뒤 잠들어 있던 항을 특성 «장갑»이 깨운다). 여기가 단일 소유자.
+  world.player.defense = world.data.rules.player.defenseBase + fx.defenseAdd;
   return fx;
 }
 
-/** §11.6 — 특성 획득. 이미 가진 것은 false. 같은 묶음(group)을 둘 가질 수 없다(드래프트가 먼저 거르지만 여기서도 지킨다). */
+/** §11.6 — 특성 획득. 이미 가진 것은 false. ★ v1.10 ㉑(사용자 2026-09-05): 묶음 배타 없음 — 같은 테마를 여러 개 가져도 된다. */
 export function applyTrait(world, traitId) {
   if (world.traits.indexOf(traitId) >= 0) return false;
   const defs = world.data.traits.traits;
   let def = null;
   for (let j = 0; j < defs.length; j += 1) if (defs[j].id === traitId) { def = defs[j]; break; }
   if (def === null) throw new Error(`state: 미지의 특성 "${traitId}" (§11.6)`);
-  for (let i = 0; i < world.traits.length; i += 1) {
-    for (let j = 0; j < defs.length; j += 1) if (defs[j].id === world.traits[i] && defs[j].group === def.group) return false;
-  }
   world.traits.push(traitId);
   recomputeTraitFx(world);
   return true;
@@ -307,6 +309,11 @@ function makeStats() {
   };
 }
 
+/** 모든 슬롯의 eff 캐시를 무효화한다 — 스탯 변경(recomputeStats)과 전환 가속 창의 시작·끝(§11.6 ㉑)이 부른다. */
+export function markEffDirty(world) {
+  for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;
+}
+
 /** 보유 패시브 → 스탯 캐시. 패시브 변경 시에만 호출한다 */
 export function recomputeStats(world) {
   const st = world.stats;
@@ -331,7 +338,7 @@ export function recomputeStats(world) {
   world.player.hpMax = base + st.maxHpAdd;
   if (world.player.hpMax > prevMax) world.player.hp += world.player.hpMax - prevMax;
   if (world.player.hp > world.player.hpMax) world.player.hp = world.player.hpMax;
-  for (let i = 0; i < world.slots.length; i += 1) world.slots[i].effDirty = true;
+  markEffDirty(world);
 }
 
 // ---------------------------------------------------------------------------
@@ -399,7 +406,10 @@ export function recomputeEff(world, slot) {
   const st = world.stats;
 
   // H1 — fireRateMul 은 10 패밀리 전부에 적용된다. 주기(간격)이므로 나눗셈
-  eff[hooks.rateKey] = eff[hooks.rateKey] / (1 + st.fireRateMul);
+  //   §11.6 전환 가속(특성) — 전환 뒤 stanceSurgeSec 동안 같은 가산 풀에 얹힌다(오버클럭과 같은 훅 = 무효 패밀리도 같다).
+  //   eff 는 캐시라 창의 시작(requestStance)과 끝(step 타이머)이 markEffDirty 로 정확히 두 번 무효화한다.
+  const surge = world.traitState.surgeT > 0 ? world.traitFx.stanceSurgeFireMul : 0;
+  eff[hooks.rateKey] = eff[hooks.rateKey] / (1 + st.fireRateMul + surge);
 
   // H2 — areaMul 은 "닿는 범위"만. 산포(spreadDeg·jitterDeg·arcDeg)는 areaKeys 에 없다
   for (let i = 0; i < hooks.areaKeys.length; i += 1) {
@@ -532,7 +542,7 @@ export function createWorld(opts) {
     traits: [],
     traitQueue: 0,
     traitFx: makeTraitFx(),
-    traitState: { barrierT: 0, barrierReady: false, kills: 0, secondWindUsed: false },
+    traitState: { barrierT: 0, barrierReady: false, kills: 0, secondWindUsed: false, surgeT: 0 },   // surgeT: 전환 가속 잔여(초)
     draftsSeen: 0,
     elementPity: 0,      // §11.1 elementCardPity — 속성 카드가 "등장"하지 않은 연속 드래프트 수
     autoEquipDone: false, // §9.9 onboarding.autoEquipFirstElement — 투자 0→1 최초 전이에서만

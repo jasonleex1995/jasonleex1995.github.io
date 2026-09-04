@@ -4,13 +4,14 @@
  * 커버:
  *   구슬   — 스테이지 보스 코어 격파 → 금색 구슬(kind 'trait') 이 자석으로 날아와 먹히면 traitQueue+1 · 그동안 STAGE_CLEAR 는 기다린다
  *            최종(테마 없음)은 구슬 없음
- *   드래프트 — offerCount 장 · 서로 다른 묶음 · 이미 가진 묶음 제외 · 결정성 · applyCard 가 traitQueue 를 소비
- *   효과   — 재생 · 회수 · 보급 강화 · 격벽(피격 1회 무효 + 재충전) · 재기(치명상 → HP 1, 스테이지당 1회) · 청정 · 보스 사냥꾼
- *            · 스탠스 공명(탄 소거 + 무적) · 지형 적응(과열 절반) · 위기 대응(이속 +20%)
+ *   드래프트 — offerCount 장 · 테마별 하나 우선, 모자라면 남은 것으로 채움 · 가진 특성만 제외(★ ㉑ 묶음 배타 없음 — 같은 테마 여러 개)
+ *            · 5번째 보스에서도 3장 · 결정성 · applyCard 가 traitQueue 를 소비
+ *   효과   — 재생 · 회수 · 보급 강화 · 격벽(피격 1회 무효 + 재충전) · 재기(치명상 → HP 1, 스테이지당 1회) · 장갑(정액 감산 + 하한)
+ *            · 청정 · 보스 사냥꾼 · 처형(잔여 HP ≤ 25%) · 스탠스 공명(탄 소거 + 무적) · 전환 가속(발사 주기 창) · 전환 회수(픽업 자석)
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnEnemyBullet, applyTrait, recomputeTraitFx } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnEnemyBullet, spawnPickup, applyTrait, recomputeTraitFx, recomputeEff } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy, applyHit } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
@@ -68,25 +69,47 @@ suite('traits — 구슬 (§11.6)', () => {
 });
 
 suite('traits — 드래프트 (§11.6)', () => {
-  test('offerCount 장 · 서로 다른 묶음 · 이미 가진 묶음은 제외 · applyCard 가 traitQueue 를 소비', () => {
+  test('offerCount 장 · 테마별 하나 우선 · 가진 특성만 제외(같은 테마 여러 개 가능) · applyCard 가 traitQueue 를 소비', () => {
     const w = mkRun(5, 'sea', 0);
     const td = w.data.traits;
     w.traitQueue = 1;
     const d1 = buildTraitDraft(w);
     assert.eq(d1.cards.length, td.offerCount, `${td.offerCount}장`);
     const groups = new Set(d1.cards.map((c) => c.group));
-    assert.eq(groups.size, d1.cards.length, '한 제안 안의 묶음은 전부 다르다');
+    assert.eq(groups.size, d1.cards.length, '테마가 넉넉하면 한 제안 안의 테마는 전부 다르다');
     for (const c of d1.cards) assert.eq(c.category, 'trait', 'category trait');
     const pick = d1.cards.find((c) => c.group === 'heal') || d1.cards[0];
     applyCard(w, pick);
     assert.eq(w.traitQueue, 0, '큐 소비');
     assert.deepEq(w.traits, [pick.traitId], '보유');
-    // 같은 묶음은 다시 안 나온다
-    for (let k = 0; k < 20; k += 1) {
+    // 가진 특성은 다시 안 나오고, 같은 테마는 «나온다»(㉑ 묶음 배타 없음)
+    let sameGroupSeen = false;
+    for (let k = 0; k < 30; k += 1) {
       const d2 = buildTraitDraft(w);
-      for (const c of d2.cards) { assert.ne(c.traitId, pick.traitId, '가진 특성 제외'); assert.ne(c.group, pick.group, '가진 묶음 제외'); }
+      assert.eq(d2.cards.length, td.offerCount, '항상 offerCount 장');
+      for (const c of d2.cards) { assert.ne(c.traitId, pick.traitId, '가진 특성 제외'); if (c.group === pick.group) sameGroupSeen = true; }
     }
+    assert.ok(sameGroupSeen, '같은 테마의 다른 특성이 제안된다');
     assert.eq(applyTrait(w, pick.traitId), false, '중복 획득 = false');
+    // 같은 테마를 셋 다 가질 수 있다
+    const heals = td.traits.filter((t) => t.group === 'heal').map((t) => t.id);
+    for (const id of heals) if (id !== pick.traitId) assert.ok(applyTrait(w, id), `${id} 획득`);
+    assert.eq(w.traits.length, heals.length + (heals.includes(pick.traitId) ? 0 : 1), '회복 3종 전부 보유');
+  });
+
+  test('테마가 바닥나도 제안은 offerCount 장 — 5번째 보스까지 3택 (S59 ③ 의 런타임 대응)', () => {
+    const w = mkRun(6, 'sea', 0);
+    const td = w.data.traits;
+    // 두 테마를 통째로 비운다(6개 보유 — 실제 런의 최대 5개보다 가혹한 조건)
+    const gs = td.groups.slice(0, 2);
+    for (const t of td.traits) if (gs.includes(t.group)) assert.ok(applyTrait(w, t.id));
+    const d = buildTraitDraft(w);
+    assert.eq(d.cards.length, td.offerCount, `남은 테마 ${td.groups.length - 2}개여도 ${td.offerCount}장`);
+    for (const c of d.cards) assert.ok(!gs.includes(c.group), '비운 테마는 안 나온다(가진 특성뿐이라)');
+    // 실제 런: 5개를 임의로 가진 뒤에도 3장
+    const w2 = mkRun(7, 'sea', 0);
+    for (let k = 0; k < 5; k += 1) { const dk = buildTraitDraft(w2); assert.eq(dk.cards.length, td.offerCount, `${k + 1}번째 보스: 3장`); applyTrait(w2, dk.cards[0].traitId); }
+    assert.eq(w2.traits.length, 5, '5개 보유');
   });
 
   test('결정성 — 같은 시드 = 같은 제안', () => {
@@ -210,24 +233,66 @@ suite('traits — 효과 (§11.6)', () => {
     assert.near(p.iframeSec, ef.iframeSec, 1e-9, '무적');
   });
 
-  test('지형 적응 — 과열이 절반 속도로 찬다 · 위기 대응 — 위기에 이속 +20%', () => {
-    const w = mkRun(1, 'volcano', 0);
-    const mul = w.data.traits.traits.find((t) => t.id === 'terrainAdapt').effect.value;
-    // 화산 지형 위에 세운다
-    let t = null; for (let i = 0; i < 60 * 20 && t === null; i += 1) { step(w, makeInput(), dt); const z = w.terrain.items.find((z2) => z2.alive && z2.y > 200); if (z) t = z; }
-    assert.ne(t, null, '열기 지형');
-    w.player.x = t.x; w.player.y = t.y; w.player.heat = 0;
-    step(w, makeInput(), dt); const dh0 = w.player.heat;
-    applyTrait(w, 'terrainAdapt');
-    w.player.x = t.x; w.player.y = t.y; w.player.heat = 0;
-    step(w, makeInput(), dt); const dh1 = w.player.heat;
-    assert.near(dh1, dh0 * mul, 1e-9, '틱당 열이 절반');
-    const w2 = mkRun(1, 'sea', 0);
-    const cv = w2.data.traits.traits.find((t2) => t2.id === 'crisisDash').effect.value;
-    const inp = makeInput(); inp.right = true;
-    tick(w2, 3, inp); const v0 = w2.player.vx;
-    applyTrait(w2, 'crisisDash'); w2.run.crisis = true; w2.run.crisisAtSec = 0;
-    tick(w2, 3, inp);
-    assert.near(w2.player.vx, v0 * (1 + cv), 1e-6, '위기에 +20%');
+  test('장갑 — 정액 감산 + 원본의 damageFloorRatio 하한 · 획득이 player.defense 의 단일 소유자', () => {
+    const w = mkRun(1, 'sea', 0);
+    const rp = w.data.rules.player;
+    const v = w.data.traits.traits.find((t) => t.id === 'armor').effect.value;
+    assert.eq(w.player.defense, rp.defenseBase, '기본 방어');
+    w.player.iframeSec = 0; applyHit(w, 10, '');
+    assert.eq(w.player.hp, 90, '기본: 10 그대로');
+    applyTrait(w, 'armor');
+    assert.eq(w.player.defense, rp.defenseBase + v, `방어 +${v}`);
+    w.player.hp = 100; w.player.iframeSec = 0; applyHit(w, 10, '');
+    assert.eq(w.player.hp, 100 - (10 - v), `10 → ${10 - v}`);
+    w.player.hp = 100; w.player.iframeSec = 0; applyHit(w, 2, '');
+    assert.eq(w.player.hp, 100 - Math.ceil(2 * rp.damageFloorRatio), `작은 탄도 하한(${rp.damageFloorRatio}) 아래로는 안 내려간다`);
+  });
+
+  test('처형 — 잔여 HP 비율 ≤ hpRatio 인 «그 개체»에만 +N%', () => {
+    const w = mkRun(1, 'sea', 0);
+    const ef = w.data.traits.traits.find((t) => t.id === 'execute').effect;
+    const ctx = w.dmgCtx; ctx.matrix = w.data.elements.matrix;
+    const e = spawnEnemy(w, 'drifter', 'normal', 640, 300, 1000, false);
+    const base = hitEnemy(w, ctx, 'forward', 10, 1, 'normal', e, 0);
+    applyTrait(w, 'execute');
+    e.hp = e.hpMax * (ef.hpRatio + 0.2);
+    assert.near(hitEnemy(w, ctx, 'forward', 10, 1, 'normal', e, 0), base, 1e-6, '아직 높으면 없음');
+    e.hp = e.hpMax * ef.hpRatio;
+    assert.near(hitEnemy(w, ctx, 'forward', 10, 1, 'normal', e, 0), base * (1 + ef.value), 1e-6, `≤ ${ef.hpRatio} → +${ef.value * 100}%`);
+    const e2 = spawnEnemy(w, 'drifter', 'normal', 600, 300, 1000, false);
+    assert.near(hitEnemy(w, ctx, 'forward', 10, 1, 'normal', e2, 0), base, 1e-6, '다른(멀쩡한) 개체는 그대로');
+  });
+
+  test('전환 가속 — 전환 뒤 sec 동안 발사 주기가 (1 + fireRateMul + value) 로 나뉜다 · 창이 지나면 원래대로', () => {
+    const w = mkRun(1, 'sea', 0);
+    const ef = w.data.traits.traits.find((t) => t.id === 'stanceSurge').effect;
+    const slot = w.slots.find((s2) => s2.weaponId !== null);
+    assert.ok(slot !== undefined, '시작 무기가 있다');
+    const hooks = w.data.rules.passiveHooks[slot.family];
+    const r0 = recomputeEff(w, slot)[hooks.rateKey];
+    applyTrait(w, 'stanceSurge');
+    assert.near(recomputeEff(w, slot)[hooks.rateKey], r0, 1e-9, '전환 전엔 그대로');
+    assert.ok(requestStance(w, 'fire'), '전환');
+    assert.near(w.traitState.surgeT, ef.sec, 1e-9, '창 시작');
+    assert.near(recomputeEff(w, slot)[hooks.rateKey], r0 / (1 + ef.value), 1e-9, `주기 ÷ (1 + ${ef.value})`);
+    tick(w, Math.round(ef.sec / dt) + 2);
+    assert.eq(w.traitState.surgeT, 0, '창 종료');
+    assert.near(recomputeEff(w, slot)[hooks.rateKey], r0, 1e-9, '원래대로');
+  });
+
+  test('전환 회수 — 전환 순간 반경 안의 픽업만 자석에 붙는다', () => {
+    const w = mkRun(1, 'sea', 0);
+    const r = w.data.traits.traits.find((t) => t.id === 'stanceMagnet').effect.value;
+    const p = w.player;
+    const near = spawnPickup(w, 'xp', 1, p.x + r - 20, p.y - 100);
+    const far = spawnPickup(w, 'xp', 1, p.x, p.y - r - 60);
+    assert.eq(near.magnet, false); assert.eq(far.magnet, false);
+    requestStance(w, 'water');
+    assert.eq(near.magnet, false, '특성 없으면 안 붙는다');
+    applyTrait(w, 'stanceMagnet');
+    requestStance(w, 'fire');
+    assert.eq(near.magnet, true, '반경 안 = 자석');
+    assert.eq(far.magnet, false, '반경 밖 = 그대로');
   });
 });
+

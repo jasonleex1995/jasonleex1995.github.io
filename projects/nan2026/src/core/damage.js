@@ -102,6 +102,7 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     const p = world.player;
     if (fx.dmgMulAboveHp > 0 && p.hpMax > 0 && p.hp / p.hpMax >= fx.dmgMulAboveHpRatio) traitMul += fx.dmgMulAboveHp;
     if (fx.bossDmgMul > 0 && (e.isBoss || e.midBossId !== '')) traitMul += fx.bossDmgMul;
+    if (fx.lowHpDmgMul > 0 && e.hpMax > 0 && e.hp / e.hpMax <= fx.lowHpDmgRatio) traitMul += fx.lowHpDmgMul;   // 처형(v1.10 ㉑) — 이 개체(부위 포함)의 잔여 HP
   }
   const dealt = playerToEnemy(ctx, dmg, localMul * traitMul, stamp, e);
   e.hp -= dealt;

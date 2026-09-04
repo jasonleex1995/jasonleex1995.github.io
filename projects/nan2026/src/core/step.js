@@ -23,7 +23,7 @@ import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } f
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
-import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext, markEffDirty } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 import { DEG2RAD, wrapAngle } from './angle.js';
 
@@ -128,23 +128,15 @@ function readInput(world, input, dt) {
     world.traitState.barrierT += dt;
     if (world.traitState.barrierT >= fx.barrierEverySec) { world.traitState.barrierReady = true; world.traitState.barrierT = 0; }
   }
+  if (world.traitState.surgeT > 0) {                                                    // 전환 가속 창 — 끝나는 틱에 eff 캐시 무효화
+    world.traitState.surgeT -= dt;
+    if (world.traitState.surgeT <= 0) { world.traitState.surgeT = 0; markEffDirty(world); }
+  }
 }
 
 // ---------------------------------------------------------------------------
 // 2. 이동 (§2.2 — 관성 없음. 지수 스무딩 항은 존재하고 기본값이 0이다)
 // ---------------------------------------------------------------------------
-/**
- * §2.2 이동 속도 상한 — `player.moveSpeed`(280) 고정. v1.10 ⑳(사용자 2026-09-05 「이속이 크게 안 와닿는다」)에 패시브 배율을
- *   폐지했고, 남은 유일한 배율은 §11.6 위기 대응 특성(crisisMoveSpeedMul, 위기 중에만). 자석(pickup)도 이 값을 쓴다 —
- *   자석이 플레이어보다 느리면 도망가는 픽업을 영영 못 잡는다(실측 버그). 두 호출자가 같은 식을 보는 단일 소유자.
- */
-export function speedCap(world) {
-  const rp = world.data.rules.player;
-  const tfx = world.traitFx;
-  if (tfx.crisisMoveSpeedMul > 0 && world.run !== undefined && world.run.crisis) return rp.moveSpeed * (1 + tfx.crisisMoveSpeedMul);
-  return rp.moveSpeed;
-}
-
 function movePlayer(world, dt) {
   const p = world.player;
   const rp = world.data.rules.player;
@@ -154,10 +146,9 @@ function movePlayer(world, dt) {
   //   슬라이스(런 없음)는 지형이 없다(풀이 비어 -1). 효과의 «적용»은 여기가 단일 소유자다(§2.2 이동).
   const tr = world.data.rules.terrain;
   const tk = world.run === undefined ? -1 : terrainUnder(world, p.x, p.y);
-  const tfx = world.traitFx;                                       // §11.6 특성(지형 적응 terrainEffectMul · 위기 대응)
-  //   §8.21 ⑥(v1.10 ⑳) 지형 효과 배율 — 패시브 «자세 안정기»(stats.terrainResist, 가산 풀 Σ) 와 특성이 곱으로 겹친다.
-  //   세 지형(둔화 깊이·관성 τ·과열 충전)이 전부 이 하나의 배율을 본다. 0 이 되진 않는다(Lv10 = 0.30 — 면역이 아니라 저항).
-  const tmul = (1 - world.stats.terrainResist) * tfx.terrainEffectMul;
+  //   §8.21 ⑥(v1.10 ⑳·㉑) 지형 효과 배율 — 패시브 «자세 안정기»(stats.terrainResist, 가산 풀 Σ). 세 지형(둔화 깊이·관성 τ·
+  //   과열 충전)이 전부 이 하나의 배율을 본다. Lv10 = 1.00 → 배율 0 = 면역(사용자 결정 2026-09-05). 특성은 여기 없다(㉑).
+  const tmul = 1 - world.stats.terrainResist;
   //   slow — 기존 둔화 상태를 «이 틱만큼» 갱신한다: 배율·배지·타이머 규약(§2.7)을 그대로 재사용, 밖으로 나가면 다음 틱에 풀린다.
   if (tk === T_SLOW && p.slowSec < dt) p.slowSec = dt;
   //   heat — 안에서 차고(스턴 중엔 안 찬다: 연쇄 정지 방지) 밖에서 식는다. 다 차면 stallSec 스턴(«과열 정지») 후 0.
@@ -170,8 +161,8 @@ function movePlayer(world, dt) {
   let dy = p.dirY;
   if (p.stunSec > 0) { dx = 0; dy = 0; }          // §2.7 — 스턴 중 이동 입력 무시
 
-  // §2.2 상한 — 280 고정(v1.10 ⑳: 패시브 이동 속도 배율 폐지). 위기 대응 특성만 예외(speedCap 이 단일 소유).
-  let v = speedCap(world);
+  // §2.2 상한 — `player.moveSpeed` 280 고정(v1.10 ⑳: 패시브 이동 속도 배율 폐지 · ㉑: 특성 배율도 없음). 배율은 어디에도 없다.
+  let v = rp.moveSpeed;
   if (p.slowSec > 0) {                                                 // §2.7 — 강도는 불변
     const mul = world.data.rules.status.slowMoveSpeedMul;
     // 이 틱의 둔화가 지형에서 온 것이면(tk) 깊이를 tmul 만큼만 받는다(탄의 둔화는 그대로 — 저항은 «지형» 저항이다)
@@ -786,8 +777,8 @@ function pickups(world, dt) {
     if (q.magnet) {
       const d = Math.sqrt(d2);
       if (d > 0) {
-        // ★ 자석은 플레이어보다 느리면 안 된다 — movePlayer 와 같은 상한(speedCap: 위기 대응 특성 포함)을 쓴다.
-        const v = speedCap(world);
+        // ★ 자석은 플레이어보다 느리면 안 된다 — movePlayer 와 같은 상한(moveSpeed 고정, 배율 없음 — v1.10 ⑳·㉑).
+        const v = rp.moveSpeed;
         q.x += (dx / d) * v * dt;
         q.y += (dy / d) * v * dt;
       }

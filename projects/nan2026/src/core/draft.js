@@ -295,29 +295,25 @@ export function applyCard(world, card) {
 }
 
 /**
- * §11.6(v1.10 ⑲) 특성 드래프트 — 보스의 금색 구슬을 먹었을 때(traitQueue > 0) 연다.
- *   후보 = 아직 없는 특성 중 «이미 가진 묶음(group)» 이 아닌 것. rng.draft 로 섞은 뒤 offerCount 장을 고르되
- *   한 제안 안에 같은 묶음은 한 장만(회복 3종이 나란히 나오지 않게). 후보가 모자라면 그만큼만 낸다(폴백 카드 없음 —
- *   특성은 «있으면 좋은 것»이지 레벨업이 아니다). 결정적(§10.2 draft 스트림).
+ * §11.6(v1.10 ⑲ · ㉑) 특성 드래프트 — 보스의 금색 구슬을 먹었을 때(traitQueue > 0) 연다.
+ *   후보 = 아직 없는 특성 전부(★ ㉑: 묶음 배타 없음 — 같은 테마를 여러 개 가져도 된다). rng.draft 로 섞은 뒤
+ *   1차: 테마(group)마다 한 장씩 offerCount 까지(세 장이 서로 다른 선택이 되게), 2차: 아직 모자라면 남은 후보로 채운다
+ *   (테마가 바닥나도 제안은 offerCount 장 — S59 ③ 이 «후보 수»로 이를 보증한다). 폴백 카드 없음. 결정적(§10.2 draft 스트림).
  */
 export function buildTraitDraft(world) {
   const td = world.data.traits;
   const owned = new Set(world.traits);
-  const ownedGroups = new Set();
-  for (const t of td.traits) if (owned.has(t.id)) ownedGroups.add(t.group);
   const pool = [];
-  for (const t of td.traits) if (!owned.has(t.id) && !ownedGroups.has(t.group)) pool.push(t);
+  for (const t of td.traits) if (!owned.has(t.id)) pool.push(t);
   for (let i = pool.length - 1; i > 0; i -= 1) {                 // Fisher–Yates (rng.draft)
     const j = Math.floor(world.rng.draft.f() * (i + 1));
     const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
   }
   const cards = [];
+  const taken = new Set();
   const groupsSeen = new Set();
-  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) {
-    const t = pool[i];
-    if (groupsSeen.has(t.group)) continue;
-    groupsSeen.add(t.group);
-    cards.push({ category: CAT_TRAIT, key: `${CAT_TRAIT}:${t.id}`, traitId: t.id, name: t.name, desc: t.desc, group: t.group, weight: 1 });
-  }
+  const push = (t) => { taken.add(t.id); groupsSeen.add(t.group); cards.push({ category: CAT_TRAIT, key: `${CAT_TRAIT}:${t.id}`, traitId: t.id, name: t.name, desc: t.desc, group: t.group, weight: 1 }); };
+  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) if (!groupsSeen.has(pool[i].group)) push(pool[i]);   // 1차 — 테마별 하나
+  for (let i = 0; i < pool.length && cards.length < td.offerCount; i += 1) if (!taken.has(pool[i].id)) push(pool[i]);            // 2차 — 남은 것으로
   return { cards, pityBefore: world.elementPity };
 }

@@ -21,8 +21,12 @@
 /** §9.2 — 정확히 9개, 닫힘 */
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
   'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
-export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'healPerKills', 'stageClearHealPct', 'barrierEverySec', 'secondWindIframeSec',
-  'dmgMulAboveHp', 'bossDmgMul', 'stanceEchoRadiusPx', 'terrainEffectMul', 'crisisMoveSpeedMul'];
+export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'healPerKills', 'stageClearHealPct',            // 회복
+  'barrierEverySec', 'secondWindIframeSec', 'defenseAdd',                                          // 방호
+  'dmgMulAboveHp', 'bossDmgMul', 'lowHpDmgMul',                                                    // 화력
+  'stanceEchoRadiusPx', 'stanceSurgeFireMul', 'stanceMagnetRadiusPx'];                             // 스탠스 (v1.10 ㉑ — 12종, 테마 4 × 3)
+/** §11.6 ④ 효과 kind 별 «추가 키» — 로더가 닫힌 키로 지킨다(없는 kind 는 value 만). */
+export const TRAIT_EFFECT_EXTRA = { dmgMulAboveHp: ['hpRatio'], lowHpDmgMul: ['hpRatio'], stanceEchoRadiusPx: ['iframeSec'], stanceSurgeFireMul: ['sec'] };
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -568,8 +572,9 @@ function checkTraits(c, t) {
     if (Array.isArray(t.groups)) c.vocab(`${p}.group`, x.group, t.groups);
     if (!isObj(x.effect)) { c.fail(`${p}.effect`, '객체가 아니다'); continue; }
     c.vocab(`${p}.effect.kind`, x.effect.kind, TRAIT_EFFECT_KINDS);
-    const extra = x.effect.kind === 'dmgMulAboveHp' ? ['hpRatio'] : x.effect.kind === 'stanceEchoRadiusPx' ? ['iframeSec'] : [];
+    const extra = TRAIT_EFFECT_EXTRA[x.effect.kind] || [];
     c.closed(`${p}.effect`, x.effect, ['kind', 'value', ...extra]);
+    for (const k of extra) if (typeof x.effect[k] !== 'number' || !(x.effect[k] > 0)) c.fail(`${p}.effect.${k}`, '양수여야 한다');
     if (typeof x.effect.value !== 'number' || !(x.effect.value > 0)) c.fail(`${p}.effect.value`, '양수여야 한다');
   }
   if (typeof t.offerCount !== 'number' || !Number.isInteger(t.offerCount) || t.offerCount < 1 || t.offerCount > t.traits.length) {
