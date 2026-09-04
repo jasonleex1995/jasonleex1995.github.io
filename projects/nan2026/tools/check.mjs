@@ -1205,10 +1205,24 @@ function S5_bossRules() {
     const theme = (b.themeId === null || isAmb(b.themeId)) ? null : stageById.get(b.themeId);
     const themeEl = theme ? theme.element : null;
 
-    // partCount — core 를 포함한다 (§13.6.2 "armor 2 + 선택 1 + core 1 = partCount 4")
+    // partCount — core 를 포함한다 (§13.6.2 "armor 2 + 선택 1 + core 1 = partCount 4"). ★ v1.10 ⑩: «기본» 부위만 센다 —
+    //   extra 부위(선택 무장)는 포지션 곡선 firingPartsPerStage 가 몇 개를 세울지 정한다(§8.9.1). 곡선의 최댓값 − 기본 수 =
+    //   그 보스가 «저작해야 하는» extra 수. 더 있으면 영영 안 서는 죽은 부위, 덜 있으면 후반이 약속을 못 지킨다.
+    const baseParts = parts.filter((p) => isObj(p) && p.extra !== true);
+    const extraParts = parts.filter((p) => isObj(p) && p.extra === true);
     const wantPartCount = isFinal ? (rb.finale && rb.finale.partCount) : rb.partCount;
-    if (num(wantPartCount) && parts.length + 1 !== wantPartCount) {
-      V('S5', `${tag}: partCount = ${parts.length + 1}(부위 ${parts.length} + core) ≠ ${wantPartCount} (§8.11/§8.16)`);
+    if (num(wantPartCount) && baseParts.length + 1 !== wantPartCount) {
+      V('S5', `${tag}: partCount = ${baseParts.length + 1}(기본 부위 ${baseParts.length} + core) ≠ ${wantPartCount} (§8.11/§8.16)`);
+    }
+    const fps = D.stages && D.stages.curve && D.stages.curve.firingPartsPerStage;
+    if (Array.isArray(fps) && fps.length === 6 && num(wantPartCount)) {
+      let maxFiring = -Infinity;
+      if (isFinal) maxFiring = fps[5];
+      else for (let i = 0; i < 5; i += 1) if (num(fps[i]) && fps[i] > maxFiring) maxFiring = fps[i];
+      const wantExtra = maxFiring - (wantPartCount - 1);
+      if (extraParts.length !== wantExtra) {
+        V('S5', `${tag}: extra 부위 ${extraParts.length}개 ≠ ${wantExtra} (= ${isFinal ? 'firingPartsPerStage[5]' : 'max(firingPartsPerStage[0..4])'} ${maxFiring} − 기본 ${wantPartCount - 1}) — §8.9.1 «발사 파트 수가 포지션으로 성장한다»의 저작 범위`);
+      }
     }
 
     // R1: core 속성 = 항상 노말
@@ -2714,8 +2728,8 @@ function S36_bossEmitterIdRule() {
     }
   }
   EX('S36', n);
-  if (n && n !== 66) {
-    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1(v1.8) 은 66개(테마 6종 × 부위 3 + 최종 4, × 페이즈 3)라 인쇄했다. `
+  if (n && n !== 126) {
+    C('S36', `보스 부위 이미터 슬롯이 ${n}개 — §9.8.1(v1.10 ⑩) 은 126개(테마 6종 × (기본 3 + extra 3) + 최종 (4 + 2), × 페이즈 3)라 인쇄했다. `
       + `개수가 다르면 §23.1-D4 의 저작 범위가 바뀐 것이다`);
   }
 }

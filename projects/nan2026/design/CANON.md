@@ -1673,7 +1673,7 @@ v1.1은 **자기 손으로 이 수를 깼다**: §13.2-⑤ · §18.3-9가 04에�
 
 | 키 | 값 |
 |---|---|
-| `boss.partCount` ★v1.5 | **4** (최종만 5) — base 3 (extra armament 3 은 v1.8 이 폐지했다). 런 포지션별 동적 스폰(`stages.curve.firingPartsPerStage`=[3,3,4,5,6,7], §8.9.1). extra 부위(`extra:true`)는 발사 위협만 더하고 armor·소프트게이트는 불변 |
+| `boss.partCount` ★v1.5 · **v1.10 ⑩** | **4** (최종만 5) = **기본 부위 3 (최종 4) + core** — extra 는 세지 않는다. ★ v1.10 ⑩ extra armament 이 **돌아왔다**(v1.8 ② 가 «전부 aimed pelletS 인 압박 필러»라 21개를 지웠고, 그 뒤 `firingPartsPerStage` 가 [3,3,3,3,3,4]로 납작해져 「스테이지가 넘어가도 보스 모듈 수가 같다」(플레이 피드백 2026-09-04)). 이번엔 필러가 아니다 — 보스마다 extra 3(최종 2)이 **그 보스의 시그니처 P1 타입과 겹치지 않는 서로 다른 무기**(S47 형태가 따라온다), P2 강화, P3 «발악» 타입 전환, 앵커는 **옆·아래**(코어 위 금지 §8.11 · S49 도달 ≥ 32). 런 포지션별 동적 스폰 `stages.curve.firingPartsPerStage` = **[3, 4, 4, 5, 6, 6]** — 기본은 항상, extra 는 앞에서부터 «포지션 − 기본» 만큼(§8.9.1). S5 가 「extra 수 == max(곡선) − 기본 수」를 지킨다(죽은 extra 도, 모자란 extra 도 없다). extra 부위는 발사 위협만 더하고 armor·소프트게이트는 불변. 실측: 포지션 5 바다 6부위 최대 적탄 80 vs 포지션 1 화산 3부위 28 |
 | `boss.partRegen` | **false** — 부위 파괴는 영구. `parts[].regenSec`는 **존재하지 않는다** |
 | ~~`boss.summonsAllowed`~~ | ~~**false** — 스테이지 보스는 잡몹을 소환하지 않는다~~ → ★ **v1.5 폐기.** `rules.boss.bossSummonsAllowed`(§8.9-R9 확장)가 `thornKing`·`tetrarch` 의 소환을 **허용**한다. 죽은 키 `summonsAllowed` 와 그것을 강제하던 S5 분기는 삭제됐고, 살아있는 규칙은 **S17** 이 강제한다 |
 | `boss.partHitPriority` | `"outermostFirst"` — 히트박스가 겹치면 바깥 부위 우선. 부위 파괴 시 히트박스가 제거되어 **자동으로 코어가 노출**(별도 규칙 불필요) |
@@ -2381,11 +2381,11 @@ data/bosses.json     data/stages.json     data/meta.json
                "finale":{ "partCount":8, "armorPartCount":3,
                           "exemptRules":["R4","R6"], "allowNormalPeripheral":true } },
   // ★v1.5(#20/#26) — partCount 4→7(테마)·finale 5→8: «발사 파트» base 3 + extra armament 3(테마=base 4+3).
-  //   런 포지션별 동적 스폰 = stages.curve.firingPartsPerStage[3,3,4,5,6,7](§8.9.1) — base 항상,
+  //   런 포지션별 동적 스폰 = stages.curve.firingPartsPerStage[3,4,4,5,6,6](§8.9.1, v1.10 ⑩) — base 항상,
   //   extra 는 앞에서부터 (target−base)개. extra 부위: extra:true(선택 optional·hp=armor×0.20 S24 준수·
   //   bossHpScale 적용)·비-테마 속성(R4 유지, 후반 풀-스탠스 강제). armor 는 전부 base → 소프트게이트 불변.
   //   mobilityPenalty 0.5→1.5(폭주). escalateFireRateMul 1.25(부위 파괴마다 발사 가속)·
-  //   escalateFireRateMax 1.60(상한, 페어니스 320 보호). 이미터 66→129(§8.9.1).
+  //   escalateFireRateMax 1.60(상한, 페어니스 320 보호). 이미터 66→126(§8.9.1 v1.10 ⑩: 42부위 × 3페이즈).
   // ★v1.5 코어 발사(§9.8.1 개정, 사용자 결정 2026-08-01) — v1.4의 「코어는 발사 안 함」 폐기.
   //   코어(무속성 중앙)가 coreEmitterId(="bossCore") 로 «회피가능한 원거리 압박»을 쏜다: 어느 거리에서도
   //   닿아 «원거리 치즈»를 막고 가운데가 살아난다. 부위 이미터법칙(66→129·{bossId}{Part}P{phase}) 밖의
