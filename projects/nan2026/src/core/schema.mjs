@@ -22,8 +22,8 @@
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
   'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
 export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 v1.10 ㉒ — 특성 3종과 1:1(재생·흡혈·쉴드)
-/** §11.6 ㉖ 획득 경로 — pick = 구슬 드래프트에서 고른다 · boss = 스테이지 보스를 잡을 때마다 저절로 한 단계(고르지 않는다) */
-export const TRAIT_GRANTS = ['pick', 'boss'];
+/** §11.6 ㉗ 효과 kind 별 «추가 키» — 흡혈의 hpRatio(이 비율 이하일 때만 듣는다). 로더가 닫힌 키·(0,1] 로 지킨다. */
+export const TRAIT_EFFECT_EXTRA = { lifestealPct: ['hpRatio'] };
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -568,13 +568,14 @@ function checkTraits(c, t) {
   for (let i = 0; i < t.traits.length; i += 1) {
     const x = t.traits[i];
     const p = `traits.traits[${i}]`;
-    c.closed(p, x, ['id', 'name', 'grant', 'desc', 'effect']);
-    c.vocab(`${p}.grant`, x.grant, TRAIT_GRANTS);
+    c.closed(p, x, ['id', 'name', 'desc', 'effect']);
     if (typeof x.id !== 'string' || x.id === '') c.fail(`${p}.id`, '빈 문자열');
     if (ids.has(x.id)) c.fail(`${p}.id`, `중복 id "${x.id}"`);
     ids.add(x.id);
     if (!isObj(x.effect)) { c.fail(`${p}.effect`, '객체가 아니다'); continue; }
-    c.closed(`${p}.effect`, x.effect, ['kind', 'values']);
+    const extra = TRAIT_EFFECT_EXTRA[x.effect.kind] || [];
+    c.closed(`${p}.effect`, x.effect, ['kind', 'values', ...extra]);
+    for (const k of extra) if (typeof x.effect[k] !== 'number' || !(x.effect[k] > 0) || x.effect[k] > 1) c.fail(`${p}.effect.${k}`, '(0, 1] 이어야 한다');
     c.vocab(`${p}.effect.kind`, x.effect.kind, TRAIT_EFFECT_KINDS);
     if (kinds.has(x.effect.kind)) c.fail(`${p}.effect.kind`, `"${x.effect.kind}" 를 쓰는 특성이 둘 — 효과와 특성은 1:1 (§11.6)`);
     kinds.add(x.effect.kind);

@@ -96,13 +96,15 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     e.floorAt[slotIndex] = world.time;
   }
   const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
-  // §11.6(v1.10 ㉒) 흡혈 — «실제로 깎은 HP»의 lifestealPct 만큼 회복(오버킬은 안 센다: 잡몹 hp 6 에 피해 17 이면 6 만). 입구 하나.
+  // §11.6(v1.10 ㉒·㉗) 흡혈 — «실제로 깎은 HP»의 lifestealPct 만큼 회복(오버킬은 안 센다: 잡몹 hp 6 에 피해 17 이면 6 만). 입구 하나.
+  //   ★ ㉗ 페널티: 내 HP 가 hpMax × lifestealHpRatio(0.5) «이하»일 때만 듣는다 — 위험할 때의 안전망이지 상시 회복이 아니다
+  //     (사용자 2026-09-05 「흡혈에 페널티를 줘서 3택이 선택지가 되게」). 한 타로 50% 를 살짝 넘길 수는 있고, 그다음부터 안 듣는다.
   {
     const fx = world.traitFx;
-    if (fx.lifestealPct > 0) {
+    const p = world.player;
+    if (fx.lifestealPct > 0 && p.hp > 0 && p.hp <= p.hpMax * fx.lifestealHpRatio) {
       const removed = e.hp > 0 ? (dealt < e.hp ? dealt : e.hp) : 0;
-      const p = world.player;
-      if (removed > 0 && p.hp > 0 && p.hp < p.hpMax) { p.hp += removed * fx.lifestealPct; if (p.hp > p.hpMax) p.hp = p.hpMax; }
+      if (removed > 0) { p.hp += removed * fx.lifestealPct; if (p.hp > p.hpMax) p.hp = p.hpMax; }
     }
   }
   e.hp -= dealt;

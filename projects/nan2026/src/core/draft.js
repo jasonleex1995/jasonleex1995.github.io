@@ -303,13 +303,13 @@ export function applyCard(world, card) {
  *   늘어나는 방식」. 제안 = **세 특성 전부, 데이터 순서 그대로**(무작위 없음 — 같은 자리는 늘 같은 특성이라 «셋 중 하나»가 화면에서
  *   읽힌다). 카드는 현재 레벨과 다음 값을 든다(from = 지금 값 또는 null, to = 다음 값). maxLevel 인 특성은 안 나온다
  *   (구슬은 maxLevel 개뿐이라 정상 런에서는 일어나지 않는다). 폴백 카드 없음. rng 를 쓰지 않는다.
+ *   ★ ㉗(사용자 2026-09-05): 흡혈은 «HP 50% 이하일 때만» 듣는 페널티를 달고 3택으로 돌아왔다(㉖ 의 보스 자동 지급은 폐지).
  */
 export function buildTraitDraft(world) {
   const td = world.data.traits;
   const cards = [];
   for (let i = 0; i < td.traits.length; i += 1) {
     const t = td.traits[i];
-    if (t.grant !== 'pick') continue;                       // §11.6 ㉖ — boss 획득(흡혈)은 고르는 게 아니다
     const lv = world.traits[t.id];
     if (lv >= td.maxLevel) continue;
     cards.push({

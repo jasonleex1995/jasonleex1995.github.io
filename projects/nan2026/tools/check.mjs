@@ -3344,10 +3344,11 @@ function S58_orbitRadius() {
  *   방식으로.」 로더(schema.checkTraits)가 형식(닫힌 키·kind 어휘·1:1·values 길이 = maxLevel·양수)을 지키고, 여기는 «설계»를 지킨다:
  *   ① maxLevel = 한 런의 구슬 수(스테이지 보스 5 — 최종은 구슬이 없다) — 다섯 번 고르면 정확히 다섯 레벨이 있다
  *   ② 효과 어휘 3종이 전부 쓰인다 — 안 쓰이는 kind 는 죽은 어휘 (특성 수 = 어휘 수 = 3)
- *   ②' (㉖) 획득 경로: pick ≥ 2 (고를 게 둘은 있어야 «선택»이다) · boss 는 흡혈뿐(lifestealPct) — 사용자 「흡혈은 보스 잡으면 그냥 주자」
+ *   ②' (㉗) 흡혈은 «HP 비율 게이트»를 반드시 단다 — effect.hpRatio ∈ [0.3, 0.6] (사용자 「HP 50% 이하일 때만 — 페널티로 3택이 선택지가 되게」;
+ *      1 이면 상시 회복 = ㉒ 의 «깡패» 로 되돌아간다)
  *   ③ 레벨은 «좋아지는 방향»으로 단조: 재생·흡혈은 증가, 쉴드 주기는 감소 — 같은 카드를 다시 골랐는데 나빠지면 안 된다
- *   ④ 값의 범위: regenHpPerSec ≤ 2.0(초당 2 = 100 HP 를 50초에 — 원데스 긴박함의 하한) · lifestealPct ≤ 0.01(㉖ 자동 지급이라 «덤»의 크기 —
- *      사람 DPS 150 기준 Lv5 0.6% = 0.9 HP/s · ~~0.03~~)
+ *   ④ 값의 범위: regenHpPerSec ≤ 2.0(초당 2 = 100 HP 를 50초에 — 원데스 긴박함의 하한) · lifestealPct ≤ 0.02(HP 50% 이하에서만 듣는
+ *      안전망 — 사람 DPS 150 기준 Lv5 1.4% = 2.1 HP/s, 50% 까지만)
  *      · shieldEverySec ≥ fairness.iframeSec(1.0) × 5 — 쉴드가 i-frame 보다 촘촘하면 «맞을 수 없는» 기체가 된다
  *   ⑤ palette.pickup.trait 가 있다 — 구슬은 «보상 그 자체»라 자기 색이 있다(hud.accent 채널). 쉴드 링도 이 색
  */
@@ -3363,9 +3364,11 @@ function S59_traits() {
   for (const k of TRAIT_EFFECT_KINDS) if (!used.has(k)) V('S59', `특성 효과 "${k}" 를 쓰는 특성이 0 — 죽은 어휘 (§11.6 ②)`);
   if (td.traits.length !== TRAIT_EFFECT_KINDS.length) V('S59', `특성 ${td.traits.length}개 ≠ 효과 어휘 ${TRAIT_EFFECT_KINDS.length} — 1:1 (§11.6 ②)`);
   n += 1;
-  const picks = td.traits.filter((t) => isObj(t) && t.grant === 'pick').length;
-  if (picks < 2) V('S59', `traits: grant "pick" 이 ${picks}개 — 둘은 있어야 «선택»이다 (§11.6 ②')`);
-  for (const t of td.traits) if (isObj(t) && t.grant === 'boss' && isObj(t.effect) && t.effect.kind !== 'lifestealPct') V('S59', `traits[${t.id}]: grant "boss" 는 흡혈(lifestealPct)뿐 — 자동 지급은 «덤» 하나 (§11.6 ②')`);
+  for (const t of td.traits) {
+    if (!isObj(t) || !isObj(t.effect) || t.effect.kind !== 'lifestealPct') continue;
+    const hr = t.effect.hpRatio;
+    if (!num(hr) || hr < 0.3 || hr > 0.6) V('S59', `traits[${t.id}].effect.hpRatio = ${hr} ∉ [0.3, 0.6] — 흡혈은 «위험할 때만» 듣는 안전망이다 (§11.6 ②')`);
+  }
   for (const t of td.traits) {
     if (!isObj(t) || !isObj(t.effect) || !Array.isArray(t.effect.values)) continue;
     const v = t.effect.values; const tag = `traits[${t.id}].effect`;
@@ -3378,7 +3381,7 @@ function S59_traits() {
     const mx = Math.max(...v); const mn = Math.min(...v);
     switch (t.effect.kind) {
       case 'regenHpPerSec': if (mx > 2.0) V('S59', `${tag}: 최대 ${mx} > 2.0 HP/s (§11.6 ④)`); break;
-      case 'lifestealPct': if (mx > 0.01) V('S59', `${tag}: 최대 ${mx} > 0.01 — 자동 지급 «덤»의 상한 (§11.6 ④)`); break;
+      case 'lifestealPct': if (mx > 0.02) V('S59', `${tag}: 최대 ${mx} > 0.02 (§11.6 ④)`); break;
       case 'shieldEverySec': {
         const lo = D.rules.player.iframeSec * 5;
         if (mn < lo) V('S59', `${tag}: 최소 ${mn}초 < i-frame × 5 = ${lo}초 — 쉴드가 무적보다 촘촘하다 (§11.6 ④)`);

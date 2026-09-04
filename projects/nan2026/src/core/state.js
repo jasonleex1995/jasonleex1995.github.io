@@ -178,7 +178,7 @@ function makeEnemyBullet() {
 
 /** §11.6(v1.10 ㉒) — 특성 효과의 평면 표현. 0 = «없음». 핫패스(step·damage)는 이것만 읽는다(문자열 비교 0). */
 export function makeTraitFx() {
-  return { regenHpPerSec: 0, lifestealPct: 0, shieldEverySec: 0 };
+  return { regenHpPerSec: 0, lifestealPct: 0, lifestealHpRatio: 0, shieldEverySec: 0 };   // lifestealHpRatio: 이 비율 이하일 때만(㉗)
 }
 
 /** §11.6 — 보유 레벨 표 {id: 0..maxLevel}. 0 = 없음. 키 집합은 데이터가 정한다(특성이 늘면 여기가 따라온다). */
@@ -203,7 +203,7 @@ export function recomputeTraitFx(world) {
     const v = def.effect.values[lv - 1];
     switch (def.effect.kind) {
       case 'regenHpPerSec': fx.regenHpPerSec = v; break;
-      case 'lifestealPct': fx.lifestealPct = v; break;
+      case 'lifestealPct': fx.lifestealPct = v; fx.lifestealHpRatio = def.effect.hpRatio; break;
       case 'shieldEverySec': fx.shieldEverySec = v; break;
       default: throw new Error(`state: 미지의 특성 효과 "${def.effect.kind}" (§11.6)`);
     }

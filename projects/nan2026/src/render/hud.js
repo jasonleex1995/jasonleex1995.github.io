@@ -333,7 +333,7 @@ function drawLeftPanel(ctx, world, pal) {
     const state = def.effect.kind === 'shieldEverySec' ? (world.traitState.shieldReady ? ' · 준비됨' : ' · 충전 중') : '';
     ctx.fillStyle = rgba(pal.hud.accent, 0.9);
     ctx.beginPath(); ctx.arc(pad + 5, ty, 4, 0, Math.PI * 2); ctx.fill();
-    text(ctx, world, pal, `${def.name} Lv.${lv}${def.grant === 'boss' ? ' · 보스마다 +1' : ''}`, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
+    text(ctx, world, pal, `${def.name} Lv.${lv}`, pad + 16, ty, h.fontSmallPx, pal.hud.textPrimary, 'left', 600);
     text(ctx, world, pal, `${val}${state}`, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
     ty += 34;
   }
@@ -593,7 +593,7 @@ const STAT_FMT = {
 /** §11.6 ㉒ 특성 효과의 표기법 — kind 마다 단위가 다르다(초당 HP · 피해의 % · 초). 미지의 kind 는 숫자 그대로(숨기지 않는다). */
 function fmtTrait(kind, v) {
   if (kind === 'regenHpPerSec') return `초당 ${num(v)} HP`;
-  if (kind === 'lifestealPct') return `${num(v * 100)}%`;
+  if (kind === 'lifestealPct') return `${num(v * 100)}% (HP 50%↓)`;
   if (kind === 'shieldEverySec') return `${num(v)}초마다`;
   return num(v);
 }
