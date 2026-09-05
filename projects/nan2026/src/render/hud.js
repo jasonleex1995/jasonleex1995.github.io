@@ -23,23 +23,23 @@
 import { rgba, glyphPath } from './draw.js';
 import { WEAPON_MAX_LEVEL, BODY_STATS } from '../core/schema.mjs';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
-import { passiveAppliesTo } from '../core/state.js';   // ㊵ — 「이 패시브가 내 무기에 듣는가」의 유일한 판정(§11.1)
+import { passiveAffectsSlot } from '../core/state.js';   // ㊸ — 「이 패시브가 지금 내 무기에 실제로 듣는가」(§11.1, eff 기준)
 
 /** §9.5 ㊵ 무기 분류의 화면 이름 — 값(class)의 소유자는 weapons.json 이고, 여기는 «부르는 말»만 갖는다. */
 const CLASS_KO = { bullet: '탄', beam: '빔', area: '범위', orbital: '궤도' };
 
 /**
- * ㊵ — 이 패시브(stat)가 «지금 내가 든 무기» 중 무엇에 듣는가. 사용자(2026-09-05): 「내 무기가 탄인지 아닌지를 잘 모르겠다」.
+ * ㊵·㊸ — 이 패시브(stat)에서 «지금 내가 든 무기» 중 **실제로 혜택을 받는** 것들. 사용자(2026-09-05): 「내 무기가 탄인지 아닌지를 잘 모르겠다」.
  *   판정은 core 의 passiveAppliesTo 하나뿐이다(드래프트 필터·S41 과 같은 표) — 화면이 다른 답을 하면 그게 거짓말이다.
  */
 export function affectedOwnedWeapons(world, stat) {
   const out = [];
-  const hooks = world.data.rules.passiveHooks;
   for (let i = 0; i < world.slots.length; i += 1) {
     const s = world.slots[i];
     if (s.weaponId === null) continue;
+    if (!passiveAffectsSlot(world, s, stat)) continue;      // ㊸ 저작값이 아니라 «지금 그 무기의 유효 파라미터»로 답한다
     const def = world.weaponDefs[s.family];
-    if (passiveAppliesTo(hooks[s.family], def.base, stat)) out.push(s.evolved ? def.evolution.name : def.name);
+    out.push(s.evolved ? def.evolution.name : def.name);
   }
   return out;
 }

@@ -23,7 +23,7 @@ import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
 import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine } from '../src/render/hud.js';
 import { BODY_STATS } from '../src/core/schema.mjs';
-import { giveWeapon as giveW } from '../src/core/state.js';
+import { giveWeapon as giveW, passiveAffectsSlot, recomputeEff } from '../src/core/state.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
 
@@ -220,6 +220,23 @@ suite('render · §11.1 ㊸ 패시브 카드의 «내 무기» 줄', () => {
       if (BODY_STATS.indexOf(p.stat) >= 0) assert.eq(line, null, `${p.id}(기체) = 줄 없음`);
       else assert.ok(line !== null && typeof line.text === 'string', `${p.id}(무기 분류) = 줄 있음`);
     }
+  });
+
+  test('㊸ 답은 «저작값»이 아니라 «지금 그 무기의 유효 파라미터»에서 나온다', () => {
+    const w = mkRun(9);
+    for (const s of w.slots) { s.weaponId = null; s.family = ''; }
+    giveW(w, 'forward');
+    const slot = w.slots.find((s) => s.family === 'forward');
+    assert.eq(passiveAffectsSlot(w, slot, 'pierceAdd'), true, '벌컨은 관통 코팅을 받는다');
+    // 유효 파라미터에서 pierce 가 «무제한(-1)»이 되면 관통 +N 은 의미가 없다 → 화면도 그렇게 답해야 한다
+    const eff = recomputeEff(w, slot);
+    const keep = eff.pierce;
+    eff.pierce = -1; slot.effDirty = false;
+    assert.eq(passiveAffectsSlot(w, slot, 'pierceAdd'), false, '무제한 관통이면 «혜택 없음»');
+    eff.pierce = keep;
+    // 키 자체가 없으면(그 무기의 계약에 없는 파라미터) 역시 없음
+    delete eff.lifetimeSec;
+    assert.eq(passiveAffectsSlot(w, slot, 'durationMul'), false, '수명 키가 없으면 장기 배터리 무효');
   });
 
   test('무기 분류 패시브는 «내가 든 무기 중 듣는 것»만 센다', () => {

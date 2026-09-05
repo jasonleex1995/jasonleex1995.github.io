@@ -2835,6 +2835,9 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 | `orbit` 오빗 (궤도) | 이지스 | `orbitext` 궤도 확장 (옵션과 공유 · ~~reactive~~) | 궤도 |
 | `drone` 옵션 (궤도) | 잔상 편대 | `orbitext` 궤도 확장 (~~afterimage~~) | 편대 = 궤도 |
 
+- ★ **㊸ 「실제로 혜택을 받는 무기만」** (사용자 2026-09-06). 화면의 답은 **저작값(base)이 아니라 그 슬롯의 유효 파라미터(eff)** 에서 나온다
+  (`passiveAffectsSlot` — 레벨·진화로 키가 생기거나 관통이 무제한이 되면 답이 달라진다). 설계 질문(드래프트 후보 필터·S41)은 그대로
+  `passiveAppliesTo`(base) 가 답한다 — **같은 표, 다른 시점**이다.
 - ★ **㊸ 카드의 «내 무기» 줄은 무기 분류 패시브에만 붙는다** (사용자 2026-09-06: 「강화 격벽은 무기랑 상관 없잖아」). 기체 4(최대 HP·지형 저항·XP·상성 증폭)는
   무기를 가리지 않으므로 그 줄이 **없는 것이 정답**이다 — 있으면 「무기 덕분에 좋은 카드」로 읽힌다. 판정 목록의 소유자 = `schema.mjs > BODY_STATS`(화면·게이트가 같은 목록을 읽는다).
 - ★ **기계적 유효성 (S41 강제, ㊲ 일반화)**: 짝 패시브의 stat 이 그 무기에 유효해야 한다 — 표 = `passiveAppliesTo`(§11.1, `state.js` 와 `check.mjs` 의 같은 표: `fireRateMul` ⇔ `rateKey ≠ null` · `projCountAdd` ⇔ `countKey ≠ null` · `pierceAdd` ⇔ `pierceApplies ∧ base.pierce ≠ −1` · `projSpeedMul/durationMul/beamAreaMul/areaMul/orbitMul` ⇔ 해당 키 배열 비어 있지 않음 · `beamDmgMul/areaDmgMul` ⇔ `dmgStat` 일치). **기체 4 는 짝 불가.**

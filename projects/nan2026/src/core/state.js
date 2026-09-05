@@ -331,6 +331,33 @@ export function familyDmgMul(world, family) {
 }
 
 /**
+ * §11.1(v1.10 ㊸) — 이 슬롯의 무기가 그 패시브에서 **실제로 혜택을 받는가**. 사용자(2026-09-06): 「실제 혜택을 받는 무기만 언급해 달라」.
+ *   passiveAppliesTo 가 «저작값(base)의 설계 질문」이라면, 이것은 «지금 이 무기의 유효 파라미터(eff)» 질문이다 —
+ *   레벨·진화로 키가 생기거나(진화 전용 반경) 관통이 무제한이 되면 답이 달라진다. 화면은 이쪽을 읽는다.
+ *   ★ 기체 4(HP·지형·XP·상성)는 무기를 가리지 않으므로 이 질문 자체가 성립하지 않는다 → false(화면은 줄을 아예 안 그린다).
+ */
+export function passiveAffectsSlot(world, slot, stat) {
+  if (slot.weaponId === null) return false;
+  const hooks = world.data.rules.passiveHooks[slot.family];
+  const eff = recomputeEff(world, slot);
+  const has = (k) => k !== null && Object.prototype.hasOwnProperty.call(eff, k);
+  const hasAny = (keys) => { for (let i = 0; i < keys.length; i += 1) if (has(keys[i])) return true; return false; };
+  switch (stat) {
+    case 'fireRateMul': return has(hooks.rateKey);
+    case 'projCountAdd': return has(hooks.countKey);
+    case 'pierceAdd': return hooks.pierceApplies === true && has('pierce') && eff.pierce !== -1;
+    case 'projSpeedMul': return hasAny(hooks.speedKeys);
+    case 'durationMul': return hasAny(hooks.durationKeys);
+    case 'areaMul': return hasAny(hooks.areaKeys);
+    case 'beamAreaMul': return hasAny(hooks.beamKeys);
+    case 'orbitMul': return hasAny(hooks.orbitKeys) || hooks.dmgStat === 'orbitMul';
+    case 'beamDmgMul': return hooks.dmgStat === 'beamDmgMul';
+    case 'areaDmgMul': return hooks.dmgStat === 'areaDmgMul';
+    default: return false;
+  }
+}
+
+/**
  * §11.1(v1.10 ㊲) — 패시브(stat)가 이 패밀리에 «기계적으로 유효»한가. 훅 표(rules.passiveHooks)만 읽는 순수 함수 —
  *   드래프트(미보유 무기 분류 패시브는 유효한 무기가 있어야 나온다)와 check.mjs S41(진화 짝은 유효해야 한다)이 같은 답을 낸다.
  *   기체 4(maxHpAdd·terrainResist·xpGainMul·elementBonusMul)는 무기와 무관하게 항상 유효.
