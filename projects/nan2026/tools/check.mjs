@@ -834,7 +834,7 @@ function S2_files() {
   }
   closedKeys('S2', D.stages.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId'], 'stages.themeDraw');
   closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'crisisHpScale', 'rearSpawnAllowed',
     'shooterRatio', 'threatBudgetScale'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
   closedKeys('S2', D.stages.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves', 'waveIntervalSec',
@@ -3067,6 +3067,17 @@ function S54_sectionsAndRatio() {
   if (!isObj(cu) || !isObj(ph)) { V('S54', 'stages.curve / phase 가 없다'); return; }
   let n = 0;
   // ① 비율 곡선
+  // ⑧ (v1.10 ㉜) crisisHpScale — 길이 6 · [0]=1(스테이지 1 의 새떼는 저작 HP 그대로) · ≥ 1 · 단조 비감소 (§8.10)
+  n += 1;
+  const chs = cu.crisisHpScale;
+  if (!Array.isArray(chs) || chs.length !== 6) V('S54', 'stages.curve.crisisHpScale: 길이 6 배열이어야 한다 (§8.10 ㉜)');
+  else {
+    if (chs[0] !== 1) V('S54', `crisisHpScale[0] = ${chs[0]} ≠ 1 — 스테이지 1 의 새떼는 저작 HP 그대로 (§8.10)`);
+    for (let i = 0; i < 6; i += 1) {
+      if (typeof chs[i] !== 'number' || chs[i] < 1) V('S54', `crisisHpScale[${i}] = ${chs[i]} < 1`);
+      if (i > 0 && chs[i] < chs[i - 1]) V('S54', `crisisHpScale: [${i - 1}]=${chs[i - 1]} → [${i}]=${chs[i]} 로 내려갔다 — 포지션 단조`);
+    }
+  }
   const r = cu.shooterRatio;
   if (!Array.isArray(r) || r.length !== 6) { V('S54', `stages.curve.shooterRatio: 길이 6 배열이어야 한다 (§8.19)`); }
   else {

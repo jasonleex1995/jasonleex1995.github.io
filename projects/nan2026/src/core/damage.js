@@ -150,5 +150,10 @@ export function noteDamageTaken(world, srcArch, amount) {
   if (t === undefined) return;
   const k = srcArch === '' ? 'other' : srcArch;
   t.dmgTakenByArch[k] = (t.dmgTakenByArch[k] === undefined ? 0 : t.dmgTakenByArch[k]) + amount;
+  // v1.10 ㉜ — 구간별(포지션:구간) 피격도 적립한다(「초기 구간은 빡세고 위기는 쉽다」의 계측). 키는 sim 이 정한다(sectionKey).
+  if (t.dmgTakenBySection !== undefined && t.sectionKey !== undefined) {
+    const sk = t.sectionKey(world);
+    t.dmgTakenBySection[sk] = (t.dmgTakenBySection[sk] === undefined ? 0 : t.dmgTakenBySection[sk]) + amount;
+  }
 }
 

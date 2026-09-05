@@ -508,7 +508,7 @@ function checkStages(c, s) {
   } else c.fail('stages.theme', '객체가 아니다 (§8.2 ③)');
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
   c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
-    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'rearSpawnAllowed',
+    'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'crisisHpScale', 'rearSpawnAllowed',
     'shooterRatio', 'threatBudgetScale']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',
     'waveIntervalSec', 'waveClearAdvance',

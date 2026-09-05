@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { validate, MANIFEST } from '../src/core/schema.mjs';
+import { sectionOf } from '../src/core/terrain.js';   // ㉜ 구간별 텔레메트리
 import { createWorld } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, TICK_HZ } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -62,7 +63,20 @@ function makeTele() {
     kills: Object.create(null),
     crisisKills: 0,
     xpGained: 0,
+    // v1.10 ㉜ 구간별 — 키 = `${포지션}:${구간}` (early·midboss·crisis·boss · 그 밖은 페이즈 이름). 피격량·체류 초·진입 레벨
+    dmgTakenBySection: Object.create(null),
+    secBySection: Object.create(null),
+    levelAtSection: Object.create(null),
+    sectionKey,
   };
+}
+
+/** 구간 키 — terrain.sectionOf 의 구간 어휘(§8.19) + 페이즈. 런 밖(슬라이스)은 'slice'. */
+function sectionKey(world) {
+  const run = world.run;
+  if (run === undefined) return 'slice';
+  const sec = sectionOf(world);
+  return `${run.stageIndex}:${sec === null ? run.phase : sec}`;
 }
 
 function sum(obj) {
@@ -179,6 +193,12 @@ export function driveRun(data, seed, opts) {
 
     step(world, botInput(world, TICK_DT), TICK_DT);
     r.gameTime = world.time;
+    {                                                        // ㉜ 구간 체류 시간·진입 레벨
+      const sk = sectionKey(world);
+      const te = world.tele;
+      te.secBySection[sk] = (te.secBySection[sk] === undefined ? 0 : te.secBySection[sk]) + TICK_DT;
+      if (te.levelAtSection[sk] === undefined) te.levelAtSection[sk] = world.player.level;
+    }
 
     if (world.run.phase === PHASE.BOSS) {
       bossTicks += 1;

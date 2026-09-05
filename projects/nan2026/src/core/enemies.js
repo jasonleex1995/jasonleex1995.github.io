@@ -477,14 +477,17 @@ function spawnCrisisSubWave(world, s, subWave) {
   const swarmMax = world.data.rules.fairness.swarmConcurrentMax;
   const el = crisisElement(s, subWave);
   const shooter = s.archIndex[ph.crisisShooterId];
-  const hpShoot = enemyHp(world, shooter, el);
+  // §8.10(v1.10 ㉜) 위기 체력 배율 — 사용자: 「위기 구간이 가만히 있어도 깨지는 느낌」. 새떼가 «닿기 전에 죽으면» 피하기 구간이
+  //   못 된다 → 포지션 곡선으로 새떼 HP 만 올린다(초기 벽·중간보스·보스는 무관). enemyHp 위에 곱한다(테마 밖 배율도 그대로).
+  const chs = world.data.stages.curve.crisisHpScale[s.curveIdx];
+  const hpShoot = enemyHp(world, shooter, el) * chs;
   const ratio = world.data.stages.curve.shooterRatio[s.curveIdx];
 
   for (let i = 0; i < recs.length; i += 1) {
     const r = recs[i];
     if (r.subWave !== subWave) continue;
     const body = s.archIndex[r.bodyId];             // v1.10 ⑫ 서브웨이브의 몸 종(arc 새떼 / vWedge 화살)
-    const hpBody = enemyHp(world, body, el);
+    const hpBody = enemyHp(world, body, el) * chs;
     const count = s.crisisPlan[i];                  // 스테이지 진입 시 확정(사이클 총량 보존)
     const nShoot = Math.round(count * ratio);
     const bag = s.cbag;

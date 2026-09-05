@@ -208,3 +208,36 @@ suite('crisis · v1.10 ㉘ — 위기에도 엘리트가 선다 (§8.6 · §8.10
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('crisis · v1.10 ㉜ — 위기 체력 배율 curve.crisisHpScale (§8.10)', () => {
+  test('새떼 HP = archetype.hp × band.hpMult × enemyHpScale[pos] × offThemeHpMul × crisisHpScale[pos] · 초기 벽은 무관', () => {
+    const d = loadData();
+    const cu = d.stages.curve;
+    assert.eq(cu.crisisHpScale[0], 1, '포지션 0 = 1');
+    for (const pos of [0, 3, 5]) {
+      const w = mkCrisisWorld(3, pos === 5 ? 'finale' : 'bog', pos);
+      w.run.phaseT = d.stages.phase.crisisStartSec;
+      enemies(w, TICK_DT);
+      const st = w.data.stages.stages.find((x) => x.id === (pos === 5 ? 'finale' : 'bog'));
+      let checked = 0;
+      for (const e of w.enemies.items) {
+        if (!e.alive || e.isBoss || e.midBossId !== '') continue;
+        const a = d.enemies.archetypes.find((x) => x.id === e.archetypeId);
+        const off = (st.element === null || e.element === st.element || e.element === 'normal') ? 1 : d.stages.theme.offThemeHpMul;
+        const want = a.hp * d.enemies.bands[a.band].hpMult * cu.enemyHpScale[pos] * off * cu.crisisHpScale[pos] * (e.elite ? d.rules.elite.hpMult : 1);
+        assert.near(e.hpMax, want, 1e-9, `pos${pos} ${e.archetypeId}${e.elite ? '*' : ''}: HP ${e.hpMax} = ${want}`);
+        checked += 1;
+      }
+      assert.gte(checked, 20, `pos${pos}: 새떼를 검사했다 (${checked})`);
+    }
+    // 초기 벽(위기 아님)은 배율을 안 탄다 — 포지션 5 도입종 HP 에 crisisHpScale 이 없다
+    const w2 = mkCrisisWorld(4, 'finale', 5);
+    w2.run.crisis = false; w2.run.crisisAtSec = -1; w2.run.phaseT = 0;
+    enemies(w2, TICK_DT);
+    const dd = d.enemies.archetypes.find((x) => x.id === 'drifter');
+    const body = w2.enemies.items.find((e) => e.alive && e.archetypeId === 'drifter');
+    assert.ok(body !== undefined, '도입종이 섰다');
+    assert.near(body.hpMax, dd.hp * d.enemies.bands[dd.band].hpMult * cu.enemyHpScale[5], 1e-9, '초기 벽 HP 에는 crisisHpScale 없음');
+  });
+});

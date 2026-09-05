@@ -1650,6 +1650,7 @@ v1.1은 이 값을 **확정**하고 **S17**(`summon != null` ⟺ (`tier == "mid"
 | `stages.phase.crisisStartSec` ★v1.10 ⑮ | **88**(~~80~~) = **상한**. 위기의 «시작»은 **`min(중간보스 전원 격파 시각, crisisStartSec)`** (`crisisOnMidBossClear`, §8.19 ①), 원점은 `run.crisisAtSec`. 위기 자체는 **`mobPhaseSec` 까지**(길이 가변, 최장 70초) · ~~95~~ ~~106~~ |
 | ~~`crisisWarnSec`~~ ★v1.10 | **폐지** — 읽는 곳이 0 이었고(죽은 키), 격파로 앞당겨지는 시작은 시계로 예고할 수 없다. HUD 는 `run.crisis` 로 «위기» 표식을 켠다 |
 | ★ **`stages.phase.crisisCycleSec`** ★v1.10 ⑥ | **9** — 새떼 **한 사이클**(`crisisSubWaves` 6파, 균등 간격 1.5초)의 길이. ~~`crisisDurationSec` 25 → 14~~ 를 **개명** — 위기의 «길이»가 아니라 사이클의 길이이므로 이름이 거짓이었다 |
+| ★ **`stages.curve.crisisHpScale`** ★v1.10 ㉜ | **`[1.0, 1.3, 1.6, 2.0, 2.4, 2.8]`** — 새떼(위기 스폰)에만 곱하는 포지션 HP 배율(`enemyHpScale` × 테마 밖 배율 위에). 사용자(2026-09-05): 「위기 구간이 그냥 가만히 있어도 깨지는 느낌」. 실측: 중간 빌드(무기 3 Lv3~5·패시브 3)에선 새떼의 77~89% 가 플레이어 120px 안까지 오지만, 강한 빌드(6무기 Lv8 진화·패시브 6)에선 배율 전 «거의 0» → 배율 뒤 26~41%. 초기 벽·중간보스·보스는 무관. S54 ⑧: 길이 6 · [0]=1 · ≥1 · 단조 |
 | ★ **`stages.phase.crisisSwarmLoop`** ★v1.10 ⑥ | **true** — 사이클을 **페이즈 끝까지 반복**한다. 사용자(2026-09-04): 「위기 구간은 거의 날아오는 적 피하기 — 빠른 무리가 쭈르륵 내려오면서 피하거나, 부숴서 길을 내야만 하는 느낌」. false 면 한 사이클(옛 v1.3~v1.10 ⑤). S55 ④: `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)` |
 | `stages.phase.crisisSuspendsWaves` ★v1.10 ⑥ | **true** — 위기 = **새떼만**. v1.10 ② 가 false 로 «정상 웨이브 + 새떼 14초» 를 시도했으나 「초기 구간의 빠른 판」이라 정체성이 없었다(플레이 피드백). 초기 = 느리고 큰 벽을 뚫는 구간 / 위기 = 작고 빠른 무리를 정답 스탠스로 갈아버리는 구간 |
 | `stages.phase.crisisTotal` ★v1.10 ⑫ | **220 × `swarmTotalScale[stage]`** = 사이클당 몸 수(서브웨이브 ~37 × 6). `swarmTotalScale` **`[0.8, 0.85, 0.9, 0.95, 1.0, 1.0]`** — 밀도는 전 포지션 높고(실측 무대 59~132), 난이도 축은 «쏘는 비율»과 속도. 상한은 S22(새떼 XP 율 ≤ 초기의 0.30 — 최종 0.285) · ~~150 × [0.8…1.3]~~ ~~60~~ ~~84~~ |
@@ -3287,6 +3288,7 @@ tetrarchThroneP1  ...
              "spawnDensityScale":[0.70,0.85,1.00,1.15,1.30,1.50],
              "midBossCount":[1,1,2,2,2,2], "elitePerWaveChance":[0.10,0.15,0.20,0.25,0.30,0.35],
              "swarmTotalScale":[0.5,0.7,0.85,1.0,1.0,1.0],
+             "crisisHpScale":[1.0,1.3,1.6,2.0,2.4,2.8],   // ㉜ 새떼 HP 배율(§8.10) — 닿기 전에 죽으면 «피하기 구간»이 못 된다
              "rearSpawnAllowed":[false,false,true,true,true,true],
              "shooterRatio":[0.00,0.10,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },   // ㉔ 포지션 0 = 무공격
   "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":56,
