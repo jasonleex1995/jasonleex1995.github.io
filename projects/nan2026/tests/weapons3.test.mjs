@@ -1,0 +1,163 @@
+/**
+ * tests/weapons3.test.mjs — v1.10 ㉟ 신설 5종(미사일·체인 라이트닝·빔·핀볼·스파이럴)의 정본 계약.
+ *
+ * 커버:
+ *   미사일   — 정면 발사 · 소멸(적 접촉·수명) 자리에서 blastRadius 안 전 적 피해 · 진화 자탄(evoClusterCount, 다시 안 갈라진다)
+ *   체인     — 즉발 · acquireRadius 안 최근접에서 chainRangePx 로 chainCount 홉 · 홉마다 chainDmgMul · 한 볼리에 같은 적 1회
+ *   빔       — hitCooldownSec 마다 표적에 dmg · 표적 유지 · 관통(같은 직선 뒤 적) · 진화 갈래
+ *   핀볼     — 벽 반사(bounceLeft -1) · 재히트 · 진화 멀티볼(반사마다 +1, evoMaxBalls 상한)
+ *   스파이럴 — x 가 amp 안에서 진동 · 줄기 위상 분할 · 진화 진폭·수명
+ *   공통     — 15종 전부 레지스트리·드래프트 후보 · 시작 무기 풀 = 속성 10종 · 훅 H5/H6
+ */
+
+import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { createWorld, recomputeEff, giveWeapon, spawnEnemy, givePassive } from '../src/core/state.js';
+import { step, makeInput, TICK_DT } from '../src/core/step.js';
+import { weapons } from '../src/core/weapons/index.js';
+import { candidates } from '../src/core/draft.js';
+
+const dt = TICK_DT;
+function mkWorld(seed = 1) {
+  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
+}
+function slotOf(world, family) { for (const s of world.slots) if (s.family === family) return s; return null; }
+function setup(world, family, level, evolved) {
+  if (slotOf(world, family) === null) giveWeapon(world, family);
+  for (const s of world.slots) if (s.weaponId !== null && s.family !== family) { s.weaponId = null; s.family = ''; }
+  const s = slotOf(world, family);
+  s.level = level; s.evolved = !!evolved; s.cooldownT = 0; s.a0 = 0; s.a1 = 0; s.a2 = 0; s.effDirty = true;
+  return [s, recomputeEff(world, s)];
+}
+function live(world, family) { const out = []; for (const b of world.playerBullets.items) if (b.alive && b.family === family) out.push(b); return out; }
+function tick(w, n) { for (let i = 0; i < n; i += 1) { w.player.hp = w.player.hpMax; step(w, makeInput(), dt); } }
+const dummy = (w, x, y, hp = 1e6) => spawnEnemy(w, 'drifter', 'normal', x, y, hp, false);
+
+suite('weapons3 · 공통 (§9.5 ㉟)', () => {
+  test('레지스트리 15종 = weapons.json 15행 · 드래프트 newWeapon 후보에 신설 5종이 온다 · 시작 무기 풀 = 속성 10종', () => {
+    const w = mkWorld();
+    const ids = w.data.weapons.weapons.map((x) => x.id);
+    assert.eq(ids.length, 15, '15종');
+    for (const id of ids) assert.ok(weapons[id] !== undefined && typeof weapons[id].update === 'function', `${id} 모듈`);
+    const cs = candidates(w).filter((c) => c.category === 'newWeapon').map((c) => c.weaponId);
+    for (const id of ['missile', 'chain', 'beam', 'pinball', 'spiral']) assert.ok(cs.includes(id), `${id} 후보`);
+    const elem = w.data.weapons.weapons.filter((x) => x.slotClass === 'element').length;
+    assert.eq(elem, 10, '속성 무기 10종');
+    assert.eq(w.data.weapons.weapons.filter((x) => x.slotClass === 'utility').length, 5, '무속성 5종');
+  });
+
+  test('H5 추진기·H6 장기 배터리 — speedKeys/durationKeys 만 곱한다 (미사일 탄속·수명 · 체인은 무효)', () => {
+    const w = mkWorld();
+    const [sm, e0] = setup(w, 'missile', 1, false);
+    const base = w.data.weapons.weapons.find((x) => x.id === 'missile').base;
+    assert.eq(e0.projSpeed, base.projSpeed, '패시브 전 = 저작값');
+    for (let k = 0; k < 5; k += 1) { givePassive(w, 'booster'); givePassive(w, 'battery'); }
+    sm.effDirty = true; const e1 = recomputeEff(w, sm);
+    assert.near(e1.projSpeed, base.projSpeed * (1 + w.stats.projSpeedMul), 1e-9, '탄속 ×(1+Σ)');
+    assert.near(e1.lifetimeSec, base.lifetimeSec * (1 + w.stats.durationMul), 1e-9, '수명 ×(1+Σ)');
+    const w2 = mkWorld(); const [sc, c0] = setup(w2, 'chain', 1, false);
+    for (let k = 0; k < 5; k += 1) { givePassive(w2, 'booster'); givePassive(w2, 'battery'); }
+    sc.effDirty = true; const c1 = recomputeEff(w2, sc);
+    assert.eq(c1.chainRangePx, c0.chainRangePx, '체인엔 무효(키가 없다)');
+  });
+});
+
+suite('weapons3 · 미사일', () => {
+  test('정면으로 날고, 적에 닿아 소멸하는 자리에서 blastRadius 안 전 적이 피해 · 진화면 자탄이 퍼지고 자탄은 다시 안 갈라진다', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'missile', 1, false);
+    const p = w.player;
+    const a = dummy(w, p.x, p.y - 200); const b = dummy(w, p.x + eff.blastRadius * 0.7, p.y - 200); const far = dummy(w, p.x + eff.blastRadius * 3, p.y - 200);
+    tick(w, Math.round(1.6 / dt));
+    assert.lt(a.hp, 1e6, '직격 적 피해'); assert.lt(b.hp, 1e6, '반경 안 이웃도 피해'); assert.eq(far.hp, 1e6, '반경 밖은 무피해');
+    assert.near((1e6 - a.hp), 2 * (1e6 - b.hp), 1e-9, '직격 = 탄 + 폭발(2배) · 이웃 = 폭발만');
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'missile', 8, true);
+    dummy(w2, w2.player.x, w2.player.y - 200);
+    let seenChild = 0; let childLife = -1;
+    for (let i = 0; i < Math.round(3 / dt); i += 1) { tick(w2, 1); for (const bb of live(w2, 'missile')) if (bb.s0 === 1) { seenChild += 1; childLife = bb.lifetimeSec; } }
+    assert.gt(seenChild, 0, '자탄이 나왔다'); assert.near(childLife, eff2.lifetimeSec * 0.5, 1e-9, '자탄 수명 = 절반');
+    void s; void s2;
+  });
+});
+
+suite('weapons3 · 체인 라이트닝', () => {
+  test('즉발 — 최근접에서 chainRangePx 로 chainCount 홉, 홉마다 chainDmgMul, 한 볼리에 같은 적은 1회 · 진화는 홉 ×evoChainCountMul', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'chain', 1, false);
+    const p = w.player;
+    const y = p.y - 150;
+    const es = []; for (let i = 0; i < 6; i += 1) es.push(dummy(w, p.x + i * (eff.chainRangePx * 0.8), y));
+    tick(w, 1);
+    const hit = es.filter((e) => e.hp < 1e6);
+    assert.eq(hit.length, eff.chainCount, `${eff.chainCount} 마리`);
+    for (let i = 0; i + 1 < hit.length; i += 1) assert.ok(1e6 - hit[i + 1].hp < 1e6 - hit[i].hp, `홉 ${i + 1} 피해 < 홉 ${i}`);
+    assert.near((1e6 - hit[1].hp) / (1e6 - hit[0].hp), eff.chainDmgMul, 1e-9, '감쇠 = chainDmgMul');
+    assert.eq(w.chainFx.count, eff.chainCount, '선분 링 = 이번 틱의 홉 수(렌더가 이 프레임에 읽는다, 다음 step 이 비운다)');
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'chain', 8, true);
+    // 한 줄(세로)로 세운다 — 탐욕 최근접 경로가 «되돌아오지 않고» 끝까지 이어지게(격자는 모서리에서 끊긴다)
+    const es2 = []; const gap = eff2.chainRangePx * 0.6;
+    for (let i = 0; i < 12; i += 1) es2.push(dummy(w2, w2.player.x, w2.player.y - 100 - i * gap * 0.5));
+    tick(w2, 1);
+    assert.eq(es2.filter((e) => e.hp < 1e6).length, Math.round(eff2.chainCount * eff2.evoChainCountMul), '진화 홉 수');
+    void s; void s2;
+  });
+});
+
+suite('weapons3 · 빔', () => {
+  test('hitCooldownSec 마다 표적에 dmg · 표적을 유지한다 · 관통은 같은 직선 뒤 적 · 진화 갈래', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'beam', 1, false);
+    const p = w.player;
+    const t = dummy(w, p.x, p.y - 200);
+    const side = dummy(w, p.x + 180, p.y - 200);
+    tick(w, Math.round(1 / dt));
+    const ticks = Math.floor(1 / eff.hitCooldownSec);
+    assert.ok(Math.abs((1e6 - t.hp) / eff.dmg - ticks) <= 2, `1초에 ≈ ${ticks} 회 (실제 ${(1e6 - t.hp) / eff.dmg})`);
+    assert.eq(side.hp, 1e6, '두 번째 적은 count 1 이면 안 맞는다');
+    assert.eq(s.a0, w.enemies.items.indexOf(t), '슬롯이 표적을 기억한다');
+    // 관통 — pierce 를 주면 표적 뒤(같은 직선) 적이 맞는다
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'beam', 1, false);
+    for (let k = 0; k < 3; k += 1) givePassive(w2, 'coating'); s2.effDirty = true; const e2 = recomputeEff(w2, s2);
+    assert.gt(e2.pierce, 0, '코팅으로 관통 > 0');
+    const near = dummy(w2, w2.player.x, w2.player.y - 150); const behind = dummy(w2, w2.player.x, w2.player.y - 260); const off = dummy(w2, w2.player.x + 90, w2.player.y - 260);
+    tick(w2, 3);
+    assert.lt(near.hp, 1e6); assert.lt(behind.hp, 1e6, '직선 뒤 적 관통'); assert.eq(off.hp, 1e6, '직선 밖은 무피해');
+    // 진화 — 갈래
+    const w3 = mkWorld(); const [s3, eff3] = setup(w3, 'beam', 8, true);
+    const c = dummy(w3, w3.player.x, w3.player.y - 150); const n1 = dummy(w3, w3.player.x + eff3.evoSplitRangePx * 0.6, w3.player.y - 150);
+    tick(w3, 3);
+    assert.lt(n1.hp, 1e6, '갈래가 이웃을 때린다'); assert.lt(c.hp, 1e6);
+    void eff; void s3;
+  });
+});
+
+suite('weapons3 · 핀볼', () => {
+  test('벽에 튕긴다(bounceLeft -1) · 오래 남아 재히트 · 진화 멀티볼은 반사마다 +1, evoMaxBalls 상한', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'pinball', 1, false);
+    assert.eq(eff.bounceLeft, -1, '무제한 반사'); assert.eq(eff.pierce, -1, '관통 무제한');
+    let flips = 0; let prev = 0;
+    for (let i = 0; i < Math.round(eff.lifetimeSec / dt) - 2; i += 1) { tick(w, 1); const b = live(w, 'pinball')[0]; if (!b) continue; const sg = b.vx >= 0 ? 1 : -1; if (prev !== 0 && sg !== prev) flips += 1; prev = sg; }
+    assert.gt(flips, 0, `벽 반사 ${flips}회`);
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'pinball', 8, true);
+    let maxLive = 0;
+    for (let i = 0; i < Math.round(eff2.lifetimeSec / dt); i += 1) { tick(w2, 1); const n = live(w2, 'pinball').length; if (n > maxLive) maxLive = n; }
+    assert.gt(maxLive, 1, '멀티볼로 늘어난다'); assert.ok(maxLive <= eff2.evoMaxBalls, `상한 ${eff2.evoMaxBalls} (실제 ${maxLive})`);
+    void s; void s2;
+  });
+});
+
+suite('weapons3 · 스파이럴', () => {
+  test('x 가 원점 ± ampPx 안에서 진동 · 줄기끼리 위상이 다르다 · 진화는 진폭·수명 ↑', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'spiral', 1, false);
+    const p = w.player;
+    let maxDx = 0; let sawDiff = false;
+    for (let i = 0; i < Math.round(eff.lifetimeSec / dt); i += 1) { tick(w, 1); const bs = live(w, 'spiral'); for (const b of bs) { const d = Math.abs(b.x - p.x); if (d > maxDx) maxDx = d; } if (bs.length >= 2 && Math.abs(bs[0].x - bs[1].x) > 5) sawDiff = true; }
+    assert.ok(maxDx <= eff.ampPx * 1.1 + 2 && maxDx > eff.ampPx * 0.5, `진폭 안에서 진동(오일러 오차 ≤ 10%) (max ${maxDx.toFixed(1)} vs amp ${eff.ampPx})`);
+    assert.ok(sawDiff, '줄기끼리 위상이 다르다');
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'spiral', 8, true);
+    tick(w2, 1); const b2 = live(w2, 'spiral')[0];
+    assert.near(b2.lifetimeSec, eff2.lifetimeSec * eff2.evoLifetimeMul, 1e-9, '진화 수명');
+    void s; void s2;
+  });
+});

@@ -21,7 +21,8 @@ import { stampFor } from '../src/core/stance.js';
 import { initRun, tickRun, stageEntry, PHASE } from '../src/core/stage.js';
 
 function mkRunWorld(seed, stageIndex) {
-  const w = createWorld({ data: loadData(), seed, weapons, hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
+  // ㉟ 시작 무기 풀이 10종(속성)이 되어 추첨이 빔·체인(탄 없음)을 뽑을 수 있다 — 탄 전제 테스트는 벌컨으로 못박는다
+  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
   initRun(w);
   if (stageIndex !== undefined) w.run.stageIndex = stageIndex;
   return w;

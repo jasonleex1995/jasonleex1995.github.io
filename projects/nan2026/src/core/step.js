@@ -57,6 +57,7 @@ export function step(world, input, dt) {
   world.time += dt;
   world.player.hit = false;
   world.hitFx.count = 0;            // §7.7 — 히트 피드백 링 = 「이번 틱」 신호. collide 가 다시 채운다
+  world.chainFx.count = 0;          // §7.4 ㉟ — 체인·빔 선분 링, 같은 규약(무기 update 가 채운다)
 
   readInput(world, input, dt);      // 1. 입력 스냅샷
   movePlayer(world, dt);            // 2. 이동
@@ -204,6 +205,15 @@ function fireWeapons(world, dt) {
     }
     fn.update(world, s, recomputeEff(world, s), dt);
   }
+}
+
+/** §7.4(v1.10 ㉟) 체인·빔 선분 신호 — 무기 update 가 홉·갈래마다 하나씩 남긴다. 렌더(draw.drawChainFx)가 이번 프레임에 그린다. */
+export function pushChainFx(world, x1, y1, x2, y2, element) {
+  const c = world.chainFx;
+  if (c.count >= c.cap) return;
+  const s = c.buf[c.count];
+  s.x1 = x1; s.y1 = y1; s.x2 = x2; s.y2 = y2; s.element = element;
+  c.count += 1;
 }
 
 /**

@@ -33,7 +33,7 @@ export const SCHEMA_VERSION = 1;
 // ---------------------------------------------------------------------------
 const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
-  'boomerang', 'barrage', 'drone', 'nova'];
+  'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral'];   // ㉟ 15종
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
   'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'projSpeedMul', 'durationMul',
   'xpGainMul'];
@@ -61,6 +61,15 @@ const FAMILY_BASE_KEYS = {
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
     'droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova: ['dmg', 'intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
+  // ㉟ 신설 5종(속성 무기 10종 확장)
+  missile: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
+    'hitCooldownSec', 'targetMode', 'blastRadius', 'spreadDeg'],
+  chain: ['dmg', 'cooldownSec', 'count', 'hitCooldownSec', 'targetMode', 'acquireRadius', 'chainRangePx', 'chainCount', 'chainDmgMul'],
+  beam: ['dmg', 'count', 'pierce', 'hitCooldownSec', 'targetMode', 'rangePx', 'beamWidthPx'],
+  pinball: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
+    'hitCooldownSec', 'targetMode', 'bounceLeft', 'launchDeg'],
+  spiral: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
+    'hitCooldownSec', 'targetMode', 'ampPx', 'freqHz'],
 };
 
 /** §9.5 — evolution.params 키 집합 (evo* 접두). 동결 */
@@ -75,6 +84,11 @@ const FAMILY_EVO_KEYS = {
   barrage: ['evoRadiusMul'],
   drone: ['evoTrailDelaySec'],
   nova: ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
+  missile: ['evoClusterCount', 'evoClusterDmgMul'],
+  chain: ['evoForkOnSuper', 'evoChainCountMul'],
+  beam: ['evoSplitCount', 'evoSplitDmgMul', 'evoSplitRangePx'],
+  pinball: ['evoSplitOnBounce', 'evoMaxBalls'],
+  spiral: ['evoAmpMul', 'evoLifetimeMul'],
 };
 
 /** §9.5 — 허용 targetMode. null = 그 패밀리 계약에 targetMode 키가 없다 */
@@ -83,6 +97,7 @@ const FAMILY_TARGET_MODES = {
   lance: ['forward', 'nearest'], orbit: null, aura: null,
   boomerang: ['forward', 'sweep'], barrage: ['randomInArena', 'densest'],   // ㉚ sweep = 조준이 sweepDegSec 로 계속 돈다(리턴)
   drone: ['nearest', 'lowestHp', 'forward'], nova: null,
+  missile: ['forward'], chain: ['nearest'], beam: ['nearest'], pinball: ['forward'], spiral: ['forward'],   // ㉟
 };
 
 /** §4.4 — elementStampMode. 구조 결정 = 잠금 키 */
@@ -341,7 +356,7 @@ function checkElements(c, e) {
 
 function checkWeapons(c, w) {
   c.closed('weapons', w, ['schemaVersion', 'weapons']);
-  if (!c.arr('weapons.weapons', w.weapons, 10)) return;
+  if (!c.arr('weapons.weapons', w.weapons, 15)) return;   // ㉟ 15종
   for (let i = 0; i < w.weapons.length; i += 1) {
     const it = w.weapons[i];
     const p = `weapons[${it && it.id}]`;

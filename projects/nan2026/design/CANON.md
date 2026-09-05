@@ -2671,6 +2671,24 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 
 ### 9.5 `weapons.json` — 코드/데이터 힌지
 
+> ★★ **v1.10 ㉟ (사용자 2026-09-05 「속성 무기 4칸에 후보 5종은 다양성이 부족하다 — 속성 10종 · 무속성 5종」)** — 패밀리 **15종**
+> (id == family 1:1). 신설 5종은 전부 속성 무기다. 아래의 v1.5 표(12→10 패밀리)는 기존 10종의 계약이고, 신설분의 계약은 이 블록이 인쇄한다.
+>
+> | family | 이름 | 동사 | base 고유 키 | evolution.params | 짝 | 레퍼런스 |
+> |---|---|---|---|---|---|---|
+> | `missile` | 미사일 | 느린 로켓, 소멸 자리(적 접촉·수명)에서 `blastRadius` 폭발 — 직격 = 탄 + 폭발. pierce 0 | `blastRadius spreadDeg` | 클러스터 `evoClusterCount evoClusterDmgMul` — 폭발 자리에서 자탄(수명 ½, 다시 안 갈라짐) | `coil`(범위, 펄스필드와 공유) | 뱀서 불 지팡이 · 브로타토 로켓 |
+> | `chain` | 체인 라이트닝 | 즉발. `acquireRadius` 안 최근접 → `chainRangePx` 로 `chainCount` 홉, 홉마다 ×`chainDmgMul`. 한 볼리에 같은 적 1회(`enemy.chainEpoch`). 탄 없음 | `acquireRadius chainRangePx chainCount chainDmgMul` | 폭풍 `evoForkOnSuper evoChainCountMul` — 홉 ×2, 상성 ×2 적에서 두 갈래(재귀 1) | `resonance`(속성) | 뱀서 번개 반지 |
+> | `beam` | 빔 | 최근접에 레이저를 «계속» 댄다(`hitCooldownSec` 틱 피해, 표적 유지). `pierce` = 같은 직선 뒤 적을 더 꿴다(폭 `beamWidthPx`). 탄 없음 | `rangePx beamWidthPx` | 프리즘 빔 `evoSplitCount evoSplitDmgMul evoSplitRangePx` — 뚫은 적에서 갈래 | `coating`(관통) | 동방 마스터 스파크 · 홀로큐어 BL 북 |
+> | `pinball` | 핀볼 | 무거운 공을 대각(`launchDeg`, 좌우 교대)으로. 벽 반사 무제한(`bounceLeft -1`, step.bounceOffWalls) · 관통 -1 · 재히트 | `bounceLeft launchDeg` | 멀티볼 `evoSplitOnBounce evoMaxBalls` — 좌우 벽 반사(vx 부호 뒤집힘)마다 +1, 무대 공 수 상한 | `battery`(지속) | 알카노이드 · 뱀서 룬트레이서 |
+> | `spiral` | 스파이럴 | `count` 줄기가 위상 360°/n 으로 엇갈리며 x = amp·sin(ω·age+φ) 나선(모듈이 매 틱 vx 를 쓴다) | `ampPx freqHz` | 토네이도 `evoAmpMul evoLifetimeMul` | `stabilizer`(자이로) | 슈팅 고전 나선탄 |
+>
+> - 렌더 신호: 체인·빔 갈래·빔 관통은 `world.chainFx`(«이번 틱» 선분 링, hitFx 와 같은 규약 — step 진입 때 0, 무기가 채우고 `draw.drawChainFx` 가 그 프레임에 그린다).
+>   빔의 첫 줄기는 슬롯 스크래치(a0 = 표적 idx · a2 = gen)로 `draw.drawBeams` 가 플레이어→표적 선분을 그린다.
+> - `targetMode`: missile·pinball·spiral = `forward` · chain·beam = `nearest`. AIM_EXEMPT(S51): `missile.js`(조준 안 함, 폭발 반경).
+> - **DPS 대역(더미 35기 정지, 20초, 단독)**: Lv1 / Lv5 / Lv8진화 / Lv10 — 벌컨 21/37/229/377 · 랜스 23/96/765/1140 ·
+>   미사일 19/51/384/760 · 체인 25/57/202/425 · 빔 15/91/335/685 · 핀볼 11/64/122/211 · 스파이럴 14/67/216/430. 핀볼은 정지 더미가 저평가(벽 반사·재히트는 움직이는 무리에서 값어치).
+> - 시작 무기 풀 = 속성 10종(빔·체인은 탄이 없다 — 탄 전제 테스트는 `startWeaponId: 'forward'` 로 못박는다).
+
 **구조**: 12 패밀리 = **코드의 update 함수** (`src/core/weapons/<family>.js`, 각 30~60줄). **DSL 없음**(DSL은 4주 예산에서 몇 주짜리 항목). 각 패밀리는 **폐쇄된 파라미터 계약**을 선언하고 모든 수치를 JSON에서 읽는다.
 
 ```json
@@ -2716,14 +2734,19 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 |---|---|---|---|
 | `forward` 벌컨 | 오버드라이브 | `overclock` 오버클럭 | 연사 램프 = 연사 |
 | `fan` 팬아웃 | 플레어 팬 | `autoload` 다중 장전 | 부채 = 탄 수 |
-| `seeker` 시커 | 스웜 | `coating` 관통 코팅 (㉚ · ~~study~~ ~~autoload~~) | 스웜 = 관통하는 벌떼(코팅이 실제로 듣는 무기) |
+| `seeker` 시커 | 스웜 | `study` 학습 회로 (㉟ · ~~coating~~ ~~autoload~~) | 스웜 = 학습된 조준(서로 다른 표적·처치 시 재조준) |
 | `lance` 랜스 | 레일건 | `warhead` 탄두 증량 (㉚ · ~~coating~~ — 사용자 「이미 관통 무기라 코팅과 결합이 어색」) | 레일건 = 큰 한 방 |
 | `orbit` 오빗 | 이지스 | `reactive` 반응 장갑 | 적 탄 소거 = 반응 장갑 |
 | `aura` 펄스필드 | 싱귤래리티 | `coil` 확장 코일 | 범위 |
-| `boomerang` 리턴 | 체인 리턴 | `stabilizer` 자세 안정기 (㉙ · ~~autoload~~) | 체인 = «궤도 안정»(안정기가 궤도를 잇는다) |
-| `barrage` 바라지 | 오비탈 스트라이크 | `study` 학습 회로 (㉚ · ~~warhead~~ ~~coil~~) | 학습된 좌표 = 궤도 타격 |
+| `boomerang` 리턴 | 체인 리턴 | `booster` 추진기 (㉟ · ~~stabilizer~~ ~~autoload~~) | 빨리 던지고 빨리 되받는다 |
+| `barrage` 바라지 | 오비탈 스트라이크 | `autoload` 다중 장전 (㉟ · ~~study~~ ~~warhead~~ ~~coil~~, 팬아웃과 공유) | 포격 수 |
 | `drone` 옵션 | 잔상 편대 | `afterimage` 잔광 | 잔상 |
-| `nova` 노바 | 슈퍼노바 | `resonance` 상성 증폭 (㉙ · ~~coil~~) | 속성 폭발 = 상성 |
+| `nova` 노바 | 슈퍼노바 | `bulkhead` 강화 격벽 (㉟ · ~~resonance~~ ~~coil~~) | 코어 과부하를 견디는 격벽 |
+| `missile` 미사일 (㉟) | 클러스터 | `coil` 확장 코일 (펄스필드와 공유) | 폭발 반경 = 범위 |
+| `chain` 체인 라이트닝 (㉟) | 폭풍 | `resonance` 상성 증폭 | 속성 그 자체 |
+| `beam` 빔 (㉟) | 프리즘 빔 | `coating` 관통 코팅 | 빔이 적을 뚫는다 |
+| `pinball` 핀볼 (㉟) | 멀티볼 | `battery` 장기 배터리 | 오래 남을수록 강하다 |
+| `spiral` 스파이럴 (㉟) | 토네이도 | `stabilizer` 자세 안정기 | 안정기 = 자이로 = 회전 |
 
 - ★ **기계적 유효성 (S41 강제)**: 짝 패시브는 그 무기의 «무효» 목록에 들면 안 된다 — `coating` 무효(`orbit aura mine barrage nova boomerang`) · `autoload` 무효(`aura nova drone`). 위 표는 전부 유효(예: `boomerang`은 `coating` 무효라 `autoload`).
 - ★ **밸런스 부수효과**: 진화가 무기 Lv8 + 짝 패시브 Lv3 콤보가 되어 후반 진화 수가 줄고 화력이 낮아진다 → §13.6의 속성 게이트가 자연히 강화된다(dpsRef 재도출 필요).
@@ -2848,7 +2871,7 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 - ★ **`bossPartPriority`는 존재하지 않는다 (확정).** 초안 F의 "복합 보스에서 부위를 지정할 수단을 데이터로 제공"은 **"의미 있는 이동" 기둥의 정면 위반**이다 — 자동 타겟이 스탠스 퍼즐을 대신 풀어버린다. **보스 부위는 각각 독립 타겟 엔티티이고 `nearest` 계열은 가장 가까운 부위를 노린다 → 플레이어가 위치로 부위를 고른다.**
 - ★ **`knockback`은 존재하지 않는다 (확정, 미결 해소).** 초안 C·F 양쪽 계약에 있었으나 **모델이 없었다**(단위·스크립트 이동에의 적용·편대 붕괴·보스 적용 전부 미정). 스크립트 경로를 도는 적(`moveId`)에 넉백을 적용하면 `column`·`anchor`·`pincer` 편대가 깨져 **§8.4의 이동 어휘 전체와 충돌**한다. 어휘에 남겨두면 AI가 의미 없는 값을 생성한다. **삭제가 가장 싸고 안전하다.**
 
-### 9.6 `passives.json` — 폐쇄 스탯 어휘 (11종, 11 패시브와 1:1 — v1.5 `coinGainMul` 폐지 · v1.10 ⑳ `moveSpeedMul` → `terrainResist`)
+### 9.6 `passives.json` — 폐쇄 스탯 어휘 (13종, 13 패시브와 1:1 — v1.5 `coinGainMul` 폐지 · v1.10 ⑳ `moveSpeedMul` → `terrainResist` · ★ ㉟ `projSpeedMul`(추진기)·`durationMul`(장기 배터리) 신설)
 
 > ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
@@ -2923,7 +2946,13 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 **★ `resonance`의 함정 (비평가가 찾은 것) — 해소 완료**: `elementBonusMul`은 `elem = 1 + (elem−1) × k`의 **k**다. 초안 C의 `values [2.1 … 2.5]`(= 결과 배율)를 이 슬롯에 그대로 넣으면 **×3.1~3.5**가 된다. 정본의 `values`는 **k로 재작성**되어 `[1.10 … 1.50]` → 유효 상성 배율 **×2.1 ~ ×2.5** = C의 원래 의도 그대로.
 **★ `bulkhead`의 스케일 붕괴 (비평가가 찾은 것) — 해소 완료**: 초안 C의 `+1/+1/+2/+2/+3`은 HP ~10 규모를 전제했으나 정본 `hpMax = 100`이다. `[6,12,18,24,30]`으로 재작성(Lv5 = +30%).
 
-### 9.6.1 ★ `rules.passiveHooks` — 훅 → 12 패밀리 파라미터 매핑 (03-§9.3 채택, blocker 해소)
+### 9.6.1 ★ `rules.passiveHooks` — 훅 → 15 패밀리 파라미터 매핑 (03-§9.3 채택, blocker 해소 · ★ ㉟ H5·H6)
+
+> ★ **v1.10 ㉟ — H5 `speedKeys` · H6 `durationKeys`** (패밀리마다 배열, `rateKey·countKey·pierceApplies·areaKeys` 와 같은 자리):
+> `projSpeedMul`(추진기)은 `speedKeys`(탄속·귀환 속도·오빗 공전 속도)에, `durationMul`(장기 배터리)은 `durationKeys`(탄 수명·둔화 지속·행동 감속)에
+> ×(1+Σ). «있는 키만»(areaKeys 규약) — 키가 빈 패밀리(랜스·펄스필드·체인·빔 …)엔 무효이고 패시브 `desc` 가 그 목록을 말한다(H4 와 같은 원칙).
+> 값: forward/fan/seeker/drone/missile/pinball/spiral = `[projSpeed]`/`[lifetimeSec]` · boomerang = `[projSpeed, returnSpeed]`/`[lifetimeSec]` ·
+> orbit = `[angularSpeedDegSec]`/`[]` · barrage = `[]`/`[slowSec]` · nova = `[]`/`[actionSlowSec]` · lance/aura/chain/beam = `[]`/`[]`.
 
 > **v1.0의 결함**: §9.6은 스탯 12종과 `values`를 확정했으나 `fireRateMul` · `areaMul` · `pierceAdd` · `projCountAdd`가 **12 패밀리의 어느 파라미터를 만지는지**를 정의하지 않았다. 계약이 패밀리마다 다르므로(`forward`의 rate는 `cooldownSec`인가 `burstIntervalSec`인가, `orbit`의 area는 `orbitRadius`인가 `bodyCount`인가, `aura`의 rate는 `tickIntervalSec`인가) **이것 없이는 `src/core/weapons/**`의 12개 update 함수가 한 줄도 써지지 않는다.** 그리고 매핑을 `.js`에 박는 순간 밸런서가 `.js`를 연다 = **C-4 위반 = 정본 실패.**
 

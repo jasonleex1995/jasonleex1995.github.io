@@ -248,7 +248,7 @@ function census() {
     ['enemies.emitters', D.enemies && D.enemies.emitters, 1, '§9.7 · §9.8.1(보스 부위 이미터 66개도 여기 산다)'],
     ['bullets.bullets', D.bullets && D.bullets.bullets, 1, '§9.7'],
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
-    ['weapons.weapons', D.weapons && D.weapons.weapons, 10, '§9.5 — 10 패밀리 1:1 (v1.5: omni·mine 삭제)'],
+    ['weapons.weapons', D.weapons && D.weapons.weapons, 15, '§9.5 — 15 패밀리 1:1 (㉟ 5종 신설)'],
     ['passives.passives', D.passives && D.passives.passives, 13, '§9.6 — 13종 (㉟ 추진기·장기 배터리)'],
     ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 6, '§9.9 — 6행 (v1.10 ⑥ 서브웨이브당 1행)'],
   ];
@@ -278,7 +278,7 @@ const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter',
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
-const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova']; // §9.5 (10 — v1.5: omni·mine 삭제)
+const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral']; // §9.5 (10 — v1.5: omni·mine 삭제)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
   'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul', 'projSpeedMul', 'durationMul'];   // §9.6 (13 — ㉟ 추진기·장기 배터리)
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
@@ -309,6 +309,11 @@ const FAMILY_COMMON_CHECK = {
   barrage:   ['dmg', 'cooldownSec', 'targetMode'],
   drone:     ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
   nova:      ['dmg'],
+  missile:   ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
+  chain:     ['dmg', 'cooldownSec', 'count', 'hitCooldownSec', 'targetMode'],
+  beam:      ['dmg', 'count', 'pierce', 'hitCooldownSec', 'targetMode'],
+  pinball:   ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
+  spiral:    ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode'],
 };
 // §9.5 고유 파라미터 — base 거처 (evo* 아닌 것)
 const FAMILY_OWN_BASE = {
@@ -322,6 +327,11 @@ const FAMILY_OWN_BASE = {
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
+  missile:   ['blastRadius', 'spreadDeg'],
+  chain:     ['acquireRadius', 'chainRangePx', 'chainCount', 'chainDmgMul'],
+  beam:      ['rangePx', 'beamWidthPx'],
+  pinball:   ['bounceLeft', 'launchDeg'],
+  spiral:    ['ampPx', 'freqHz'],
 };
 // §9.5 고유 파라미터 — evolution.params 거처 (evo* 접두)
 const FAMILY_OWN_EVO = {
@@ -335,12 +345,18 @@ const FAMILY_OWN_EVO = {
   barrage:   ['evoRadiusMul'],
   drone:     ['evoTrailDelaySec'],
   nova:      ['evoRing2Radius', 'evoSecondaryDmgMul', 'evoActionSlowSec'],
+  missile:   ['evoClusterCount', 'evoClusterDmgMul'],
+  chain:     ['evoForkOnSuper', 'evoChainCountMul'],
+  beam:      ['evoSplitCount', 'evoSplitDmgMul', 'evoSplitRangePx'],
+  pinball:   ['evoSplitOnBounce', 'evoMaxBalls'],
+  spiral:    ['evoAmpMul', 'evoLifetimeMul'],
 };
 // §9.5 허용 targetMode (패밀리별). null = targetMode 키 자체가 없다
 const FAMILY_TARGET_MODES = {
   forward: ['forward'], fan: ['forward'], seeker: ['nearest', 'lowestHp', 'randomInArena'],
   lance: ['forward', 'nearest'], orbit: null, aura: null,
   boomerang: ['forward', 'sweep'], barrage: ['randomInArena', 'densest'],   // ㉚ 리턴 sweep(회전 조준) · nearest 는 구현이 없어 어휘에서 뺐다
+  missile: ['forward'], chain: ['nearest'], beam: ['nearest'], pinball: ['forward'], spiral: ['forward'],   // ㉟
   drone: ['nearest', 'lowestHp', 'forward'], nova: null,
 };
 
@@ -2961,6 +2977,7 @@ const AIM_EXEMPT = {
   'aura.js': '피해가 없다(슬로우+끌어당김) — 오히려 화면 밖 chaff 를 «안»으로 데려온다',
   'nova.js': '조준하지 않는다(플레이어 중심 반경 전체) — 피해는 hitEnemy 가 게이트한다',
   'fan.js': '조준하지 않는다(정면 부채) — 피해는 hitEnemy·collide 가 게이트한다',
+  'missile.js': '조준하지 않는다(정면 로켓, 폭발은 탄 자리 반경) — 피해는 hitEnemy 가 게이트한다 (㉟)',
 };
 function S51_visibleDamage() {
   let n = 0;

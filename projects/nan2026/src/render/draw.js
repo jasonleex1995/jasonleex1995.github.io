@@ -1406,6 +1406,56 @@ function drawLance(ctx, world, pal, px, py) {
   }
 }
 
+// §9.5(v1.10 ㉟) 빔 — 첫 빔은 슬롯 스크래치(a0 = 표적 idx · a2 = gen)로 플레이어 → 표적 선분. 가산 합성, 폭 beamWidthPx.
+function drawBeams(ctx, world, pal, px, py) {
+  const cap = world.data.rules.render.playerBulletMaxAlpha;
+  const slots = world.slots;
+  const en = world.enemies.items;
+  for (let si = 0; si < slots.length; si += 1) {
+    const slot = slots[si];
+    if (slot.weaponId === null || slot.family !== 'beam') continue;
+    const idx = slot.a0;
+    if (idx < 0) continue;
+    const e = en[idx];
+    if (!e.alive || e.gen !== slot.a2) continue;
+    const eff = recomputeEff(world, slot);
+    const col = pal.element[slot.stampElement] || pal.hud.textPrimary;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = rgba(col, Math.min(0.55, cap));
+    ctx.lineWidth = eff.beamWidthPx;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(e.x, e.y); ctx.stroke();
+    ctx.strokeStyle = rgba(pal.threat.bulletCore, Math.min(0.5, cap));   // 흰 코어 라인
+    ctx.lineWidth = Math.max(1, eff.beamWidthPx * 0.35);
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(e.x, e.y); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// §7.4(v1.10 ㉟) 체인 라이트닝·빔 갈래 — 이번 틱의 선분 링. 속성색 가산, 한 줄에 지그재그 한 번(번개 인상)
+function drawChainFx(ctx, world, pal) {
+  const c = world.chainFx;
+  if (c.count === 0) return;
+  const cap = world.data.rules.render.playerBulletMaxAlpha;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < c.count; i += 1) {
+    const s = c.buf[i];
+    const col = pal.element[s.element] || pal.hud.textPrimary;
+    const mx = (s.x1 + s.x2) * 0.5 + (s.y2 - s.y1) * 0.12;   // 중간점을 수직으로 살짝 꺾는다 — 직선이 아니라 번개
+    const my = (s.y1 + s.y2) * 0.5 - (s.x2 - s.x1) * 0.12;
+    ctx.strokeStyle = rgba(col, Math.min(0.7, cap));
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(mx, my); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+    ctx.strokeStyle = rgba(pal.threat.bulletCore, Math.min(0.6, cap));
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(mx, my); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // §5.3 노바(주기 대폭발) — 탄이 없어 «작동이 안 보이던» 무기(랜스·드론과 같은 부류). 판정은 폭발
 //   시점 1회(nova.js). 여기선 연출만: expandSec 동안 0→radius 확장 플래시 + telegraphSec 예고.
 //   since = intervalSec − a0 (a0 = 다음 폭발까지 남은 시간) → 새 스크래치 필드 없이 파생.
@@ -1467,6 +1517,8 @@ export function drawWorld(ctx, world, pal, fx, interp, alpha) {
   drawDrones(ctx, world, pal, interp, alpha, pp.x, pp.y);     // 6.5 — 위성 편대(테더로 플레이어와의 관계 표시)
   drawLance(ctx, world, pal, pp.x, pp.y);                     // 6.6 — 랜스 빔(플레이어 위 · 적 탄 9 아래 = I-4)
   drawNova(ctx, world, pal, pp.x, pp.y);                      // 6.65 — 노바 대폭발(확장 플래시 + 예고)
+  drawBeams(ctx, world, pal, pp.x, pp.y);                     // 6.7 — 빔(㉟ 지속 레이저, 슬롯 스크래치의 표적으로)
+  drawChainFx(ctx, world, pal);                               // 6.75 — 체인·빔 갈래 선분(㉟ 이번 틱 신호)
   drawHitFx(ctx, world, pal, fx);                             // 7 — §7.7 3중 감각 (적 탄 9보다 아래 = I-4)
   drawTelegraphs(ctx, world, pal);                            // 8
   drawEnemyBullets(ctx, world, pal, interp, alpha);           // 9

@@ -196,7 +196,12 @@
     "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": [], "speedKeys": ["projSpeed", "returnSpeed"], "durationKeys": ["lifetimeSec"] },
     "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierceApplies": false, "areaKeys": ["blastRadius"], "speedKeys": [], "durationKeys": ["slowSec"] },
     "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": [], "speedKeys": ["projSpeed"], "durationKeys": ["lifetimeSec"] },
-    "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierceApplies": false, "areaKeys": ["radius", "evoRing2Radius"], "speedKeys": [], "durationKeys": ["actionSlowSec"] }
+    "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierceApplies": false, "areaKeys": ["radius", "evoRing2Radius"], "speedKeys": [], "durationKeys": ["actionSlowSec"] },
+    "missile": { "rateKey": "cooldownSec", "countKey": "count", "pierceApplies": false, "areaKeys": ["blastRadius"], "speedKeys": ["projSpeed"], "durationKeys": ["lifetimeSec"] },
+    "chain":   { "rateKey": "cooldownSec", "countKey": "count", "pierceApplies": false, "areaKeys": [], "speedKeys": [], "durationKeys": [] },
+    "beam":    { "rateKey": "hitCooldownSec", "countKey": "count", "pierceApplies": true, "areaKeys": [], "speedKeys": [], "durationKeys": [] },
+    "pinball": { "rateKey": "cooldownSec", "countKey": "count", "pierceApplies": false, "areaKeys": [], "speedKeys": ["projSpeed"], "durationKeys": ["lifetimeSec"] },
+    "spiral":  { "rateKey": "cooldownSec", "countKey": "count", "pierceApplies": true, "areaKeys": [], "speedKeys": ["projSpeed"], "durationKeys": ["lifetimeSec"] }
   },
 
   "input": {
