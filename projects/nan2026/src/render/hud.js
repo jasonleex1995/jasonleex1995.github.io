@@ -1020,16 +1020,14 @@ export function drawTutorial(ctx, world, pal, step) {
   const tu = world.tut;
   const n = world.data.tutorial.steps.length;
 
-  // ★ ㊷ — 튜토리얼에서는 **적의 체력바를 보여준다**. 「잘하고 있는지 모르겠다」(사용자 2026-09-06)에 대한 답이고,
-  //   ×2 와 ×½ 의 차이가 «바가 줄어드는 속도»로 눈에 들어온다. 잡몹 3~4기뿐이라 §7.7 의 밀도 논거(숫자 금지)와 충돌하지 않는다.
-  //   draw.js 가 이미 자기 바를 그리는 개체(엘리트·중간보스·보스 부위)는 건드리지 않는다.
+  // ★ ㊷ — 튜토리얼에서는 **적의 체력바를 보여준다**. 「잘하고 있는지 모르겠다」(사용자)에 대한 답이고,
+  //   ×2 와 ×½ 의 차이가 «바가 줄어드는 속도»로 눈에 들어온다. 적이 몇 기뿐이라 §7.7 의 밀도 논거와 충돌하지 않는다.
+  //   자기 바가 있는 개체(엘리트·중간보스·보스 부위)와 **코어(상단 바)** 는 건드리지 않는다.
   const hb = world.data.rules.visual.hpBar;
   const items = world.enemies.items;
   for (let i = 0; i < items.length; i += 1) {
     const e = items[i];
     if (!e.alive || e.hpMax <= 0) continue;
-    // 자기 바가 있는 개체는 건드리지 않는다 — 엘리트·중간보스·보스 부위는 draw.js 가, **코어는 상단 바**가 그린다(§7.6:
-    //   같은 값을 두 곳에 그리면 어느 쪽을 봐야 하는지가 사라진다).
     if (e.elite || e.midBossId !== '' || e.isBoss) continue;
     const bw = hb.wPx;
     const bx = e.x - bw / 2;
@@ -1040,16 +1038,17 @@ export function drawTutorial(ctx, world, pal, step) {
     ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, e.hp / e.hpMax)), hb.hPx);
   }
 
-  // 안내 띠 — ★ 아레나 «상단 띠 아래»에 놓는다. 위에 겹치면 보스 코어 체력바(§7.6 상단 바)를 가린다(사용자 보고).
-  //   높이는 «내용»이 정한다(줄바꿈 결과에서 파생) — 고정 높이는 문장이 길어지면 넘치고 짧으면 빈다.
-  const pad = 14;
-  const maxW = a.w - 16 - pad * 2;
+  // 안내 띠 — ★ 아레나 «상단 띠 아래»에 놓는다(위에 겹치면 보스 코어 체력바를 가린다).
+  //   ★ ㊻ 높이는 **줄바꿈한 모든 줄**에서 파생한다 — 고정 높이는 문장이 길어지면 글자가 상자 밖으로 넘친다(사용자 스크린샷).
+  const padX = 16;
+  const maxW = a.w - 16 - padX * 2;
   const measure = (t) => ctx.measureText(t).width;
   ctx.font = font(world, h.fontSmallPx, 400);
-  const bodyLines = step === null ? [] : wrapLines(measure, step.body, maxW);
+  const lines = [];
+  if (step !== null) for (let i = 0; i < step.lines.length; i += 1) for (const l of wrapLines(measure, step.lines[i], maxW)) lines.push(l);
   const mult = step === null ? null : tutorialMultiplier(world);
-  const bodyH = bodyLines.length * 18;
-  const bandH = 26 + bodyH + 20 + (mult === null ? 0 : 20);
+  const LINE_H = 19;
+  const bandH = step === null ? 44 : (26 + lines.length * LINE_H + (mult === null ? 0 : 22) + 12);
   const y0 = a.y + v.bandTopH + 6;
   ctx.save();
   ctx.globalAlpha = 0.92;
@@ -1061,19 +1060,15 @@ export function drawTutorial(ctx, world, pal, step) {
   ctx.strokeRect(a.x + 8, y0, a.w - 16, bandH);
   const cx = a.x + a.w / 2;
   if (step === null) {
-    text(ctx, world, pal, '튜토리얼 완료', cx, y0 + 20, h.fontMediumPx, pal.hud.textPrimary, 'center', 700);
+    text(ctx, world, pal, '튜토리얼 완료', cx, y0 + 24, h.fontMediumPx, pal.hud.textPrimary, 'center', 700);
     ctx.restore();
     return;
   }
   text(ctx, world, pal, `${tu.i + 1} / ${n}   ${step.title}`, cx, y0 + 16, h.fontSmallPx, pal.hud.accent, 'center', 700);
   let cy = y0 + 38;
-  for (let i = 0; i < bodyLines.length; i += 1) { text(ctx, world, pal, bodyLines[i], cx, cy, h.fontSmallPx, pal.hud.textPrimary, 'center'); cy += 18; }
+  for (let i = 0; i < lines.length; i += 1) { text(ctx, world, pal, lines[i], cx, cy, h.fontSmallPx, pal.hud.textPrimary, 'center'); cy += LINE_H; }
   // ★ ㊷ 살아 있는 배율 표시 — 「지금 내 공격이 저 적에게 몇 배인가」를 문장이 아니라 **숫자로 지금** 말한다.
-  if (mult !== null) {
-    text(ctx, world, pal, mult.text, cx, cy + 2, h.fontBodyPx, mult.color(pal), 'center', 800);
-    cy += 20;
-  }
-  text(ctx, world, pal, step.hint, cx, cy + 4, h.fontSmallPx, pal.hud.textDim, 'center', 600);
+  if (mult !== null) text(ctx, world, pal, mult.text, cx, cy + 4, h.fontBodyPx, mult.color(pal), 'center', 800);
   ctx.restore();
 }
 

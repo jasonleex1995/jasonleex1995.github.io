@@ -1,208 +1,194 @@
 /**
- * tests/tutorial.test.mjs — §6.7(v1.10 ㊴) 튜토리얼의 계약.
+ * tests/tutorial.test.mjs — §6.7(v1.10 ㊴ · ㊻ 6스텝) 튜토리얼의 계약.
  *
  * 커버:
- *   · 데이터 — 스텝 id 고유 · 목표 어휘 닫힘 · 마지막은 confirm(플레이어가 끝낸다)
- *   · 진행   — 각 목표가 «실제로» 충족되면 다음 스텝으로 간다(9스텝 전부를 스크립트로 통과시킨다)
- *   · 안전   — 튜토리얼에서는 죽지 않는다(safeHpFloor 아래로 내려가면 회복, world.over 는 항상 false)
- *   · 봉인   — 보스 스텝의 코어는 모듈이 살아 있는 동안 무적이다(§8.13 과 같은 규칙)
+ *   · 데이터 — 스텝 id 고유 · 목표 어휘 닫힘 · 문구가 있다 · 어휘가 전부 쓰인다
+ *   · 진행   — 각 목표가 «실제로» 충족되면 다음 스텝으로 간다(전 스텝을 스크립트로 통과)
+ *   · 이어짐 — ② 가 남긴 경험치를 ③ 이 쓴다 · ④ 는 빌드를 초기화한다 · ② 에서는 구슬이 끌려오지 않는다
+ *   · 안전   — 죽지 않는다 · 표적/경험치가 떨어지면 다시 놓아 준다(막히지 않는다)
+ *   · 봉인   — 보스 스텝은 «층»이다: 열린 모듈 → 보호막 모듈 → 코어
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy } from '../src/core/state.js';
+import { createWorld, spawnEnemy, recomputeEff } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { emitters } from '../src/core/emitters.js';
 import { initRun } from '../src/core/stage.js';
 import { hitEnemy } from '../src/core/damage.js';
 import { stampFor } from '../src/core/stance.js';
-import { makeTutorialState, tickTutorial, tutorialStep, tutorialConfirm, GOALS } from '../src/core/tutorial.js';
+import { makeTutorialState, tickTutorial, tutorialStep, GOALS } from '../src/core/tutorial.js';
 
 function mk() {
+  const data = loadData();
   const world = createWorld({
-    data: loadData(), seed: 1, weapons,
+    data, seed: 1, weapons,
     hooks: { enemies: null, emitters, run: tickTutorial, boss: null },
-    startWeaponId: 'forward',
+    startWeaponId: data.tutorial.startWeaponId,
   });
   initRun(world);
   world.tut = makeTutorialState();
   return world;
 }
-function tick(w, n, input) { for (let i = 0; i < n; i += 1) step(w, input || makeInput(), TICK_DT); }
-function killAllMobs(w) { for (const e of w.enemies.items) if (e.alive && !e.isBoss) e.hp = 0; }
+function tick(w, n, input) { for (let i = 0; i < n; i += 1) { w.over = false; step(w, input || makeInput(), TICK_DT); } }
+function stepIndex(w, id) { return w.data.tutorial.steps.findIndex((s) => s.id === id); }
+function at(w, id) { w.tut.i = stepIndex(w, id); w.tut.entered = false; tick(w, 1); }
 
-suite('tutorial — 데이터 (§6.7)', () => {
-  test('스텝 id 는 고유하고, 목표는 닫힌 어휘이며, 마지막 스텝은 confirm 이다', () => {
+suite('tutorial — 데이터 (§6.7 ㊻)', () => {
+  test('스텝 id 고유 · 목표 어휘 닫힘 · 문구 1~3줄 · 어휘가 전부 쓰인다', () => {
     const d = loadData();
     const steps = d.tutorial.steps;
-    assert.gt(steps.length, 3, '스텝이 여러 개다');
+    assert.eq(steps.length, 6, '6스텝 (사용자 확정)');
     const ids = new Set();
+    const kinds = new Set();
     for (const s of steps) {
       assert.eq(ids.has(s.id), false, `중복 없음: ${s.id}`);
       ids.add(s.id);
       assert.ok(GOALS.indexOf(s.goal.kind) >= 0, `목표 어휘: ${s.goal.kind}`);
-      assert.ok(s.body.length > 0 && s.hint.length > 0, `${s.id}: 설명과 지시가 있다`);
+      kinds.add(s.goal.kind);
+      assert.ok(s.lines.length >= 1 && s.lines.length <= 3, `${s.id}: 문구 ${s.lines.length}줄`);
+      assert.ok(s.title.length > 0, `${s.id}: 제목이 있다`);
     }
-    assert.eq(steps[steps.length - 1].goal.kind, 'confirm', '마지막은 플레이어가 끝낸다');
-    // 가르치는 개념이 실제로 들어 있다(공허 통과 방지)
-    const kinds = steps.map((s) => s.goal.kind);
-    for (const k of ['move', 'clear', 'level', 'superHit', 'resistHit', 'stances', 'survive', 'terrain', 'boss']) {
-      assert.ok(kinds.indexOf(k) >= 0, `${k} 를 가르친다`);
-    }
+    for (const k of GOALS) assert.ok(kinds.has(k), `죽은 목표 어휘 없음: ${k}`);
   });
 });
 
-suite('tutorial — 진행 (§6.7)', () => {
-  test('전 스텝을 목표 충족으로 통과한다 (스크립트 — 스텝이 늘어도 데이터에서 유도한다)', () => {
+suite('tutorial — 진행 (§6.7 ㊻)', () => {
+  test('여섯 스텝을 목표 충족으로 전부 통과한다 (스크립트)', () => {
     const w = mk();
-    const steps = w.data.tutorial.steps;
-    const guard = 60 * 600;                       // 10분치 틱 상한(무한 루프 방지)
+    const guard = 60 * 600;
     let t = 0;
     while (!w.tut.done && t < guard) {
       const s = tutorialStep(w);
-      if (s === null) break;
+      if (s === null) { tick(w, 1); t += 1; continue; }        // 완료 표시 대기
       const k = s.goal.kind;
-      // 목표별 «플레이어가 할 일»을 스크립트로 대신한다
       if (k === 'move') {
         const inp = makeInput(); inp.left = t % 20 < 10; inp.right = !inp.left;
         tick(w, 1, inp);
-      } else if (k === 'clear' || k === 'boss') {
-        // ★ hp = 0 은 «죽음»이 아니다 — 처치는 killEnemy 가 완결한다(§9.5 무기 런타임 계약)
-        for (const e of w.enemies.items) {
-          if (!e.alive) continue;
-          if (k === 'clear') killEnemy(w, e);
-          else if (e.isBoss && !e.isCore) killEnemy(w, e);
-          else if (e.isCore && !e.sealedNow) killEnemy(w, e);
-        }
+      } else if (k === 'clear') {
+        for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);
         tick(w, 1);
       } else if (k === 'level') {
         w.player.level = Math.max(w.player.level, s.goal.value);
         tick(w, 1);
       } else if (k === 'superHit') {
-        // ×2 히트를 «실제 무기»로 만든다 — [W] 를 눌러 불 스탠스가 되고(각인은 stance.js 가 한다) 풀 적 아래에 선다
+        // «속성을 바꿔서» — 아직 ×2 를 못 낸 속성을 골라, 그 속성을 이기는 스탠스로 바꾸고 그 적 아래에 선다
+        const BEATS = { grass: 'fire', fire: 'water', water: 'grass' };   // 공격 스탠스 → 먹잇감
+        const want = w.enemies.items.find((x) => x.alive && w.tut.superEls.indexOf(x.element) < 0);
         const inp = makeInput();
-        if (w.player.stance !== 'fire') inp.stanceFire = true;
-        const e = w.enemies.items.find((x) => x.alive && x.element === 'grass');
-        if (e) w.player.x = e.x;
+        if (want) {
+          const need = BEATS[want.element];
+          if (w.player.stance !== need) { inp.stanceFire = need === 'fire'; inp.stanceWater = need === 'water'; inp.stanceGrass = need === 'grass'; }
+          w.player.x = want.x;
+        }
         tick(w, 1, inp);
-      } else if (k === 'resistHit') {
-        // 불 스탠스 그대로 물 적을 때린다 → ×½ (스탠스는 앞 스텝에서 이미 불이다)
-        const e = w.enemies.items.find((x) => x.alive && x.element === 'water');
-        if (e) w.player.x = e.x;
-        tick(w, 1);
-      } else if (k === 'stances') {
-        const want = ['fire', 'water', 'grass'][Math.min(w.tut.stanceSeen.length, 2)];
-        const inp = makeInput();
-        if (w.player.stance !== want) { inp.stanceFire = want === 'fire'; inp.stanceWater = want === 'water'; inp.stanceGrass = want === 'grass'; }
-        tick(w, 1, inp);
-      } else if (k === 'survive') {
-        tick(w, 1);
       } else if (k === 'terrain') {
-        // 튜토리얼이 놓아 준 장판 위로 간다
-        const ter = w.terrain.items.find((x) => x.alive);
+        const ter = w.terrain.items.find((x) => x.alive && w.tut.kinds.indexOf(x.kind) < 0);
         if (ter) { w.player.x = ter.x; w.player.y = ter.y; }
         tick(w, 1);
-      } else if (k === 'confirm') {
-        tutorialConfirm(w);
+      } else if (k === 'boss') {
+        for (const e of w.enemies.items) if (e.alive && !e.sealedNow) killEnemy(w, e);
         tick(w, 1);
       } else throw new Error(`테스트가 모르는 목표: ${k}`);
       t += 1;
     }
-    assert.eq(w.tut.done, true, `전 스텝 통과 (스텝 ${w.tut.i}/${steps.length}, ${(t / 60).toFixed(0)}초)`);
-    assert.lt(t, guard, '상한 안에서 끝났다');
+    assert.eq(w.tut.done, true, `전 스텝 통과 (스텝 ${w.tut.i}/6, ${(t / 60).toFixed(0)}초)`);
   });
 
-  test('㊵-c 회귀 — ×2 를 맞은 적이 «죽어도» 셈이 되돌아가지 않는다 (4단계에서 안 넘어가던 버그)', () => {
+  test('② 자동 공격 — 구슬이 끌려오지 않는다(경험치는 ③ 의 몫)', () => {
     const w = mk();
-    const steps = w.data.tutorial.steps;
-    const idx = steps.findIndex((s) => s.goal.kind === 'superHit');
-    w.tut.i = idx; w.tut.entered = false;
-    tick(w, 1);
-    const targets = w.enemies.items.filter((e) => e.alive);
-    assert.gt(targets.length, steps[idx].goal.value, '목표보다 적이 많다(vacuous 아님)');
-    const ctx = { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1 };
-    const stamp = stampFor(w, 0, 'spawn', 'fire');
-    // 한 마리씩 «×2 로 때리고 바로 죽인다» — 옛 판은 살아 있는 개체 수로 세서 첫 마리 뒤로는 하나도 안 세졌다
-    let counted = 0;
-    for (let k = 0; k < steps[idx].goal.value && w.tut.i === idx; k += 1) {
-      const e = w.enemies.items.find((x) => x.alive && x.element === 'grass');
-      assert.ok(e !== undefined, `${k + 1}번째 표적이 있다`);
-      assert.gt(hitEnemy(w, ctx, 'forward', 1, 1, stamp, e, 0), 0, '×2 히트가 실제로 들어갔다');
-      tick(w, 1);                                  // 훅이 래치를 본다
-      counted = Math.max(counted, w.tut.superHits);   // ★ 스텝이 넘어가면 카운터는 0 으로 리셋된다 — 넘기 «직전» 값을 본다
-      killEnemy(w, e);                             // 그리고 바로 죽인다 — 옛 판은 여기서 셈이 되돌아갔다
-      tick(w, 1);
-      counted = Math.max(counted, w.tut.superHits);
+    at(w, 'autofire');
+    for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);
+    tick(w, 5);
+    assert.gt(w.pickups.live, 0, '구슬이 떨어졌다');
+    const rp = w.data.rules.player;
+    const mag = rp.magnetRadius * (1 + w.stats.areaMul);
+    tick(w, 120);
+    for (const q of w.pickups.items) {
+      if (!q.alive) continue;
+      assert.eq(q.magnet, false, '자석이 꺼져 있다');
+      const d = Math.hypot(q.x - w.player.x, q.y - w.player.y);
+      assert.ok(d >= mag, `구슬이 자석 반경 밖에 있다 (${d.toFixed(0)} ≥ ${mag.toFixed(0)})`);
     }
-    assert.gte(counted, steps[idx].goal.value, `×2 ${counted}회가 세졌다(죽어도 되돌아가지 않는다)`);
-    assert.gt(w.tut.i, idx, '다음 스텝으로 넘어갔다');
+    assert.eq(w.player.level, 1, '아직 레벨업하지 않았다');
   });
 
-  test('막히지 않는다 — 표적을 다 잡았는데 목표가 남으면 다시 놓아 준다', () => {
+  test('③ 레벨업 — 앞 스텝이 남긴 구슬을 그대로 쓴다(새 적을 놓지 않는다) · 없으면 다시 뿌린다', () => {
     const w = mk();
-    const steps = w.data.tutorial.steps;
-    const idx = steps.findIndex((s) => s.goal.kind === 'superHit');
-    w.tut.i = idx; w.tut.entered = false;
-    tick(w, 1);
-    for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);   // 목표는 0인 채로 표적만 전멸
-    tick(w, 2);
-    assert.eq(w.enemies.items.filter((e) => e.alive).length, 0, '한동안은 비어 있다');
+    at(w, 'autofire');
+    for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);
+    tick(w, 5);
+    const orbs = w.pickups.live;
+    assert.gt(orbs, 0, '구슬이 있다');
+    at(w, 'levelup');
+    assert.eq(w.pickups.live, orbs, '구슬은 그대로 남는다');
+    assert.eq(w.enemies.items.filter((e) => e.alive).length, 0, '새 적을 놓지 않는다');
+    // 구슬을 전부 없애면 다시 뿌려 준다(막히지 않는다)
+    for (const q of w.pickups.items) if (q.alive) w.pickups.release(q);
     tick(w, Math.ceil(2.0 / TICK_DT));
-    assert.gt(w.enemies.items.filter((e) => e.alive).length, 0, '재보급됐다');
-    assert.eq(w.tut.i, idx, '스텝은 그대로(목표는 아직)');
+    assert.gt(w.pickups.live, 0, '재보급됐다');
   });
 
-  test('스텝은 «깨끗한 판»에서 시작한다 — 앞 스텝의 잔여 적이 남지 않는다', () => {
+  test('④ 속성 바꾸기 — 빌드를 초기화하고 세 속성 적을 놓는다', () => {
     const w = mk();
-    const steps = w.data.tutorial.steps;
-    w.tut.i = steps.findIndex((s) => s.goal.kind === 'level');   // 레벨업으로 끝나므로 적이 남는 스텝
-    w.tut.entered = false;
-    tick(w, 2);
-    const before = w.enemies.items.filter((e) => e.alive).length;
-    assert.gt(before, 0, '적이 있다');
-    w.player.level = 99;                                          // 목표 즉시 충족 → 다음 스텝
-    tick(w, 2);
-    const mine = new Set();
-    for (let k = 0; k < w.tut.ids.length; k += 2) mine.add(w.tut.ids[k]);
-    for (const e of w.enemies.items) if (e.alive) assert.ok(mine.has(e.idx), '무대의 적은 전부 이 스텝의 것');
+    at(w, 'levelup');
+    // 레벨업으로 받은 것을 흉내낸다: 무기 하나 더 + 패시브 하나
+    const before = w.slots.filter((s) => s.weaponId !== null).length;
+    assert.eq(before, 1, '시작은 무기 1');
+    at(w, 'stance');
+    assert.eq(w.slots.filter((s) => s.weaponId !== null).length, 1, '초기화 뒤에도 무기는 하나');
+    assert.eq(w.slots[0].level, 1, 'Lv1 로 되돌아왔다');
+    assert.eq(w.passives.filter((p) => p.id !== null).length, 1, '초기화 뒤 패시브는 시작 짝 하나뿐');
+    const els = new Set(w.enemies.items.filter((e) => e.alive).map((e) => e.element));
+    for (const el of ['fire', 'water', 'grass']) assert.ok(els.has(el), `${el} 적이 있다`);
+    assert.eq(w.player.invest.fire, 1, '불 투자 1(각인이 내려간다)');
+    assert.eq(w.data.tutorial.steps[stepIndex(w, 'stance')].goal.value, 3, '세 속성 전부에 ×2 를 내야 넘어간다 — 그래야 «바꿔서» 공격하게 된다');
   });
 
-  test('죽지 않는다 — HP 가 safeHpFloor 아래로 내려가면 가득 채운다 (적이 쏘는 스텝을 통째로 버틴다)', () => {
+  test('⑤ 지형 — 세 종이 한 번에 놓이고, 세 종을 다 밟아야 넘어간다', () => {
     const w = mk();
-    const steps = w.data.tutorial.steps;
-    w.tut.i = steps.findIndex((s) => s.goal.kind === 'survive');
-    w.tut.entered = false;
-    let minHp = Infinity;
-    for (let i = 0; i < 60 * 20; i += 1) {
-      w.player.iframeSec = 0;                      // 무적 프레임을 꺼서 최대한 맞게 한다
-      tick(w, 1);
-      minHp = Math.min(minHp, w.player.hp);
-      assert.eq(w.over, false, `t${i}: 사망 없음`);
-    }
-    assert.gt(minHp, 0, `HP 는 0 에 닿지 않았다 (최저 ${minHp.toFixed(0)})`);
+    at(w, 'terrain');
+    const kinds = new Set(w.terrain.items.filter((t) => t.alive).map((t) => t.kind));
+    assert.eq(kinds.size, 3, '둔화·미끄러움·과열이 다 있다');
+    const idx = stepIndex(w, 'terrain');
+    const list = w.terrain.items.filter((t) => t.alive);
+    w.player.x = list[0].x; w.player.y = list[0].y;
+    tick(w, 2);
+    assert.eq(w.tut.i, idx, '한 종만 밟아서는 안 넘어간다');
+    for (const t of list) { w.player.x = t.x; w.player.y = t.y; tick(w, 2); }
+    assert.gt(w.tut.i, idx, '세 종을 다 밟으면 넘어간다');
+  });
+
+  test('⑥ 보호막 — 열린 모듈 → 보호막 모듈 → 코어의 «층»이다', () => {
+    const w = mk();
+    at(w, 'boss');
+    const mods = w.enemies.items.filter((e) => e.alive && e.isBoss && !e.isCore);
+    const core = w.enemies.items.find((e) => e.alive && e.isCore);
+    assert.eq(mods.length, 2, '모듈 2기');
+    assert.ok(core !== undefined, '코어가 있다');
+    const open = mods.find((m) => !m.sealedNow);
+    const shielded = mods.find((m) => m.sealedNow);
+    assert.ok(open !== undefined && shielded !== undefined, '하나는 열려 있고 하나는 보호막');
+    assert.eq(core.sealedNow, true, '코어는 봉인');
+    const ctx = { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1 };
+    const stamp = stampFor(w, 0, 'spawn', 'normal');
+    assert.eq(hitEnemy(w, ctx, 'forward', 9999, 1, stamp, shielded, 0), 0, '보호막 모듈은 피해 0');
+    assert.gt(hitEnemy(w, ctx, 'forward', 1, 1, stamp, open, 0), 0, '열린 모듈은 맞는다');
+    killEnemy(w, open);
+    tick(w, 2);
+    assert.eq(shielded.sealedNow, false, '앞 모듈이 죽으면 보호막이 풀린다');
+    assert.eq(core.sealedNow, true, '코어는 아직 봉인');
+    killEnemy(w, shielded);
+    tick(w, 2);
+    assert.eq(core.sealedNow, false, '모듈이 전부 죽으면 코어가 열린다');
+  });
+
+  test('죽지 않는다 — HP 가 safeHpFloor 아래로 내려가면 가득 채운다', () => {
+    const w = mk();
+    at(w, 'autofire');
     w.player.hp = 1;
     tick(w, 2);
     assert.eq(w.player.hp, w.player.hpMax, 'safeHpFloor 아래 = 가득 회복');
-  });
-
-  test('보스 스텝 — 모듈이 살아 있으면 코어는 무적(§8.13 과 같은 규칙)', () => {
-    const w = mk();
-    const steps = w.data.tutorial.steps;
-    w.tut.i = steps.findIndex((s) => s.goal.kind === 'boss');
-    w.tut.entered = false;
-    tick(w, 2);
-    const core = w.enemies.items.find((e) => e.alive && e.isCore);
-    const mods = w.enemies.items.filter((e) => e.alive && e.isBoss && !e.isCore);
-    assert.ok(core !== undefined, '코어가 섰다');
-    assert.eq(mods.length, 2, '모듈 2기');
-    assert.eq(core.sealedNow, true, '모듈이 살아 있으니 코어는 봉인');
-    const ctx = { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1 };
-    const hp0 = core.hp;
-    assert.eq(hitEnemy(w, ctx, 'forward', 9999, 1, stampFor(w, 0, 'spawn', 'normal'), core, 0), 0, '봉인 코어 = 피해 0');
-    assert.eq(core.hp, hp0, '코어 HP 불변');
-    for (const m of mods) killEnemy(w, m);
-    tick(w, 2);
-    assert.eq(core.sealedNow, false, '모듈이 전부 죽으면 봉인 해제');
-    assert.gt(hitEnemy(w, ctx, 'forward', 10, 1, stampFor(w, 0, 'spawn', 'normal'), core, 0), 0, '이제 딜이 들어간다');
+    assert.eq(w.over, false, '사망 없음');
   });
 });

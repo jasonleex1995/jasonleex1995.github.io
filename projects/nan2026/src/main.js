@@ -35,7 +35,7 @@ import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
 import { drawPanels, drawDraft, drawResults, drawTutorial } from './render/hud.js';
-import { makeTutorialState, tickTutorial, tutorialStep, tutorialConfirm } from './core/tutorial.js';   // §6.7 ㊴
+import { makeTutorialState, tickTutorial, tutorialStep } from './core/tutorial.js';   // §6.7 ㊴·㊻
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -667,7 +667,6 @@ async function boot() {
     // §6.7 ㊴ — 튜토리얼: 마지막 스텝의 확정(Space) · 전 스텝 완료 → 타이틀
     if (world !== null && world.tut !== undefined && state === 'PLAY') {
       world.over = false;                                          // 튜토리얼에는 사망이 없다(§6.7) — step 은 over 면 아무것도 안 한다
-      if (advanceEdge) tutorialConfirm(world);
       if (world.tut.done) { world = null; document.title = baseTitle; enter('DIFFICULTY'); return; }   // 끝나면 시작 메뉴로(바로 난이도를 고를 수 있게)
     }
 
@@ -787,17 +786,14 @@ async function boot() {
     for (let i = 0; i < MENU.length; i += 1) {
       const id = MENU[i];
       const sel = i === diffCursor;
-      // 튜토리얼 줄 아래에 설명 한 줄이 들어가므로 그 뒤의 난이도들을 한 칸 더 내린다(겹침 방지)
-      const y = view.logicalH / 2 - 70 + i * 40 + (i > 0 ? 16 : 0);
+      const y = view.logicalH / 2 - 70 + i * 40;
       const tut = id === MENU_TUTORIAL;
       const d = tut ? null : data.meta.difficulty[id];
+      // ㊻ 사용자(2026-09-06): 「튜토리얼 이렇게만 하자」 — 부제·설명 줄 없이 이름만.
       const label = tut
-        ? `${sel ? '▶ ' : '   '}튜토리얼   ${data.tutorial.steps.length}단계 · 죽지 않는다`
+        ? `${sel ? '▶ ' : '   '}튜토리얼`
         : `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
       mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
-      // 튜토리얼 줄만 한 줄 더 — «처음이라면 여기부터»가 이 메뉴의 유일한 안내다
-      if (tut) mText('조작 · 속성 상성 · 스탠스 · 적 탄 · 지형 · 보스의 봉인', y + 20, h.fontSmallPx,
-        sel ? pal.hud.textDim : rgba(pal.hud.textDim, 0.45), 400);
     }
     mText('[↑↓] 선택   [Space/Enter] 시작   [Esc] 뒤로',
       view.logicalH / 2 + 150, h.fontSmallPx, pal.hud.textDim, 400);

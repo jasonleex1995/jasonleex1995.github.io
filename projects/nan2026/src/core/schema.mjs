@@ -140,7 +140,7 @@ export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fi
 export const TERRAIN_MIXED = 'mixed';
 export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
 export const WEAPON_CLASSES = ['bullet', 'beam', 'area', 'orbital'];   // §9.5 ㊲ 무기 분류(패시브 분류와 짝) · ㊵ 데이터가 소유한다
-export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'resistHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];   // §6.7 ㊴
+export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'terrain', 'boss'];   // §6.7 ㊻ 6스텝   // §6.7 ㊴
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
 export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)
@@ -587,7 +587,8 @@ function checkStages(c, s) {
 
 /** §6.7(v1.10 ㊴) tutorial.json — 체험형 튜토리얼의 스텝 목록. 닫힌 키 · 닫힌 목표 어휘 · 참조 무결성. */
 function checkTutorial(c, t) {
-  c.closed('tutorial', t, ['schemaVersion', 'startWeaponId', 'spawnYPx', 'spawnGapPx', 'hpMul', 'safeHpFloor', 'steps']);
+  c.closed('tutorial', t, ['schemaVersion', 'startWeaponId', 'spawnYPx', 'spawnGapPx', 'hpMul', 'safeHpFloor', 'completeHoldSec', 'steps']);
+  if (typeof t.completeHoldSec !== 'number' || !(t.completeHoldSec > 0)) c.fail('tutorial.completeHoldSec', '양수여야 한다');
   if (typeof t.startWeaponId !== 'string' || t.startWeaponId === '') c.fail('tutorial.startWeaponId', '빈 문자열 — 튜토리얼의 시작 무기는 고정이다(§6.7)');
   for (const k of ['spawnYPx', 'spawnGapPx']) if (typeof t[k] !== 'number' || !(t[k] > 0)) c.fail(`tutorial.${k}`, '양수여야 한다');
   for (const k of ['hpMul', 'safeHpFloor']) if (typeof t[k] !== 'number' || !(t[k] > 0) || t[k] > 1) c.fail(`tutorial.${k}`, '(0, 1] 이어야 한다');
@@ -596,8 +597,11 @@ function checkTutorial(c, t) {
   for (let i = 0; i < t.steps.length; i += 1) {
     const st = t.steps[i];
     const p = `tutorial.steps[${i}]`;
-    if (!c.closed(p, st, ['id', 'title', 'body', 'hint', 'goal', 'spawn', 'grant'])) continue;
-    for (const k of ['id', 'title', 'body', 'hint']) if (typeof st[k] !== 'string' || st[k] === '') c.fail(`${p}.${k}`, '빈 문자열');
+    if (!c.closed(p, st, ['id', 'title', 'lines', 'goal', 'spawn', 'grant', 'reset', 'pickup'])) continue;
+    for (const k of ['id', 'title']) if (typeof st[k] !== 'string' || st[k] === '') c.fail(`${p}.${k}`, '빈 문자열');
+    for (const k of ['reset', 'pickup']) if (typeof st[k] !== 'boolean') c.fail(`${p}.${k}`, '불리언이어야 한다(§9.3 — 누락 키는 에러)');
+    if (!Array.isArray(st.lines) || st.lines.length === 0 || st.lines.length > 3) c.fail(`${p}.lines`, '1~3줄의 배열이어야 한다');
+    else for (let k = 0; k < st.lines.length; k += 1) if (typeof st.lines[k] !== 'string' || st.lines[k] === '') c.fail(`${p}.lines[${k}]`, '빈 문자열');
     if (ids.has(st.id)) c.fail(`${p}.id`, `중복 id "${st.id}"`);
     ids.add(st.id);
     if (c.closed(`${p}.goal`, st.goal, ['kind', 'value'])) {
@@ -611,9 +615,10 @@ function checkTutorial(c, t) {
       c.vocab(`${p}.spawn[${k}].element`, sp.element, ELEMENTS4);
       if (!Number.isInteger(sp.count) || sp.count < 1) c.fail(`${p}.spawn[${k}].count`, '1 이상의 정수여야 한다');
     }
-    // grant = 없으면 **null**(§9.3 — 누락 키는 에러다. «없음»도 저작한다)
-    if (st.grant !== null) {
-      if (c.closed(`${p}.grant`, st.grant, ['invest'])) c.vocab(`${p}.grant.invest`, st.grant.invest, ELEMENTS4);
+    // grant = 없으면 **null**(§9.3 — 누락 키는 에러다. «없음»도 저작한다). invest = 속성 배열(각 1투자).
+    if (st.grant !== null && c.closed(`${p}.grant`, st.grant, ['invest'])) {
+      if (!Array.isArray(st.grant.invest) || st.grant.invest.length === 0 || st.grant.invest.length > 3) c.fail(`${p}.grant.invest`, '1~3개의 속성 배열이어야 한다');
+      else for (let k = 0; k < st.grant.invest.length; k += 1) c.vocab(`${p}.grant.invest[${k}]`, st.grant.invest[k], ELEMENTS4);
     }
   }
 }
