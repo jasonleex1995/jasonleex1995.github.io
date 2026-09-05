@@ -287,6 +287,9 @@ suite('midboss — 구간 (§8.19 v1.10 · 첫 마리 소환자 · 격파 = 위�
   test('격파하지 못하면 crisisStartSec 이 상한이다 (그때 퇴장 연출로 전원 이탈)', () => {
     const d = loadData(); const ph = d.stages.phase;
     const w = mkDirected(5, 0);
+    // 「격파하지 못하면」이 이 테스트의 전제다 — 무기를 비워 아무것도 죽지 않게 한다.
+    //   ㊳ 무기 밸런스 재저작으로 시작 무기가 중간보스를 실제로 잡기 시작해 이 전제가 깨졌다(값이 아니라 전제를 고정한다).
+    for (const s of w.slots) { s.weaponId = null; s.family = ''; s.effDirty = true; }
     tickTo(w, ph.crisisStartSec - dt);
     assert.eq(w.run.crisis, false, '상한 직전은 아직 중간보스 구간');
     assert.eq(liveMids(w).length, ph.midBossAtSec[0].length, '전원 살아 있다');

@@ -65,6 +65,7 @@ suite('weapons3 · 미사일', () => {
   test('정면으로 날고, 적에 닿아 소멸하는 자리에서 blastRadius 안 전 적이 피해 · 진화면 자탄이 퍼지고 자탄은 다시 안 갈라진다', () => {
     const w = mkWorld();
     const [s, eff] = setup(w, 'missile', 1, false);
+    eff.count = 1;                       // ㊳ — 미사일 기본 발사 수가 2로 저작됐다. 이 테스트가 보는 것은 «폭발의 산술»이라 1발로 고정한다.
     const p = w.player;
     const a = dummy(w, p.x, p.y - 200); const b = dummy(w, p.x + eff.blastRadius * 0.7, p.y - 200); const far = dummy(w, p.x + eff.blastRadius * 3, p.y - 200);
     tick(w, Math.round(1.6 / dt));
@@ -80,9 +81,11 @@ suite('weapons3 · 미사일', () => {
 
   test('㊲ 패밀리별 피해 스탯 — 충격파(areaDmgMul)는 미사일의 직격·폭발 둘 다 ×(1+v), 벌컨 탄엔 무효 · 고압(beamDmgMul)은 랜스만', () => {
     const run = (fam, passive, n) => {
-      const w = mkWorld(); const [, eff] = setup(w, fam, 1, false);
+      const w = mkWorld(); const [sl0] = setup(w, fam, 1, false);
       for (let k = 0; k < n; k += 1) givePassive(w, passive);
       for (const sl of w.slots) sl.effDirty = true;
+      const eff = recomputeEff(w, sl0);
+      if (fam === 'missile') eff.count = 1;      // ㊳ 산개(spreadDeg)로 단일 표적을 빗나가지 않게 1발 고정(재계산 뒤에 덮는다)
       const t = dummy(w, w.player.x, w.player.y - 200);
       tick(w, Math.round(1.6 / dt));
       return [1e6 - t.hp, eff];

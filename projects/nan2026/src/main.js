@@ -499,12 +499,33 @@ async function boot() {
     if (!openDraftIfQueued()) { enter('PLAY'); last = performance.now(); }
   }
 
-  // §9.3(v1.10 ㊱) — 프레임 안의 예외는 **조용히 지나가지 않는다**. rAF 콜백에서 던진 예외는 콘솔에만 남고 루프는 계속 돌아,
-  //   캔버스 상태(globalAlpha·save 스택·클립)가 던진 자리에서 굳은 채 다음 프레임이 이어졌다 — 배경이 알파 0.02 로 칠해져
-  //   런 끝까지 «모든 물체가 잔상»을 남기는 화면(플레이테스트)이 그것이다. 예외 = 버그이므로 루프를 멈추고 이유를 보인다(fatal).
+  // ★★ §9.3(v1.10 ㊱ · ㊳ 개정) — 프레임 격리. 사용자(2026-09-05): 「무슨 일이 있더라도 게임이 깨지는 경우가 나와선 안 된다」.
+  //   ㊱ 은 프레임 예외를 fatal(루프 정지 + 에러 화면)로 만들었다. 그건 «조용한 잔상»보다는 낫지만 **게임이 멈춘다** —
+  //   플레이어에게는 그것도 «깨진 것»이다. ㊳ 의 계약은 세 겹이다:
+  //     ① **매 프레임 캔버스를 원상으로 시작한다** (`ctx.reset()` — 상태·변환·클립·save 스택이 전부 초기화된다).
+  //        그래서 어떤 프레임이 어떻게 망가지든 **다음 프레임으로 새지 않는다**(잔상 화면의 구조적 재발 방지).
+  //     ② 예외는 그 프레임만 버리고 루프는 계속 돈다 — 스텝 예외면 그 틱만, 렌더 예외면 그 그리기만.
+  //     ③ 조용히는 아니다: 콘솔에 처음 5건을 스택과 함께 남기고, 화면 구석에 «렌더 오류 N» 배지를 띄운다.
+  //   개발 쪽 «시끄러움»은 테스트가 진다 — tests/render.test.mjs 의 브라우저 충실 스텁이 예외 1건에 빨간불이 된다.
+  let frameErrN = 0;
+  let frameErrMsg = '';
+  function noteFrameError(err) {
+    frameErrN += 1;
+    frameErrMsg = String(err && err.message ? err.message : err).slice(0, 90);
+    if (frameErrN <= 5) console.error(`[프레임 오류 ${frameErrN}]`, err);      // eslint-disable-line no-console
+  }
+
+  /** 캔버스를 공장 상태로 — save 스택·클립·알파·합성·변환 전부. reset() 이 없는 구형 브라우저는 폭으로 리셋한다. */
+  function resetCtx() {
+    if (typeof ctx.reset === 'function') ctx.reset();
+    else { const bw = canvas.width; canvas.width = bw; }   // 폴백: 크기 재대입 = 컨텍스트 완전 초기화
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   function frame(now) {
-    const raf = requestAnimationFrame(frame);
-    try { frameBody(now); } catch (err) { cancelAnimationFrame(raf); fatal(err); throw err; }
+    requestAnimationFrame(frame);
+    try { frameBody(now); } catch (err) { noteFrameError(err); }
   }
 
   function frameBody(now) {
@@ -518,6 +539,7 @@ async function boot() {
     }
 
     const dpr = fitCanvas(canvas, view);
+    resetCtx();                               // ㊳ ① 프레임의 시작 = 공장 상태 (앞 프레임의 상태가 절대 새지 않는다)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);   // 이후 모든 좌표 = 논리 픽셀 (§1.1)
 
     const elapsed = now - last;
@@ -583,6 +605,7 @@ async function boot() {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
       acc += Math.min(elapsed, rules.loop.maxFrameGapMs);
       let steps = 0;
+      try {                                    // ㊳ ② 스텝 예외는 그 틱만 버린다 — 렌더는 계속된다(게임이 멈추지 않는다)
       while (acc >= tickDur && steps < rules.loop.maxStepsPerFrame) {
         captureInterp(interp, world);         // §10.1 — 보간용 직전 위치. 렌더가 자기 것으로 들고 있는다
         step(world, DEMO ? botInput(world, 1 / TICK_HZ) : pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다 (데모=봇 입력)
@@ -604,6 +627,7 @@ async function boot() {
         }
         if (world.draftQueue > 0 && openDraftIfQueued()) break;
       }
+      } catch (err) { noteFrameError(err); acc = 0; }
       // §10.1 — 나선형 죽음 방지: 남은 시간 폐기 (빨리감기 금지)
       if (acc >= tickDur) acc = 0;
     } else {
@@ -619,8 +643,23 @@ async function boot() {
     renderFrame();
   }
 
-  /** 모든 상태의 렌더. 메뉴 상태(TITLE/DIFFICULTY/OPTIONS)는 world 가 없다 → 메뉴 배경을 그린다. */
+  /** ㊳ ②③ — 렌더 예외는 그 «그리기»만 버린다. 캔버스는 다음 프레임에 resetCtx() 로 어차피 공장 상태가 된다. */
   function renderFrame() {
+    try { renderWorldAndOverlays(); } catch (err) { noteFrameError(err); }
+    if (frameErrN > 0) {
+      // 조용히 지나가지 않는다 — 구석의 작은 배지(플레이를 막지 않는다). 자기 자신은 절대 던지지 않게 최소한만 쓴다.
+      try {
+        ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillStyle = pal.threat.telegraph;
+        ctx.font = `700 ${rules.hud.fontSmallPx}px ${rules.visual.text.family}`;
+        ctx.fillText(`렌더 오류 ${frameErrN} — ${frameErrMsg}`, 8, view.logicalH - 18);
+      } catch (e2) { /* 배지조차 못 그리면 그냥 넘어간다 */ }
+    }
+  }
+
+  /** 모든 상태의 렌더. 메뉴 상태(TITLE/DIFFICULTY/OPTIONS)는 world 가 없다 → 메뉴 배경을 그린다. */
+  function renderWorldAndOverlays() {
     if (state === 'TOO_SMALL') {
       menuBg();
       menuBanner('창이 너무 작습니다',
@@ -668,8 +707,7 @@ async function boot() {
     mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
     mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
-    mText('QWER 스탠스 · 상성 ×2 · 6 스테이지 · 엔드리스 없음',
-      view.logicalH / 2 + 84, h.fontSmallPx, pal.hud.textDim, 400);
+    // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
   const DIFF_LABEL = { normal: '노멀', hard: '하드', hell: '헬', disaster: '디재스터' };
   function drawDifficultyScreen() {

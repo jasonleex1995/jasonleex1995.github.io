@@ -210,9 +210,12 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     s.effDirty = true;
     const e7 = recomputeEff(w, s);
     assert.eq(e7.pierce, 1, 'seeker Lv7 pierce = 1 (levels[6]) — 증발하지 않는다');
-    // ★ 하드코딩 대신 데이터에서 유도(튜닝에 강함): Lv6(levels[5]) 이 dmg 를 정하고 Lv7 은 미변경 → 상속
-    const wantDmg = w.data.weapons.weapons.find((x) => x.id === 'seeker').levels[5].dmg;
-    assert.eq(e7.dmg, wantDmg, `Lv7 dmg = ${wantDmg} (levels[5] 이 Lv7 까지 유지, levels[6] 은 dmg 미변경 → 상속)`);
+    // ★ 하드코딩 대신 데이터에서 «해소»한다(튜닝에 강함): Lv7 의 dmg = base ∪ levels[0..6] 중 마지막으로 정의된 값.
+    //   특정 행(levels[5])이 dmg 를 갖는다고 가정하면 밸런스 재저작(㊳ 곡선 기울이기)에서 깨진다 — 규칙을 검사하지 값을 검사하지 않는다.
+    const sk = w.data.weapons.weapons.find((x) => x.id === 'seeker');
+    let wantDmg = sk.base.dmg;
+    for (let L = 0; L < 7; L += 1) if (typeof sk.levels[L].dmg === 'number') wantDmg = sk.levels[L].dmg;
+    assert.eq(e7.dmg, wantDmg, `Lv7 dmg = ${wantDmg} (levels[0..6] 의 마지막 dmg 오버라이드가 상속된다)`);
   });
 
   test('forward levels[4] = {count:2, spreadDeg:6} 누적 (양성)', () => {
@@ -223,7 +226,11 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     const e = recomputeEff(w, s);
     assert.eq(e.count, 2, 'Lv5 count 2');
     assert.eq(e.spreadDeg, 6, 'Lv5 spreadDeg 6');
-    assert.eq(e.dmg, 7, 'Lv4 dmg 7 이 Lv5 까지 유지 (levels[3])');
+    // 값이 아니라 «상속 규칙»을 검사한다 — base ∪ levels[0..4] 의 마지막 dmg 오버라이드(㊳ 밸런스 재저작에 강하다)
+    const fw = w.data.weapons.weapons.find((x) => x.id === 'forward');
+    let wantDmg5 = fw.base.dmg;
+    for (let L = 0; L < 5; L += 1) if (typeof fw.levels[L].dmg === 'number') wantDmg5 = fw.levels[L].dmg;
+    assert.eq(e.dmg, wantDmg5, `Lv5 dmg = ${wantDmg5} (levels[0..4] 의 마지막 오버라이드 상속)`);
   });
 
   test('H1 fireRateMul — 주기 = base / (1 + fireRateMul)', () => {
