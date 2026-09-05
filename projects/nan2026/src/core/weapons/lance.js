@@ -19,7 +19,7 @@
  *   발사 시 a1 = chargeSec 로 세워 drawLance 가 그 동안 밝은 빔을 그린다(즉발 무기의 가시화).
  */
 
-import { hitEnemy, onScreen } from '../damage.js';
+import { hitEnemy, onScreen, targetable } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 import { familyDmgMul } from '../state.js';
@@ -62,6 +62,9 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
     }
     if (best === null) return;
     boundY = bestY; boundIdx = bestIdx;
+    // ㊽ 봉인 부위(보호막)는 **통과한다** — 히트 한 칸을 먹지 않는다. §8.11 의 「탄은 통과하고 관통을 소모하지 않는다」와 같은 규칙:
+    //   랜스가 보호막에 막혀 뒤의 «부술 수 있는» 모듈에 닿지 못하면, 플레이어가 조준으로 풀 수 없는 벽이 된다.
+    if (!targetable(world, best)) continue;
     const dealt = hitEnemy(world, ctx, slot.family, eff.dmg, 1, stamp, best, slot.index);
     if (dealt > 0 && best.hp <= 0) killEnemy(world, best);
     hits += 1;

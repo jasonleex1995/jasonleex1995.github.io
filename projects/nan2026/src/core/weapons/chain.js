@@ -15,7 +15,7 @@
  * 탄이 없다(hitEnemy 직접). 스크래치: cooldownT 만. 레퍼런스: 뱀서 번개 반지 · 디아블로 체인 라이트닝
  */
 
-import { hitEnemy, onScreen } from '../damage.js';
+import { hitEnemy, targetable } from '../damage.js';
 import { hitTier } from '../elements.js';
 import { stampFor } from '../stance.js';
 import { killEnemy, pushChainFx } from '../step.js';
@@ -33,7 +33,7 @@ function nearest(world, x, y, radius, epoch) {
   const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
-    if (!e.alive || !onScreen(arena, e)) continue;
+    if (!targetable(world, e)) continue;               // ㊽
     if (e.chainEpoch === epoch) continue;
     const dx = e.x - x;
     const dy = e.y - y;

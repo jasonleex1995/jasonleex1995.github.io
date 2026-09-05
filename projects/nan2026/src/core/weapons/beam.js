@@ -18,7 +18,7 @@
  * 레퍼런스: 동방 마스터 스파크(지속 빔) · 홀로큐어 BL 북(자동 조준 빔)
  */
 
-import { hitEnemy, onScreen } from '../damage.js';
+import { hitEnemy, targetable } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy, pushChainFx } from '../step.js';
 import { familyDmgMul } from '../state.js';
@@ -35,7 +35,7 @@ function nearest(world, x, y, radius, epoch) {
   const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
-    if (!e.alive || !onScreen(arena, e)) continue;
+    if (!targetable(world, e)) continue;               // ㊽ 봉인·전환 무적 = «맞힐 수 없는 것»은 조준하지 않는다
     if (e.chainEpoch === epoch) continue;
     const dx = e.x - x;
     const dy = e.y - y;
@@ -60,7 +60,7 @@ function pierceRay(world, slot, eff, stamp, px, py, tx, ty, epoch) {
     let best = NONE; let bestT = eff.rangePx;
     for (let i = 0; i < en.length; i += 1) {
       const e = en[i];
-      if (!e.alive || !onScreen(arena, e) || e.chainEpoch === epoch) continue;
+      if (!targetable(world, e) || e.chainEpoch === epoch) continue;   // ㊽
       const ox = e.x - px; const oy = e.y - py;
       const t = ox * dx + oy * dy;
       if (t <= boundT || t > eff.rangePx) continue;
@@ -94,7 +94,8 @@ function tick(world, slot, eff) {
   if (first !== NONE) {
     const e = en[first];
     const dx = e.x - p.x; const dy = e.y - p.y;
-    if (!e.alive || e.gen !== slot.a2 || !onScreen(world.data.rules.view.arena, e) || dx * dx + dy * dy > eff.rangePx * eff.rangePx) first = NONE;
+    // ㊽ 표적 유지도 같은 판단 — 보호막이 켜지면(모듈이 봉인되면) 그 자리에서 표적을 놓는다
+    if (e.gen !== slot.a2 || !targetable(world, e) || dx * dx + dy * dy > eff.rangePx * eff.rangePx) first = NONE;
   }
   if (first === NONE) first = nearest(world, p.x, p.y, eff.rangePx, epoch);
   slot.a0 = first;

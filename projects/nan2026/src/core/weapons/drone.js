@@ -18,7 +18,7 @@
  */
 
 import { spawnPlayerBullet } from '../state.js';
-import { onScreen } from '../damage.js';   // §8.20 가시 피해 — 조준도 보이는 적만
+import { targetable } from '../damage.js';   // §8.20 · ㊽ — 조준은 «맞힐 수 있는 적»만 고른다
 
 const NEAREST = 'nearest';
 
@@ -30,7 +30,7 @@ function nearestEnemy(world, x, y, radius) {
   const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
-    if (!e.alive || !onScreen(arena, e)) continue;      // §8.20
+    if (!targetable(world, e)) continue;               // ㊽
     const dx = e.x - x;
     const dy = e.y - y;
     const d = dx * dx + dy * dy;

@@ -178,3 +178,35 @@ suite('weapons3 · 핀볼', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────
+suite('weapons3 · ㊽ 자동 조준은 «맞힐 수 있는 적»만 고른다 (보호막에 붙던 회귀)', () => {
+  test('봉인된 보스 부위에는 빔·체인·시커·옵션이 붙지 않는다 — 열린 표적이 있으면 그쪽을 친다', () => {
+    for (const fam of ['beam', 'chain', 'seeker', 'drone']) {
+      const w = mkWorld();
+      const [s] = setup(w, fam, 5, false);
+      const p = w.player;
+      // 봉인 부위를 «더 가까이», 열린 잡몹을 조금 멀리 둔다 — 조준이 거리만 보면 봉인 쪽을 고른다
+      const sealed = dummy(w, p.x, p.y - 120);
+      sealed.isBoss = true; sealed.sealedNow = true; sealed.partId = 'guard'; sealed.partType = 'armament';
+      const open = dummy(w, p.x, p.y - 200);
+      const hpSealed = sealed.hp; const hpOpen = open.hp;
+      tick(w, Math.round(2.5 / dt));
+      assert.eq(sealed.hp, hpSealed, `${fam}: 봉인 부위는 무피해`);
+      assert.lt(open.hp, hpOpen, `${fam}: 열린 표적을 실제로 때렸다`);
+      void s;
+    }
+  });
+
+  test('랜스는 보호막을 «통과»한다 — 앞을 막은 봉인 부위가 뒤의 적을 가리지 않는다', () => {
+    const w = mkWorld();
+    setup(w, 'lance', 5, false);
+    const p = w.player;
+    const sealed = dummy(w, p.x, p.y - 120);
+    sealed.isBoss = true; sealed.sealedNow = true; sealed.partId = 'guard'; sealed.partType = 'armament';
+    const behind = dummy(w, p.x, p.y - 240);
+    const hpSealed = sealed.hp; const hpBehind = behind.hp;
+    tick(w, Math.round(2.5 / dt));
+    assert.eq(sealed.hp, hpSealed, '봉인 부위는 무피해');
+    assert.lt(behind.hp, hpBehind, '뒤의 적은 맞는다(히트 칸을 먹지 않는다)');
+  });
+});

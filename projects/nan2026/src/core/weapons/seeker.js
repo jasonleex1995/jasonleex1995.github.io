@@ -19,7 +19,7 @@
 
 import { DEG2RAD, wrapAngle } from '../angle.js';
 import { spawnPlayerBullet } from '../state.js';
-import { onScreen } from '../damage.js';   // §8.20 가시 피해 — 조준도 보이는 적만
+import { targetable } from '../damage.js';   // §8.20 · ㊽ — 조준은 «맞힐 수 있는 적»만 고른다
 
 const NEAREST = 'nearest';
 
@@ -38,7 +38,7 @@ function nearestEnemy(world, x, y, radius, exclude) {
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     // §8.20 — 조준은 «보이는 적»만 고른다(피해 게이트는 「0 을 준다」까지만 한다).
-    if (!e.alive || !onScreen(arena, e)) continue;
+    if (!targetable(world, e)) continue;               // ㊽ 유도탄도 «맞힐 수 있는 것»만 쫓는다
     if (exclude !== null && exclude.indexOf(i) >= 0) continue;
     const dx = e.x - x;
     const dy = e.y - y;

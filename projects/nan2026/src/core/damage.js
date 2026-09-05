@@ -32,6 +32,20 @@ export function onScreen(a, e) {
 }
 
 /**
+ * §9.5(v1.10 ㊽) — 「지금 이 개체를 때릴 수 있는가」. **자동 조준 무기의 표적 선택은 이 답을 따라야 한다.**
+ *   hitEnemy 의 문지기 세 줄(①''' 화면 밖 · ① 페이즈 전환 무적 · ①' 봉인)과 **같은 판단**이다 — 조준이 이걸 안 보면
+ *   빔·체인·시커·옵션이 «때릴 수 없는 것»에 붙어 그 동안 아무 일도 하지 않는다(사용자 2026-09-06: 프리즘 빔이
+ *   보스의 보호 모듈에 붙는다). 조준은 «맞힐 수 있는 것» 중에서 고른다.
+ */
+export function targetable(world, e) {
+  if (!e.alive) return false;
+  if (!onScreen(world.data.rules.view.arena, e)) return false;
+  if (e.isBoss && world.run !== undefined && world.run.bossTransitionT > 0) return false;
+  if (e.isBoss && e.sealedNow) return false;
+  return true;
+}
+
+/**
  * §3.1 — 플레이어 → 적. float 를 돌려준다 (적용은 float 누산, 표시만 반올림 — 6항).
  *
  * @param ctx   { matrix, dmgMulSum, elementBonusMul }

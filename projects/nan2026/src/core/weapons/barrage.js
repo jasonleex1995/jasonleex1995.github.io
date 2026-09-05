@@ -20,7 +20,7 @@
  */
 
 import { spawnTelegraph, familyDmgMul } from '../state.js';
-import { hitEnemy, onScreen } from '../damage.js';
+import { hitEnemy, onScreen, targetable } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 
@@ -49,7 +49,7 @@ function aim(world, slot, eff, r, out) {
       //   편대이고 그 편대는 스폰 라인 = 화면 밖에 선다(실측: 볼리가 493.8px 밖 유령 편대
       //   한복판에 떨어졌다). 이웃을 «세는» 안쪽 루프는 일부러 그대로 둔다 — 들어오는 웨이브
       //   쪽으로 기우는 편향은 조준으로서 옳다.
-      if (!e.alive || !onScreen(a, e)) continue;
+      if (!targetable(world, e)) continue;               // ㊽ 봉인 부위 한복판에 볼리를 떨구지 않는다
       let n = 0;
       for (let j = 0; j < en.length; j += 1) {
         const o = en[j];

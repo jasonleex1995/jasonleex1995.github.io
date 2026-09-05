@@ -3084,9 +3084,11 @@ function S51_visibleDamage() {
       const src = readFileSync(join(wdir, f), 'utf8');
       if (src.indexOf('enemies.items') < 0) continue;
       n += 1;
-      if (src.indexOf('onScreen(') >= 0) continue;
+      // ㊽ — targetable( 은 onScreen 을 «포함하는» 더 강한 필터다(화면 밖 + 페이즈 전환 무적 + 봉인).
+      //   조준이 이 셋을 다 보게 만든 뒤로 자동 조준 무기는 targetable 만 부른다.
+      if (src.indexOf('onScreen(') >= 0 || src.indexOf('targetable(') >= 0) continue;
       if (Object.prototype.hasOwnProperty.call(AIM_EXEMPT, f)) continue;
-      V('S51', `src/core/weapons/${f}: world.enemies.items 를 순회하면서 onScreen( 을 부르지 않는다 — `
+      V('S51', `src/core/weapons/${f}: world.enemies.items 를 순회하면서 onScreen(·targetable( 을 부르지 않는다 — `
         + '§8.20 조준 필터. 조준하지 않는 무기라면 check.mjs 의 AIM_EXEMPT 에 «이유와 함께» 올려라');
     }
   }
