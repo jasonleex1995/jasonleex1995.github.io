@@ -376,7 +376,9 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 
 ```
 1. base   = w.dmg × Π(패밀리 지역 배율)                      // 무기 레벨 행에서 읽음 × 아래 폐쇄 목록
-2. dmgMul = 1 + Σ(패시브 dmgMul)                            // 가산 풀 → 1회 적용 (곱연산 폭주 방지)
+2. dmgMul = 1 + Σ(패밀리 피해 스탯)                          // 가산 풀 → 1회 적용 (곱연산 폭주 방지)
+   // ★ v1.10 ㊲: 스탯은 패밀리의 dmgStat(§9.6.1)이 고른다 — 빔 3 = beamDmgMul(고압) · 노바·바라지·미사일 = areaDmgMul(충격파) ·
+   //   오빗·옵션 = orbitMul(궤도 확장) · 탄 6·펄스필드 = 없음(Σ = 0). ~~전무기 공통 warhead dmgMul~~ 폐지. familyDmgMul(world, family).
 3. elem   = elements.matrix[stampElement][target.element]   // ∈ {0.5, 1.0, 2.0}
    if (elem > 1) elem = 1 + (elem - 1) × elementBonusMul    // 패시브 resonance. 기본 1.0
 4. (v1.10 ㉘ 폐지) ~~gate = target.isCore ? (boss.coreGateMul ^ aliveArmorPartCount) : 1~~ — 코어는 모듈이 하나라도 살아 있으면
@@ -1838,7 +1840,7 @@ G-2, ρ 상한)은 소프트 게이트와 함께 폐기. 값은 그대로(테마
 속성)를 스냅샷하고, 그 빌드로 각 포지션 보스를 «격파 초»로 잰다. 만렙·Lv110 급은 합성 빌드(6무기 Lv10 · 패시브 10/10·10·5 · 속성
 12/9). 목표 = **그 스테이지의 «의도 레벨» 빌드가 ~120초(타이머 180)** — 그보다 낮으면 타이머 사망.
 
-| 보스 | 의도 레벨 | 격파 초(봇, 무적) | 근거 |
+| 보스 | 의도 레벨 | 격파 초(봇, 무적) — ㉝ 당시 | 근거(㉝) |
 |---|---|---|---|
 | 1 | 25 | **96** | 스테이지 보스 base ×1.5 (bosses.json 코어·파트) |
 | 2 | 45 | Lv25 ∞ · Lv50 80 | `bossHpScale[1]` 2.7 → **5.4** |
@@ -1846,6 +1848,25 @@ G-2, ρ 상한)은 소프트 게이트와 함께 폐기. 값은 그대로(테마
 | 4 | 75 | Lv70 190 · Lv90 84 | 10.44 → **11.8** |
 | 5 | 95 | Lv90 133 · 만렙 ~21 | 21.63 그대로 |
 | 6 (최종) | **만렙** | **만렙 117~126 · Lv110 급 143~145** · Lv90 ∞ | tetrarch 절대 HP **×16.25**(6.5 × 2.5, 합 1,443,487) |
+
+★ **v1.10 ㊲ 재보정 (패시브 분류 재편 뒤).** 전무기 공통 탄두 증량과 랜스·바라지·오빗의 다중 장전이 사라져 같은 빌드의 화력이 내려갔다.
+두 계기로 다시 쟀다 — ① 봇 자연 빌드(㉝ 과 같은 방법, 시드 5): 패시브를 사다리 마지막에 고르는 봇은 ㊲ 뒤 s2 Lv50 191 · s3 Lv75 143 ·
+s5 Lv90 223 으로 크게 느려졌다. ② **합성 «합리적인 사람» 빌드**(`scratchpad synth.mjs`: 새 무기 5 → 속성 ≤12(15%) → 나머지 무기 60 / 패시브 40,
+패시브 6 = 로스터에 유효한 분류 패시브 우선, 로스터 A 벌컨·시커·랜스·노바·오빗·바라지 / B 팬아웃·스파이럴·미사일·빔·옵션·펄스필드 /
+C 핀볼·리턴·체인·랜스·오빗·노바, 시드 2): 사람은 봇보다 훨씬 강하고 **로스터 편차가 2.5 배**(A 가 C 의 2.5 배 빠르다 — 무기 자체의 DPS 편차, ㊳ 과제).
+그 사이에서 값을 골랐다:
+
+| 보스 | 의도 레벨 | `bossHpScale` | 합성 빌드 격파 초(A/A/B/B/C/C) | 봇 자연 빌드 |
+|---|---|---|---|---|
+| 1 | 25 | 1.0 | Lv25 61/62/82/83/196/∞ | Lv25 93 |
+| 2 | 45 | 5.4 → **3.5** | Lv45 91/107/120/188/∞/∞ | Lv45 150 · Lv60 89 |
+| 3 | 60 | 11.2 → **9.0** | Lv60 89/95/156/175/∞/∞ · Lv75 44~188 | Lv75 113 |
+| 4 | 75 | 11.8 그대로 | Lv75 71/88/153/∞/∞/∞ · Lv95 35~111 | Lv75 130 |
+| 5 | 95 | 21.63 → **18.0** | Lv95(15.0 에서) 40/40/43/47/92/99 · (18.0) 47/48/49/52/108/124 | Lv90 223(21.63 에서) |
+| 6 (최종) | **만렙** | tetrarch ×16.25 → **×0.85 (합 1,226,962)** | 만렙 A 149/150 · B/C ∞ · Lv110 A 186/187 | 합성 6무기 만렙 149~162 · Lv110 급 175~183 |
+
+- 규칙은 그대로다: **그 스테이지의 의도 레벨 빌드가 ~2분**, 낮으면 타이머 사망. 로스터 A(랜스·노바·바라지) 는 의도 레벨보다 15 낮아도
+  깨고 C(핀볼·리턴·체인)는 15 높아야 깬다 — 이 편차는 보스 HP 가 아니라 **무기 DPS 정규화(㊳)** 로 줄일 일이다.
 
 - **만렙과 Lv110 급의 격차가 작다**(DPS 가 레벨에 매우 볼록하다 — 봇 자연 Lv90 과 합성 Lv114 가 5배). 그래서 최종은 «시간»으로
   가른다: 만렙 ≈ 2분, 110 급 ≈ 2분 25초, 그 아래는 타이머 사망. 사람의 업타임이 봇보다 높으면 조금씩 앞당겨진다.
@@ -2734,25 +2755,30 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`resonance`·`bulkhead`·`stabilizer`·`study` 는 어떤 진화도 요구하지
 않았다(= 고를 «구조적 이유»가 없었다). 이제 11 패시브 중 10 이 진화 하나씩을 연다(남는 하나 = `bulkhead`, 최대 HP — 이유가 필요 없는 스탯).
 
-| 무기 | 진화 | 짝 패시브 (Lv3) | 유추 근거 |
-|---|---|---|---|
-| `forward` 벌컨 | 오버드라이브 | `overclock` 오버클럭 | 연사 램프 = 연사 |
-| `fan` 팬아웃 | 플레어 팬 | `autoload` 다중 장전 | 부채 = 탄 수 |
-| `seeker` 시커 | 스웜 | `study` 학습 회로 (㉟ · ~~coating~~ ~~autoload~~) | 스웜 = 학습된 조준(서로 다른 표적·처치 시 재조준) |
-| `lance` 랜스 | 레일건 | `warhead` 탄두 증량 (㉚ · ~~coating~~ — 사용자 「이미 관통 무기라 코팅과 결합이 어색」) | 레일건 = 큰 한 방 |
-| `orbit` 오빗 | 이지스 | `reactive` 반응 장갑 | 적 탄 소거 = 반응 장갑 |
-| `aura` 펄스필드 | 싱귤래리티 | `coil` 확장 코일 | 범위 |
-| `boomerang` 리턴 | 체인 리턴 | `booster` 추진기 (㉟ · ~~stabilizer~~ ~~autoload~~) | 빨리 던지고 빨리 되받는다 |
-| `barrage` 바라지 | 오비탈 스트라이크 | `autoload` 다중 장전 (㉟ · ~~study~~ ~~warhead~~ ~~coil~~, 팬아웃과 공유) | 포격 수 |
-| `drone` 옵션 | 잔상 편대 | `afterimage` 잔광 | 잔상 |
-| `nova` 노바 | 슈퍼노바 | `bulkhead` 강화 격벽 (㉟ · ~~resonance~~ ~~coil~~) | 코어 과부하를 견디는 격벽 |
-| `missile` 미사일 (㉟) | 클러스터 | `coil` 확장 코일 (펄스필드와 공유) | 폭발 반경 = 범위 |
-| `chain` 체인 라이트닝 (㉟) | 폭풍 | `resonance` 상성 증폭 | 속성 그 자체 |
-| `beam` 빔 (㉟) | 프리즘 빔 | `coating` 관통 코팅 | 빔이 적을 뚫는다 |
-| `pinball` 핀볼 (㉟) | 멀티볼 | `battery` 장기 배터리 | 오래 남을수록 강하다 |
-| `spiral` 스파이럴 (㉟) | 토네이도 | `stabilizer` 자세 안정기 | 안정기 = 자이로 = 회전 |
+★★ **v1.10 ㊲ (사용자 2026-09-05 「탄 무기 7 · 나머지 8 = 15종. 탄 특화 패시브 4, 나머지용 6(빔 2·범위 2·궤도 1·공용 1), 기체 4(강화 격벽·자세 안정기·학습 회로·상성 증폭) — 무기 짝을 맞추는 방향」)**
+— 패시브를 **무기 분류**로 재편했다(§9.6 14종). 무기 분류: **탄 7**(벌컨·팬아웃·스파이럴·시커·리턴·미사일·핀볼) · **빔 3**(랜스·빔·체인) ·
+**범위 3**(펄스필드·노바·바라지) · **궤도 2**(오빗·옵션). 진화 짝은 **무기 분류 패시브 10 중 하나**(기체 4 는 짝이 될 수 없다, S41)이고 15 무기 ↔ 10 패시브라
+5 패시브가 두 무기를 연다(같은 분류 안에서). ~~㉙·㉟ 의 1:1 짝~~
 
-- ★ **기계적 유효성 (S41 강제)**: 짝 패시브는 그 무기의 «무효» 목록에 들면 안 된다 — `coating` 무효(`orbit aura mine barrage nova boomerang`) · `autoload` 무효(`aura nova drone`). 위 표는 전부 유효(예: `boomerang`은 `coating` 무효라 `autoload`).
+| 무기 (분류) | 진화 | 짝 패시브 (Lv3) | 유추 근거 |
+|---|---|---|---|
+| `forward` 벌컨 (탄) | 오버드라이브 | `overclock` 오버클럭 (공용) | 연사 램프 = 연사 |
+| `fan` 팬아웃 (탄) | 플레어 팬 | `autoload` 다중 장전 (스파이럴과 공유) | 부채 = 탄 수 |
+| `spiral` 스파이럴 (탄) | 토네이도 | `autoload` 다중 장전 (~~stabilizer~~) | 줄기 수 = 회오리 |
+| `seeker` 시커 (탄) | 스웜 | `coating` 관통 코팅 (~~study~~) | 벌떼가 뚫고 지나간다 |
+| `boomerang` 리턴 (탄) | 체인 리턴 | `booster` 추진기 | 빨리 던지고 빨리 되받는다 |
+| `pinball` 핀볼 (탄) | 멀티볼 | `battery` 장기 배터리 | 오래 남을수록 강하다 |
+| `missile` 미사일 (탄 · 폭발 = 범위 훅) | 클러스터 | `shockwave` 충격파 (노바와 공유 · ~~coil~~) | 폭발 피해 |
+| `lance` 랜스 (빔) | 레일건 | `highvolt` 고압 (체인과 공유 · ~~warhead~~) | 레일건 = 고압 |
+| `chain` 체인 라이트닝 (빔) | 폭풍 | `highvolt` 고압 (~~resonance~~) | 고압 방전 |
+| `beam` 빔 (빔) | 프리즘 빔 | `lens` 집속 렌즈 (~~coating~~) | 렌즈가 분광한다 |
+| `aura` 펄스필드 (범위) | 싱귤래리티 | `coil` 확장 코일 (바라지와 공유) | 범위 |
+| `barrage` 바라지 (범위) | 오비탈 스트라이크 | `coil` 확장 코일 (~~autoload~~) | 넓은 포격 |
+| `nova` 노바 (범위) | 슈퍼노바 | `shockwave` 충격파 (~~bulkhead~~) | 대폭발 |
+| `orbit` 오빗 (궤도) | 이지스 | `orbitext` 궤도 확장 (옵션과 공유 · ~~reactive~~) | 궤도 |
+| `drone` 옵션 (궤도) | 잔상 편대 | `orbitext` 궤도 확장 (~~afterimage~~) | 편대 = 궤도 |
+
+- ★ **기계적 유효성 (S41 강제, ㊲ 일반화)**: 짝 패시브의 stat 이 그 무기에 유효해야 한다 — 표 = `passiveAppliesTo`(§11.1, `state.js` 와 `check.mjs` 의 같은 표: `fireRateMul` ⇔ `rateKey ≠ null` · `projCountAdd` ⇔ `countKey ≠ null` · `pierceAdd` ⇔ `pierceApplies ∧ base.pierce ≠ −1` · `projSpeedMul/durationMul/beamAreaMul/areaMul/orbitMul` ⇔ 해당 키 배열 비어 있지 않음 · `beamDmgMul/areaDmgMul` ⇔ `dmgStat` 일치). **기체 4 는 짝 불가.**
 - ★ **밸런스 부수효과**: 진화가 무기 Lv8 + 짝 패시브 Lv3 콤보가 되어 후반 진화 수가 줄고 화력이 낮아진다 → §13.6의 속성 게이트가 자연히 강화된다(dpsRef 재도출 필요).
 
 **★★ 무기 런타임 계약 — `update` · `onExpire` · `killEnemy` (v1.4 신설 — D2·D3 blocker, 12 패밀리의 공통 경계면)**
@@ -2875,37 +2901,35 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 - ★ **`bossPartPriority`는 존재하지 않는다 (확정).** 초안 F의 "복합 보스에서 부위를 지정할 수단을 데이터로 제공"은 **"의미 있는 이동" 기둥의 정면 위반**이다 — 자동 타겟이 스탠스 퍼즐을 대신 풀어버린다. **보스 부위는 각각 독립 타겟 엔티티이고 `nearest` 계열은 가장 가까운 부위를 노린다 → 플레이어가 위치로 부위를 고른다.**
 - ★ **`knockback`은 존재하지 않는다 (확정, 미결 해소).** 초안 C·F 양쪽 계약에 있었으나 **모델이 없었다**(단위·스크립트 이동에의 적용·편대 붕괴·보스 적용 전부 미정). 스크립트 경로를 도는 적(`moveId`)에 넉백을 적용하면 `column`·`anchor`·`pincer` 편대가 깨져 **§8.4의 이동 어휘 전체와 충돌**한다. 어휘에 남겨두면 AI가 의미 없는 값을 생성한다. **삭제가 가장 싸고 안전하다.**
 
-### 9.6 `passives.json` — 폐쇄 스탯 어휘 (13종, 13 패시브와 1:1 — v1.5 `coinGainMul` 폐지 · v1.10 ⑳ `moveSpeedMul` → `terrainResist` · ★ ㉟ `projSpeedMul`(추진기)·`durationMul`(장기 배터리) 신설)
+### 9.6 `passives.json` — 폐쇄 스탯 어휘 (★ ㊲ **14종, 14 패시브와 1:1** — 공용 1 · 탄 4 · 빔 2 · 범위 2 · 궤도 1 · 기체 4 — v1.5 `coinGainMul` 폐지 · v1.10 ⑳ `moveSpeedMul` → `terrainResist` · ㉟ `projSpeedMul`·`durationMul` 신설 · ㊲ `dmgMul`·`ghostSecOnHit`·`hitBulletClearRadius` 폐지, `beamDmgMul`·`beamAreaMul`·`areaDmgMul`·`orbitMul` 신설)
 
-> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
+> ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **14×10 = 140값** · `name` 14 · `desc` 14 · `stats[]` 14 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 소유한다.
+>
+> ★★ **v1.10 ㊲ (사용자 2026-09-05)** — 「탄 무기 7, 나머지 8 = 15종. 탄 특화 패시브 4개, 나머지 무기용 6개(빔 2·범위 2·궤도 1·일반 공용 1), 기체 4개(강화 격벽·자세 안정기·학습 회로·상성 증폭)로 해서 **무기 짝을 맞추는 방향**」.
+> 패시브가 **무기 분류**를 따른다: 각 분류 패시브는 그 분류의 훅(§9.6.1)에만 걸린다 — 탄 특화 4(발사 수·관통·탄속·수명)는 **탄 패밀리에만**, 빔 2(피해·폭/사거리)는 **랜스·빔·체인에만**, 범위 2(반경·피해)는 **펄스필드·노바·바라지 + 미사일 폭발에만**, 궤도 1(반경·구체·공전 / 옵션 사거리)은 **오빗·옵션에만**, 오버클럭(발사 주기)만 공용. 기체 4 는 무기와 무관.
+> **피해 패시브는 분류마다 하나**(빔 = 고압 · 범위 = 충격파 · 궤도 = 궤도 확장이 피해까지)이고 **탄·펄스필드에는 피해 패시브가 없다**(탄은 발사 수·관통·탄속·수명 4개로 큰다). ~~전무기 공통 `warhead` 탄두 증량~~ · ~~`afterimage` 잔광(피격 시 조준 제외)~~ · ~~`reactive` 반응 장갑(피격 시 탄 소거)~~ 폐지 — 기체 4 에 들지 않는다.
+> `desc` 는 `[분류]` 접두로 시작한다(카드에서 분류가 읽힌다).
 
 ```json
-{ "schemaVersion": 1, "maxLevel": 10,   // ㉚ 10 복원(사용자 「학습 회로를 한 번 먹는 경험 = 레벨업을 더 해야 한다 — 무기·패시브 모두 10」) · ~~㉘ 6~~
-  "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
-            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
+{ "schemaVersion": 1, "maxLevel": 10,
+  "stats": ["fireRateMul","projCountAdd","pierceAdd","projSpeedMul","durationMul",
+            "beamDmgMul","beamAreaMul","areaMul","areaDmgMul","orbitMul",
+            "maxHpAdd","terrainResist","xpGainMul","elementBonusMul"],
   "passives": [
-    { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",
-      "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
-    { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",
-      "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40,0.43,0.46] },
-    { "id":"coil",       "name":"확장 코일",    "desc":"무기가 닿는 범위 확대 (산포는 그대로)",
-      "stat":"areaMul",             "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
-    { "id":"coating",    "name":"관통 코팅",    "desc":"투사체 관통 +N — 오빗·펄스필드·마인필드·바라지·노바·리턴에는 무효",
-      "stat":"pierceAdd",           "values":[1,1,2,2,3,3,4,4,5,5] },
-    { "id":"autoload",   "name":"다중 장전",    "desc":"발사 개체 수 +N — 펄스필드·노바·옵션에는 무효",
-      "stat":"projCountAdd",        "values":[0,1,1,1,2,2,2,3,3,4] },
-    { "id":"resonance",  "name":"상성 증폭",    "desc":"상성 ×2를 최대 ×3.0까지 증폭 (×1·×0.5는 불변)",
-      "stat":"elementBonusMul",     "values":[1.10,1.20,1.30,1.40,1.50,1.60,1.70,1.80,1.90,2.00] },
-    { "id":"afterimage", "name":"잔광",         "desc":"피격 시 N초간 적의 조준·유도 대상에서 제외",
-      "stat":"ghostSecOnHit",       "values":[0.8,1.2,1.6,2.0,2.6,3.0,3.4,3.8,4.2,4.6] },
-    { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",
-      "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
-    { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",
-      "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
-    { "id":"stabilizer", "name":"자세 안정기",  "desc":"지형(둔화·관성·과열)의 효과 −N% (Lv10 = 면역)",
-      "stat":"terrainResist",       "values":[0.20,0.32,0.43,0.53,0.62,0.70,0.78,0.86,0.93,1.00] },
-    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",
-      "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] }
+    { "id":"overclock",  "name":"오버클럭",     "desc":"[공용] 모든 무기의 발사 주기 단축",                                   "stat":"fireRateMul",     "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
+    { "id":"autoload",   "name":"다중 장전",    "desc":"[탄] 탄 무기(벌컨·팬아웃·스파이럴·시커·리턴·미사일·핀볼)의 발사 수 +N",   "stat":"projCountAdd",    "values":[0,1,1,1,2,2,2,3,3,4] },
+    { "id":"coating",    "name":"관통 코팅",    "desc":"[탄] 탄 무기의 관통 +N — 리턴·미사일·핀볼(자체 규칙)에는 무효",           "stat":"pierceAdd",       "values":[1,1,2,2,3,3,4,4,5,5] },
+    { "id":"booster",    "name":"추진기",       "desc":"[탄] 탄 무기의 탄속 +N% (리턴은 귀환 속도도)",                          "stat":"projSpeedMul",    "values":[0.06,0.11,0.16,0.20,0.24,0.28,0.32,0.35,0.38,0.40] },
+    { "id":"battery",    "name":"장기 배터리",  "desc":"[탄] 탄 무기의 탄 수명 +N%",                                          "stat":"durationMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
+    { "id":"highvolt",   "name":"고압",         "desc":"[빔] 빔 무기(랜스·빔·체인)의 피해 +N%",                                "stat":"beamDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
+    { "id":"lens",       "name":"집속 렌즈",    "desc":"[빔] 빔 무기의 폭·사거리 +N% (체인은 도약 거리·탐지 반경)",                "stat":"beamAreaMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
+    { "id":"coil",       "name":"확장 코일",    "desc":"[범위] 범위 무기(펄스필드·노바·바라지·미사일 폭발)의 반경 +N% · 자석 반경도 함께", "stat":"areaMul",   "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
+    { "id":"shockwave",  "name":"충격파",       "desc":"[범위] 범위 무기(노바·바라지·미사일)의 피해 +N%",                        "stat":"areaDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
+    { "id":"orbitext",   "name":"궤도 확장",    "desc":"[궤도] 궤도 무기(오빗·옵션)의 피해 +N% · 궤도 반경·구체·공전 속도 +N% (옵션은 사거리)", "stat":"orbitMul", "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
+    { "id":"bulkhead",   "name":"강화 격벽",    "desc":"[기체] 최대 HP +N",                                                   "stat":"maxHpAdd",        "values":[6,12,18,24,30,36,42,48,54,60] },
+    { "id":"stabilizer", "name":"자세 안정기",  "desc":"[기체] 지형(둔화·관성·과열)의 효과 −N% (만렙 = 면역)",                    "stat":"terrainResist",   "values":[0.20,0.32,0.43,0.53,0.62,0.70,0.78,0.86,0.93,1.00] },
+    { "id":"study",      "name":"학습 회로",    "desc":"[기체] 획득 XP 증가",                                                 "stat":"xpGainMul",       "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
+    { "id":"resonance",  "name":"상성 증폭",    "desc":"[기체] 상성 ×2를 최대 ×3.0까지 증폭 (×1·×0.5는 불변)",                    "stat":"elementBonusMul", "values":[1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0] }
   ]
 }
 ```
@@ -2935,7 +2959,7 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 | 패시브 카드 | **획득과 레벨업이 같은 `passive` 카테고리.** 5번째 카테고리 만들지 않음 |
 | 패시브 진화 | **없음** (클라이맥스는 무기 진화에 집중 + 스코프) |
 | 슬롯 | **6칸 확정** (초안 A의 HUD "패시브 5칸"은 **6칸으로 정정**) |
-| 구성 의도 | 화력 3 / 거동 변형 2 / 속성 페이오프 1 / 생존 2 / 스탯 2 / 경제 2 — "+%만 있는 풀"을 피하면서(`coating`·`autoload`·`afterimage`·`reactive`가 **규칙을 바꾼다**) 저작 비용은 12훅으로 상한 고정 |
+| 구성 의도 ★v1.10 ㊲ | **무기 분류를 따른다**: 공용 1 / 탄 4 / 빔 2 / 범위 2 / 궤도 1 / 기체 4 = 14. 분류마다 «내 무기가 강해지는 카드»가 2~4장 있고, 기체 4 는 무기와 무관한 선택(HP·지형 저항·XP·상성). ~~화력 3 / 거동 변형 2 / 속성 페이오프 1 / 생존 2 / 스탯 2 / 경제 2~~ |
 
 **★ 어휘에서 삭제된 것과 그 이유**
 
@@ -2950,7 +2974,14 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 **★ `resonance`의 함정 (비평가가 찾은 것) — 해소 완료**: `elementBonusMul`은 `elem = 1 + (elem−1) × k`의 **k**다. 초안 C의 `values [2.1 … 2.5]`(= 결과 배율)를 이 슬롯에 그대로 넣으면 **×3.1~3.5**가 된다. 정본의 `values`는 **k로 재작성**되어 `[1.10 … 1.50]` → 유효 상성 배율 **×2.1 ~ ×2.5** = C의 원래 의도 그대로.
 **★ `bulkhead`의 스케일 붕괴 (비평가가 찾은 것) — 해소 완료**: 초안 C의 `+1/+1/+2/+2/+3`은 HP ~10 규모를 전제했으나 정본 `hpMax = 100`이다. `[6,12,18,24,30]`으로 재작성(Lv5 = +30%).
 
-### 9.6.1 ★ `rules.passiveHooks` — 훅 → 15 패밀리 파라미터 매핑 (03-§9.3 채택, blocker 해소 · ★ ㉟ H5·H6)
+### 9.6.1 ★ `rules.passiveHooks` — 훅 → 15 패밀리 파라미터 매핑 (03-§9.3 채택, blocker 해소 · ★ ㉟ H5·H6 · ★ ㊲ H7·H8·`dmgStat` + 분류 순수성)
+
+> ★★ **v1.10 ㊲ — 훅은 무기 분류를 따른다(§9.6).** 패밀리 행의 키 9개(동결): `rateKey · countKey · pierceApplies · speedKeys · durationKeys · areaKeys · beamKeys · orbitKeys · dmgStat`.
+> · **H7 `beamKeys`** — `beamAreaMul`(집속 렌즈) ×(1+Σ): lance/beam = `[beamWidthPx, rangePx]` · chain = `[chainRangePx, acquireRadius]` · 그 외 `[]`.
+> · **H8 `orbitKeys`** — `orbitMul`(궤도 확장) ×(1+Σ): orbit = `[orbitRadius, projRadius, angularSpeedDegSec]` · drone = `[droneRangePx]` · 그 외 `[]`. (오빗 구체는 H3 클램프를 그대로 받는다.)
+> · **`dmgStat`** — 그 패밀리의 «피해 패시브» 스탯: `"beamDmgMul"`(lance·beam·chain) · `"areaDmgMul"`(nova·barrage·**missile**) · `"orbitMul"`(orbit·drone — 궤도는 패시브가 하나뿐이라 **궤도 확장이 피해도 든다**) · `null`(탄 6·aura = 피해 패시브 없음). §3.1-2항의 가산항 = `familyDmgMul(world, family)` = `dmgStat ? stats[dmgStat] : 0`. 탄은 슬롯의 패밀리로 매 탄 결정(`collide`), 직접 피해 무기는 자기 모듈이 넘긴다.
+> · **분류 순수성(S34)**: 탄 특화 훅(`countKey ≠ null` · `pierceApplies` · `speedKeys` · `durationKeys`)은 **탄 7 에만** · 빔 훅(`beamKeys`·`beamDmgMul`)은 **빔 3 에만** · 범위 훅(`areaKeys`·`areaDmgMul`)은 **범위 3 + 미사일 폭발에만** · 궤도 훅은 **궤도 2 에만**. 그래서 ~~orbit.countKey bodyCount~~ ~~barrage.countKey strikesPerVolley~~ ~~lance/beam/chain.countKey count~~ ~~beam/lance/drone.pierceApplies~~ ~~orbit.speedKeys angularSpeedDegSec~~ ~~barrage/nova.durationKeys~~ 는 지웠다 — 그 무기들의 발사 수·관통은 **자기 레벨 표**(`levels[]`)에서만 큰다.
+> · 값 전체는 `data/rules.json > passiveHooks` 가 소유한다(아래 옛 12행 블록은 v1.3 의 인쇄 — 키·행이 그 뒤 ㉚·㉟·㊲ 로 바뀌었고 **현행 값은 데이터가 정본**이다).
 
 > ★ **v1.10 ㉟ — H5 `speedKeys` · H6 `durationKeys`** (패밀리마다 배열, `rateKey·countKey·pierceApplies·areaKeys` 와 같은 자리):
 > `projSpeedMul`(추진기)은 `speedKeys`(탄속·귀환 속도·오빗 공전 속도)에, `durationMul`(장기 배터리)은 `durationKeys`(탄 수명·둔화 지속·행동 감속)에
@@ -2965,12 +2996,15 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 src = resolveLevels(base, level) ∪ (w.evolved ? evolution.params : {})
       // ★ v1.4: "base"는 레벨 오버라이드가 적용된 유효 파라미터 집합이다 (아래 ★★ 참조)
 
-fireRateMul  :  eff[rateKey]   = src[rateKey] / (1 + v)      // 주기(간격)이므로 나눗셈
-areaMul      :  eff[areaKey]   = src[areaKey] × (1 + v)      // areaKeys 중 src에 있는 것 전부
-pierceAdd    :  eff.pierce     = src.pierce + v              // pierceApplies == false 이면 무효
-projCountAdd :  eff[countKey]  = src[countKey] + v           // countKey == null 이면 무효
-dmgMul / elementBonusMul       : §3.1의 2항·3항. 파라미터 공간을 건드리지 않는다
-나머지 5종 (ghostSecOnHit, hitBulletClearRadius, maxHpAdd, terrainResist, xpGainMul)
+fireRateMul  :  eff[rateKey]   = src[rateKey] / (1 + v)      // 주기(간격)이므로 나눗셈 — 공용(H1)
+areaMul      :  eff[areaKey]   = src[areaKey] × (1 + v)      // areaKeys 중 src에 있는 것 전부 (H2, 범위)
+pierceAdd    :  eff.pierce     = src.pierce + v              // pierceApplies == false 이면 무효 (탄)
+projCountAdd :  eff[countKey]  = src[countKey] + v           // countKey == null 이면 무효 (H4, 탄)
+projSpeedMul / durationMul     :  speedKeys / durationKeys × (1 + v)   // H5·H6 (탄)
+beamAreaMul / orbitMul         :  beamKeys / orbitKeys × (1 + v)       // H7·H8 (빔 / 궤도) ㊲
+beamDmgMul / areaDmgMul        :  §3.1의 2항 — dmgStat 이 고른 스탯만 (familyDmgMul) ㊲
+elementBonusMul                :  §3.1의 3항. 파라미터 공간을 건드리지 않는다
+기체 3종 (maxHpAdd, terrainResist, xpGainMul)
                                : 플레이어·획득 스탯. 무기 파라미터와 무관 (terrainResist 는 §8.21 ⑥ — movePlayer 의 지형 배율)
 ```
 
@@ -3060,7 +3094,7 @@ v1.1은 `drone`의 `countKey`를 **`droneCount`로 동결**했는데 `anchorOffs
 
 **★ `autoload` × `forward` = 시뮬의 1순위 튜닝 레버 (03 §5.3의 경고를 정본이 승인)**: `count 2 → 4`는 벌컨 DPS를 **×2**로 만든다. 같은 카드가 `fan`에서는 ×1.18이다. **이것은 버그가 아니라 `countKey` 매핑의 산술적 귀결**이며, `dominance.maxWeaponWinShare`가 그것을 잡는다. 값을 바꿀 필요가 생기면 **`passives.json`의 배열 하나만** 바뀐다 = C-4 준수.
 
-**★ `afterimage`(고스트)와 이미 발사된 유도탄 (미결 해소)**: **적용된다.** 고스트 중에는 **유도탄이 재조준을 멈추고 마지막 방향으로 직진한다.** 근거: "적의 조준·유도 타겟에서 제외"라는 문구와 동작이 일치해야 한다(I-2의 정신). 표현 수단: `bullets[].retargetSec` 키가 존재하므로 "재조준 대상" 개념이 스키마에 실재한다 — 고스트는 **재조준 시점에 타겟 후보에서 플레이어를 뺀다.** (밸런서가 규칙이 아니라 값을 만지게 된다.)
+**~~★ `afterimage`(고스트)와 이미 발사된 유도탄 (미결 해소)~~ — v1.10 ㊲ 잔광 폐지로 규칙 자체가 사라졌다(`ghostSec` 필드·aimed 조준 제외·유도 정지 전부 삭제). 아래는 기록.** ~~**적용된다.**~~ 고스트 중에는 **유도탄이 재조준을 멈추고 마지막 방향으로 직진한다.** 근거: "적의 조준·유도 타겟에서 제외"라는 문구와 동작이 일치해야 한다(I-2의 정신). 표현 수단: `bullets[].retargetSec` 키가 존재하므로 "재조준 대상" 개념이 스키마에 실재한다 — 고스트는 **재조준 시점에 타겟 후보에서 플레이어를 뺀다.** (밸런서가 규칙이 아니라 값을 만지게 된다.)
 
 ### 9.7 `bullets.json` · `enemies.json`
 
@@ -3343,7 +3377,7 @@ tetrarchThroneP1  ...
   "themeDraw": { "pool":["sea","glacier","volcano","desert","forest","bog"],
                  "count":5, "allowRepeat":false, "stage1RequiresIntroOk":true, "finalStageId":"finale" },
   "curve": { "enemyHpScale":[1.0,1.5,2.2,3.2,4.5,6.0], "xpScale":[1.0,1.6,2.4,3.4,4.6,6.0],
-             "bossHpScale":[1.00,5.40,11.20,11.80,21.63,21.63],   // ㉝ 스테이지 보스 전용 — 「스테이지 s 는 Lv L_s 가 필요하다」 캘리브레이션(§8.13.3)
+             "bossHpScale":[1.00,3.50,9.00,11.80,18.00,18.00],   // ㉝ 스테이지 보스 전용 — 「스테이지 s 는 Lv L_s 가 필요하다」 캘리브레이션(§8.13.3) · ㊲ 재보정 ~~5.4/11.2/21.63~~
              "midBossHpScale":[1.00,2.70,7.00,10.44,21.63,21.63], // ㉝ 중간보스는 ㉘ 곡선을 그대로(보스와 분리)
              "spawnDensityScale":[0.70,0.85,1.00,1.15,1.30,1.50],
              "midBossCount":[1,1,2,2,2,2], "elitePerWaveChance":[0.10,0.15,0.20,0.25,0.30,0.35],
@@ -3797,7 +3831,7 @@ weight(item) = categoryWeights[item.category] × modifier(item)
 | 속성 합계가 `elementCapTotal`(6) 도달 | **3속성 카드 전부 제외** |
 | **속성 레벨 ≥ 현재 무기 수** | 그 속성 카드 제외 — **죽은 투자 차단** (무기 2개인데 `불+3`이 뜨면 정보 기반 선택의 신뢰가 깨진다) |
 | ★ **이미 보유한 무기** | `newWeapon` 후보에서 **제외** (`id == family` 1:1이므로 자명하나 **명문이 없어 `filterInvalid: true`에 뭉뚱그려져 있었다**). 귀결: `forward`는 **시작 무기이므로 `newWeapon` 카드로 영원히 등장하지 않는다** → §13.3의 `weaponPickShare` 분모가 **11종**이 되는 근거 |
-| ★ **훅이 무효인 패시브** | ★ **제외하지 않는다** (`passiveHooks`의 H4, §9.6.1). 시스템이 지우면 드래프트는 선택이 아니라 자동 최적화가 된다 |
+| ★ **훅이 무효인 패시브** ★v1.10 ㊲ | **미보유(Lv0) 무기 분류 패시브**(탄 4·빔 2·범위 2·궤도 1)는 **지금 보유한 무기 중 그 스탯이 유효한 무기가 하나라도 있어야** 나온다(`passiveAppliesTo`, §9.5 S41 과 같은 표). 보유(Lv≥1)한 뒤엔 그 분류 무기가 없어도 계속 나온다(뒤에 집을 수 있다). 기체 4·오버클럭(공용)은 항상. 근거: 패시브 10 이 분류로 갈리자 빌드에 없는 분류의 카드가 «죽은 카드»가 됐다(3택 중 2장 무효인 판이 흔해진다). ~~옛 H4 「제외하지 않는다 — 시스템이 지우면 자동 최적화가 된다」~~ — 분류 안에서의 선택(예: 탄 4 중 무엇)은 여전히 플레이어 몫이다 |
 | 중복 | 한 드래프트의 3장은 **서로 다른 아이템**. 카테고리 중복은 허용 |
 
 **★ 첫 드래프트의 2/3 강제는 모순이 아니다 (검증 리포트 minor 해소)**
@@ -4872,7 +4906,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S37** ★ | **보스 이미터의 존재** (v1.3) — 위 66개가 `enemies.json > emitters`에 전부 존재(참조 무결성의 정적 판본) |
 | **S38** ★ | **중간보스 이탈의 단일 소유자** (v1.3) — `tier == "mid"` ⟹ `moveParams`에 `leaveAfterSec` 부재 |
 | **S39** ★ | **웨이브 해금의 정합** (v1.3) — `waves[i].unlockStageMin ≥ roster[waves[i].archetypeId].unlockStageMin` (해금 안 된 적이 나오는 웨이브 금지) |
-| **S41** ★ | **진화 짝 패시브의 기계적 유효성** (v1.5) — `weapons[].evolution.requiresPassive.id` 가 그 무기의 «무효» 목록에 들지 않는다(§9.5). 이 표가 v1.5에서 이 행을 누락해, §9.5가 세 번 인용하는 게이트가 미구현처럼 보였다 — `check.mjs` 에는 처음부터 구현돼 있다 |
+| **S41** ★ | **진화 짝 패시브의 기계적 유효성** (v1.5 · ★ ㊲ 일반화) — `weapons[].evolution.requiresPassive` 의 패시브 stat 이 그 무기에 유효하다(`passiveAppliesTo` 표, §9.5·§11.1) **∧ 기체 4 가 아니다**(짝은 무기 분류 패시브). S34 는 훅의 **분류 순수성**(탄·빔·범위·궤도 훅이 제 분류 밖에 붙지 않는다)을 같이 본다. 이 표가 v1.5에서 이 행을 누락해, §9.5가 세 번 인용하는 게이트가 미구현처럼 보였다 — `check.mjs` 에는 처음부터 구현돼 있다 |
 | **S42** ★ | **적 개성의 값과 배타성** (v1.7) — `enemies.archetypes[]` 의 `hitFloorSec ∈ (0, 0.5]` · `pierceCost` 정수 `∈ [1, 3]` · `ccImmune` 불리언. **한 적이 둘 이상 가지면 위반**(무엇이 안 통하는지를 분리할 수 없다). 개성을 가진 적이 0종이어도 위반(§8.17 이 죽은 어휘가 된다). 닫힌-키 검사는 「그 키가 있어도 되는가」만 보므로 **타입·범위는 아무도 안 봤다** — `pierceCost 0` 이면 관통이 영원히 안 닳아 탄이 아레나를 무한 관통한다 |
 | **S43** ★ | **적 탄의 반사 예산** (v1.7) — `bullets[].bounceLeft` 는 **-1(무제한) 또는 0(없음)만** 허용된다. `bot.js` 가 반사탄을 삼각파 접기의 «닫힌 형태»로 외삽하는데, 유한 반사는 예산 소진 후 직선이 되어 그 수식이 빗나간다 → 봇이 «탄 속으로» 피하고, **그 위에서 잰 시뮬 수치 전체가 밸런스 판단의 근거로 썩는다.** 플레이어 탄은 봇의 위협 모델에 없으므로 유한이 허용된다(리턴 = 2) |
 | **S44** ★ | **무기 레벨 곡선의 단조성** (v1.7) — 대용치 DPS = `dmg × count ÷ rate` 가 레벨 사이에서 «역행»하면 위반이다. count·rate 의 이름은 `rules.passiveHooks[family]` 가 이미 소유하므로 게이트가 어휘를 새로 만들지 않는다. ★ `dmg` 단독 검사는 오답이다 — 설계자는 피해를 주기·발수와 맞바꾼다(시커 Lv6 은 `dmg` 12→10 이지만 쿨다운 1.05→0.75·count 3 이라 강해진다). ★ `targetMode` 가 바뀌는 스텝은 **측정 불가**로 두고 비교를 끊는다 — 조준 방식이 바뀌면 같은 수치라도 실제 명중이 달라진다(바라지 Lv8 `randomInArena`→`densest` 는 실측 DPS 가 오히려 5배다). 이 게이트가 없어 실제로 두 건이 살아 있었다: 바라지 Lv5→6(실측 47→40 DPS)과 리턴의 짝수 `count` 정면 사각(Lv2 11 → Lv3 **0**) |

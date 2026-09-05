@@ -8,8 +8,8 @@
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
  *   rateKey "droneFireSec" (H1) · countKey **null** — ★ anchorOffsets 가 droneCount 만큼만 인쇄돼 있어
- *   projCountAdd 로 위성 수를 늘리면 «자리 없는 위성»이 생긴다(§9.6.1 L2474). pierceApplies true ·
- *   areaKeys ["droneRangePx", "projRadius"]
+ *   projCountAdd 로 위성 수를 늘리면 «자리 없는 위성»이 생긴다(§9.6.1 L2474). ㊲ 궤도 분류: pierceApplies false ·
+ *   orbitKeys ["droneRangePx"] (H8 궤도 확장) · dmgStat "orbitMul" — 위성 탄의 피해도 궤도 확장이 든다
  *
  * ★ 위성은 drones 풀에 산다(사전할당, §12.1). 이 파일이 **소유자**다 — 배치·발사·반납을 스스로 한다.
  *   위성이 쏘는 것은 평범한 플레이어 탄이므로 이동·충돌은 step 이 그대로 처리한다.

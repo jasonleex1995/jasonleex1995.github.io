@@ -68,6 +68,26 @@ suite('draft/candidates', () => {
     assert.eq(o.weight, d.categoryWeights.passive, '보유 패시브(시작 짝)는 보너스 없음');
   });
 
+  test('㊲ 미보유 무기 분류 패시브는 «유효한 무기»가 있어야 나온다 — 기체 4 는 항상, 보유(Lv≥1)한 뒤엔 계속 (§11.1)', () => {
+    const w = mkWorld();                                  // forward(탄) 만 보유 · 시작 짝 overclock Lv1
+    const ids = (x) => new Set(x.filter((c) => c.category === 'passive').map((c) => c.passiveId));
+    let got = ids(candidates(w));
+    for (const id of ['autoload', 'coating', 'booster', 'battery']) assert.ok(got.has(id), `탄 패시브 ${id} 등장(벌컨 보유)`);
+    for (const id of ['bulkhead', 'stabilizer', 'study', 'resonance']) assert.ok(got.has(id), `기체 패시브 ${id} 는 항상`);
+    for (const id of ['highvolt', 'lens', 'coil', 'shockwave', 'orbitext']) assert.eq(got.has(id), false, `${id} 는 유효한 무기가 없어 미등장`);
+    giveWeapon(w, 'beam');                                // 빔 무기가 생기면 빔 패시브 2 가 열린다
+    got = ids(candidates(w));
+    assert.ok(got.has('highvolt') && got.has('lens'), '빔 보유 → 고압·집속 렌즈 등장');
+    assert.eq(got.has('coil'), false, '범위 무기 없음 → 코일 여전히 미등장');
+    giveWeapon(w, 'missile');                             // 미사일 = 탄이지만 폭발이 범위 훅(areaKeys·areaDmgMul)
+    got = ids(candidates(w));
+    assert.ok(got.has('coil') && got.has('shockwave'), '미사일 보유 → 확장 코일·충격파 등장');
+    assert.eq(got.has('orbitext'), false, '궤도 무기 없음 → 궤도 확장 미등장');
+    // 보유한 분류 패시브는 그 분류 무기가 없어도 계속 나온다(레벨업) — 새 월드에서 강제로 orbitext 를 들려 본다
+    const w2 = mkWorld(); givePassive(w2, 'orbitext');
+    assert.ok(ids(candidates(w2)).has('orbitext'), '보유(Lv1) 궤도 확장은 궤도 무기 없이도 레벨업 카드로 나온다');
+  });
+
   test('Lv7 진화 카드는 짝 패시브 Lv3 이 있어야 등장한다 (§9.5 v1.5 뱀서식)', () => {
     const w = mkWorld();
     const d = w.data.meta.draft;

@@ -7,8 +7,8 @@
  *   evolution.params: evoRadiusMul
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
- *   rateKey "cooldownSec" (H1) · countKey "strikesPerVolley" (+projCountAdd) · pierceApplies false
- *   areaKeys ["blastRadius"]
+ *   rateKey "cooldownSec" (H1) · countKey null(㊲ — 포격 수는 레벨 표) · pierceApplies false
+ *   areaKeys ["blastRadius"] (H2 확장 코일) · dmgStat "areaDmgMul" (충격파)
  *
  * ★ 착탄은 **예고 뒤에 온다** — telegraphs 풀에 kind 'strike' 로 예고를 놓고(§7.4 의 예고 어휘와
  *   같은 자리), telegraphSec 이 지나면 그 자리에서 폭발시킨다. step.hazards 는 'laser' 만 소유하므로
@@ -19,7 +19,7 @@
  * 슬롯 스크래치: a0 = 다음 볼리까지 / a1 = 이번 볼리의 남은 착탄 수 / a2 = 다음 착탄까지
  */
 
-import { spawnTelegraph } from '../state.js';
+import { spawnTelegraph, familyDmgMul } from '../state.js';
 import { hitEnemy, onScreen } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
@@ -70,7 +70,7 @@ function aim(world, slot, eff, r, out) {
 /** 예고가 익으면 그 자리에서 폭발. */
 function detonate(world, slot, eff, x, y, r) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'barrage');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);
   const en = world.enemies.items;

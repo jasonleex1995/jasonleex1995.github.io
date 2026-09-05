@@ -137,7 +137,7 @@ suite('midboss — 속성 주입 · HP (§8.9)', () => {
     assert.eq(seen.size, 3, '10 시드에 걸쳐 후보 3종이 전부 나온다(테마가 없으므로)');
   });
 
-  test('hp = bosses[].hp × bossHpScale[stageIndex] (enemyHpScale 이 아니다)', () => {
+  test('hp = bosses[].hp × midBossHpScale[stageIndex] (㉝ 보스 곡선과 분리 · enemyHpScale 도 아니다)', () => {
     const data = loadData();
     const idx = 4;
     const w = mkRun(3);
@@ -145,9 +145,12 @@ suite('midboss — 속성 주입 · HP (§8.9)', () => {
     tickMob(w, Math.floor(data.stages.phase.midBossAtSec[idx][0] / dt) + 2);
     const e = midOf(w);
     const def = defOf(w, e.midBossId);
-    assert.near(e.hpMax, def.hp * data.stages.curve.bossHpScale[idx], 1e-6, 'bossHpScale');
-    assert.ne(data.stages.curve.bossHpScale[idx], data.stages.curve.enemyHpScale[idx],
-      '두 곡선이 실제로 다르다 (vacuous 아님)');
+    assert.near(e.hpMax, def.hp * data.stages.curve.midBossHpScale[idx], 1e-6, 'midBossHpScale');
+    assert.ne(data.stages.curve.midBossHpScale[idx], data.stages.curve.enemyHpScale[idx],
+      '잡몹 곡선과 다르다 (vacuous 아님)');
+    // ㉝ 이후 보스 곡선과도 갈렸다 — 이 테스트가 옛날엔 두 값이 같아 «우연히» 통과했다(㊲ 재보정에서 드러남)
+    assert.ne(data.stages.curve.midBossHpScale[idx], data.stages.curve.bossHpScale[idx],
+      '보스 곡선과도 다르다 (중간보스는 자기 곡선)');
   });
 });
 

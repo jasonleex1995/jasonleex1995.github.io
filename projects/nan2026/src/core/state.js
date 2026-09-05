@@ -304,16 +304,51 @@ export function pushHitFx(world, x, y, element, tier, killed, enemyIdx, enemyGen
 // ---------------------------------------------------------------------------
 /**
  * §3.1 · §9.6 — 훅의 기본값.
- *   *Mul / *Add : 0 (가산 풀의 항등원. dmgMul 은 §3.1-2항에서 1 + Σ 가 된다)
+ *   *Mul / *Add : 0 (가산 풀의 항등원. 피해 스탯은 §3.1-2항에서 1 + Σ 가 된다)
  *   elementBonusMul : ★ 1.0 (§3.1 — 이것만 곱의 항등원이다. k 이지 가산항이 아니다)
  */
 function makeStats() {
   return {
-    dmgMul: 0, fireRateMul: 0, areaMul: 0, pierceAdd: 0, projCountAdd: 0,
-    elementBonusMul: 1, ghostSecOnHit: 0, hitBulletClearRadius: 0,
+    // 공용 1 · 탄 4 (§9.6 ㊲ — 탄 무기 패밀리에만 훅이 있다)
+    fireRateMul: 0, projCountAdd: 0, pierceAdd: 0, projSpeedMul: 0, durationMul: 0,
+    // 빔 2 · 범위 2 · 궤도 1 — 피해 스탯(beamDmgMul·areaDmgMul)은 rules.passiveHooks[family].dmgStat 이 고르고(familyDmgMul),
+    //   범위 스탯은 beamKeys(H7)·areaKeys(H2)·orbitKeys(H8)에 곱한다
+    beamDmgMul: 0, beamAreaMul: 0, areaMul: 0, areaDmgMul: 0, orbitMul: 0,
+    // 기체 4
     maxHpAdd: 0, terrainResist: 0, xpGainMul: 0,          // terrainResist: §8.21 ⑥ 지형 효과 ×(1 − Σ) — 이동 속도 배율은 v1.10 ⑳ 에 폐지
-    projSpeedMul: 0, durationMul: 0,                       // ㉟ H5 speedKeys · H6 durationKeys (rules.passiveHooks)
+    elementBonusMul: 1,                                    // ★ 곱의 항등원(k), 가산항이 아니다
   };
+}
+
+/**
+ * §3.1-2항(v1.10 ㊲) — 패밀리의 «피해 패시브» 가산항. dmgStat = 'beamDmgMul'(랜스·빔·체인) · 'areaDmgMul'(노바·바라지·미사일) ·
+ *   'orbitMul'(오빗·옵션 — 궤도 확장은 궤도 1종뿐이라 반경·공전과 피해를 같이 든다) · null(탄 무기·펄스필드 = 피해 패시브 없음 → 0).
+ *   옛 전무기 공통 dmgMul(탄두 증량)은 폐지됐다.
+ */
+export function familyDmgMul(world, family) {
+  const st = world.data.rules.passiveHooks[family].dmgStat;
+  return st === null ? 0 : world.stats[st];
+}
+
+/**
+ * §11.1(v1.10 ㊲) — 패시브(stat)가 이 패밀리에 «기계적으로 유효»한가. 훅 표(rules.passiveHooks)만 읽는 순수 함수 —
+ *   드래프트(미보유 무기 분류 패시브는 유효한 무기가 있어야 나온다)와 check.mjs S41(진화 짝은 유효해야 한다)이 같은 답을 낸다.
+ *   기체 4(maxHpAdd·terrainResist·xpGainMul·elementBonusMul)는 무기와 무관하게 항상 유효.
+ */
+export function passiveAppliesTo(hooks, baseDef, stat) {
+  switch (stat) {
+    case 'fireRateMul': return hooks.rateKey !== null;
+    case 'projCountAdd': return hooks.countKey !== null;
+    case 'pierceAdd': return hooks.pierceApplies === true && baseDef.pierce !== -1;
+    case 'projSpeedMul': return hooks.speedKeys.length > 0;
+    case 'durationMul': return hooks.durationKeys.length > 0;
+    case 'beamDmgMul': return hooks.dmgStat === 'beamDmgMul';
+    case 'beamAreaMul': return hooks.beamKeys.length > 0;
+    case 'areaMul': return hooks.areaKeys.length > 0;
+    case 'areaDmgMul': return hooks.dmgStat === 'areaDmgMul';
+    case 'orbitMul': return hooks.orbitKeys.length > 0 || hooks.dmgStat === 'orbitMul';
+    default: return true;     // 기체 4
+  }
 }
 
 /** 보유 패시브 → 스탯 캐시. 패시브 변경 시에만 호출한다 */
@@ -358,6 +393,14 @@ function makeSlot(index) {
     // 패밀리별 지속 상태 (오빗 각도 · 오버드라이브 램프 · 부메랑 왕복 위상 …)
     a0: 0, a1: 0, a2: 0, a3: 0,
   };
+}
+
+/** 훅 키 배열의 «있는 키만» 배율 — H5·H6·H7·H8 공통 (§9.6.1) */
+function mulKeys(eff, keys, m) {
+  for (let i = 0; i < keys.length; i += 1) {
+    const k = keys[i];
+    if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * m;
+  }
 }
 
 /** weapons[].levels[0..level-1] 을 base 에 순서대로 덮는다 (§9.3의 유일한 부분 오버라이드 예외) */
@@ -416,16 +459,14 @@ export function recomputeEff(world, slot) {
     if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.areaMul);
   }
 
-  // H5 (v1.10 ㉟) — projSpeedMul 은 speedKeys(탄속·귀환 속도·공전 속도)에, H6 — durationMul 은 durationKeys(수명·둔화 지속)에.
-  //   둘 다 «있는 키만»(areaKeys 와 같은 규약) — 키가 없는 패밀리엔 무효(패시브 desc 가 무효 목록을 말한다, H4 와 같은 원칙).
-  for (let i = 0; i < hooks.speedKeys.length; i += 1) {
-    const k = hooks.speedKeys[i];
-    if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.projSpeedMul);
-  }
-  for (let i = 0; i < hooks.durationKeys.length; i += 1) {
-    const k = hooks.durationKeys[i];
-    if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.durationMul);
-  }
+  // H5 (v1.10 ㉟) — projSpeedMul 은 speedKeys(탄속·귀환 속도)에, H6 — durationMul 은 durationKeys(수명)에.
+  //   «있는 키만»(areaKeys 와 같은 규약) — 키가 없는 패밀리엔 무효(패시브 desc 가 무효 목록을 말한다, H4 와 같은 원칙).
+  // H7 (㊲) — beamAreaMul(집속 렌즈)은 beamKeys(빔 폭·사거리 / 체인 도약 거리·탐지 반경)에, H8 — orbitMul(궤도 확장)은
+  //   orbitKeys(궤도 반경·구체·공전 속도 / 옵션 사거리)에. 같은 «있는 키만» 규약.
+  mulKeys(eff, hooks.speedKeys, 1 + st.projSpeedMul);
+  mulKeys(eff, hooks.durationKeys, 1 + st.durationMul);
+  mulKeys(eff, hooks.beamKeys, 1 + st.beamAreaMul);
+  mulKeys(eff, hooks.orbitKeys, 1 + st.orbitMul);
 
   // pierceAdd — pierceApplies == false 면 무효. pierce: -1(무제한)에는 적용되지 않는다
   if (hooks.pierceApplies && eff.pierce !== -1) eff.pierce += st.pierceAdd;
@@ -513,7 +554,7 @@ export function createWorld(opts) {
       stanceCooldown: 0,
       invest,                               // §2.6 — fire 0 / water 0 / grass 0 (§4.2 investable)
       level: 1, xp: 0, xpToNext: 0,
-      slowSec: 0, stunSec: 0, ghostSec: 0,
+      slowSec: 0, stunSec: 0,
       heat: 0,                              // §8.21(v1.10 ⑦) 과열 게이지 [0,1] — 불 지형 안에서 차고 밖에서 식는다
       dirX: 0, dirY: 0,
       lastHorizontal: 0, lastVertical: 0,   // §2.2 SOCD = lastInput

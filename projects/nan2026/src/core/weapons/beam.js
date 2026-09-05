@@ -13,7 +13,7 @@
  *
  * 렌더 신호: slot.a0 = 표적 idx(-1 없음) · slot.a2 = 표적 gen · 두 번째 빔은 world.beamFx(§7.4 ㉟ draw.drawBeams 가 읽는다).
  *   — count 1 일 때 슬롯 스크래치만으로 그리고, 여러 빔·갈래는 beamFx 링(짧은 수명)에 선분을 남긴다.
- * 훅: rateKey hitCooldownSec · countKey count · pierceApplies true · areaKeys [] · speedKeys [] · durationKeys []
+ * 훅(㊲ 빔 분류): rateKey hitCooldownSec · countKey null · pierceApplies false(관통은 레벨 표) · beamKeys [beamWidthPx, rangePx] · dmgStat beamDmgMul
  * 탄이 없다(hitEnemy 직접). 스크래치: a0 = 표적 idx · a1 = 틱 타이머 · a2 = 표적 gen
  * 레퍼런스: 동방 마스터 스파크(지속 빔) · 홀로큐어 BL 북(자동 조준 빔)
  */
@@ -21,6 +21,7 @@
 import { hitEnemy, onScreen } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy, pushChainFx } from '../step.js';
+import { familyDmgMul } from '../state.js';
 
 const NEAREST = 'nearest';
 const NONE = -1;
@@ -81,7 +82,7 @@ function pierceRay(world, slot, eff, stamp, px, py, tx, ty, epoch) {
 /** 한 틱의 «댐» — 빔 count 개가 서로 다른 표적을 잡고, 각각 hitCooldownSec 마다 때린다. 갈래는 진화. */
 function tick(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'beam');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
   const p = world.player;
   const en = world.enemies.items;

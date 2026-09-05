@@ -6,8 +6,8 @@
  *   evolution.params: evoBulletClearCooldownSec
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
- *   rateKey "hitCooldownSec" (H1) · countKey "bodyCount" (+projCountAdd) · pierceApplies false
- *   areaKeys ["orbitRadius", "projRadius"]
+ *   rateKey "hitCooldownSec" (H1) · countKey null(㊲ — 구체 수는 레벨 표) · pierceApplies false
+ *   orbitKeys ["orbitRadius", "projRadius", "angularSpeedDegSec"] (H8 궤도 확장) · dmgStat "orbitMul"(구체 피해도 궤도 확장)
  *
  * ★ 표현의 선택 — 공전체는 **playerBullets 풀의 «정지한 탄»**이다. 이유: 그 풀만이 적 슬롯별
  *   재히트 기록(hitStamp/hitAt/hitGen)을 이미 들고 있고, §9.5 의 hitCooldownSec(대상별 재타격 간격)이

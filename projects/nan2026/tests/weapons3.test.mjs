@@ -77,6 +77,28 @@ suite('weapons3 · 미사일', () => {
     assert.gt(seenChild, 0, '자탄이 나왔다'); assert.near(childLife, eff2.lifetimeSec * 0.5, 1e-9, '자탄 수명 = 절반');
     void s; void s2;
   });
+
+  test('㊲ 패밀리별 피해 스탯 — 충격파(areaDmgMul)는 미사일의 직격·폭발 둘 다 ×(1+v), 벌컨 탄엔 무효 · 고압(beamDmgMul)은 랜스만', () => {
+    const run = (fam, passive, n) => {
+      const w = mkWorld(); const [, eff] = setup(w, fam, 1, false);
+      for (let k = 0; k < n; k += 1) givePassive(w, passive);
+      for (const sl of w.slots) sl.effDirty = true;
+      const t = dummy(w, w.player.x, w.player.y - 200);
+      tick(w, Math.round(1.6 / dt));
+      return [1e6 - t.hp, eff];
+    };
+    const v = (id, n) => loadData().passives.passives.find((p) => p.id === id).values[n - 1];
+    const [m0] = run('missile', 'shockwave', 0); const [m5] = run('missile', 'shockwave', 5);
+    assert.gt(m0, 0, '미사일 기준 피해'); assert.near(m5 / m0, 1 + v('shockwave', 5), 1e-9, '미사일 피해 ×(1 + 충격파 Lv5)');
+    const [f0] = run('forward', 'shockwave', 0); const [f5] = run('forward', 'shockwave', 5);
+    assert.near(f5, f0, 1e-9, '벌컨 탄은 충격파 무관');
+    const [f0b] = run('forward', 'highvolt', 0); const [f5b] = run('forward', 'highvolt', 5);
+    assert.near(f5b, f0b, 1e-9, '벌컨 탄은 고압 무관(탄 무기엔 피해 패시브가 없다)');
+    const [l0] = run('lance', 'highvolt', 0); const [l5] = run('lance', 'highvolt', 5);
+    assert.gt(l0, 0, '랜스 기준 피해'); assert.near(l5 / l0, 1 + v('highvolt', 5), 1e-6, '랜스 피해 ×(1 + 고압 Lv5)');
+    const [l0s] = run('lance', 'shockwave', 0); const [l5s] = run('lance', 'shockwave', 5);
+    assert.near(l5s, l0s, 1e-9, '랜스는 충격파 무관');
+  });
 });
 
 suite('weapons3 · 체인 라이트닝', () => {
@@ -115,9 +137,11 @@ suite('weapons3 · 빔', () => {
     assert.eq(side.hp, 1e6, '두 번째 적은 count 1 이면 안 맞는다');
     assert.eq(s.a0, w.enemies.items.indexOf(t), '슬롯이 표적을 기억한다');
     // 관통 — pierce 를 주면 표적 뒤(같은 직선) 적이 맞는다
-    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'beam', 1, false);
+    //   ㊲ 관통 코팅은 탄 전용 — 빔의 관통은 자기 레벨(Lv3 pierce 1)에서 온다. 코팅을 줘도 빔의 pierce 는 불변.
+    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'beam', 3, false);
+    assert.gt(eff2.pierce, 0, 'Lv3 빔의 자체 관통 > 0');
     for (let k = 0; k < 3; k += 1) givePassive(w2, 'coating'); s2.effDirty = true; const e2 = recomputeEff(w2, s2);
-    assert.gt(e2.pierce, 0, '코팅으로 관통 > 0');
+    assert.eq(e2.pierce, eff2.pierce, '관통 코팅은 빔에 무효(탄 전용)');
     const near = dummy(w2, w2.player.x, w2.player.y - 150); const behind = dummy(w2, w2.player.x, w2.player.y - 260); const off = dummy(w2, w2.player.x + 90, w2.player.y - 260);
     tick(w2, 3);
     assert.lt(near.hp, 1e6); assert.lt(behind.hp, 1e6, '직선 뒤 적 관통'); assert.eq(off.hp, 1e6, '직선 밖은 무피해');

@@ -11,11 +11,7 @@
  * 값은 전부 정본/데이터에서 유도한다 (하드코딩 매직넘버 지양).
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import {
-  makePool, createWorld, recomputeStats, recomputeEff,
-  giveWeapon, levelUpWeapon, givePassive, swapSlots,
-  spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext,
-} from '../src/core/state.js';
+import { makePool, createWorld, recomputeStats, recomputeEff, giveWeapon, levelUpWeapon, givePassive, swapSlots, spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext, familyDmgMul } from '../src/core/state.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { killEnemy } from '../src/core/step.js';
 
@@ -240,7 +236,7 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     assert.near(e.cooldownSec, base / 2, 1e-12, 'cooldownSec /(1+1)');
   });
 
-  test('H2 areaMul — areaKeys 만 ×(1+areaMul): 범위 무기(오빗 궤도·구체)만 커지고 벌컨 탄·산포는 불변 (㉚ 코일 범위 전용)', () => {
+  test('H2 areaMul — areaKeys 만 ×(1+areaMul): 범위 무기(노바 반경·미사일 폭발)만 커지고 벌컨 탄·산포·오빗 궤도는 불변 (㊲ 코일 = 범위 전용)', () => {
     const w = mk();
     const s = w.slots[0];                                 // forward — areaKeys [] (㉚)
     const baseR = w.data.weapons.weapons.find((x) => x.family === 'forward').base.projRadius;
@@ -252,16 +248,57 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     const oi = giveWeapon(w, 'orbit');
     const ob = w.data.weapons.weapons.find((x) => x.family === 'orbit').base;
     const eo = recomputeEff(w, w.slots[oi]);
-    assert.near(eo.orbitRadius, ob.orbitRadius * 1.5, 1e-12, '오빗 궤도 ×1.5');
-    assert.near(eo.projRadius, Math.min(ob.projRadius * 1.5, w.data.rules.render.playerBulletMaxRadiusPx), 1e-12, '오빗 구체도 같이 ×1.5 (클램프 안)');
+    assert.eq(eo.orbitRadius, ob.orbitRadius, '오빗 궤도는 코일 밖(㊲ 궤도 확장의 것)');
+    const mi = giveWeapon(w, 'missile');
+    const mb = w.data.weapons.weapons.find((x) => x.family === 'missile').base;
+    const em = recomputeEff(w, w.slots[mi]);
+    assert.near(em.blastRadius, mb.blastRadius * 1.5, 1e-12, '미사일 폭발 반경 ×1.5 (범위 훅)');
+    assert.eq(em.projRadius, mb.projRadius, '미사일 탄 자체는 불변');
   });
 
-  test('H3 projRadius 클램프 = render.playerBulletMaxRadiusPx (오빗 구체)', () => {
+  test('H8 orbitMul(궤도 확장) — orbitKeys(오빗 궤도·구체·공전 속도 / 옵션 사거리)만 ×(1+orbitMul) (㊲)', () => {
+    const w = mk();
+    const oi = giveWeapon(w, 'orbit');
+    const ob = w.data.weapons.weapons.find((x) => x.family === 'orbit').base;
+    w.stats.orbitMul = 0.5;
+    w.slots[oi].effDirty = true;
+    const eo = recomputeEff(w, w.slots[oi]);
+    assert.near(eo.orbitRadius, ob.orbitRadius * 1.5, 1e-12, '오빗 궤도 ×1.5');
+    assert.near(eo.angularSpeedDegSec, ob.angularSpeedDegSec * 1.5, 1e-12, '공전 속도 ×1.5');
+    assert.near(eo.projRadius, Math.min(ob.projRadius * 1.5, w.data.rules.render.playerBulletMaxRadiusPx), 1e-12, '구체도 ×1.5 (클램프 안)');
+    const di = giveWeapon(w, 'drone');
+    const db = w.data.weapons.weapons.find((x) => x.family === 'drone').base;
+    const ed = recomputeEff(w, w.slots[di]);
+    assert.near(ed.droneRangePx, db.droneRangePx * 1.5, 1e-12, '옵션 사거리 ×1.5');
+    assert.eq(ed.projSpeed, db.projSpeed, '옵션 탄속은 탄 훅(추진기) 밖 → 불변');
+    w.slots[0].effDirty = true;
+    assert.eq(recomputeEff(w, w.slots[0]).projRadius, w.data.weapons.weapons.find((x) => x.family === 'forward').base.projRadius, '벌컨 무관');
+  });
+
+  test('H7 beamAreaMul(집속 렌즈) — beamKeys(빔 폭·사거리 / 체인 도약·탐지)만 ×(1+beamAreaMul) · 탄 무기 무관 (㊲)', () => {
+    const w = mk();
+    w.stats.beamAreaMul = 0.25;
+    const bi = giveWeapon(w, 'beam');
+    const bb = w.data.weapons.weapons.find((x) => x.family === 'beam').base;
+    const eb = recomputeEff(w, w.slots[bi]);
+    assert.near(eb.beamWidthPx, bb.beamWidthPx * 1.25, 1e-12, '빔 폭 ×1.25');
+    assert.near(eb.rangePx, bb.rangePx * 1.25, 1e-12, '빔 사거리 ×1.25');
+    const ci = giveWeapon(w, 'chain');
+    const cb = w.data.weapons.weapons.find((x) => x.family === 'chain').base;
+    const ec = recomputeEff(w, w.slots[ci]);
+    assert.near(ec.chainRangePx, cb.chainRangePx * 1.25, 1e-12, '체인 도약 거리 ×1.25');
+    assert.near(ec.acquireRadius, cb.acquireRadius * 1.25, 1e-12, '체인 탐지 반경 ×1.25');
+    w.slots[0].effDirty = true;
+    const ef = recomputeEff(w, w.slots[0]);
+    assert.eq(ef.projRadius, w.data.weapons.weapons.find((x) => x.family === 'forward').base.projRadius, '벌컨 무관');
+  });
+
+  test('H3 projRadius 클램프 = render.playerBulletMaxRadiusPx (오빗 구체 — 궤도 확장으로 키워도)', () => {
     const w = mk();
     const oi = giveWeapon(w, 'orbit');
     const s = w.slots[oi];
     const maxR = w.data.rules.render.playerBulletMaxRadiusPx;
-    w.stats.areaMul = 5;                                  // 7 × 6 = 42 → 클램프
+    w.stats.orbitMul = 5;                                 // 7 × 6 = 42 → 클램프
     s.effDirty = true;
     const e = recomputeEff(w, s);
     assert.eq(e.projRadius, maxR, 'projRadius 클램프 10');
@@ -357,12 +394,12 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
   test('givePassive — 획득/레벨업 같은 카테고리, maxLevel 상한, 만석 = false', () => {
     const w = mk();                                       // slot0 = overclock(시작 짝, ㉚)
     const maxL = w.data.passives.maxLevel;
-    assert.ok(givePassive(w, 'warhead'), '신규 획득');
-    assert.eq(w.passives[1].id, 'warhead', 'slot1 = warhead');
+    assert.ok(givePassive(w, 'highvolt'), '신규 획득');
+    assert.eq(w.passives[1].id, 'highvolt', 'slot1 = highvolt');
     assert.eq(w.passives[1].level, 1, 'Lv1');
-    for (let k = 1; k < maxL; k += 1) assert.ok(givePassive(w, 'warhead'), `Lv${k}→${k + 1}`);
+    for (let k = 1; k < maxL; k += 1) assert.ok(givePassive(w, 'highvolt'), `Lv${k}→${k + 1}`);
     assert.eq(w.passives[1].level, maxL, 'maxLevel 도달');
-    assert.eq(givePassive(w, 'warhead'), false, 'maxLevel 초과 = false');
+    assert.eq(givePassive(w, 'highvolt'), false, 'maxLevel 초과 = false');
     // 만석 채우고 신규 = false — 칸수는 rules 에서 끌어온다(하드코딩 금지)
     const nSlots = w.data.rules.player.passiveSlots;
     const others = ['coil', 'coating', 'autoload', 'resonance', 'study'];
@@ -411,13 +448,21 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
   test('recomputeStats — elementBonusMul 은 대입(k), 나머지는 가산 풀', () => {
     const w = mk();
     assert.eq(w.stats.elementBonusMul, 1, '기본 k = 1 (곱의 항등원)');
-    assert.eq(w.stats.dmgMul, 0, '기본 가산항 0');
+    assert.eq(w.stats.beamDmgMul, 0, '기본 가산항 0');
     givePassive(w, 'resonance');                          // elementBonusMul values[0] = 1.10
     const v = w.data.passives.passives.find((p) => p.id === 'resonance').values[0];
     assert.eq(w.stats.elementBonusMul, v, 'k 는 대입 (1 + 1.10 이 아니다)');
-    givePassive(w, 'warhead');
-    const d = w.data.passives.passives.find((p) => p.id === 'warhead').values[0];
-    assert.eq(w.stats.dmgMul, d, 'dmgMul 가산 풀 = 0.08');
+    givePassive(w, 'highvolt');
+    const d = w.data.passives.passives.find((p) => p.id === 'highvolt').values[0];
+    assert.eq(w.stats.beamDmgMul, d, 'beamDmgMul 가산 풀 = 0.10');
+    // ㊲ familyDmgMul — dmgStat 이 고른 스탯만 (빔 = beamDmgMul · 탄 = 0 · 미사일/노바 = areaDmgMul)
+    assert.eq(familyDmgMul(w, 'lance'), d, '랜스 = beamDmgMul');
+    assert.eq(familyDmgMul(w, 'forward'), 0, '벌컨 = 피해 패시브 없음');
+    givePassive(w, 'shockwave');
+    const sv = w.data.passives.passives.find((p) => p.id === 'shockwave').values[0];
+    assert.eq(familyDmgMul(w, 'missile'), sv, '미사일 = areaDmgMul');
+    assert.eq(familyDmgMul(w, 'nova'), sv, '노바 = areaDmgMul');
+    assert.eq(familyDmgMul(w, 'aura'), 0, '펄스필드 = 피해 없음');
     assert.throws(() => { const x = mk(); x.passives[0] = { id: 'ghost', level: 1 }; recomputeStats(x); }, '미지 패시브 throw');
   });
 });

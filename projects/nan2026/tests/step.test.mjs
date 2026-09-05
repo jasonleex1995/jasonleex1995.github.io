@@ -437,70 +437,7 @@ suite('step · stun 스턴 (§2.7)', () => {
   });
 });
 
-// ── 5. reactive 반응장갑 (§9.6 hitBulletClearRadius) ───────────────────────
-suite('step · reactive 반응장갑 (§9.6)', () => {
-  test('피격 시 반경 내 적 탄 소거 · 반경 밖 생존', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    givePassive(w, 'reactive');
-    const r = passiveVal(w, 'reactive');            // Lv1 = 60
-    assert.eq(w.stats.hitBulletClearRadius, r, '패시브 → 스탯 반영');
-    spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);              // A: 피격 유발 + 반경 내
-    spawnEnemyBullet(w, 'pelletS', px + r * 0.5, py, 0, 0);    // B: 직접 피격 없이 반경 내
-    spawnEnemyBullet(w, 'pelletS', px + r + 40, py, 0, 0);     // C: 반경 밖
-    assert.eq(w.enemyBullets.live, 3, '탄 3개 배치');
-    step(w, makeInput(), TICK_DT);
-    assert.eq(w.enemyBullets.live, 1, '반경 내 A·B 소거, 반경 밖 C 생존');
-    let survivor = null;
-    for (const b of w.enemyBullets.items) if (b.alive) { survivor = b; break; }
-    assert.ok(survivor !== null, '생존 탄 존재');
-    assert.gt(survivor.x, px + r, '생존 탄 = 반경 밖 C');
-  });
-
-  test('reactive 미보유면 반경 내 탄이 살아남는다 = 소거가 패시브에 결속됨 (음성 대칭)', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    const r = passiveVal(w, 'reactive');
-    assert.eq(w.stats.hitBulletClearRadius, 0, '미보유 = 0');
-    spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);             // A: 피격 유발 (이것만 소멸)
-    spawnEnemyBullet(w, 'pelletS', px + r * 0.5, py, 0, 0);   // B: 반경 내지만 소거되지 않아야
-    assert.eq(w.enemyBullets.live, 2, '탄 2개 배치');
-    step(w, makeInput(), TICK_DT);
-    assert.eq(w.enemyBullets.live, 1, 'A 만 소멸(피해 준 탄) · B 생존 = 광역소거 없음');
-  });
-});
-
-// ── 6. afterimage 잔광 (§9.6 ghostSecOnHit) ───────────────────────────────
-suite('step · afterimage 잔광 (§9.6)', () => {
-  test('피격 시 ghostSec 부여 (일시 언타겟터블) · 1틱 감쇠', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    givePassive(w, 'afterimage');
-    const g = passiveVal(w, 'afterimage');          // Lv1 = 0.8
-    assert.eq(w.stats.ghostSecOnHit, g, '패시브 → 스탯 반영');
-    assert.eq(w.player.ghostSec, 0, '피격 전 ghostSec 0');
-    spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);
-    step(w, makeInput(), TICK_DT);                  // 피격
-    assert.near(w.player.ghostSec, g, 1e-9, '피격 = ghostSec 부여');
-    step(w, makeInput(), TICK_DT);
-    assert.near(w.player.ghostSec, g - TICK_DT, 1e-9, 'ghostSec 1틱 감쇠');
-  });
-
-  test('afterimage 미보유면 피격해도 ghostSec 0 (음성)', () => {
-    const w = mk();
-    silence(w);
-    const px = w.player.x; const py = w.player.y;
-    assert.eq(w.stats.ghostSecOnHit, 0, '미보유 = 0');
-    spawnEnemyBullet(w, 'pelletS', px, py, 0, 0);
-    const hp0 = w.player.hp;
-    step(w, makeInput(), TICK_DT);
-    assert.lt(w.player.hp, hp0, '피격은 실제로 일어났다');
-    assert.eq(w.player.ghostSec, 0, 'ghostSec 부여 없음');
-  });
-});
+// ── 5·6. (v1.10 ㊲) reactive 반응 장갑 · afterimage 잔광 폐지 — 기체 패시브 4 = 강화 격벽·자세 안정기·학습 회로·상성 증폭
 
 // ── 7. enemyExitForfeitsReward (§8.7) ─────────────────────────────────────
 suite('step · enemyExitForfeitsReward (§8.7)', () => {

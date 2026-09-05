@@ -10,7 +10,7 @@
  *   §3.1 · §3.2  데미지
  *   §4.3 · §4.4  스탠스 부여 · 각인
  *   §6.4   드래프트 발생 — core 는 큐에 세기만 한다. 소화는 상태 기계의 몫
- *   §8.6   엘리트   §9.6 패시브 (reactive · afterimage · xpGain)  ★ v1.5: 코인·경제 폐지
+ *   §8.6   엘리트   §9.6 패시브 (xpGain — ㊲ 잔광·반응 장갑 폐지)  ★ v1.5: 코인·경제 폐지
  *   §10.3  L2 — 인덱스 오름차순 순회만 · 핫패스 0 alloc · Map/Set 순회 없음
  *   §12.1  캡 초과 정책
  *   §9.1   core 순수성
@@ -23,7 +23,7 @@ import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } f
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
-import { recomputeEff, spawnPickup, pushHitFx, xpToNext } from './state.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext, familyDmgMul } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 import { DEG2RAD, wrapAngle } from './angle.js';
 
@@ -121,7 +121,6 @@ function readInput(world, input, dt) {
   if (p.iframeSec > 0) { p.iframeSec -= dt; if (p.iframeSec < 0) p.iframeSec = 0; }
   if (p.slowSec > 0) { p.slowSec -= dt; if (p.slowSec < 0) p.slowSec = 0; }
   if (p.stunSec > 0) { p.stunSec -= dt; if (p.stunSec < 0) p.stunSec = 0; }
-  if (p.ghostSec > 0) { p.ghostSec -= dt; if (p.ghostSec < 0) p.ghostSec = 0; }
   // §11.6(v1.10 ⑲·㉒) 특성 — 자연 재생 · 쉴드 충전
   const fx = world.traitFx;
   if (fx.regenHpPerSec > 0 && p.hp > 0 && p.hp < p.hpMax) { p.hp += fx.regenHpPerSec * dt; if (p.hp > p.hpMax) p.hp = p.hpMax; }
@@ -376,7 +375,7 @@ function moveBullets(world, dt) {
 function collide(world, dt) {
   const ctx = world.dmgCtx;
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;                     // §3.1-2항 — 가산 풀
+  ctx.dmgMulSum = 0;                                      // §3.1-2항(㊲) — 탄마다 그 슬롯 패밀리의 피해 스탯으로 채운다(아래)
   ctx.elementBonusMul = world.stats.elementBonusMul;      // §3.1-3항 — resonance 의 k
 
   const pb = world.playerBullets.items;
@@ -451,6 +450,7 @@ function collide(world, dt) {
       // §4.4 — spawn 은 각인된 값, live(orbit·aura) 는 현재 스탠스를 재평가
       const stamp = stampFor(world, b.slot, b.stampMode, b.element);
       const tier = hitTier(ctx.matrix, stamp, e.element);
+      ctx.dmgMulSum = familyDmgMul(world, world.slots[b.slot].family);   // §3.1-2항(㊲) — 미사일 = areaDmgMul, 그 외 탄 = 0
       const dealt = playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
       e.hp -= dealt;
       noteDamage(world, b.family, dealt);           // §13.1.1 무기 지배도(시뮬 전용, 게임엔 무영향)
@@ -637,20 +637,6 @@ export function applyHit(world, raw, srcArch) {
     if (world.run !== undefined) world.run.deathCause = 'hp';
   }
 
-  // §9.6 — afterimage: 피격 시 N초간 적의 조준·유도 대상에서 제외
-  if (world.stats.ghostSecOnHit > 0) p.ghostSec = world.stats.ghostSecOnHit;
-  // §9.6 — reactive: 피격 시 반경 N px 의 적 탄 소거
-  const r = world.stats.hitBulletClearRadius;
-  if (r > 0) {
-    const eb = world.enemyBullets.items;
-    for (let i = 0; i < eb.length; i += 1) {
-      const b = eb[i];
-      if (!b.alive) continue;
-      const dx = b.x - p.x;
-      const dy = b.y - p.y;
-      if (dx * dx + dy * dy <= r * r) world.enemyBullets.release(b);
-    }
-  }
   return true;
 }
 

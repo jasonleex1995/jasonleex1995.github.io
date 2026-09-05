@@ -18,7 +18,7 @@
  */
 
 import { DEG2RAD } from '../angle.js';
-import { spawnPlayerBullet } from '../state.js';
+import { spawnPlayerBullet, familyDmgMul } from '../state.js';
 import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
@@ -32,7 +32,7 @@ const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
 /** 폭발 — 자리 (x, y) 의 blastRadius 안 전 적에 dmg × mul. 처치는 core 의 killEnemy 로 완결(§9.5 D3). */
 function blast(world, slot, eff, b, mul) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'missile');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
   const stamp = stampFor(world, slot.index, b.stampMode, b.element);   // §4.4 — 탄에 각인된 속성
   const en = world.enemies.items;

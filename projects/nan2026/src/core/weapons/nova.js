@@ -7,7 +7,7 @@
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
  *   rateKey "intervalSec" (H1) · countKey **null** · pierceApplies false
- *   areaKeys ["radius", "evoRing2Radius"] — 2단 링도 areaMul 을 받는다(진화 시에만 존재)
+ *   areaKeys ["radius", "evoRing2Radius"] — 2단 링도 areaMul 을 받는다(진화 시에만 존재) · dmgStat "areaDmgMul" (충격파, ㊲)
  *
  * ★ expandSec·telegraphSec 는 **연출의 시간**이다. 판정은 §8.5 와 같은 「적용 1회」이며 폭발 시점에
  *   한 번 적용한다 — 확장 애니메이션은 렌더의 몫이고 core 의 판정을 나누지 않는다.
@@ -19,6 +19,7 @@
 import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
+import { familyDmgMul } from '../state.js';
 
 /** §3.1 의 컨텍스트. ★ 모듈 스코프 1회 (§10.3) */
 const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
@@ -45,7 +46,7 @@ function ring(world, slot, eff, r, localMul, stamp, slowSec) {
 
 function detonate(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'nova');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
 
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);

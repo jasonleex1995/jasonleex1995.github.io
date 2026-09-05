@@ -7,8 +7,8 @@
  *   evolution.params: evoFullHeight
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
- *   rateKey "cooldownSec" (H1) · countKey "count" (+projCountAdd) · pierceApplies true (+pierceAdd)
- *   areaKeys ["beamWidthPx", "rangePx"] — 폭도 사거리도 areaMul 을 받는다
+ *   훅(㊲ 빔 분류): rateKey "cooldownSec" (H1) · countKey null · pierceApplies false(관통은 자기 레벨 표) ·
+ *   beamKeys ["beamWidthPx", "rangePx"] (H7 집속 렌즈) · dmgStat "beamDmgMul" (고압). 옛 countKey/areaKeys 는 폐지.
  *
  * ★ 랜스는 **탄이 아니다**. 정면(화면 위쪽, §1.1)으로 뻗는 폭 beamWidthPx 의 선을 그어 그 안의 적을
  *   **가까운 순으로 pierce 마리**까지 꿴다. hitCooldownSec 0 = 한 발에 한 대상 1회.
@@ -22,6 +22,7 @@
 import { hitEnemy, onScreen } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
+import { familyDmgMul } from '../state.js';
 
 const FORWARD = 'forward';
 
@@ -69,7 +70,7 @@ function beam(world, slot, eff, bx, length, limit, stamp) {
 
 function fire(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'lance');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
 
   const p = world.player;

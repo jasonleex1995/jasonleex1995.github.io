@@ -13,7 +13,7 @@
                   {"dmg":15}, {"dmg":17,"burstCount":4} ],
       "evolution": { "name":"오버드라이브", "desc":"맞지 않고 버틸수록 빨라진다",
                      "params": { "evoRampSec":3.0, "evoRampFireRateMul":1.55 },
-                     "requiresPassive": { "id":"overclock", "level":3 } }
+                     "requiresPassive": { "id": "overclock", "level":3 } }
     },
     {
       "id": "fan", "slotClass": "element", "family": "fan", "name": "팬아웃", "desc": "정면으로 여러 발을 넓게 뿌린다",
@@ -27,7 +27,7 @@
                   {"dmg":15}, {"dmg":17,"count":13} ],
       "evolution": { "name":"플레어 팬", "desc":"탄이 사라진 자리에서 작게 터진다",
                      "params": { "evoBlastRadius":40, "evoSecondaryDmgMul":0.5 },
-                     "requiresPassive": { "id":"autoload", "level":3 } }
+                     "requiresPassive": { "id": "autoload", "level":3 } }
     },
     {
       "id": "seeker", "slotClass": "element", "family": "seeker", "name": "시커", "desc": "가장 가까운 적을 찾아서 때린다",
@@ -42,7 +42,7 @@
                   {"dmg":16}, {"dmg":18,"count":5} ],
       "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
-                     "requiresPassive": { "id":"study", "level":3 } }
+                     "requiresPassive": { "id": "coating", "level":3 } }
     },
     {
       "id": "lance", "slotClass": "element", "family": "lance", "name": "랜스", "desc": "잠깐 모았다가 정면을 꿰뚫는다",
@@ -56,7 +56,7 @@
                   {"dmg":70}, {"dmg":80,"cooldownSec":1.15} ],
       "evolution": { "name":"레일건", "desc":"화면 끝까지 뚫고, 앞의 적을 전부 꿴다",
                      "params": { "evoFullHeight":true },
-                     "requiresPassive": { "id":"warhead", "level":3 } }
+                     "requiresPassive": { "id": "highvolt", "level":3 } }
     },
     {
       "id": "orbit", "slotClass": "utility", "family": "orbit", "name": "오빗", "desc": "주위를 도는 공이 닿는 적을 계속 때린다",
@@ -69,7 +69,7 @@
                   {"dmg":24}, {"dmg":28,"bodyCount":6} ],
       "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다",
                      "params": { "evoBulletClearCooldownSec":1.0 },
-                     "requiresPassive": { "id":"reactive", "level":3 } }
+                     "requiresPassive": { "id": "orbitext", "level":3 } }
     },
     {
       "id": "aura", "slotClass": "utility", "family": "aura", "name": "펄스필드", "desc": "주위의 적 탄을 느리게 만든다",
@@ -80,7 +80,7 @@
                   {"radius":162}, {"radius":176,"slowMul":0.40} ],
       "evolution": { "name":"싱귤래리티", "desc":"적 탄이 아예 멈추고, 잡몹이 끌려온다",
                      "params": { "evoPullForce":90 },
-                     "requiresPassive": { "id":"coil", "level":3 } }
+                     "requiresPassive": { "id": "coil", "level":3 } }
     },
     {
       "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "관통하는 탄을 던져서 되받는다",
@@ -94,7 +94,7 @@
                   {"dmg":24}, {"dmg":28,"count":4} ],
       "evolution": { "name":"체인 리턴", "desc":"돌아오는 길에 가까운 적들을 들른다",
                      "params": { "evoChainCount":3 },
-                     "requiresPassive": { "id":"booster", "level":3 } }
+                     "requiresPassive": { "id": "booster", "level":3 } }
     },
     {
       "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아무 데나 포격이 떨어져 적을 느리게 한다",
@@ -109,7 +109,7 @@
                   {"dmg":90}, {"dmg":105,"strikesPerVolley":4} ],
       "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
                      "params": { "evoRadiusMul":2.0 },
-                     "requiresPassive": { "id":"autoload", "level":3 } }
+                     "requiresPassive": { "id": "coil", "level":3 } }
     },
     {
       "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다",
@@ -128,7 +128,7 @@
                   {"dmg":19}, {"dmg":22,"droneFireSec":0.42} ],
       "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라와 궤적을 넓게 쓴다",
                      "params": { "evoTrailDelaySec": 2.5 },
-                     "requiresPassive": { "id":"afterimage", "level":3 } }
+                     "requiresPassive": { "id": "orbitext", "level":3 } }
     },
     {
       "id": "nova", "slotClass": "utility", "family": "nova", "name": "노바", "desc": "이따금 주위가 터져 적의 사격을 늦춘다",
@@ -141,7 +141,7 @@
                   {"dmg":280}, {"dmg":340,"intervalSec":2.9} ],
       "evolution": { "name":"슈퍼노바", "desc":"폭발이 더 멀리 퍼지고, 더 오래 늦춘다",
                      "params": { "evoRing2Radius":320, "evoSecondaryDmgMul":0.5, "evoActionSlowSec":2.40 },
-                     "requiresPassive": { "id":"bulkhead", "level":3 } }
+                     "requiresPassive": { "id": "shockwave", "level":3 } }
     },
     {
       "id": "missile", "slotClass": "element", "family": "missile", "name": "미사일", "desc": "느린 로켓이 닿거나 사라지는 자리에서 터진다",
@@ -154,7 +154,7 @@
                   {"dmg":30}, {"dmg":34,"count":3} ],
       "evolution": { "name":"클러스터", "desc":"폭발이 자탄으로 갈라져 한 번 더 터진다",
                      "params": { "evoClusterCount":4, "evoClusterDmgMul":0.5 },
-                     "requiresPassive": { "id":"coil", "level":3 } }
+                     "requiresPassive": { "id": "shockwave", "level":3 } }
     },
     {
       "id": "chain", "slotClass": "element", "family": "chain", "name": "체인 라이트닝", "desc": "가까운 적에서 적으로 번개가 튄다",
@@ -166,7 +166,7 @@
                   {"dmg":33,"chainCount":6}, {"dmg":38,"count":2} ],
       "evolution": { "name":"폭풍", "desc":"연쇄가 두 배로 길어지고, 상성 적에서 두 갈래로 갈라진다",
                      "params": { "evoForkOnSuper":true, "evoChainCountMul":2.0 },
-                     "requiresPassive": { "id":"resonance", "level":3 } }
+                     "requiresPassive": { "id": "highvolt", "level":3 } }
     },
     {
       "id": "beam", "slotClass": "element", "family": "beam", "name": "빔", "desc": "가장 가까운 적에게 레이저를 계속 댄다",
@@ -178,7 +178,7 @@
                   {"dmg":8,"rangePx":420,"pierce":3}, {"dmg":9,"count":3} ],
       "evolution": { "name":"프리즘 빔", "desc":"뚫은 적에서 빔이 갈라져 주변 적을 함께 지진다",
                      "params": { "evoSplitCount":2, "evoSplitDmgMul":0.6, "evoSplitRangePx":140 },
-                     "requiresPassive": { "id":"coating", "level":3 } }
+                     "requiresPassive": { "id": "lens", "level":3 } }
     },
     {
       "id": "pinball", "slotClass": "element", "family": "pinball", "name": "핀볼", "desc": "벽에 튕기는 무거운 공이 오래 남아 여러 번 때린다",
@@ -191,7 +191,7 @@
                   {"dmg":30,"cooldownSec":1.30}, {"dmg":36,"count":3} ],
       "evolution": { "name":"멀티볼", "desc":"벽에 튕길 때마다 공이 하나 더 갈라진다",
                      "params": { "evoSplitOnBounce":true, "evoMaxBalls":8 },
-                     "requiresPassive": { "id":"battery", "level":3 } }
+                     "requiresPassive": { "id": "battery", "level":3 } }
     },
     {
       "id": "spiral", "slotClass": "element", "family": "spiral", "name": "스파이럴", "desc": "좌우로 나선을 그리며 올라가 세로 띠를 덮는다",
@@ -204,7 +204,7 @@
                   {"dmg":15}, {"dmg":18,"count":4} ],
       "evolution": { "name":"토네이도", "desc":"나선이 화면 폭을 쓸고 더 오래 남는다",
                      "params": { "evoAmpMul":1.8, "evoLifetimeMul":1.4 },
-                     "requiresPassive": { "id":"stabilizer", "level":3 } }
+                     "requiresPassive": { "id": "autoload", "level":3 } }
     }
   ]
 }

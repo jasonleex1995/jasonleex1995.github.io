@@ -11,7 +11,7 @@
  *   진화(폭풍): 연쇄 수 × evoChainCountMul, 그리고 상성 ×2 로 맞은 적에서는 줄기가 «둘로 갈라진다»(evoForkOnSuper).
  *
  * 렌더 신호: world.chainFx(§7.4 ㉟ — 선분 링, draw.drawChainFx) 에 홉마다 선분 1개 + 짧은 수명(cooldownSec 의 절반).
- * 훅: rateKey cooldownSec · countKey count · pierceApplies false · areaKeys [] · speedKeys [] · durationKeys []
+ * 훅(㊲ 빔 분류): rateKey cooldownSec · countKey null · pierceApplies false · beamKeys [chainRangePx, acquireRadius] · dmgStat beamDmgMul
  * 탄이 없다(hitEnemy 직접). 스크래치: cooldownT 만. 레퍼런스: 뱀서 번개 반지 · 디아블로 체인 라이트닝
  */
 
@@ -19,6 +19,7 @@ import { hitEnemy, onScreen } from '../damage.js';
 import { hitTier } from '../elements.js';
 import { stampFor } from '../stance.js';
 import { killEnemy, pushChainFx } from '../step.js';
+import { familyDmgMul } from '../state.js';
 
 const NEAREST = 'nearest';
 
@@ -71,7 +72,7 @@ function bolt(world, slot, eff, stamp, sx, sy, first, hops, mul, epoch, canFork)
 
 function fire(world, slot, eff) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'chain');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
   const p = world.player;
   const stamp = stampFor(world, slot.index, 'spawn', slot.stampElement);

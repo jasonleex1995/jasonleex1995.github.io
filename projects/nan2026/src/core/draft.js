@@ -17,7 +17,7 @@
  *   선택이 아니라 자동 최적화가 된다.
  */
 
-import { giveWeapon, levelUpWeapon, givePassive, applyTrait } from './state.js';
+import { giveWeapon, levelUpWeapon, givePassive, applyTrait, passiveAppliesTo } from './state.js';
 import { WEAPON_MAX_LEVEL, WEAPON_EVOLVE_LEVEL } from './schema.mjs';
 import { investElement, investTotal, requestStance } from './stance.js';
 
@@ -71,6 +71,17 @@ function preyElement(world, el) {
  * §11.1 — 유효 후보 아이템 **전체**를 가중치와 함께 만든다.
  * 카테고리를 먼저 뽑지 않는다 — 이 목록 하나에서 비복원 추첨한다.
  */
+/** §11.1 ㊲ — 이 스탯이 보유 무기 중 하나에라도 유효한가(기체 스탯은 항상 참). 순수·0 alloc. */
+function passiveUsefulNow(world, stat) {
+  const hooks = world.data.rules.passiveHooks;
+  for (let i = 0; i < world.slots.length; i += 1) {
+    const sl = world.slots[i];
+    if (sl.weaponId === null) continue;
+    if (passiveAppliesTo(hooks[sl.family], world.weaponDefs[sl.family].base, stat)) return true;
+  }
+  return false;
+}
+
 export function candidates(world) {
   const d = world.data.meta.draft;
   const cw = d.categoryWeights;
@@ -153,9 +164,12 @@ export function candidates(world) {
   const full = passiveSlotsFull(world);
   for (let i = 0; i < ps.length; i += 1) {
     const lv = passiveLevel(world, ps[i].id);
-    if (lv >= maxLv) continue;                               // §11.1 — Lv5 이면 그 카드 제외
+    if (lv >= maxLv) continue;                               // §11.1 — 만렙이면 그 카드 제외
     if (lv === 0 && full) continue;                          // §11.1 — 6칸 만석 → 미보유 카드 제외
-    // ★ H4 — 훅이 무효인 패시브(autoload × aura/nova/drone 등)는 **제외하지 않는다**
+    // §11.1(v1.10 ㊲) — **미보유** 무기 분류 패시브(탄·빔·범위·궤도)는 «지금 보유한 무기 중 그 훅이 유효한 무기»가 있어야 나온다.
+    //   패시브 10 이 분류별로 갈리면서(빔 2·범위 2·궤도 1…) 빌드에 없는 분류의 카드가 죽은 카드가 됐다(3택 중 2장이 무효인 판).
+    //   보유(Lv≥1)한 뒤에는 계속 나온다(나중에 그 분류의 무기를 집을 수 있다). 기체 4 는 항상. ~~옛 H4 「무효여도 제외하지 않는다」~~
+    if (lv === 0 && !passiveUsefulNow(world, ps[i].stat)) continue;
     out.push({ category: CAT_PASSIVE, key: `${CAT_PASSIVE}:${ps[i].id}`,
       passiveId: ps[i].id, from: lv, to: lv + 1, isNew: lv === 0,
       weight: cw.passive * (lv === 0 ? d.passiveNewBonus : 1) });

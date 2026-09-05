@@ -34,9 +34,17 @@ export const SCHEMA_VERSION = 1;
 const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
   'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral'];   // ㉟ 15종
-const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
-  'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'projSpeedMul', 'durationMul',
-  'xpGainMul'];
+// §9.6(v1.10 ㊲) 14 스탯 = 14 패시브 1:1. 분류: 공용 1(fireRateMul) · 탄 4(projCountAdd·pierceAdd·projSpeedMul·durationMul) ·
+//   빔 2(beamDmgMul·beamAreaMul) · 범위 2(areaMul·areaDmgMul) · 궤도 1(orbitMul) · 기체 4(maxHpAdd·terrainResist·xpGainMul·elementBonusMul).
+//   ~~dmgMul(탄두 증량)~~ ~~ghostSecOnHit(잔광)~~ ~~hitBulletClearRadius(반응 장갑)~~ 폐지.
+const PASSIVE_STATS = ['fireRateMul', 'projCountAdd', 'pierceAdd', 'projSpeedMul', 'durationMul',
+  'beamDmgMul', 'beamAreaMul', 'areaMul', 'areaDmgMul', 'orbitMul',
+  'maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];
+/** §9.6.1 ㊲ — 무기 피해 스탯(dmgStat)의 어휘. null = 그 패밀리엔 피해 패시브가 없다(탄·펄스필드·궤도). */
+const DMG_STATS = ['beamDmgMul', 'areaDmgMul', 'orbitMul'];
+/** §9.6 ㊲ — 기체 패시브(무기와 무관, 모든 빌드에 유효). 나머지 10 은 «무기 분류 패시브»다. */
+const BODY_STATS = ['maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];
+const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep'];
@@ -263,8 +271,12 @@ function checkRules(c, r) {
     for (let i = 0; i < FAMILIES.length; i += 1) {
       const f = FAMILIES[i];
       if (!own(r.passiveHooks, f)) continue;
-      c.closed(`rules.passiveHooks.${f}`, r.passiveHooks[f],
-        ['rateKey', 'countKey', 'pierceApplies', 'areaKeys', 'speedKeys', 'durationKeys']);   // ㉟ H5·H6
+      if (!c.closed(`rules.passiveHooks.${f}`, r.passiveHooks[f], HOOK_KEYS)) continue;   // ㉟ H5·H6 · ㊲ H7 beamKeys · H8 orbitKeys · dmgStat
+      const h = r.passiveHooks[f];
+      if (h.dmgStat !== null && !c.vocab(`rules.passiveHooks.${f}.dmgStat`, h.dmgStat, DMG_STATS)) continue;
+      for (const k of ['speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys']) {
+        if (!Array.isArray(h[k])) c.fail(`rules.passiveHooks.${f}.${k}`, '배열이어야 한다 (§9.6.1)');
+      }
     }
   }
 
@@ -407,15 +419,15 @@ function checkPassives(c, ps) {
   c.closed('passives', ps, ['schemaVersion', 'maxLevel', 'stats', 'passives']);
   // §9.6 — 폐쇄 스탯 어휘 11종. 전수 일치 (순서는 정본의 인쇄 순서를 따르지 않아도 된다)
   //   v1.5: salvage(coinGainMul) 제거 = 경제 폐지 → 12→11
-  if (c.arr('passives.stats', ps.stats, 13)) {
+  if (c.arr('passives.stats', ps.stats, PASSIVE_STATS.length)) {
     for (let i = 0; i < ps.stats.length; i += 1) c.vocab(`passives.stats[${i}]`, ps.stats[i], PASSIVE_STATS);
     for (let i = 0; i < PASSIVE_STATS.length; i += 1) {
       if (ps.stats.indexOf(PASSIVE_STATS[i]) < 0) {
-        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 13종`);
+        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 ${PASSIVE_STATS.length}종`);
       }
     }
   }
-  if (!c.arr('passives.passives', ps.passives, 13)) return;
+  if (!c.arr('passives.passives', ps.passives, PASSIVE_STATS.length)) return;
   const seen = [];
   for (let i = 0; i < ps.passives.length; i += 1) {
     const it = ps.passives[i];

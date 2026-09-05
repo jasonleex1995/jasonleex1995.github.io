@@ -18,7 +18,7 @@
  */
 
 import { DEG2RAD } from '../angle.js';
-import { spawnPlayerBullet } from '../state.js';
+import { spawnPlayerBullet, familyDmgMul } from '../state.js';
 import { hitEnemy } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
@@ -38,7 +38,7 @@ const ctx = { matrix: null, dmgMulSum: 0, elementBonusMul: 1 };
  */
 function blast(world, slot, eff, b) {
   ctx.matrix = world.data.elements.matrix;
-  ctx.dmgMulSum = world.stats.dmgMul;
+  ctx.dmgMulSum = familyDmgMul(world, 'fan');   // §3.1-2항(㊲) 패밀리의 피해 스탯
   ctx.elementBonusMul = world.stats.elementBonusMul;
 
   // §4.4 — 폭발은 그 탄의 것이므로 **탄에 각인된 속성**을 그대로 쓴다 (step.js 의 충돌 경로와 동일)

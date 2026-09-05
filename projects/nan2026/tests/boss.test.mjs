@@ -10,7 +10,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnEnemyBullet, spawnPlayerBullet, recomputeEff } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnEnemyBullet, spawnPlayerBullet, recomputeEff, familyDmgMul } from '../src/core/state.js';
 import { killEnemy, step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
@@ -238,7 +238,7 @@ suite('boss/레이어 봉인 (§8.11 v1.5)', () => {
     // 무기 모듈(§9.5)이 만드는 것과 동일한 §3.1 컨텍스트
     const ctx = {
       matrix: w.data.elements.matrix,
-      dmgMulSum: w.stats.dmgMul,
+      dmgMulSum: familyDmgMul(w, 'nova'),   // ㊲ 패밀리의 피해 스탯(노바 = areaDmgMul)
       elementBonusMul: w.stats.elementBonusMul,
     };
     const stamp = stampFor(w, 0, 'spawn', w.slots[0].stampElement);

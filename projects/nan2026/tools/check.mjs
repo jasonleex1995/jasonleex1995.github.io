@@ -278,9 +278,36 @@ const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter',
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
-const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral']; // §9.5 (10 — v1.5: omni·mine 삭제)
-const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
-  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul', 'projSpeedMul', 'durationMul'];   // §9.6 (13 — ㉟ 추진기·장기 배터리)
+const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral']; // §9.5 (15 — ㉟)
+/** §9.5 ㊲ 무기 분류 — 탄 7 · 빔 3 · 범위 3 · 궤도 2 (패시브 분류와 짝, §9.6) */
+const WEAPON_CLASS = {
+  forward: 'bullet', fan: 'bullet', spiral: 'bullet', seeker: 'bullet', boomerang: 'bullet', missile: 'bullet', pinball: 'bullet',
+  lance: 'beam', beam: 'beam', chain: 'beam',
+  aura: 'area', nova: 'area', barrage: 'area',
+  orbit: 'orbital', drone: 'orbital',
+};
+const PASSIVE_STATS = ['fireRateMul', 'projCountAdd', 'pierceAdd', 'projSpeedMul', 'durationMul',
+  'beamDmgMul', 'beamAreaMul', 'areaMul', 'areaDmgMul', 'orbitMul',
+  'maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];   // §9.6 (14 — ㊲ 공용 1·탄 4·빔 2·범위 2·궤도 1·기체 4)
+const BODY_STATS = ['maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];                                 // §9.6 ㊲ 기체 4(무기 짝이 될 수 없다)
+const DMG_STATS = ['beamDmgMul', 'areaDmgMul', 'orbitMul'];                                                                  // §9.6.1 ㊲ dmgStat 어휘
+const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat'];
+/** §11.1 ㊲ — 패시브 stat 이 패밀리에 기계적으로 유효한가(state.js passiveAppliesTo 와 같은 표 — check 는 독립 사본) */
+function passiveAppliesTo(h, base, stat) {
+  switch (stat) {
+    case 'fireRateMul': return h.rateKey !== null;
+    case 'projCountAdd': return h.countKey !== null;
+    case 'pierceAdd': return h.pierceApplies === true && base.pierce !== -1;
+    case 'projSpeedMul': return Array.isArray(h.speedKeys) && h.speedKeys.length > 0;
+    case 'durationMul': return Array.isArray(h.durationKeys) && h.durationKeys.length > 0;
+    case 'beamDmgMul': return h.dmgStat === 'beamDmgMul';
+    case 'beamAreaMul': return Array.isArray(h.beamKeys) && h.beamKeys.length > 0;
+    case 'areaMul': return Array.isArray(h.areaKeys) && h.areaKeys.length > 0;
+    case 'areaDmgMul': return h.dmgStat === 'areaDmgMul';
+    case 'orbitMul': return (Array.isArray(h.orbitKeys) && h.orbitKeys.length > 0) || h.dmgStat === 'orbitMul';
+    default: return true;
+  }
+}
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
 const BULLET_SHAPES = ['circle', 'hex'];                                                                         // §9.7 (2)
 const BULLET_STATUS = [null, 'slow', 'stun'];                                                                    // §9.7
@@ -574,7 +601,10 @@ function S2_schema() {
   if (isObj(r.passiveHooks)) {
     for (const f of FAMILIES) {
       if (!has(r.passiveHooks, f)) continue;
-      closedKeys('S2', r.passiveHooks[f], ['rateKey', 'countKey', 'pierceApplies', 'areaKeys', 'speedKeys', 'durationKeys'], `rules.passiveHooks.${f}`);
+      closedKeys('S2', r.passiveHooks[f], HOOK_KEYS, `rules.passiveHooks.${f}`);
+      if (has(r.passiveHooks[f], 'dmgStat') && r.passiveHooks[f].dmgStat !== null && !DMG_STATS.includes(r.passiveHooks[f].dmgStat)) {
+        V('S2', `rules.passiveHooks.${f}.dmgStat = ${JSON.stringify(r.passiveHooks[f].dmgStat)} — 어휘 = null | ${DMG_STATS.join(' | ')} (§9.6.1 ㊲)`);
+      }
       if (has(r.passiveHooks[f], 'pierce')) {
         V('S2', `rules.passiveHooks.${f}.pierce: 개명된 키 → pierceApplies (§9.6.1/§23.3) — 무기 파라미터 pierce(정수)와 이름이 충돌했다`);
       }
@@ -669,7 +699,7 @@ function S2_files() {
     // §9.6 "폐쇄 스탯 어휘 11종, 11 패시브와 1:1" (v1.5 salvage 제거)
     const stats = D.passives.passives.map((p) => p && p.stat);
     if (new Set(stats).size !== stats.length) V('S2', 'passives: stat 중복 — §9.6 "11훅 = 11 패시브 1:1"');
-    if (D.passives.passives.length !== 13) V('S2', `passives: ${D.passives.passives.length}종 ≠ 13 (§9.6 ㉟)`);
+    if (D.passives.passives.length !== PASSIVE_STATS.length) V('S2', `passives: ${D.passives.passives.length}종 ≠ ${PASSIVE_STATS.length} (§9.6 ㊲)`);
   }
 
   // --- bullets.json (§9.7) — ★ v1.3: speed 삭제 (탄 속도는 이미터가 소유) ---
@@ -2701,12 +2731,22 @@ function S34_familyBaseKeys() {
       if (h.countKey !== null && !space.has(h.countKey)) {
         V('S34', `rules.passiveHooks.${f}.countKey = ${JSON.stringify(h.countKey)} 가 "${f}" 의 계약에 없다 (§9.6.1)`);
       }
-      for (const k of rowsQuiet(h.areaKeys)) {
-        if (!space.has(k)) {
-          V('S34', `rules.passiveHooks.${f}.areaKeys 의 ${JSON.stringify(k)} 가 "${f}" 의 계약에 없다 `
-            + `(§9.6.1 — src = base ∪ evolution.params 가 유효 파라미터 공간이다)`);
+      for (const arr of ['areaKeys', 'speedKeys', 'durationKeys', 'beamKeys', 'orbitKeys']) {   // ㊲ H2·H5·H6·H7·H8 전부 같은 규약
+        for (const k of rowsQuiet(h[arr])) {
+          if (!space.has(k)) {
+            V('S34', `rules.passiveHooks.${f}.${arr} 의 ${JSON.stringify(k)} 가 "${f}" 의 계약에 없다 `
+              + `(§9.6.1 — src = base ∪ evolution.params 가 유효 파라미터 공간이다)`);
+          }
         }
       }
+      // ㊲ 분류 순수성 — 탄 특화 훅(countKey·pierceApplies·speedKeys·durationKeys)은 탄 패밀리에만, 빔 훅(beamKeys·beamDmgMul)은 빔에만,
+      //   범위 훅(areaKeys·areaDmgMul)은 범위 + 미사일 폭발에만, 궤도 훅(orbitKeys)은 궤도에만. 표는 §9.6.1.
+      const cls = WEAPON_CLASS[f];
+      const bulletHook = h.countKey !== null || h.pierceApplies === true || (h.speedKeys || []).length > 0 || (h.durationKeys || []).length > 0;
+      if (bulletHook && cls !== 'bullet') V('S34', `rules.passiveHooks.${f}: 탄 특화 훅(countKey/pierceApplies/speedKeys/durationKeys)이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲)`);
+      if (((h.beamKeys || []).length > 0 || h.dmgStat === 'beamDmgMul') && cls !== 'beam') V('S34', `rules.passiveHooks.${f}: 빔 훅이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲)`);
+      if (((h.areaKeys || []).length > 0 || h.dmgStat === 'areaDmgMul') && cls !== 'area' && f !== 'missile') V('S34', `rules.passiveHooks.${f}: 범위 훅이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲ — 예외는 미사일 폭발뿐)`);
+      if (((h.orbitKeys || []).length > 0 || h.dmgStat === 'orbitMul') && cls !== 'orbital') V('S34', `rules.passiveHooks.${f}: 궤도 훅이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲)`);
     }
   }
 }
@@ -3656,14 +3696,15 @@ function S41_evolutionPairing() {
     if (!num(rp.level) || rp.level < 1 || rp.level > maxLv) {
       V('S41', `weapons[${w.id}]: requiresPassive.level ${JSON.stringify(rp.level)} — [1, ${maxLv}] 밖 (§9.5)`);
     }
-    // 기계적 유효성 — 짝 패시브가 이 무기에 무효면 «투자해도 소용없는 진화 조건»이 된다
+    // 기계적 유효성(㊲ 일반화) — 짝 패시브가 이 무기에 무효면 «투자해도 소용없는 진화 조건»이 된다. 표 = passiveAppliesTo(state.js 와 같은 표).
+    //   ★ 짝은 «무기 분류 패시브»여야 한다 — 기체 4(강화 격벽·자세 안정기·학습 회로·상성 증폭)는 짝이 될 수 없다(사용자 2026-09-05: 「무기 짝을 맞추는 방향」).
     const h = hooks[w.family];
-    if (isObj(h)) {
-      if (rp.id === 'coating' && h.pierceApplies === false) {
-        V('S41', `weapons[${w.id}]: 짝 coating(관통 +N)은 이 무기에 무효(pierceApplies=false) — §9.5 "기계적으로 유효해야 한다"`);
-      }
-      if (rp.id === 'autoload' && (h.countKey === null || h.countKey === undefined)) {
-        V('S41', `weapons[${w.id}]: 짝 autoload(발사 개체 수 +N)은 이 무기에 무효(countKey=null) — §9.5`);
+    const pdef = byId[rp.id];
+    if (isObj(h) && isObj(pdef) && isObj(w.base)) {
+      if (BODY_STATS.includes(pdef.stat)) {
+        V('S41', `weapons[${w.id}]: 짝 ${rp.id}(${pdef.stat})은 기체 패시브다 — 진화 짝은 무기 분류 패시브여야 한다 (§9.5 ㊲)`);
+      } else if (!passiveAppliesTo(h, w.base, pdef.stat)) {
+        V('S41', `weapons[${w.id}]: 짝 ${rp.id}(${pdef.stat})은 이 무기에 무효 — §9.5 "기계적으로 유효해야 한다" (훅 표 §9.6.1)`);
       }
     }
   }

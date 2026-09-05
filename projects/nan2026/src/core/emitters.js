@@ -13,7 +13,7 @@
  *          데이터대로 발사한다. ★ 텔레그래프 리드: 각 발사는 그 볼리의 telegraphSec **뒤에** 일어난다
  *          (t_fire = firstDelaySec + telegraphSec + offsetSec + k·everySec). 텔레그래프의 **그리기**는
  *          렌더 소관(슬라이스 밖)이지만, 타이밍 리드를 여기서 보존하므로 렌더가 붙어도 core 무변경.
- *   §9.9.2 aimed 는 leadSec 만큼 플레이어 속도를 앞질러 조준한다. §9.6 afterimage(ghostSec)면 조준 제외.
+ *   §9.9.2 aimed 는 leadSec 만큼 플레이어 속도를 앞질러 조준한다.
  *   §10.2  결정성 — 발사 각/개수/타이밍이 전부 e.x/e.y/player 상태와 데이터의 **결정 함수**다.
  *          난수를 쓰지 않으므로(쓴다면 world.rng.pattern 만) 같은 시드 = 같은 탄 시퀀스.
  *   §10.3  인덱스 오름차순 순회 · 조회 인덱스(emitById/archById)는 최초 1회만 alloc(핫패스 0 alloc).
@@ -111,18 +111,11 @@ function fireSpread(world, e, em, count, spreadDeg, baseAngle) {
 }
 
 /**
- * §8.5 aimed — 플레이어를 leadSec 만큼 앞질러 조준한 뒤 spreadDeg 로 편다.
- * §9.6 afterimage — ghostSec>0(피격 직후)면 조준 대상에서 제외 → 직하강으로 폴백(지어낸 규칙 아님).
+ * §8.5 aimed — 플레이어를 leadSec 만큼 앞질러 조준한 뒤 spreadDeg 로 편다. (v1.10 ㊲: 잔광(ghostSec) 조준 제외 폐지)
  */
 function fireAimed(world, e, em, p, count) {
-  let dx;
-  let dy;
-  if (p.ghostSec > 0) {
-    dx = 0; dy = 1;                                        // 조준 제외 = 아래로
-  } else {
-    dx = (p.x + p.vx * em.leadSec) - e.x;
-    dy = (p.y + p.vy * em.leadSec) - e.y;
-  }
+  const dx = (p.x + p.vx * em.leadSec) - e.x;
+  const dy = (p.y + p.vy * em.leadSec) - e.y;
   fireSpread(world, e, em, count, em.spreadDeg, Math.atan2(dx, dy));   // atan2(dx,dy): +y 축 기준각
 }
 
