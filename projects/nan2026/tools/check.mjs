@@ -614,7 +614,7 @@ function S2_schema() {
   closedKeys('S2', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings'], 'rules.input');
   if (isObj(r.input)) {
     closedKeys('S2', r.input.bindings, ['move', 'stanceNormal', 'stanceFire', 'stanceWater', 'stanceGrass',
-      'pause', 'options', 'tutorial', 'draftPick', 'reorderToggle', 'grab',
+      'pause', 'options', 'draftPick', 'reorderToggle', 'grab',
       'confirm', 'mute', 'cursor'], 'rules.input.bindings');
   }
 

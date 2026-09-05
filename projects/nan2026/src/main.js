@@ -444,7 +444,12 @@ async function boot() {
 
   let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | PAUSE | RESULTS | TOO_SMALL  (v1.5: SHOP·DEATH 폐지)
   const DIFFS = Object.keys(data.meta.difficulty).filter((k) => data.meta.difficulty[k].speed !== undefined);
-  let diffCursor = 0;
+  // §6.7(㊵ 개정) 시작 메뉴 = 「튜토리얼 + 난이도들」. 사용자(2026-09-05): 「노말·하드·헬… 에 튜토리얼을 넣자」.
+  //   튜토리얼은 난이도가 아니므로 meta.difficulty 에 넣지 않는다(배속·점수 배율이 없는 항목이 그 표에 들어가면 표가 거짓말한다).
+  //   대신 **메뉴의 첫 줄**로 세운다 — 처음 온 사람이 가장 먼저 보는 자리.
+  const MENU_TUTORIAL = 'tutorial';
+  const MENU = [MENU_TUTORIAL, ...DIFFS];
+  let diffCursor = 1;                        // 기본 커서 = 첫 난이도(노말). 튜토리얼은 «고르러 가는» 자리다
   let optionsFrom = 'TITLE';                 // OPTIONS 를 어디서 들어왔는가(나갈 때 복귀)
   let tooSmallReturn = 'TITLE';              // TOO_SMALL 에서 복귀할 상태
   let draft = null;
@@ -580,16 +585,18 @@ async function boot() {
 
     // ── §6.5 메뉴(런 없음) ─────────────────────────────────────────
     if (state === 'TITLE') {
-      if (edge.pressed(rules.input.bindings.tutorial)) { startTutorial(); return; }   // §6.7 ㊴ — 처음이면 여기부터
       if (advanceEdge) enter('DIFFICULTY');
       else if (optionsEdge) { optionsFrom = 'TITLE'; enter('OPTIONS'); }
       renderFrame();
       return;
     }
     if (state === 'DIFFICULTY') {
-      if (upEdge) diffCursor = (diffCursor + DIFFS.length - 1) % DIFFS.length;
-      if (downEdge) diffCursor = (diffCursor + 1) % DIFFS.length;
-      if (advanceEdge) startRun(DIFFS[diffCursor]);   // → THEME_BANNER
+      if (upEdge) diffCursor = (diffCursor + MENU.length - 1) % MENU.length;
+      if (downEdge) diffCursor = (diffCursor + 1) % MENU.length;
+      if (advanceEdge) {
+        if (MENU[diffCursor] === MENU_TUTORIAL) startTutorial();       // §6.7 — 난이도가 아니라 «연습»
+        else startRun(MENU[diffCursor]);                               // → THEME_BANNER
+      }
       else if (pauseEdge) enter('TITLE');
       renderFrame();
       return;
@@ -627,7 +634,7 @@ async function boot() {
     if (world !== null && world.tut !== undefined && state === 'PLAY') {
       world.over = false;                                          // 튜토리얼에는 사망이 없다(§6.7) — step 은 over 면 아무것도 안 한다
       if (advanceEdge) tutorialConfirm(world);
-      if (world.tut.done) { world = null; document.title = baseTitle; enter('TITLE'); return; }
+      if (world.tut.done) { world = null; document.title = baseTitle; enter('DIFFICULTY'); return; }   // 끝나면 시작 메뉴로(바로 난이도를 고를 수 있게)
     }
 
     if (state === 'PLAY') {
@@ -736,23 +743,30 @@ async function boot() {
     const h = rules.hud;
     mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
-    mText('[Space/Enter] 시작        [T] 튜토리얼        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
+    mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
   const DIFF_LABEL = { normal: '노멀', hard: '하드', hell: '헬', disaster: '디재스터' };
   function drawDifficultyScreen() {
     const h = rules.hud;
-    mText('난이도 선택', view.logicalH / 2 - 110, h.fontLargePx, pal.hud.textPrimary, 800);
-    for (let i = 0; i < DIFFS.length; i += 1) {
-      const id = DIFFS[i];
-      const d = data.meta.difficulty[id];
+    mText('시작', view.logicalH / 2 - 130, h.fontLargePx, pal.hud.textPrimary, 800);
+    for (let i = 0; i < MENU.length; i += 1) {
+      const id = MENU[i];
       const sel = i === diffCursor;
-      const y = view.logicalH / 2 - 40 + i * 40;
-      const label = `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
+      // 튜토리얼 줄 아래에 설명 한 줄이 들어가므로 그 뒤의 난이도들을 한 칸 더 내린다(겹침 방지)
+      const y = view.logicalH / 2 - 70 + i * 40 + (i > 0 ? 16 : 0);
+      const tut = id === MENU_TUTORIAL;
+      const d = tut ? null : data.meta.difficulty[id];
+      const label = tut
+        ? `${sel ? '▶ ' : '   '}튜토리얼   ${data.tutorial.steps.length}단계 · 죽지 않는다`
+        : `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
       mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
+      // 튜토리얼 줄만 한 줄 더 — «처음이라면 여기부터»가 이 메뉴의 유일한 안내다
+      if (tut) mText('조작 · 속성 상성 · 스탠스 · 적 탄 · 지형 · 보스의 봉인', y + 20, h.fontSmallPx,
+        sel ? pal.hud.textDim : rgba(pal.hud.textDim, 0.45), 400);
     }
     mText('[↑↓] 선택   [Space/Enter] 시작   [Esc] 뒤로',
-      view.logicalH / 2 + 120, h.fontSmallPx, pal.hud.textDim, 400);
+      view.logicalH / 2 + 150, h.fontSmallPx, pal.hud.textDim, 400);
   }
   function drawOptionsScreen() {
     const h = rules.hud;

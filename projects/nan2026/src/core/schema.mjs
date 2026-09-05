@@ -282,7 +282,7 @@ function checkRules(c, r) {
   c.closed('rules.input', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings']);
   if (isObj(r.input)) {
     c.closed('rules.input.bindings', r.input.bindings, ['move', 'stanceNormal', 'stanceFire',
-      'stanceWater', 'stanceGrass', 'pause', 'options', 'tutorial', 'draftPick',
+      'stanceWater', 'stanceGrass', 'pause', 'options', 'draftPick',
       'reorderToggle', 'grab', 'confirm', 'mute', 'cursor']);
   }
 
