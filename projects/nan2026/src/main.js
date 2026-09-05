@@ -268,6 +268,10 @@ function makeAudio(rules) {
   let bgmOn = false;
   let bgmStep = 0;
   let bgmNextT = 0;
+  // ★ ㊶ — 예약해 둔 BGM 음을 들고 있는다. 탭이 숨겨지면 AudioContext 가 «정지»하고(브라우저 정책) 그동안 currentTime 이 멈춘다.
+  //   돌아오면 예약 시각이 전부 과거가 되어 **한꺼번에 울린다** — 사용자가 들은 「노래가 중복되는」 순간이 이것이다(§7.10).
+  //   그래서 숨겨질 때 예약분을 끊고(bgmPause) 돌아올 때 새로 시작한다.
+  let bgmVoices = [];
   function bgmNote(freq, t0, dur, type, peak) {
     if (freq <= 0) return;
     const o = ctx.createOscillator();
@@ -279,11 +283,13 @@ function makeAudio(rules) {
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(g); g.connect(bgmBus);
     o.start(t0); o.stop(t0 + dur + 0.02);
+    bgmVoices.push({ o, until: t0 + dur + 0.02 });
   }
   function bgmSchedule() {                                       // 매 프레임 호출 — ~0.35s 앞을 채운다
     if (!bgmOn || ctx === null || ctx.state !== 'running') return;
     const now = ctx.currentTime;
     if (bgmNextT < now) bgmNextT = now + 0.05;
+    if (bgmVoices.length > 64) bgmVoices = bgmVoices.filter((v) => v.until > now);   // 끝난 보이스는 흘려보낸다(0 alloc 아님, 초당 수 회)
     while (bgmNextT < now + 0.35) {
       const li = NF[BLEAD[bgmStep % BLEAD.length]];
       const bi = NF[BBASS[bgmStep % BBASS.length]];
@@ -329,6 +335,17 @@ function makeAudio(rules) {
       } catch (e) { /* 무음 폴백 */ }
     },
     bgmStop() { bgmOn = false; },
+    /** ㊶ 탭이 숨겨질 때 — 예약된 음을 «즉시» 끊고 위상을 버린다. 돌아오면 bgmStart 가 지금 시각에 다시 건다. */
+    bgmPause() {
+      try {
+        bgmOn = false;
+        bgmNextT = 0;
+        if (ctx === null) return;
+        const now = ctx.currentTime;
+        for (const v of bgmVoices) { try { v.o.stop(now); } catch (e) { /* 이미 끝난 보이스 */ } }
+        bgmVoices = [];
+      } catch (e) { /* 무음 폴백 */ }
+    },
     bgmTick() { try { if (bgmOn) bgmSchedule(); } catch (e) { /* */ } },
   };
 }
@@ -482,6 +499,14 @@ async function boot() {
       kb.clear();
       acc = 0;
       if (state === 'PLAY') enter('PAUSE');
+    });
+  }
+  // §7.10(㊶) — 탭이 숨겨지면 BGM 을 «끊는다». rAF 가 멈춰 스케줄은 알아서 서지만, **이미 예약된 음**은 컨텍스트가
+  //   깨어나는 순간 한꺼번에 울린다(= 노래가 겹쳐 들린다, 사용자 보고 2026-09-05). 돌아오면 지금 시각에 새로 건다.
+  if (audio !== null) {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { audio.bgmPause(); kb.clear(); acc = 0; }
+      else audio.bgmStart();
     });
   }
 

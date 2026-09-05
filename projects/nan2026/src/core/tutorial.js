@@ -24,6 +24,7 @@ import { TERRAIN_KINDS } from './schema.mjs';
 export const GOALS = ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];
 
 const STANCE_ELEMENTS = ['fire', 'water', 'grass'];
+const REFILL_SEC = 1.5;   // 표적이 다 떨어지고 이만큼 지나면 다시 놓는다(구조 상수 — 밸런스 값 아님)
 
 export function makeTutorialState() {
   return {
@@ -33,7 +34,8 @@ export function makeTutorialState() {
     movedPx: 0,           // move 목표 누적
     lastX: 0, lastY: 0,
     superHits: 0,         // superHit 목표 누적(×2 를 맞은 개체 수)
-    superSeen: 0,         // 직전까지 ×2 를 맞은 개체 수(증가분만 센다)
+    superFlag: [],        // 개체마다 «이미 셌는가» 래치 — 개체가 죽어 사라져도 셈이 되돌아가지 않는다
+    refillT: 0,           // 표적이 다 떨어졌을 때의 재보급 대기(초) — 튜토리얼은 «막히지 않는다»
     stanceSeen: [],       // stances 목표 — 눌러 본 속성
     terrainHits: 0,
     ids: [],              // 이 스텝이 놓은 개체(idx, gen)
@@ -52,21 +54,11 @@ export function tutorialStep(world) {
 /** confirm 목표를 올린다(드라이버의 Space). 다른 목표엔 영향이 없다. */
 export function tutorialConfirm(world) { world.tut.confirm = true; }
 
-function enterStep(world) {
+/** 스텝의 적을 놓는다. 아레나 가운데 기준 좌우 대칭 · 난수 0(§10.2 — 튜토리얼은 매번 같아야 배울 수 있다). */
+function spawnStepEnemies(world, st) {
   const tu = world.tut;
-  const st = tutorialStep(world);
-  tu.entered = true;
-  tu.t = 0; tu.superHits = 0; tu.superSeen = 0; tu.terrainHits = 0; tu.confirm = false; tu.ids.length = 0;
-  tu.movedPx = 0; tu.lastX = world.player.x; tu.lastY = world.player.y;
-  if (st === null) return;
   const cfg = world.data.tutorial;
   const a = world.data.rules.view.arena;
-
-  // grant — 속성 투자 1(스탠스가 «각인»으로 이어지는 것을 보이려면 투자가 있어야 한다).
-  //   ★ 반드시 investElement 로 준다 — 그 함수만이 §4.3 각인 재계산(recomputeStamps)을 부른다(직접 대입하면 각인이 안 내려간다).
-  if (st.grant !== null) investElement(world, st.grant.invest);
-
-  // spawn — 아레나 가운데를 기준으로 좌우 대칭 배치. 난수 0(§10.2 — 튜토리얼은 매번 같아야 배울 수 있다).
   const arch = world.data.enemies.archetypes;
   for (let k = 0; k < st.spawn.length; k += 1) {
     const sp = st.spawn[k];
@@ -76,9 +68,30 @@ function enterStep(world) {
     for (let n = 0; n < sp.count; n += 1) {
       const x = a.x + a.w / 2 + (n - (sp.count - 1) / 2) * cfg.spawnGapPx;
       const e = spawnEnemy(world, def.id, sp.element, x, cfg.spawnYPx, Math.max(1, def.hp * cfg.hpMul), false);
-      if (e !== null) { e.vy = 0; e.vx = 0; tu.ids.push(e.idx, e.gen); }
+      if (e !== null) { e.vy = 0; e.vx = 0; tu.ids.push(e.idx, e.gen); tu.superFlag.push(false); }
     }
   }
+}
+
+function enterStep(world) {
+  const tu = world.tut;
+  const st = tutorialStep(world);
+  tu.entered = true;
+  tu.t = 0; tu.superHits = 0; tu.terrainHits = 0; tu.confirm = false; tu.ids.length = 0; tu.superFlag.length = 0; tu.refillT = 0;
+  // ★ 스텝은 «깨끗한 판»에서 시작한다 — 앞 스텝에서 안 죽고 남은 적·탄이 다음 가르침을 흐린다
+  //   (실측: 3단계는 레벨업으로 끝나므로 잡몹이 남고, 4단계에서 풀 적과 섞여 「무엇을 때리라는 건지」가 사라졌다).
+  for (const e of world.enemies.items) if (e.alive) world.enemies.release(e);
+  for (const b of world.enemyBullets.items) if (b.alive) world.enemyBullets.release(b);
+  tu.movedPx = 0; tu.lastX = world.player.x; tu.lastY = world.player.y;
+  if (st === null) return;
+  const cfg = world.data.tutorial;
+  const a = world.data.rules.view.arena;
+
+  // grant — 속성 투자 1(스탠스가 «각인»으로 이어지는 것을 보이려면 투자가 있어야 한다).
+  //   ★ 반드시 investElement 로 준다 — 그 함수만이 §4.3 각인 재계산(recomputeStamps)을 부른다(직접 대입하면 각인이 안 내려간다).
+  if (st.grant !== null) investElement(world, st.grant.invest);
+
+  spawnStepEnemies(world, st);
 
   // boss 스텝 — 코어 1 + 모듈 2. 정본의 보스 정의를 그대로 쓰되 HP 만 연습용으로 낮춘다(§8.13 봉인 규칙은 진짜다).
   if (st.goal.kind === 'boss') {
@@ -87,11 +100,11 @@ function enterStep(world) {
     const cx = a.x + a.w / 2;
     const cy = cfg.spawnYPx + 40;
     const core = spawnBossCore(world, b.id, b.core, b.core.hp * cfg.hpMul * 0.25, cx, cy);
-    if (core !== null) { core.sealedNow = true; tu.ids.push(core.idx, core.gen); }
+    if (core !== null) { core.sealedNow = true; tu.ids.push(core.idx, core.gen); tu.superFlag.push(false); }
     const mods = b.parts.filter((p) => p.partType === 'armament').slice(0, 2);
     for (let k = 0; k < mods.length; k += 1) {
       const p = spawnBossPart(world, b.id, mods[k], mods[k].hp * cfg.hpMul * 0.25, cx, cy);
-      if (p !== null) tu.ids.push(p.idx, p.gen);
+      if (p !== null) { tu.ids.push(p.idx, p.gen); tu.superFlag.push(false); }
     }
   }
 }
@@ -157,15 +170,17 @@ export function tickTutorial(world, dt) {
   tu.movedPx += Math.abs(p.x - tu.lastX) + Math.abs(p.y - tu.lastY);
   tu.lastX = p.x; tu.lastY = p.y;
   // ×2 히트 — ★ hitFx 는 «이번 틱» 링이고 step 이 훅보다 **먼저** 비운다(훅은 collide 앞이다). 그래서 링이 아니라
-  //   개체가 들고 있는 누적(e.dmgSuper, §11.3 초효과 지분의 소유자)을 본다: 그 값이 «늘어난 개체 수»를 센다.
+  //   개체가 들고 있는 누적(e.dmgSuper, §11.3 초효과 지분의 소유자)을 본다.
+  //   ★★ 개체마다 «이미 셌다» 래치를 둔다 — 「살아 있는 개체 수」로 세면 **맞고 죽는 즉시 셈이 되돌아가** 목표가 영원히
+  //     안 찼다(플레이테스트 2026-09-05: 4단계에서 안 넘어감). 죽어도 래치는 남는다.
   {
     const items = world.enemies.items;
-    let cur = 0;
     for (let k = 0; k < tu.ids.length; k += 2) {
+      const f = k >> 1;
+      if (tu.superFlag[f]) continue;
       const e = items[tu.ids[k]];
-      if (e.gen === tu.ids[k + 1] && e.dmgSuper > 0) cur += 1;
+      if (e.gen === tu.ids[k + 1] && e.dmgSuper > 0) { tu.superFlag[f] = true; tu.superHits += 1; }
     }
-    if (cur > tu.superSeen) { tu.superHits += cur - tu.superSeen; tu.superSeen = cur; }
   }
   if (STANCE_ELEMENTS.indexOf(p.stance) >= 0 && tu.stanceSeen.indexOf(p.stance) < 0) tu.stanceSeen.push(p.stance);
   if (terrainUnder(world, p.x, p.y) !== null) tu.terrainHits += 1;
@@ -193,6 +208,13 @@ export function tickTutorial(world, dt) {
     }
     core.sealedNow = mods > 0;
   }
+
+  // ★ 막히지 않는다 — 표적이 필요한 스텝인데 다 죽었고 목표는 아직이면 다시 놓아 준다(REFILL_SEC 뒤).
+  //   실측(플레이테스트 2026-09-05): 4단계에서 풀 적 4기를 다 잡았는데 셈이 모자라 «영원히 안 넘어가는» 상태가 됐다.
+  if (st.spawn.length > 0 && st.goal.kind !== 'clear' && aliveOfStep(world) === 0 && !goalMet(world, st)) {
+    tu.refillT += dt;
+    if (tu.refillT >= REFILL_SEC) { tu.refillT = 0; spawnStepEnemies(world, st); }
+  } else tu.refillT = 0;
 
   if (goalMet(world, st)) {
     tu.i += 1;

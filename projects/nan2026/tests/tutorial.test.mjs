@@ -107,6 +107,61 @@ suite('tutorial — 진행 (§6.7)', () => {
     assert.lt(t, guard, '상한 안에서 끝났다');
   });
 
+  test('㊵-c 회귀 — ×2 를 맞은 적이 «죽어도» 셈이 되돌아가지 않는다 (4단계에서 안 넘어가던 버그)', () => {
+    const w = mk();
+    const steps = w.data.tutorial.steps;
+    const idx = steps.findIndex((s) => s.goal.kind === 'superHit');
+    w.tut.i = idx; w.tut.entered = false;
+    tick(w, 1);
+    const targets = w.enemies.items.filter((e) => e.alive);
+    assert.gt(targets.length, steps[idx].goal.value, '목표보다 적이 많다(vacuous 아님)');
+    const ctx = { matrix: w.data.elements.matrix, dmgMulSum: 0, elementBonusMul: 1 };
+    const stamp = stampFor(w, 0, 'spawn', 'fire');
+    // 한 마리씩 «×2 로 때리고 바로 죽인다» — 옛 판은 살아 있는 개체 수로 세서 첫 마리 뒤로는 하나도 안 세졌다
+    let counted = 0;
+    for (let k = 0; k < steps[idx].goal.value && w.tut.i === idx; k += 1) {
+      const e = w.enemies.items.find((x) => x.alive && x.element === 'grass');
+      assert.ok(e !== undefined, `${k + 1}번째 표적이 있다`);
+      assert.gt(hitEnemy(w, ctx, 'forward', 1, 1, stamp, e, 0), 0, '×2 히트가 실제로 들어갔다');
+      tick(w, 1);                                  // 훅이 래치를 본다
+      counted = Math.max(counted, w.tut.superHits);   // ★ 스텝이 넘어가면 카운터는 0 으로 리셋된다 — 넘기 «직전» 값을 본다
+      killEnemy(w, e);                             // 그리고 바로 죽인다 — 옛 판은 여기서 셈이 되돌아갔다
+      tick(w, 1);
+      counted = Math.max(counted, w.tut.superHits);
+    }
+    assert.gte(counted, steps[idx].goal.value, `×2 ${counted}회가 세졌다(죽어도 되돌아가지 않는다)`);
+    assert.gt(w.tut.i, idx, '다음 스텝으로 넘어갔다');
+  });
+
+  test('막히지 않는다 — 표적을 다 잡았는데 목표가 남으면 다시 놓아 준다', () => {
+    const w = mk();
+    const steps = w.data.tutorial.steps;
+    const idx = steps.findIndex((s) => s.goal.kind === 'superHit');
+    w.tut.i = idx; w.tut.entered = false;
+    tick(w, 1);
+    for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);   // 목표는 0인 채로 표적만 전멸
+    tick(w, 2);
+    assert.eq(w.enemies.items.filter((e) => e.alive).length, 0, '한동안은 비어 있다');
+    tick(w, Math.ceil(2.0 / TICK_DT));
+    assert.gt(w.enemies.items.filter((e) => e.alive).length, 0, '재보급됐다');
+    assert.eq(w.tut.i, idx, '스텝은 그대로(목표는 아직)');
+  });
+
+  test('스텝은 «깨끗한 판»에서 시작한다 — 앞 스텝의 잔여 적이 남지 않는다', () => {
+    const w = mk();
+    const steps = w.data.tutorial.steps;
+    w.tut.i = steps.findIndex((s) => s.goal.kind === 'level');   // 레벨업으로 끝나므로 적이 남는 스텝
+    w.tut.entered = false;
+    tick(w, 2);
+    const before = w.enemies.items.filter((e) => e.alive).length;
+    assert.gt(before, 0, '적이 있다');
+    w.player.level = 99;                                          // 목표 즉시 충족 → 다음 스텝
+    tick(w, 2);
+    const mine = new Set();
+    for (let k = 0; k < w.tut.ids.length; k += 2) mine.add(w.tut.ids[k]);
+    for (const e of w.enemies.items) if (e.alive) assert.ok(mine.has(e.idx), '무대의 적은 전부 이 스텝의 것');
+  });
+
   test('죽지 않는다 — HP 가 safeHpFloor 아래로 내려가면 가득 채운다 (적이 쏘는 스텝을 통째로 버틴다)', () => {
     const w = mk();
     const steps = w.data.tutorial.steps;
