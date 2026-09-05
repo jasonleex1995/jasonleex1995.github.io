@@ -3476,7 +3476,15 @@ function S59_traits() {
     n += 1;
     const mx = Math.max(...v); const mn = Math.min(...v);
     switch (t.effect.kind) {
-      case 'regenHpPerSec': if (mx > 2.0) V('S59', `${tag}: 최대 ${mx} > 2.0 HP/s (§11.6 ④)`); break;
+      case 'regenHpPerSec': {
+        // ㊺ «몰빵 보상» — 마지막 레벨만 뛴다(사용자 2026-09-06). Lv5 는 구슬 5개를 한 특성에 다 넣어야 서고, 다섯 번째 구슬은
+        //   스테이지 5 보스에서 나오므로 **그 레벨이 존재하는 구간은 최종 스테이지뿐**이다. 그래서 마지막만 상한을 연다.
+        const last = v[v.length - 1];
+        for (let i = 0; i < v.length - 1; i += 1) if (v[i] > 2.0) V('S59', `${tag}.values[${i}] = ${v[i]} > 2.0 HP/s — Lv1~4 는 기존 밴드다 (§11.6 ④)`);
+        if (last > 3.0) V('S59', `${tag}: 마지막 레벨 ${last} > 3.0 HP/s (§11.6 ④ 몰빵 상한)`);
+        if (last > v[v.length - 2] * 2) V('S59', `${tag}: 마지막 레벨 ${last} > 직전 ${v[v.length - 2]} × 2 — 몰빵 보상도 «두 배»까지다 (§11.6 ④)`);
+        break;
+      }
       case 'lifestealPct': if (mx > 0.02) V('S59', `${tag}: 최대 ${mx} > 0.02 (§11.6 ④)`); break;
       case 'shieldEverySec': {
         const lo = D.rules.player.iframeSec * 5;
