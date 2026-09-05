@@ -46,14 +46,14 @@ suite('tutorial — 데이터 (§6.7)', () => {
     assert.eq(steps[steps.length - 1].goal.kind, 'confirm', '마지막은 플레이어가 끝낸다');
     // 가르치는 개념이 실제로 들어 있다(공허 통과 방지)
     const kinds = steps.map((s) => s.goal.kind);
-    for (const k of ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss']) {
+    for (const k of ['move', 'clear', 'level', 'superHit', 'resistHit', 'stances', 'survive', 'terrain', 'boss']) {
       assert.ok(kinds.indexOf(k) >= 0, `${k} 를 가르친다`);
     }
   });
 });
 
 suite('tutorial — 진행 (§6.7)', () => {
-  test('9개 스텝을 목표 충족으로 전부 통과한다 (스크립트)', () => {
+  test('전 스텝을 목표 충족으로 통과한다 (스크립트 — 스텝이 늘어도 데이터에서 유도한다)', () => {
     const w = mk();
     const steps = w.data.tutorial.steps;
     const guard = 60 * 600;                       // 10분치 틱 상한(무한 루프 방지)
@@ -85,6 +85,11 @@ suite('tutorial — 진행 (§6.7)', () => {
         const e = w.enemies.items.find((x) => x.alive && x.element === 'grass');
         if (e) w.player.x = e.x;
         tick(w, 1, inp);
+      } else if (k === 'resistHit') {
+        // 불 스탠스 그대로 물 적을 때린다 → ×½ (스탠스는 앞 스텝에서 이미 불이다)
+        const e = w.enemies.items.find((x) => x.alive && x.element === 'water');
+        if (e) w.player.x = e.x;
+        tick(w, 1);
       } else if (k === 'stances') {
         const want = ['fire', 'water', 'grass'][Math.min(w.tut.stanceSeen.length, 2)];
         const inp = makeInput();

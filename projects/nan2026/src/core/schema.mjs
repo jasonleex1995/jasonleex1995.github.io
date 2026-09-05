@@ -140,7 +140,7 @@ export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fi
 export const TERRAIN_MIXED = 'mixed';
 export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
 export const WEAPON_CLASSES = ['bullet', 'beam', 'area', 'orbital'];   // §9.5 ㊲ 무기 분류(패시브 분류와 짝) · ㊵ 데이터가 소유한다
-export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];   // §6.7 ㊴
+export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'resistHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];   // §6.7 ㊴
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
 export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)

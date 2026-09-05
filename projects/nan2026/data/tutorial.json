@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "startWeaponId": "forward",
-  "spawnYPx": 150,
+  "spawnYPx": 250,
   "spawnGapPx": 90,
   "hpMul": 0.6,
   "safeHpFloor": 0.5,
@@ -21,10 +21,15 @@
       "goal": { "kind": "level", "value": 2 }, "grant": null,
       "spawn": [ { "archetypeId": "drifter", "element": "normal", "count": 6 } ] },
 
-    { "id": "matrix", "title": "속성 상성", "body": "왼쪽 상성표가 규칙이다. 내 스탠스가 «오른쪽 이웃»을 때리면 피해 ×2, 반대 방향이면 ×½.",
+    { "id": "matrix", "title": "속성 상성", "body": "왼쪽 상성표가 규칙이다. 내 스탠스가 «오른쪽 이웃»을 때리면 피해 ×2 — 체력바가 두 배로 빨리 준다.",
       "hint": "[W] 불 스탠스로 바꿔 풀(✚) 적을 전부 때려 보자 — 숫자가 커진다",
       "goal": { "kind": "superHit", "value": 3 }, "grant": {"invest": "fire"},
       "spawn": [ { "archetypeId": "drifter", "element": "grass", "count": 4 } ] },
+
+    { "id": "resist", "title": "반대 방향은 ½", "body": "같은 불 스탠스로 물(◆) 적을 때려 보자. 이번엔 피해가 절반이다 — 위의 숫자와 체력바가 그렇게 말한다.",
+      "hint": "스탠스는 그대로 [W] 불 · 물(◆) 적을 때려 보자",
+      "goal": { "kind": "resistHit", "value": 2 }, "grant": null,
+      "spawn": [ { "archetypeId": "drifter", "element": "water", "count": 3 } ] },
 
     { "id": "stance", "title": "스탠스 전환", "body": "Q 무 · W 불 · E 물 · R 풀. 속성에 투자한 수만큼 «앞쪽 무기»에 그 속성이 각인된다.",
       "hint": "세 속성(W·E·R)을 모두 한 번씩 눌러 보자",

@@ -21,7 +21,7 @@ import { investElement } from './stance.js';
 import { TERRAIN_KINDS } from './schema.mjs';
 
 /** §6.7 — 목표 어휘(닫힘). schema.mjs · check.mjs 가 같은 목록을 갖는다(독립 사본). */
-export const GOALS = ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];
+export const GOALS = ['move', 'clear', 'level', 'superHit', 'resistHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];
 
 const STANCE_ELEMENTS = ['fire', 'water', 'grass'];
 const REFILL_SEC = 1.5;   // 표적이 다 떨어지고 이만큼 지나면 다시 놓는다(구조 상수 — 밸런스 값 아님)
@@ -35,6 +35,8 @@ export function makeTutorialState() {
     lastX: 0, lastY: 0,
     superHits: 0,         // superHit 목표 누적(×2 를 맞은 개체 수)
     superFlag: [],        // 개체마다 «이미 셌는가» 래치 — 개체가 죽어 사라져도 셈이 되돌아가지 않는다
+    resistHits: 0,        // ×½ 로 때린 개체 수(㊷ — 반대 방향도 «해 보고» 배운다)
+    resistFlag: [],
     refillT: 0,           // 표적이 다 떨어졌을 때의 재보급 대기(초) — 튜토리얼은 «막히지 않는다»
     stanceSeen: [],       // stances 목표 — 눌러 본 속성
     terrainHits: 0,
@@ -68,7 +70,7 @@ function spawnStepEnemies(world, st) {
     for (let n = 0; n < sp.count; n += 1) {
       const x = a.x + a.w / 2 + (n - (sp.count - 1) / 2) * cfg.spawnGapPx;
       const e = spawnEnemy(world, def.id, sp.element, x, cfg.spawnYPx, Math.max(1, def.hp * cfg.hpMul), false);
-      if (e !== null) { e.vy = 0; e.vx = 0; tu.ids.push(e.idx, e.gen); tu.superFlag.push(false); }
+      if (e !== null) { e.vy = 0; e.vx = 0; tu.ids.push(e.idx, e.gen); tu.superFlag.push(false); tu.resistFlag.push(false); }
     }
   }
 }
@@ -77,7 +79,8 @@ function enterStep(world) {
   const tu = world.tut;
   const st = tutorialStep(world);
   tu.entered = true;
-  tu.t = 0; tu.superHits = 0; tu.terrainHits = 0; tu.confirm = false; tu.ids.length = 0; tu.superFlag.length = 0; tu.refillT = 0;
+  tu.t = 0; tu.superHits = 0; tu.terrainHits = 0; tu.confirm = false; tu.ids.length = 0; tu.refillT = 0;
+  tu.superFlag.length = 0; tu.resistHits = 0; tu.resistFlag.length = 0;
   // ★ 스텝은 «깨끗한 판»에서 시작한다 — 앞 스텝에서 안 죽고 남은 적·탄이 다음 가르침을 흐린다
   //   (실측: 3단계는 레벨업으로 끝나므로 잡몹이 남고, 4단계에서 풀 적과 섞여 「무엇을 때리라는 건지」가 사라졌다).
   for (const e of world.enemies.items) if (e.alive) world.enemies.release(e);
@@ -100,11 +103,11 @@ function enterStep(world) {
     const cx = a.x + a.w / 2;
     const cy = cfg.spawnYPx + 40;
     const core = spawnBossCore(world, b.id, b.core, b.core.hp * cfg.hpMul * 0.25, cx, cy);
-    if (core !== null) { core.sealedNow = true; tu.ids.push(core.idx, core.gen); tu.superFlag.push(false); }
+    if (core !== null) { core.sealedNow = true; tu.ids.push(core.idx, core.gen); tu.superFlag.push(false); tu.resistFlag.push(false); }
     const mods = b.parts.filter((p) => p.partType === 'armament').slice(0, 2);
     for (let k = 0; k < mods.length; k += 1) {
       const p = spawnBossPart(world, b.id, mods[k], mods[k].hp * cfg.hpMul * 0.25, cx, cy);
-      if (p !== null) { tu.ids.push(p.idx, p.gen); tu.superFlag.push(false); }
+      if (p !== null) { tu.ids.push(p.idx, p.gen); tu.superFlag.push(false); tu.resistFlag.push(false); }
     }
   }
 }
@@ -139,6 +142,7 @@ function goalMet(world, st) {
     case 'clear': return aliveOfStep(world) === 0;
     case 'level': return p.level >= st.goal.value;
     case 'superHit': return tu.superHits >= st.goal.value;
+    case 'resistHit': return tu.resistHits >= st.goal.value;
     case 'stances': return tu.stanceSeen.length >= st.goal.value;
     case 'survive': return tu.t >= st.goal.value;
     case 'terrain': return tu.terrainHits >= st.goal.value;
@@ -177,9 +181,11 @@ export function tickTutorial(world, dt) {
     const items = world.enemies.items;
     for (let k = 0; k < tu.ids.length; k += 2) {
       const f = k >> 1;
-      if (tu.superFlag[f]) continue;
       const e = items[tu.ids[k]];
-      if (e.gen === tu.ids[k + 1] && e.dmgSuper > 0) { tu.superFlag[f] = true; tu.superHits += 1; }
+      if (e.gen !== tu.ids[k + 1]) continue;
+      if (!tu.superFlag[f] && e.dmgSuper > 0) { tu.superFlag[f] = true; tu.superHits += 1; }
+      // ×½ — 피해는 들어갔는데 ×2 지분이 0 이면 «상성이 아닌» 히트다. 이 스텝의 표적은 전부 역상성이므로 그것이 곧 ×½ 다.
+      if (!tu.resistFlag[f] && e.dmgSuper === 0 && e.dmgTotal > 0) { tu.resistFlag[f] = true; tu.resistHits += 1; }
     }
   }
   if (STANCE_ELEMENTS.indexOf(p.stance) >= 0 && tu.stanceSeen.indexOf(p.stance) < 0) tu.stanceSeen.push(p.stance);
