@@ -31,9 +31,10 @@
 
 import { spawnPlayerBullet } from '../state.js';
 import { onScreen } from '../damage.js';   // §8.20 가시 피해 — 체인 경유점도 보이는 적만
-import { DEG2RAD } from '../angle.js';
+import { DEG2RAD, TAU } from '../angle.js';
 
 const FORWARD = 'forward';
+const SWEEP = 'sweep';           // ㉚ 회전 조준
 const OUT = 0;
 const RETURN = 1;
 
@@ -141,8 +142,12 @@ function throwVolley(world, slot, eff) {
   //   정면의 적을 둘 다 빗나간다. 실측: Lv2(count 1) 11 DPS → Lv3(count 2) **0 DPS**.
   //   레벨업이 무기를 죽이는 자리였다. 간격을 고정하면 짝수도 정면을 ±6° 로 감싸 명중한다.
   //   값은 데이터가 소유한다(§9.1 — weapons/** 는 숫자 리터럴을 쓰지 않는다).
-  const stepRad = eff.spacingDeg * DEG2RAD;
-  let a = -stepRad * (n - 1) * 0.5;
+  // §9.5(v1.10 ㉚) targetMode 'sweep' — 사용자: 「정면 공격이 너무 많다. 리턴은 오빗처럼 그냥 돌면서 계속 쏘는 느낌으로」.
+  //   조준각이 게임초 × sweepDegSec 로 계속 돌고, n 발은 360°/n 씩 벌려 전방위로 나간다. 난수 0(시간 기반 = 시드 결정적).
+  //   'forward' 는 옛 정면 부채(spacingDeg)를 그대로 둔다(어휘에 살아 있고 구현도 있다).
+  const sweep = eff.targetMode === SWEEP;
+  const stepRad = sweep ? (Math.PI * 2) / n : eff.spacingDeg * DEG2RAD;
+  let a = sweep ? (world.time * eff.sweepDegSec * DEG2RAD) % TAU : -stepRad * (n - 1) * 0.5;   // 숫자 리터럴 0 (§9.1) — TAU 는 angle.js
 
   for (let i = 0; i < n; i += 1) {
     const vx = Math.sin(a) * eff.projSpeed;
@@ -157,8 +162,8 @@ function throwVolley(world, slot, eff) {
 }
 
 export function update(world, slot, eff, dt) {
-  if (eff.targetMode !== FORWARD) {
-    throw new Error(`boomerang: 미구현 targetMode "${eff.targetMode}" — weapons.json 은 forward 만 쓴다 (§9.5)`);
+  if (eff.targetMode !== FORWARD && eff.targetMode !== SWEEP) {
+    throw new Error(`boomerang: 미구현 targetMode "${eff.targetMode}" — forward | sweep (§9.5)`);
   }
 
   // ★ slot.evolved 분기 정확히 1개 (§9.5 "진화의 코드 표현")

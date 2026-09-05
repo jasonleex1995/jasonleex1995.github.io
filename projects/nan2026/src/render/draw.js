@@ -1272,7 +1272,7 @@ function drawHitboxDot(ctx, world, pal, px, py) {
   ctx.lineWidth = 1;
   ctx.strokeStyle = rgba(pal.element.normal, 0.12);
   ctx.beginPath();
-  ctx.arc(px, py, rp.magnetRadius, 0, Math.PI * 2);
+  ctx.arc(px, py, rp.magnetRadius * (1 + world.stats.areaMul), 0, Math.PI * 2);   // §2.6 ㉚ 자석 = 점선 = 코일을 탄다(step.pickups 와 같은 식)
   ctx.stroke();
   ctx.restore();
 

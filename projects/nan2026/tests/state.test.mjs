@@ -240,22 +240,28 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     assert.near(e.cooldownSec, base / 2, 1e-12, 'cooldownSec /(1+1)');
   });
 
-  test('H2 areaMul — areaKeys 만 ×(1+areaMul), 산포는 불변', () => {
+  test('H2 areaMul — areaKeys 만 ×(1+areaMul): 범위 무기(오빗 궤도·구체)만 커지고 벌컨 탄·산포는 불변 (㉚ 코일 범위 전용)', () => {
     const w = mk();
-    const s = w.slots[0];
+    const s = w.slots[0];                                 // forward — areaKeys [] (㉚)
     const baseR = w.data.weapons.weapons.find((x) => x.family === 'forward').base.projRadius;
     w.stats.areaMul = 0.5;
     s.effDirty = true;
     const e = recomputeEff(w, s);
-    assert.near(e.projRadius, baseR * 1.5, 1e-12, 'projRadius ×1.5');
+    assert.eq(e.projRadius, baseR, '벌컨 탄 크기 불변 (코일 무효)');
     assert.eq(e.jitterDeg, 1.5, 'jitterDeg(산포) 는 areaKeys 밖 → 불변');
+    const oi = giveWeapon(w, 'orbit');
+    const ob = w.data.weapons.weapons.find((x) => x.family === 'orbit').base;
+    const eo = recomputeEff(w, w.slots[oi]);
+    assert.near(eo.orbitRadius, ob.orbitRadius * 1.5, 1e-12, '오빗 궤도 ×1.5');
+    assert.near(eo.projRadius, Math.min(ob.projRadius * 1.5, w.data.rules.render.playerBulletMaxRadiusPx), 1e-12, '오빗 구체도 같이 ×1.5 (클램프 안)');
   });
 
-  test('H3 projRadius 클램프 = render.playerBulletMaxRadiusPx', () => {
+  test('H3 projRadius 클램프 = render.playerBulletMaxRadiusPx (오빗 구체)', () => {
     const w = mk();
-    const s = w.slots[0];
+    const oi = giveWeapon(w, 'orbit');
+    const s = w.slots[oi];
     const maxR = w.data.rules.render.playerBulletMaxRadiusPx;
-    w.stats.areaMul = 5;                                  // 4 × 6 = 24 → 클램프
+    w.stats.areaMul = 5;                                  // 7 × 6 = 42 → 클램프
     s.effDirty = true;
     const e = recomputeEff(w, s);
     assert.eq(e.projRadius, maxR, 'projRadius 클램프 10');
@@ -284,18 +290,22 @@ suite('state · recomputeEff 훅 (§9.6.1)', () => {
     assert.eq(ea.count, undefined, 'aura 는 countKey null → count 미생성');
   });
 
-  test('진화 시 evolution.params 합집합 + areaKeys (fan evoBlastRadius)', () => {
+  test('진화 시 evolution.params 합집합 + areaKeys (nova evoRing2Radius) · 팬의 evoBlastRadius 는 코일 밖(㉚)', () => {
     const w = mk();
-    const i = giveWeapon(w, 'fan');
+    const i = giveWeapon(w, 'nova');
     const s = w.slots[i];
     for (let k = 0; k < 7; k += 1) levelUpWeapon(w, i);   // Lv1 → Lv8 = evolved
     assert.ok(s.evolved, 'Lv8 = evolved');
-    const ep = w.data.weapons.weapons.find((x) => x.family === 'fan').evolution.params;
+    const ep = w.data.weapons.weapons.find((x) => x.family === 'nova').evolution.params;
     w.stats.areaMul = 1;                                  // ×2
     s.effDirty = true;
     const e = recomputeEff(w, s);
-    assert.near(e.evoBlastRadius, ep.evoBlastRadius * 2, 1e-12, 'evoBlastRadius (진화 전용) ×(1+areaMul)');
+    assert.near(e.evoRing2Radius, ep.evoRing2Radius * 2, 1e-12, 'evoRing2Radius (진화 전용) ×(1+areaMul)');
     assert.eq(e.evoSecondaryDmgMul, ep.evoSecondaryDmgMul, 'evoSecondaryDmgMul 합집합 (areaKeys 아님 → 불변)');
+    const fi = giveWeapon(w, 'fan'); const fs = w.slots[fi];
+    for (let k = 0; k < 7; k += 1) levelUpWeapon(w, fi);
+    const fp = w.data.weapons.weapons.find((x) => x.family === 'fan').evolution.params;
+    assert.eq(recomputeEff(w, fs).evoBlastRadius, fp.evoBlastRadius, '팬 폭발 반경은 코일 무효(㉚)');
   });
 });
 
@@ -331,19 +341,32 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     assert.throws(() => levelUpWeapon(w, 5), '빈 슬롯 레벨업 throw');
   });
 
+  test('시작 시 시작 무기의 진화 짝 패시브가 Lv1 로 있다 (㉚)', () => {
+    const w = mk();                                       // forward → overclock
+    const req = w.data.weapons.weapons.find((x) => x.id === 'forward').evolution.requiresPassive;
+    assert.eq(w.passives[0].id, req.id, `slot0 = 짝 패시브 ${req.id}`);
+    assert.eq(w.passives[0].level, 1, 'Lv1');
+    assert.eq(w.passives.filter((p) => p.id !== null).length, 1, '딱 하나');
+    // 추첨 시작(무기 미지정)도 같다 — 그 무기의 짝
+    const w2 = createWorld({ data: loadData(), seed: 7, weapons });
+    const sw = w2.slots.find((sl) => sl.weaponId !== null);
+    const req2 = w2.data.weapons.weapons.find((x) => x.id === sw.weaponId).evolution.requiresPassive;
+    assert.eq(w2.passives[0].id, req2.id, `추첨 시작 무기 ${sw.weaponId} 의 짝 ${req2.id}`);
+  });
+
   test('givePassive — 획득/레벨업 같은 카테고리, maxLevel 상한, 만석 = false', () => {
-    const w = mk();
+    const w = mk();                                       // slot0 = overclock(시작 짝, ㉚)
     const maxL = w.data.passives.maxLevel;
     assert.ok(givePassive(w, 'warhead'), '신규 획득');
-    assert.eq(w.passives[0].id, 'warhead', 'slot0 = warhead');
-    assert.eq(w.passives[0].level, 1, 'Lv1');
+    assert.eq(w.passives[1].id, 'warhead', 'slot1 = warhead');
+    assert.eq(w.passives[1].level, 1, 'Lv1');
     for (let k = 1; k < maxL; k += 1) assert.ok(givePassive(w, 'warhead'), `Lv${k}→${k + 1}`);
-    assert.eq(w.passives[0].level, maxL, 'maxLevel 도달');
+    assert.eq(w.passives[1].level, maxL, 'maxLevel 도달');
     assert.eq(givePassive(w, 'warhead'), false, 'maxLevel 초과 = false');
     // 만석 채우고 신규 = false — 칸수는 rules 에서 끌어온다(하드코딩 금지)
     const nSlots = w.data.rules.player.passiveSlots;
-    const others = ['overclock', 'coil', 'coating', 'autoload', 'resonance'];
-    for (let k = 0; k < nSlots - 1; k += 1) assert.ok(givePassive(w, others[k]), `채움 ${others[k]}`);
+    const others = ['coil', 'coating', 'autoload', 'resonance', 'study'];
+    for (let k = 0; k < nSlots - 2; k += 1) assert.ok(givePassive(w, others[k]), `채움 ${others[k]}`);
     assert.eq(w.passives.length, nSlots, `${nSlots}칸 만석`);
     assert.eq(givePassive(w, 'stabilizer'), false, '만석 + 미보유 신규 = false');
   });

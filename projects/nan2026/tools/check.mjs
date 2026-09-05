@@ -277,7 +277,7 @@ const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'z
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];                        // §8.7 · §9.9.2 (7 — v1.8 wall)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
-const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena'];                             // §9.5 (5)
+const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova']; // §9.5 (10 — v1.5: omni·mine 삭제)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
   'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul'];                            // §9.6 (11 — v1.5 salvage 제거 · v1.10 ⑳ moveSpeedMul → terrainResist)
@@ -318,7 +318,7 @@ const FAMILY_OWN_BASE = {
   lance:     ['beamWidthPx', 'chargeSec', 'rangePx'],
   orbit:     ['orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura:      ['slowMul'],
-  boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
+  boomerang: ['outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg', 'sweepDegSec'],
   barrage:   ['strikeIntervalSec', 'strikesPerVolley', 'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone:     ['droneCount', 'anchorOffsets', 'droneFireSec', 'droneRangePx'],
   nova:      ['intervalSec', 'radius', 'expandSec', 'telegraphSec', 'actionSlowSec'],
@@ -340,7 +340,7 @@ const FAMILY_OWN_EVO = {
 const FAMILY_TARGET_MODES = {
   forward: ['forward'], fan: ['forward'], seeker: ['nearest', 'lowestHp', 'randomInArena'],
   lance: ['forward', 'nearest'], orbit: null, aura: null,
-  boomerang: ['forward', 'nearest'], barrage: ['randomInArena', 'densest'],
+  boomerang: ['forward', 'sweep'], barrage: ['randomInArena', 'densest'],   // ㉚ 리턴 sweep(회전 조준) · nearest 는 구현이 없어 어휘에서 뺐다
   drone: ['nearest', 'lowestHp', 'forward'], nova: null,
 };
 
@@ -1716,7 +1716,7 @@ function S10_growthBudget() {
     const newWeapon = pl.weaponSlots - 1;                    // 시작 무기 1 지급 → 6칸 중 5칸
     const weaponLevel = pl.weaponSlots * 9;                  // Σ(무기 maxLevel−1) = 6무기 × (10−1) (v1.10 ⑱)
     const elementLevel = pl.elementCapTotal;                 // elementCapTotal
-    const passive = pl.passiveSlots * D.passives.maxLevel;   // Σ(패시브 maxLevel) = 6칸 × Lv5
+    const passive = pl.passiveSlots * D.passives.maxLevel - 1;   // Σ(패시브 maxLevel) = 6칸 × Lv10 − 시작 짝 패시브 1(공짜, ㉚)
     const derived = newWeapon + weaponLevel + elementLevel + passive;
     if (num(g.minTotalSink) && derived !== g.minTotalSink) {
       V('S10', `growthBudget.minTotalSink = ${g.minTotalSink} ≠ 데이터 유도값 ${derived} `

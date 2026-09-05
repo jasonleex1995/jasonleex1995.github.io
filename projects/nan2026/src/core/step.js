@@ -743,7 +743,9 @@ function killBossEntity(world, e) {
 function pickups(world, dt) {
   const p = world.player;
   const rp = world.data.rules.player;
-  const mag = rp.magnetRadius;
+  // §2.6 · §9.6(v1.10 ㉚) 자석 반경도 확장 코일(areaMul)을 탄다 — 점선 원 = 자석 = 오빗 궤도(S58)가 같이 커진다
+  //   (사용자: 「범위 무기와 점선 원이 연관돼 보인다」). 판정(여기)과 그림(draw.drawHitboxDot)이 같은 식.
+  const mag = rp.magnetRadius * (1 + world.stats.areaMul);
   // §2.6(v1.4) — 픽업 회수 2단계: magnetRadius 자석 → 획득 반경 = spriteRadius 접촉.
   //   둘 다 bounds/스프라이트에서 파생되는 구조 규칙(리터럴 아님) → 새 키 없음.
   const grab = rp.spriteRadius;

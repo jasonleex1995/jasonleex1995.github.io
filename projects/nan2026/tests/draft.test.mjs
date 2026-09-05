@@ -60,8 +60,12 @@ suite('draft/candidates', () => {
   test('passive 신규 가중치 = passive × passiveNewBonus (§11.1)', () => {
     const w = mkWorld();
     const d = w.data.meta.draft;
-    const c = findCat(candidates(w), 'passive');
+    const owned = new Set(w.passives.filter((p) => p.id !== null).map((p) => p.id));   // ㉚ 시작 짝 패시브 1개
+    const cs = candidates(w).filter((x) => x.category === 'passive');
+    const c = cs.find((x) => !owned.has(x.passiveId));
     assert.eq(c.weight, d.categoryWeights.passive * d.passiveNewBonus, '신규 패시브 보너스');
+    const o = cs.find((x) => owned.has(x.passiveId));
+    assert.eq(o.weight, d.categoryWeights.passive, '보유 패시브(시작 짝)는 보너스 없음');
   });
 
   test('Lv7 진화 카드는 짝 패시브 Lv3 이 있어야 등장한다 (§9.5 v1.5 뱀서식)', () => {

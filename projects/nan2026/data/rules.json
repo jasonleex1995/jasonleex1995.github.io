@@ -187,15 +187,15 @@
   },
 
   "passiveHooks": {
-    "forward":   { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius"] },
-    "fan":       { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius", "evoBlastRadius"] },
-    "seeker":    { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["projRadius", "acquireRadius"] },
-    "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": ["beamWidthPx", "rangePx"] },
+    "forward":   { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": [] },
+    "fan":       { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": [] },
+    "seeker":    { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": [] },
+    "lance":     { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": true,  "areaKeys": [] },
     "orbit":     { "rateKey": "hitCooldownSec",   "countKey": "bodyCount",        "pierceApplies": false, "areaKeys": ["orbitRadius", "projRadius"] },
     "aura":      { "rateKey": null,               "countKey": null,               "pierceApplies": false, "areaKeys": ["radius"] },
-    "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": ["outRangePx", "projRadius"] },
+    "boomerang": { "rateKey": "cooldownSec",      "countKey": "count",            "pierceApplies": false, "areaKeys": [] },
     "barrage":   { "rateKey": "cooldownSec",      "countKey": "strikesPerVolley", "pierceApplies": false, "areaKeys": ["blastRadius"] },
-    "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": ["droneRangePx", "projRadius"] },
+    "drone":     { "rateKey": "droneFireSec",     "countKey": null,               "pierceApplies": true,  "areaKeys": [] },
     "nova":      { "rateKey": "intervalSec",      "countKey": null,               "pierceApplies": false, "areaKeys": ["radius", "evoRing2Radius"] }
   },
 

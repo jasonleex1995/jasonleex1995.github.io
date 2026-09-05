@@ -27,7 +27,8 @@ const dt = TICK_DT;
 
 /** 적·발사 없이 런 시계만 흐르는 세계 — 지형과 플레이어만 본다 */
 function mkRun(seed, stageId, pos = 0) {
-  const w = createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null, run: tickRun, boss: null } });
+  // ㉚ 시작 무기를 벌컨으로 못박는다 — 추첨 무기가 리턴이면 짝 «자세 안정기» Lv1 이 딸려 와 저항 0 전제가 깨진다
+  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', hooks: { enemies: null, emitters: null, run: tickRun, boss: null } });
   initRun(w);
   w.run.order[pos] = stageId;
   w.run.stageIndex = pos;

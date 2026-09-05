@@ -316,7 +316,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 | 방어력 | 0 |
 | 스탠스 | **노말** (`player.startStance = "normal"`) |
 | 속성 투자 | fire 0 / water 0 / grass 0 |
-| 무기 | **매 런 «속성 계열» 5종에서 1개 추첨** → 슬롯 1, Lv1. 나머지 4칸 비어 있음. `rng.draft` 로 뽑으므로 **같은 시드 = 같은 시작 무기**(§10.2). `startWeaponId` 는 v1.6에서 **폐지**(되살아나면 §9.3 닫힌-키가 던진다) |
+| 무기 | **매 런 «속성 계열» 5종에서 1개 추첨** → 슬롯 1, Lv1. 나머지 칸 비어 있음. `rng.draft` 로 뽑으므로 **같은 시드 = 같은 시작 무기**(§10.2). `startWeaponId` 는 v1.6에서 **폐지**(되살아나면 §9.3 닫힌-키가 던진다). ★ **v1.10 ㉚ — 그 무기의 «진화 짝 패시브»(`evolution.requiresPassive`)를 Lv1 로 함께 준다**(사용자 2026-09-05 「랜덤 무기에 대응되는 진화 패시브도 하나 같이 주자」) — 짝의 출처는 weapons.json(S41), 성장 예산은 이 공짜 픽 1을 뺀다(§11.1 S10) |
 | 패시브 | 없음 (6칸 전부 빈칸) |
 | 레벨 | 1 |
 | 폭탄 | `bomb.stockStart = 1` (상한 3) |
@@ -326,6 +326,7 @@ v1.2는 `player.hpSegment`(20)와 `hud.hpBarSegCount`(5)를 **둘 다 인쇄**�
 
 - 시작 무기 선택 화면 **없음**. t=0의 "선택"은 정보가 없어 가짜 선택이고, 고정이라야 온보딩이 성립한다. `forward`(벌컨)가 가장 읽기 쉬운 거동.
 - ★ **시작 위치 = 이동 가능 영역 하단 중앙 (v1.4 — 정본 공백 해소)**: 세로 슈팅의 장르 규약이며 적은 위(§9.9 `spawnLineY`)에서 온다 → 하단 중앙이 유일하게 자연스러운 시작점이다. **파생값이다**(`bounds` = arena + `playerBoundsInset`에서 나온다, §1.1) → `.js` 리터럴도 새 데이터 키도 없다. 초기 회피 여유는 **적의 도착 속도**(스폰 라인·웨이브 스케줄·적 속도)가 정하지 그 몇 px의 시작 오프셋이 정하지 않으므로 **튜닝 다이얼이 아니라 구조**다(§1.1의 `bounds`와 같은 지위).
+- ★ **v1.10 ㉚ — 자석 반경은 확장 코일(`areaMul`)을 탄다**: 실효 자석 반경 = `magnetRadius × (1 + Σ areaMul)`. 점선 원(§7.8)도 같은 식으로 커지고 오빗 궤도(= 자석, S58)가 그 원을 따라간다 — 「범위 무기와 점선 원이 연관돼 보인다」(사용자)를 사실로 만든다. 판정 `step.pickups` · 그림 `draw.drawHitboxDot` 이 같은 식.
 - ★ **픽업 회수 = 2단계 (v1.4 — 획득 반경 공백 해소)**: ① `player.magnetRadius`(90) 안에 들면 자석 발동(픽업이 `moveSpeed`로 플레이어에게 끌려온다), ② **`player.spriteRadius`(14) 안에 들면 획득**(스프라이트에 닿으면 회수). 획득 반경은 **파생 = `spriteRadius`**(스프라이트 접촉이 곧 회수) → 새 키 없음. 자석이 실질 회수를 담당하고 접촉 획득은 구조다.
 
 ### 2.7 상태이상 모델 (확정 — 초안에 없던 blocker)
@@ -2688,12 +2689,12 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 |---|---|---|---|
 | `forward` 벌컨 | 오버드라이브 | `overclock` 오버클럭 | 연사 램프 = 연사 |
 | `fan` 팬아웃 | 플레어 팬 | `autoload` 다중 장전 | 부채 = 탄 수 |
-| `seeker` 시커 | 스웜 | `study` 학습 회로 (㉙ · ~~autoload~~) | 스웜 = «학습된 조준»(서로 다른 표적·처치 시 재조준) |
-| `lance` 랜스 | 레일건 | `coating` 관통 코팅 | 무제한 관통 |
+| `seeker` 시커 | 스웜 | `coating` 관통 코팅 (㉚ · ~~study~~ ~~autoload~~) | 스웜 = 관통하는 벌떼(코팅이 실제로 듣는 무기) |
+| `lance` 랜스 | 레일건 | `warhead` 탄두 증량 (㉚ · ~~coating~~ — 사용자 「이미 관통 무기라 코팅과 결합이 어색」) | 레일건 = 큰 한 방 |
 | `orbit` 오빗 | 이지스 | `reactive` 반응 장갑 | 적 탄 소거 = 반응 장갑 |
 | `aura` 펄스필드 | 싱귤래리티 | `coil` 확장 코일 | 범위 |
 | `boomerang` 리턴 | 체인 리턴 | `stabilizer` 자세 안정기 (㉙ · ~~autoload~~) | 체인 = «궤도 안정»(안정기가 궤도를 잇는다) |
-| `barrage` 바라지 | 오비탈 스트라이크 | `warhead` 탄두 증량 (㉙ · ~~coil~~) | 큰 탄두 = 궤도 폭격 |
+| `barrage` 바라지 | 오비탈 스트라이크 | `study` 학습 회로 (㉚ · ~~warhead~~ ~~coil~~) | 학습된 좌표 = 궤도 타격 |
 | `drone` 옵션 | 잔상 편대 | `afterimage` 잔광 | 잔상 |
 | `nova` 노바 | 슈퍼노바 | `resonance` 상성 증폭 (㉙ · ~~coil~~) | 속성 폭발 = 상성 |
 
@@ -2730,7 +2731,7 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 | `orbit` | 오빗 | — | **live** |
 | `aura` | 펄스필드 | — | **live** |
 | `mine` | 마인필드 | — | spawn |
-| `boomerang` | 리턴 | `forward nearest` | spawn |
+| `boomerang` | 리턴 | `forward sweep` (㉚ · ~~nearest~~ 구현 없음) — **sweep**: 조준각이 게임초 × `sweepDegSec`(150)로 계속 돌고 n 발은 360°/n 씩 벌려 전방위(사용자 「정면 공격이 너무 많다 — 리턴은 돌면서 계속 쏘는 느낌으로」). 난수 0 | spawn |
 | `barrage` | 바라지 | `randomInArena densest` | spawn |
 | `omni` | 리어가드 | — | spawn |
 | `drone` | 옵션 | `nearest lowestHp forward` | spawn |
@@ -2763,7 +2764,7 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 | `orbit` | ✔ | ✖ | ✖ | ✖ | ✔ | ✖ | ✖ | ✔ | ✖ | `orbitRadius angularSpeedDegSec bodyCount` + `evoBulletClearCooldownSec` |
 | `aura` | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | `radius tickIntervalSec falloff` + `evoPullForce` |
 | `mine` | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | `placeIntervalSec armSec triggerRadius blastRadius maxAlive` + `evoClusterCount evoClusterRadius evoSecondaryDmgMul` |
-| `boomerang` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `outRangePx returnSpeed canRehit` + `evoChainCount` |
+| `boomerang` | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `outRangePx returnSpeed canRehit bounceLeft spacingDeg sweepDegSec`(㉚) + `evoChainCount` |
 | `barrage` | ✔ | ✔ | ✖ | ✖ | ✖ | ✖ | ✖ | ✖ | ✔ | `strikeIntervalSec strikesPerVolley blastRadius telegraphSec` + `evoRadiusMul` |
 | `omni` | ✔ | ✔ | ✖ | ✔ | ✔ | ✔ | ✔ | ✔ | ✖ | `dirCount dirOffsetDeg rearBias` + `evoRingRotDeg` |
 | `drone` | ✔ | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | `droneCount anchorOffsets droneFireSec droneRangePx` + `evoTrailDelaySec` · ★ v1.10 ⑯ ~~`healOnKill healFullRangePx healZeroRangePx healCooldownSec` + `evoHealFullRangePx`~~ **폐지** — 사용자(2026-09-04) 「위성 무기의 피 회복 옵션은 빼는 게 좋겠다」. v1.7 «옵션의 회수»(가까이서 처치하면 회복)와 `step.droneSalvage` 를 함께 지웠다. 회복원은 다시 스테이지 클리어·보급 카드뿐 |
@@ -2825,7 +2826,7 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 > ★★ **이 블록은 확정이다 (C-7 — `// 예시` 주석이 없다).** `values` **11×10 = 110값**(v1.10 ⑱ · ~~11×8~~ ~~12×5 = 60~~) · `name` 12 · `desc` 12 · `stats[]` 12 · `maxLevel`은 **이것이 유일한 거처**이며 `passives.json`이 그대로 가져야 하는 값이다(C-8). §13.2-⑩·§13.5의 화력 산술 전체가 이 60값 위에 서 있다.
 
 ```json
-{ "schemaVersion": 1, "maxLevel": 6,   // ㉘ (사용자 2026-09-05 「무기는 10, 패시브는 6 — 지금은 너무 강하다」) · ~~10~~
+{ "schemaVersion": 1, "maxLevel": 10,   // ㉚ 10 복원(사용자 「학습 회로를 한 번 먹는 경험 = 레벨업을 더 해야 한다 — 무기·패시브 모두 10」) · ~~㉘ 6~~
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
             "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
   "passives": [
@@ -2932,17 +2933,17 @@ dmgMul / elementBonusMul       : §3.1의 2항·3항. 파라미터 공간을 건
 
 ```json
 "passiveHooks": {
-  "forward":   { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":["projRadius"] },
-  "fan":       { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":["projRadius","evoBlastRadius"] },
-  "seeker":    { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":["projRadius","acquireRadius"] },
-  "lance":     { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":["beamWidthPx","rangePx"] },
+  "forward":   { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },                      // ㉚ 코일 = 범위 무기 전용
+  "fan":       { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
+  "seeker":    { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
+  "lance":     { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
   "orbit":     { "rateKey":"hitCooldownSec",   "countKey":"bodyCount",        "pierceApplies":false, "areaKeys":["orbitRadius","projRadius"] },
   "aura":      { "rateKey":"tickIntervalSec",  "countKey":null,               "pierceApplies":false, "areaKeys":["radius"] },
   "mine":      { "rateKey":"placeIntervalSec", "countKey":"maxAlive",         "pierceApplies":false, "areaKeys":["blastRadius","triggerRadius","evoClusterRadius"] },
-  "boomerang": { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":false, "areaKeys":["outRangePx","projRadius"] },
+  "boomerang": { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":false, "areaKeys":[] },
   "barrage":   { "rateKey":"cooldownSec",      "countKey":"strikesPerVolley", "pierceApplies":false, "areaKeys":["blastRadius"] },
   "omni":      { "rateKey":"cooldownSec",      "countKey":"dirCount",         "pierceApplies":true,  "areaKeys":["projRadius"] },
-  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":true,  "areaKeys":["droneRangePx","projRadius"] },
+  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":true,  "areaKeys":[] },
   "nova":      { "rateKey":"intervalSec",      "countKey":null,               "pierceApplies":false, "areaKeys":["radius","evoRing2Radius"] }
 }
 ```
@@ -2952,14 +2953,14 @@ dmgMul / elementBonusMul       : §3.1의 2항·3항. 파라미터 공간을 건
 | `forward` | `cooldownSec` | `count` | ✔ | `projRadius` |
 | `fan` | `cooldownSec` | `count` | ✔ | `projRadius` `evoBlastRadius` |
 | `seeker` | `cooldownSec` | `count` | ✔ | `projRadius` `acquireRadius` |
-| `lance` | `cooldownSec` | `count` | ✔ | `beamWidthPx` `rangePx` |
+| `lance` | `cooldownSec` | `count` | ✔ | — (㉚ 코일 무효) |
 | `orbit` | `hitCooldownSec` | `bodyCount` | ✖ | `orbitRadius` `projRadius` |
 | `aura` | `tickIntervalSec` | **`null`** | ✖ | `radius` |
 | `mine` | `placeIntervalSec` | `maxAlive` | ✖ | `blastRadius` `triggerRadius` `evoClusterRadius` |
-| `boomerang` | `cooldownSec` | `count` | **✖ (`pierce: -1`)** | `outRangePx` `projRadius` |
+| `boomerang` | `cooldownSec` | `count` | **✖ (`pierce: -1`)** | — (㉚) |
 | `barrage` | `cooldownSec` | `strikesPerVolley` | ✖ | `blastRadius` |
 | `omni` | `cooldownSec` | `dirCount` | ✔ | `projRadius` |
-| `drone` | `droneFireSec` | ★ **`null`** | ✔ | `droneRangePx` `projRadius` |
+| `drone` | `droneFireSec` | ★ **`null`** | ✔ | — (㉚) |
 | `nova` | `intervalSec` | **`null`** | ✖ | `radius` `evoRing2Radius` |
 
 **★ 컨테이너 형태 = 중첩 맵 · `pierce` → `pierceApplies` 개명 (v1.3, 전사 감사 major)**
@@ -2976,7 +2977,7 @@ dmgMul / elementBonusMul       : §3.1의 2항·3항. 파라미터 공간을 건
 | # | 규칙 | 근거 |
 |---|---|---|
 | **H1** | **`fireRateMul`은 12 패밀리 전부에 적용된다.** 모든 패밀리가 정확히 하나의 "주기" 키를 갖는다 | `overclock`이 죽는 빌드가 **구조적으로 존재하지 않는다** |
-| **H2** ★ | **`areaMul`은 "닿는 범위"만 키우고 "산포"는 절대 건드리지 않는다.** `spreadDeg` · `jitterDeg` · `arcDeg`는 `areaKeys`에서 **제외** | 산포를 넓히면 밀착 명중 수가 **줄어든다** → **패시브가 무기를 나쁘게 만든다** = 정보 기반 선택 기둥의 정면 위반. `fan`의 `arcDeg`가 `coil`로 90→122가 되면 팬아웃의 밀착 ST가 26% 깎인다 |
+| **H2** ★ | **`areaMul`은 «범위 무기»의 반경만 키운다 (★ v1.10 ㉚ 사용자 「코일을 범위에 한정」: `orbit`(궤도 + 구체 — 사용자 「반경이 커지면 구체도 커야 밸런스」) · `aura` · `barrage` · `nova` 만 `areaKeys` 를 갖는다 + 자석 반경(§2.6). 벌컨·팬·시커·랜스·리턴·옵션은 **무효**(탄 크기·빔 폭·사거리는 코일과 무관). 산포(`spreadDeg` · `jitterDeg` · `arcDeg`)는 언제나 **제외** | 산포를 넓히면 밀착 명중 수가 **줄어든다** → **패시브가 무기를 나쁘게 만든다** = 정보 기반 선택 기둥의 정면 위반. `fan`의 `arcDeg`가 `coil`로 90→122가 되면 팬아웃의 밀착 ST가 26% 깎인다 |
 | **H3** | **`projRadius`는 `render.playerBulletMaxRadiusPx`(10)로 클램프한다. 판정 반경과 렌더 반경을 동시에** | 한쪽만 클램프하면 **I-2 위반**(그려진 크기 ≠ 실제 크기, §2.3의 "크기도 거짓말하지 않는다"). 현재 값에서는 넘지 않으나 **밸런서가 `projRadius`를 8로 올리는 순간 조용히 위반**한다 (03-§9.8 채택) |
 | **H4** ★ | **`countKey: null` = 그 패시브는 그 무기에 무효다.** 드래프트는 **거르지 않는다** | `autoload`가 `aura`·`nova`에 무효인 것은 **개체 수 개념이 없기 때문**이며 숨길 일이 아니다. §11.1의 유효성 필터는 **획득 불가능한 카드**만 제외한다 — "내 빌드에서 약한 카드"는 **플레이어가 판단할 정보**이지 시스템이 지울 것이 아니다. 지우는 순간 드래프트는 선택이 아니라 **자동 최적화**가 된다. 대신 카드가 `훅 1줄`을 반드시 표시하므로(§11.1) 정보는 화면에 있다 |
 
@@ -3784,7 +3785,7 @@ weight(item) = categoryWeights[item.category] × modifier(item)
 
 | 투자처 | 픽 수 | 계산 |
 |---|---|---|
-| 새 무기 | **3** | 시작 무기 1 지급 → 4칸 중 3칸 |
+| 새 무기 | **3** | 시작 무기 1 지급 → 4칸 중 3칸 (★ ㉚ 짝 패시브 Lv1 도 공짜 — 패시브 싱크에서 1 을 뺀다) |
 | 무기 레벨 | **28** | 4무기 × Lv1→8 = 7픽 × 4 (**Lv8픽 = 진화**) |
 | 속성 레벨 | **6** | `elementCapTotal` |
 | 패시브 | **30** | 6칸 × Lv5 (획득 픽 포함: 6 + 24) |
@@ -4367,7 +4368,7 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
     "killTimeMedianBalanced": { "min":120, "max":150 }
   },
   "static": {
-    "growthBudget": { "maxLevelUps":60, "minTotalSink":107 },   // ㉘ 패시브 6×6
+    "growthBudget": { "maxLevelUps":60, "minTotalSink":130 },   // ㉚ 패시브 6×10 − 시작 짝 1
     "capHits":      { "max":0 },
     "fairnessViolations": { "max":0 }
   }
@@ -4612,7 +4613,7 @@ dustRunner:     passive 0 (초고속 이탈)  /  maxFarm 대부분 × XP 5배   
 
 **⑥ `growthBudget` (정적)**
 ```
-minTotalSink = 5(새 무기) + 54(무기 레벨 6×9) + 12(속성) + 36(패시브 6×6) = 107   // ㉘ · ~~131~~    // certify.static.growthBudget.minTotalSink (v1.10 ⑱ · ~~85~~ ~~67~~)
+minTotalSink = 5(새 무기) + 54(무기 레벨 6×9) + 12(속성) + 59(패시브 6×10 − 시작 짝 1) = 130   // ㉚ · ~~107~~ ~~131~~    // certify.static.growthBudget.minTotalSink (v1.10 ⑱ · ~~85~~ ~~67~~)
 maxLevelUps = 60  <  67   ✔   (충족률 상한 90%, 목표 54 → 81%)
 ```
 **결론: 통과 ✔** — 이 부등식이 **"전부 못 찍는다 = 선택이 의미를 가진다"**의 산술적 성립이다. XP 곡선을 바꿔 레벨업이 60을 넘기면 **인증 실패.**

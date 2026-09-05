@@ -562,6 +562,16 @@ export function createWorld(opts) {
     }
     giveWeapon(world, world.rng.draft.pick(startPool));
   }
+  // §11.1(v1.10 ㉚) — 시작 무기의 «진화 짝 패시브»를 Lv1 로 함께 준다(사용자 2026-09-05: 「랜덤 무기에 대응되는 진화 패시브도
+  //   하나 같이 주자」). 짝은 weapons[].evolution.requiresPassive 가 소유(S41) — 여기서 새 값을 만들지 않는다.
+  //   성장 예산: 이 한 레벨은 공짜 픽이라 S10 의 minTotalSink 유도식이 1 을 뺀다.
+  {
+    const startSlot = world.slots.find((sl) => sl.weaponId !== null);
+    if (startSlot !== undefined) {
+      const req = world.weaponDefs[startSlot.family].evolution.requiresPassive;
+      if (!givePassive(world, req.id)) throw new Error(`state: 시작 짝 패시브 "${req.id}" 지급 실패 (§11.1 ㉚)`);
+    }
+  }
   recomputeStats(world);
   recomputeStamps(world);
   world.player.xpToNext = xpToNext(world, 1);

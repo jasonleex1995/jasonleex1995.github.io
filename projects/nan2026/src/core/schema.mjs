@@ -55,7 +55,7 @@ const FAMILY_BASE_KEYS = {
   orbit: ['dmg', 'projRadius', 'hitCooldownSec', 'orbitRadius', 'angularSpeedDegSec', 'bodyCount'],
   aura: ['radius', 'slowMul'],
   boomerang: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
-    'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg'],
+    'hitCooldownSec', 'targetMode', 'outRangePx', 'returnSpeed', 'canRehit', 'bounceLeft', 'spacingDeg', 'sweepDegSec'],
   barrage: ['dmg', 'cooldownSec', 'targetMode', 'strikeIntervalSec', 'strikesPerVolley',
     'blastRadius', 'telegraphSec', 'slowSec', 'impactFlashSec'],
   drone: ['dmg', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce', 'hitCooldownSec', 'targetMode',
@@ -81,7 +81,7 @@ const FAMILY_EVO_KEYS = {
 const FAMILY_TARGET_MODES = {
   forward: ['forward'], fan: ['forward'], seeker: ['nearest', 'lowestHp', 'randomInArena'],
   lance: ['forward', 'nearest'], orbit: null, aura: null,
-  boomerang: ['forward', 'nearest'], barrage: ['randomInArena', 'densest'],
+  boomerang: ['forward', 'sweep'], barrage: ['randomInArena', 'densest'],   // ㉚ sweep = 조준이 sweepDegSec 로 계속 돈다(리턴)
   drone: ['nearest', 'lowestHp', 'forward'], nova: null,
 };
 

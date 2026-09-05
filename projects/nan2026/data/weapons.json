@@ -42,7 +42,7 @@
                   {"dmg":16}, {"dmg":18,"count":5} ],
       "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
-                     "requiresPassive": { "id":"study", "level":3 } }
+                     "requiresPassive": { "id":"coating", "level":3 } }
     },
     {
       "id": "lance", "slotClass": "element", "family": "lance", "name": "랜스", "desc": "잠깐 모았다가 정면을 꿰뚫는다",
@@ -56,7 +56,7 @@
                   {"dmg":70}, {"dmg":80,"cooldownSec":1.15} ],
       "evolution": { "name":"레일건", "desc":"화면 끝까지 뚫고, 앞의 적을 전부 꿴다",
                      "params": { "evoFullHeight":true },
-                     "requiresPassive": { "id":"coating", "level":3 } }
+                     "requiresPassive": { "id":"warhead", "level":3 } }
     },
     {
       "id": "orbit", "slotClass": "utility", "family": "orbit", "name": "오빗", "desc": "주위를 도는 공이 닿는 적을 계속 때린다",
@@ -86,8 +86,8 @@
       "id": "boomerang", "slotClass": "element", "family": "boomerang", "name": "리턴", "desc": "관통하는 탄을 던져서 되받는다",
       "elementStampMode": "spawn",
       "base": { "dmg":4, "cooldownSec":1.10, "count":1, "projSpeed":260, "projRadius":6,
-                "lifetimeSec":3.0, "pierce":-1, "hitCooldownSec":0.50, "targetMode":"forward",
-                "outRangePx":240, "returnSpeed":320, "canRehit":true, "bounceLeft":2, "spacingDeg":12 },
+                "lifetimeSec":3.0, "pierce":-1, "hitCooldownSec":0.50, "targetMode":"sweep",
+                "outRangePx":240, "returnSpeed":320, "canRehit":true, "bounceLeft":2, "spacingDeg":12, "sweepDegSec":150 },
       "levels": [ {}, {"dmg":6}, {"count":2,"outRangePx":300}, {"dmg":9,"returnSpeed":380},
                   {"dmg":12,"cooldownSec":1.00}, {"count":3,"dmg":13},
                   {"dmg":16,"hitCooldownSec":0.40}, {"dmg":20,"cooldownSec":0.95},
@@ -109,7 +109,7 @@
                   {"dmg":90}, {"dmg":105,"strikesPerVolley":4} ],
       "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
                      "params": { "evoRadiusMul":2.0 },
-                     "requiresPassive": { "id":"warhead", "level":3 } }
+                     "requiresPassive": { "id":"study", "level":3 } }
     },
     {
       "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다",
