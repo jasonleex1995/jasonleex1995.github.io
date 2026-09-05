@@ -404,7 +404,16 @@ async function boot() {
   let demoHoldT = 0;                          // DRAFT/RESULTS 를 잠깐 보여주는 잔여(ms)
   // §7.10 — SFX. AudioContext 는 사용자 제스처 후에만 소리를 낸다 → 첫 키 입력에서 resume.
   const audio = makeAudio(rules);
-  if (audio !== null) window.addEventListener('keydown', () => { audio.resume(); audio.bgmStart(); });
+  // §7.10 — AudioContext 는 사용자 제스처 뒤에만 소리를 낸다 → 첫 키 입력에서 resume.
+  //   ★ ㊶ `isTrusted` 검사: **사람이 누른 키**만 오디오를 켠다. 스크립트가 만든 KeyboardEvent(자동화·계측 도구)로 음악이
+  //     시작되면, 그 페이지가 화면 밖에서 조용히 계속 울린다(실측: 개발용 프로브가 탭을 닫은 뒤에도 BGM 을 냈다).
+  if (audio !== null) {
+    window.addEventListener('keydown', (e) => {
+      if (!e.isTrusted) return;
+      audio.resume();
+      audio.bgmStart();
+    });
+  }
   const baseTitle = document.title;
 
   // §9.1 — enemies.js · emitters.js 의 합성 계약을 정본이 인쇄하지 않았다 → state.js 가 주입으로 뒀다.
