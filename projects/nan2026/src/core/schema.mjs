@@ -35,7 +35,7 @@ const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
   'boomerang', 'barrage', 'drone', 'nova'];
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd',
-  'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist',
+  'elementBonusMul', 'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'projSpeedMul', 'durationMul',
   'xpGainMul'];
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
@@ -249,7 +249,7 @@ function checkRules(c, r) {
       const f = FAMILIES[i];
       if (!own(r.passiveHooks, f)) continue;
       c.closed(`rules.passiveHooks.${f}`, r.passiveHooks[f],
-        ['rateKey', 'countKey', 'pierceApplies', 'areaKeys']);
+        ['rateKey', 'countKey', 'pierceApplies', 'areaKeys', 'speedKeys', 'durationKeys']);   // ㉟ H5·H6
     }
   }
 
@@ -392,15 +392,15 @@ function checkPassives(c, ps) {
   c.closed('passives', ps, ['schemaVersion', 'maxLevel', 'stats', 'passives']);
   // §9.6 — 폐쇄 스탯 어휘 11종. 전수 일치 (순서는 정본의 인쇄 순서를 따르지 않아도 된다)
   //   v1.5: salvage(coinGainMul) 제거 = 경제 폐지 → 12→11
-  if (c.arr('passives.stats', ps.stats, 11)) {
+  if (c.arr('passives.stats', ps.stats, 13)) {
     for (let i = 0; i < ps.stats.length; i += 1) c.vocab(`passives.stats[${i}]`, ps.stats[i], PASSIVE_STATS);
     for (let i = 0; i < PASSIVE_STATS.length; i += 1) {
       if (ps.stats.indexOf(PASSIVE_STATS[i]) < 0) {
-        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 11종`);
+        c.fail('passives.stats', `"${PASSIVE_STATS[i]}" 누락 — §9.6 폐쇄 어휘 13종`);
       }
     }
   }
-  if (!c.arr('passives.passives', ps.passives, 11)) return;
+  if (!c.arr('passives.passives', ps.passives, 13)) return;
   const seen = [];
   for (let i = 0; i < ps.passives.length; i += 1) {
     const it = ps.passives[i];

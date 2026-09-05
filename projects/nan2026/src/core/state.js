@@ -303,6 +303,7 @@ function makeStats() {
     dmgMul: 0, fireRateMul: 0, areaMul: 0, pierceAdd: 0, projCountAdd: 0,
     elementBonusMul: 1, ghostSecOnHit: 0, hitBulletClearRadius: 0,
     maxHpAdd: 0, terrainResist: 0, xpGainMul: 0,          // terrainResist: §8.21 ⑥ 지형 효과 ×(1 − Σ) — 이동 속도 배율은 v1.10 ⑳ 에 폐지
+    projSpeedMul: 0, durationMul: 0,                       // ㉟ H5 speedKeys · H6 durationKeys (rules.passiveHooks)
   };
 }
 
@@ -404,6 +405,17 @@ export function recomputeEff(world, slot) {
   for (let i = 0; i < hooks.areaKeys.length; i += 1) {
     const k = hooks.areaKeys[i];
     if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.areaMul);
+  }
+
+  // H5 (v1.10 ㉟) — projSpeedMul 은 speedKeys(탄속·귀환 속도·공전 속도)에, H6 — durationMul 은 durationKeys(수명·둔화 지속)에.
+  //   둘 다 «있는 키만»(areaKeys 와 같은 규약) — 키가 없는 패밀리엔 무효(패시브 desc 가 무효 목록을 말한다, H4 와 같은 원칙).
+  for (let i = 0; i < hooks.speedKeys.length; i += 1) {
+    const k = hooks.speedKeys[i];
+    if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.projSpeedMul);
+  }
+  for (let i = 0; i < hooks.durationKeys.length; i += 1) {
+    const k = hooks.durationKeys[i];
+    if (Object.prototype.hasOwnProperty.call(eff, k)) eff[k] = eff[k] * (1 + st.durationMul);
   }
 
   // pierceAdd — pierceApplies == false 면 무효. pierce: -1(무제한)에는 적용되지 않는다

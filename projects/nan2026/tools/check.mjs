@@ -249,7 +249,7 @@ function census() {
     ['bullets.bullets', D.bullets && D.bullets.bullets, 1, '§9.7'],
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
     ['weapons.weapons', D.weapons && D.weapons.weapons, 10, '§9.5 — 10 패밀리 1:1 (v1.5: omni·mine 삭제)'],
-    ['passives.passives', D.passives && D.passives.passives, 11, '§9.6 — 11종 (v1.5 salvage 제거)'],
+    ['passives.passives', D.passives && D.passives.passives, 13, '§9.6 — 13종 (㉟ 추진기·장기 배터리)'],
     ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 6, '§9.9 — 6행 (v1.10 ⑥ 서브웨이브당 1행)'],
   ];
   for (const [path, arr, minRows, why] of need) {
@@ -280,7 +280,7 @@ const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova']; // §9.5 (10 — v1.5: omni·mine 삭제)
 const PASSIVE_STATS = ['dmgMul', 'fireRateMul', 'areaMul', 'pierceAdd', 'projCountAdd', 'elementBonusMul',
-  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul'];                            // §9.6 (11 — v1.5 salvage 제거 · v1.10 ⑳ moveSpeedMul → terrainResist)
+  'ghostSecOnHit', 'hitBulletClearRadius', 'maxHpAdd', 'terrainResist', 'xpGainMul', 'projSpeedMul', 'durationMul'];   // §9.6 (13 — ㉟ 추진기·장기 배터리)
 const MOVE_PATTERNS = ['sway', 'orbitArc', 'holdCenter'];                                                        // §8.12.1 (3)
 const BULLET_SHAPES = ['circle', 'hex'];                                                                         // §9.7 (2)
 const BULLET_STATUS = [null, 'slow', 'stun'];                                                                    // §9.7
@@ -558,7 +558,7 @@ function S2_schema() {
   if (isObj(r.passiveHooks)) {
     for (const f of FAMILIES) {
       if (!has(r.passiveHooks, f)) continue;
-      closedKeys('S2', r.passiveHooks[f], ['rateKey', 'countKey', 'pierceApplies', 'areaKeys'], `rules.passiveHooks.${f}`);
+      closedKeys('S2', r.passiveHooks[f], ['rateKey', 'countKey', 'pierceApplies', 'areaKeys', 'speedKeys', 'durationKeys'], `rules.passiveHooks.${f}`);
       if (has(r.passiveHooks[f], 'pierce')) {
         V('S2', `rules.passiveHooks.${f}.pierce: 개명된 키 → pierceApplies (§9.6.1/§23.3) — 무기 파라미터 pierce(정수)와 이름이 충돌했다`);
       }
@@ -653,7 +653,7 @@ function S2_files() {
     // §9.6 "폐쇄 스탯 어휘 11종, 11 패시브와 1:1" (v1.5 salvage 제거)
     const stats = D.passives.passives.map((p) => p && p.stat);
     if (new Set(stats).size !== stats.length) V('S2', 'passives: stat 중복 — §9.6 "11훅 = 11 패시브 1:1"');
-    if (D.passives.passives.length !== 11) V('S2', `passives: ${D.passives.passives.length}종 ≠ 11 (§9.6)`);
+    if (D.passives.passives.length !== 13) V('S2', `passives: ${D.passives.passives.length}종 ≠ 13 (§9.6 ㉟)`);
   }
 
   // --- bullets.json (§9.7) — ★ v1.3: speed 삭제 (탄 속도는 이미터가 소유) ---

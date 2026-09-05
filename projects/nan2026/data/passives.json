@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "maxLevel": 10,
   "stats": ["dmgMul","fireRateMul","areaMul","pierceAdd","projCountAdd","elementBonusMul",
-            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul"],
+            "ghostSecOnHit","hitBulletClearRadius","maxHpAdd","terrainResist","xpGainMul","projSpeedMul","durationMul"],
   "passives": [
     { "id":"overclock",  "name":"오버클럭",     "desc":"모든 무기의 발사 주기 단축",     "stat":"fireRateMul",         "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
     { "id":"warhead",    "name":"탄두 증량",    "desc":"모든 피해 증가",    "stat":"dmgMul",              "values":[0.08,0.15,0.21,0.26,0.30,0.34,0.37,0.40,0.43,0.46] },
@@ -14,6 +14,8 @@
     { "id":"reactive",   "name":"반응 장갑",    "desc":"피격 시 반경 N px의 적 탄 소거",    "stat":"hitBulletClearRadius","values":[60,90,120,150,180,205,230,255,280,305] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"최대 HP +N",    "stat":"maxHpAdd",            "values":[6,12,18,24,30,36,42,48,54,60] },
     { "id":"stabilizer", "name":"자세 안정기",  "desc":"지형(둔화·관성·과열)의 효과 −N% (만렙 = 면역)",  "stat":"terrainResist",       "values":[0.20,0.32,0.43,0.53,0.62,0.70,0.78,0.86,0.93,1.00] },
-    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] }
+    { "id":"study",      "name":"학습 회로",    "desc":"획득 XP 증가",    "stat":"xpGainMul",           "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
+    { "id":"booster",    "name":"추진기",       "desc":"탄속·귀환 속도 +N% — 랜스·펄스필드·노바·체인·빔에는 무효",    "stat":"projSpeedMul",        "values":[0.06,0.11,0.16,0.20,0.24,0.28,0.32,0.35,0.38,0.40] },
+    { "id":"battery",    "name":"장기 배터리",  "desc":"탄·장판 지속 시간 +N% — 랜스·오빗·펄스필드·체인·빔에는 무효",    "stat":"durationMul",         "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] }
   ]
 }
