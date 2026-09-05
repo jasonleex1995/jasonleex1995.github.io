@@ -33,7 +33,7 @@ export const SCHEMA_VERSION = 1;
 // ---------------------------------------------------------------------------
 const ELEMENTS4 = ['normal', 'fire', 'water', 'grass'];
 const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura',
-  'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral'];   // ㉟ 15종
+  'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball'];   // ㉟ 15종 · ㊵ 스파이럴 삭제 → 14종
 // §9.6(v1.10 ㊲) 14 스탯 = 14 패시브 1:1. 분류: 공용 1(fireRateMul) · 탄 4(projCountAdd·pierceAdd·projSpeedMul·durationMul) ·
 //   빔 2(beamDmgMul·beamAreaMul) · 범위 2(areaMul·areaDmgMul) · 궤도 1(orbitMul) · 기체 4(maxHpAdd·terrainResist·xpGainMul·elementBonusMul).
 //   ~~dmgMul(탄두 증량)~~ ~~ghostSecOnHit(잔광)~~ ~~hitBulletClearRadius(반응 장갑)~~ 폐지.
@@ -76,8 +76,6 @@ const FAMILY_BASE_KEYS = {
   beam: ['dmg', 'count', 'pierce', 'hitCooldownSec', 'targetMode', 'rangePx', 'beamWidthPx'],
   pinball: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
     'hitCooldownSec', 'targetMode', 'bounceLeft', 'launchDeg'],
-  spiral: ['dmg', 'cooldownSec', 'count', 'projSpeed', 'projRadius', 'lifetimeSec', 'pierce',
-    'hitCooldownSec', 'targetMode', 'ampPx', 'freqHz'],
 };
 
 /** §9.5 — evolution.params 키 집합 (evo* 접두). 동결 */
@@ -96,7 +94,6 @@ const FAMILY_EVO_KEYS = {
   chain: ['evoForkOnSuper', 'evoChainCountMul'],
   beam: ['evoSplitCount', 'evoSplitDmgMul', 'evoSplitRangePx'],
   pinball: ['evoSplitOnBounce', 'evoMaxBalls'],
-  spiral: ['evoAmpMul', 'evoLifetimeMul'],
 };
 
 /** §9.5 — 허용 targetMode. null = 그 패밀리 계약에 targetMode 키가 없다 */
@@ -105,7 +102,7 @@ const FAMILY_TARGET_MODES = {
   lance: ['forward', 'nearest'], orbit: null, aura: null,
   boomerang: ['forward', 'sweep'], barrage: ['randomInArena', 'densest'],   // ㉚ sweep = 조준이 sweepDegSec 로 계속 돈다(리턴)
   drone: ['nearest', 'lowestHp', 'forward'], nova: null,
-  missile: ['forward'], chain: ['nearest'], beam: ['nearest'], pinball: ['forward'], spiral: ['forward'],   // ㉟
+  missile: ['forward'], chain: ['nearest'], beam: ['nearest'], pinball: ['forward'],   // ㉟
 };
 
 /** §4.4 — elementStampMode. 구조 결정 = 잠금 키 */
@@ -142,6 +139,7 @@ export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fi
 /** §8.21 ③(v1.10 ⑳) finale 의 terrainKind — 3종이 slow→inertia→heat 순으로 «돌아가며» 나온다(테마가 없으니 전부 나온다). */
 export const TERRAIN_MIXED = 'mixed';
 export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
+export const WEAPON_CLASSES = ['bullet', 'beam', 'area', 'orbital'];   // §9.5 ㊲ 무기 분류(패시브 분류와 짝) · ㊵ 데이터가 소유한다
 export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];   // §6.7 ㊴
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
@@ -369,11 +367,12 @@ function checkElements(c, e) {
 
 function checkWeapons(c, w) {
   c.closed('weapons', w, ['schemaVersion', 'weapons']);
-  if (!c.arr('weapons.weapons', w.weapons, 15)) return;   // ㉟ 15종
+  if (!c.arr('weapons.weapons', w.weapons, FAMILIES.length)) return;   // ㉟ 15종 · ㊵ 14종(FAMILIES 가 소유)
   for (let i = 0; i < w.weapons.length; i += 1) {
     const it = w.weapons[i];
     const p = `weapons[${it && it.id}]`;
-    if (!c.closed(p, it, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'base', 'levels', 'evolution'])) continue;
+    if (!c.closed(p, it, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'class', 'base', 'levels', 'evolution'])) continue;
+    c.vocab(`${p}.class`, it.class, WEAPON_CLASSES);   // ㊵ §9.5 무기 분류 — 패시브 분류(§9.6)와 짝. 훅 표와의 정합은 S34 가 본다.
     if (!c.vocab(`${p}.family`, it.family, FAMILIES)) continue;
     // §9.5 — id == family (12종 1:1)
     if (it.id !== it.family) c.fail(p, `id ≠ family(${it.family}) — §9.5 "id == family"`);

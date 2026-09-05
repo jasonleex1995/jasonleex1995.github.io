@@ -124,7 +124,7 @@ suite('render — 한 판 전 프레임이 던지지 않는다 (회귀망)', () 
     const d = loadData();
     const w = createWorld({ data: d, seed: 19, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
     initRun(w); w.run.order[0] = 'forest'; w.run.stageIndex = 0;
-    for (const id of ['lance', 'spiral', 'beam', 'aura', 'nova']) giveWeapon(w, id);
+    for (const id of ['lance', 'pinball', 'beam', 'aura', 'nova']) giveWeapon(w, id);
     for (let i = 0; i < w.slots.length; i += 1) { if (w.slots[i].weaponId === null) continue; for (let k = 0; k < 6; k += 1) levelUpWeapon(w, i); }
     w.player.hp = 1e9; w.player.hpMax = 1e9;
     const pal = resolvePalette(d.rules); const fx = makeFx(w); const interp = makeInterp(w); const ctx = stubCtx();

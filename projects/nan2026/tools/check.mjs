@@ -248,7 +248,7 @@ function census() {
     ['enemies.emitters', D.enemies && D.enemies.emitters, 1, '§9.7 · §9.8.1(보스 부위 이미터 66개도 여기 산다)'],
     ['bullets.bullets', D.bullets && D.bullets.bullets, 1, '§9.7'],
     ['bosses.bosses', D.bosses && D.bosses.bosses, 1, '§9.8'],
-    ['weapons.weapons', D.weapons && D.weapons.weapons, 15, '§9.5 — 15 패밀리 1:1 (㉟ 5종 신설)'],
+    ['weapons.weapons', D.weapons && D.weapons.weapons, 14, '§9.5 — 14 패밀리 1:1 (㉟ 5종 신설 · ㊵ 스파이럴 삭제)'],
     ['passives.passives', D.passives && D.passives.passives, 13, '§9.6 — 13종 (㉟ 추진기·장기 배터리)'],
     ['stages.phase.crisisWaves', D.stages && D.stages.phase && D.stages.phase.crisisWaves, 6, '§9.9 — 6행 (v1.10 ⑥ 서브웨이브당 1행)'],
   ];
@@ -278,14 +278,14 @@ const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter',
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
-const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball', 'spiral']; // §9.5 (15 — ㉟)
-/** §9.5 ㊲ 무기 분류 — 탄 7 · 빔 3 · 범위 3 · 궤도 2 (패시브 분류와 짝, §9.6) */
-const WEAPON_CLASS = {
-  forward: 'bullet', fan: 'bullet', spiral: 'bullet', seeker: 'bullet', boomerang: 'bullet', missile: 'bullet', pinball: 'bullet',
-  lance: 'beam', beam: 'beam', chain: 'beam',
-  aura: 'area', nova: 'area', barrage: 'area',
-  orbit: 'orbital', drone: 'orbital',
-};
+const FAMILIES = ['forward', 'fan', 'seeker', 'lance', 'orbit', 'aura', 'boomerang', 'barrage', 'drone', 'nova', 'missile', 'chain', 'beam', 'pinball']; // §9.5 (㉟ 15 → ㊵ 14, 스파이럴 삭제)
+const WEAPON_CLASSES = ['bullet', 'beam', 'area', 'orbital'];   // §9.5 ㊲ 분류 어휘 · ㊵ 값의 소유자는 weapons.json 의 class 다
+/** family → class. ★ ㊵: 표를 여기서 «만들지» 않는다 — 데이터를 읽는다(중복 표는 조용히 어긋난다). D 는 로드 뒤에 찬다 → 호출 시 조회. */
+function weaponClassOf(family) {
+  const list = D.weapons && Array.isArray(D.weapons.weapons) ? D.weapons.weapons : [];
+  for (const w of list) if (isObj(w) && w.family === family) return w.class;
+  return undefined;
+}
 const PASSIVE_STATS = ['fireRateMul', 'projCountAdd', 'pierceAdd', 'projSpeedMul', 'durationMul',
   'beamDmgMul', 'beamAreaMul', 'areaMul', 'areaDmgMul', 'orbitMul',
   'maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];   // §9.6 (14 — ㊲ 공용 1·탄 4·빔 2·범위 2·궤도 1·기체 4)
@@ -786,7 +786,7 @@ function S2_files() {
   closedKeys('S2', D.weapons, ['schemaVersion', 'weapons'], 'weapons');
   for (const w of rowsQuiet(D.weapons.weapons)) {
     if (!isObj(w)) continue;
-    closedKeys('S2', w, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'base', 'levels', 'evolution'],
+    closedKeys('S2', w, ['id', 'family', 'name', 'desc', 'elementStampMode', 'slotClass', 'class', 'base', 'levels', 'evolution'],
       `weapons[${w.id}]`);
     if (isObj(w.evolution)) {
       closedKeys('S2', w.evolution, ['name', 'desc', 'params', 'requiresPassive'], `weapons[${w.id}].evolution`);
@@ -2741,7 +2741,7 @@ function S34_familyBaseKeys() {
       }
       // ㊲ 분류 순수성 — 탄 특화 훅(countKey·pierceApplies·speedKeys·durationKeys)은 탄 패밀리에만, 빔 훅(beamKeys·beamDmgMul)은 빔에만,
       //   범위 훅(areaKeys·areaDmgMul)은 범위 + 미사일 폭발에만, 궤도 훅(orbitKeys)은 궤도에만. 표는 §9.6.1.
-      const cls = WEAPON_CLASS[f];
+      const cls = weaponClassOf(f);
       const bulletHook = h.countKey !== null || h.pierceApplies === true || (h.speedKeys || []).length > 0 || (h.durationKeys || []).length > 0;
       if (bulletHook && cls !== 'bullet') V('S34', `rules.passiveHooks.${f}: 탄 특화 훅(countKey/pierceApplies/speedKeys/durationKeys)이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲)`);
       if (((h.beamKeys || []).length > 0 || h.dmgStat === 'beamDmgMul') && cls !== 'beam') V('S34', `rules.passiveHooks.${f}: 빔 훅이 «${cls}» 분류 무기에 붙었다 (§9.6.1 ㊲)`);

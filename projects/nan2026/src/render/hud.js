@@ -23,6 +23,26 @@
 import { rgba, glyphPath } from './draw.js';
 import { WEAPON_MAX_LEVEL } from '../core/schema.mjs';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
+import { passiveAppliesTo } from '../core/state.js';   // ㊵ — 「이 패시브가 내 무기에 듣는가」의 유일한 판정(§11.1)
+
+/** §9.5 ㊵ 무기 분류의 화면 이름 — 값(class)의 소유자는 weapons.json 이고, 여기는 «부르는 말»만 갖는다. */
+const CLASS_KO = { bullet: '탄', beam: '빔', area: '범위', orbital: '궤도' };
+
+/**
+ * ㊵ — 이 패시브(stat)가 «지금 내가 든 무기» 중 무엇에 듣는가. 사용자(2026-09-05): 「내 무기가 탄인지 아닌지를 잘 모르겠다」.
+ *   판정은 core 의 passiveAppliesTo 하나뿐이다(드래프트 필터·S41 과 같은 표) — 화면이 다른 답을 하면 그게 거짓말이다.
+ */
+export function affectedOwnedWeapons(world, stat) {
+  const out = [];
+  const hooks = world.data.rules.passiveHooks;
+  for (let i = 0; i < world.slots.length; i += 1) {
+    const s = world.slots[i];
+    if (s.weaponId === null) continue;
+    const def = world.weaponDefs[s.family];
+    if (passiveAppliesTo(hooks[s.family], def.base, stat)) out.push(s.evolved ? def.evolution.name : def.name);
+  }
+  return out;
+}
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
 // ★ §11.1 — 드래프트 카드는 키 문자(W/E/R)가 아니라 **속성 이름**을 말한다. 키 배정은 §5.1
@@ -446,6 +466,10 @@ function drawRightPanel(ctx, world, pal) {
       const def = world.weaponDefs[s.family];
       const name = s.evolved ? def.evolution.name : def.name;
       text(ctx, world, pal, name, x + 26, y + (rowH - 4) / 2, h.fontBodyPx, pal.hud.textPrimary, 'left', 600);
+      // ㊵ 분류 칩(탄·빔·범위·궤도) — 패시브 카드의 «[탄]» 과 같은 어휘. 이게 없으면 「내 무기가 탄인가?」를 화면이 답하지 못한다.
+      ctx.font = font(world, h.fontBodyPx, 600);
+      const nameW = ctx.measureText(name).width;
+      text(ctx, world, pal, CLASS_KO[def.class], x + 26 + nameW + 8, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.accent, 'left', 700);
       // §9.5(v1.5) — Lv7 은 «진화 임박»(짝 패시브 필요). 강조색으로 유추를 유도(짝은 안 밝힌다).
       const nearEvo = s.level === 7 && !s.evolved;
       text(ctx, world, pal, s.evolved ? `EVO ${s.level}/${WEAPON_MAX_LEVEL}` : `Lv.${s.level}/${WEAPON_MAX_LEVEL}`, x + w - 46, y + (rowH - 4) / 2,
@@ -563,7 +587,15 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
       cy += 22;
     }
     // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
-    wrap(ctx, world, pal, body.desc, cx, cy + 18, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
+    cy = wrap(ctx, world, pal, body.desc, cx, cy + 18, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
+    // ★ ㊵ — 패시브 카드는 «내 무기 중 무엇에 듣는지»를 말한다. 분류를 외우게 하지 않는다(사용자 2026-09-05).
+    if (c.category === 'passive') {
+      const def = world.data.passives.passives.find((q) => q.id === c.passiveId);
+      const hit = def === undefined ? [] : affectedOwnedWeapons(world, def.stat);
+      const line = hit.length > 0 ? `내 무기: ${hit.join(' · ')}` : '지금 내 무기엔 효과 없음';
+      wrap(ctx, world, pal, line, cx, cy + 24, cw - 36, h.fontSmallPx,
+        hit.length > 0 ? pal.hud.accent : rgba(pal.hud.textDim, 0.8), 18, 'center', 700);
+    }
   }
   // ★ v1.5 — 리롤 표시 폐지(경제 제거). 드래프트는 3장 고정.
 }

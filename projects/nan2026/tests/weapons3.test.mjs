@@ -7,7 +7,7 @@
  *   빔       — hitCooldownSec 마다 표적에 dmg · 표적 유지 · 관통(같은 직선 뒤 적) · 진화 갈래
  *   핀볼     — 벽 반사(bounceLeft -1) · 재히트 · 진화 멀티볼(반사마다 +1, evoMaxBalls 상한)
  *   스파이럴 — x 가 amp 안에서 진동 · 줄기 위상 분할 · 진화 진폭·수명
- *   공통     — 15종 전부 레지스트리·드래프트 후보 · 시작 무기 풀 = 속성 10종 · 훅 H5/H6
+ *   공통     — 전 무기가 레지스트리·드래프트 후보에 있다 · 계열별 후보 수 > 칸 수 · 훅 H5/H6
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
@@ -33,16 +33,21 @@ function tick(w, n) { for (let i = 0; i < n; i += 1) { w.player.hp = w.player.hp
 const dummy = (w, x, y, hp = 1e6) => spawnEnemy(w, 'drifter', 'normal', x, y, hp, false);
 
 suite('weapons3 · 공통 (§9.5 ㉟)', () => {
-  test('레지스트리 15종 = weapons.json 15행 · 드래프트 newWeapon 후보에 신설 5종이 온다 · 시작 무기 풀 = 속성 10종', () => {
+  test('레지스트리 = weapons.json 전 행 · 드래프트 newWeapon 후보에 신설 무기가 온다 · 시작 무기 풀 = 속성 무기 전부', () => {
     const w = mkWorld();
     const ids = w.data.weapons.weapons.map((x) => x.id);
-    assert.eq(ids.length, 15, '15종');
+    // ★ 개수는 데이터가 소유한다 — 무기를 더하거나 빼도(㊵ 스파이럴 삭제) 이 테스트는 «레지스트리 = 데이터»만 본다
+    assert.gt(ids.length, 8, `무기 ${ids.length}종`);
+    assert.eq(Object.keys(weapons).length, ids.length, '레지스트리 = weapons.json 행 수');
     for (const id of ids) assert.ok(weapons[id] !== undefined && typeof weapons[id].update === 'function', `${id} 모듈`);
     const cs = candidates(w).filter((c) => c.category === 'newWeapon').map((c) => c.weaponId);
-    for (const id of ['missile', 'chain', 'beam', 'pinball', 'spiral']) assert.ok(cs.includes(id), `${id} 후보`);
+    for (const id of ['missile', 'chain', 'beam', 'pinball']) assert.ok(cs.includes(id), `${id} 후보`);   // ㊵ 스파이럴 삭제
     const elem = w.data.weapons.weapons.filter((x) => x.slotClass === 'element').length;
-    assert.eq(elem, 10, '속성 무기 10종');
-    assert.eq(w.data.weapons.weapons.filter((x) => x.slotClass === 'utility').length, 5, '무속성 5종');
+    const util = w.data.weapons.weapons.filter((x) => x.slotClass === 'utility').length;
+    assert.eq(elem + util, ids.length, '모든 무기는 속성 또는 무속성이다');
+    const rp = w.data.rules.player;
+    assert.gt(elem, rp.elementSlots, `속성 무기 ${elem}종 > 속성 칸 ${rp.elementSlots} (고를 여지가 있다)`);
+    assert.gt(util, rp.weaponSlots - rp.elementSlots, `무속성 ${util}종 > 유틸 칸 ${rp.weaponSlots - rp.elementSlots}`);
   });
 
   test('H5 추진기·H6 장기 배터리 — speedKeys/durationKeys 만 곱한다 (미사일 탄속·수명 · 체인은 무효)', () => {
@@ -173,18 +178,3 @@ suite('weapons3 · 핀볼', () => {
   });
 });
 
-suite('weapons3 · 스파이럴', () => {
-  test('x 가 원점 ± ampPx 안에서 진동 · 줄기끼리 위상이 다르다 · 진화는 진폭·수명 ↑', () => {
-    const w = mkWorld();
-    const [s, eff] = setup(w, 'spiral', 1, false);
-    const p = w.player;
-    let maxDx = 0; let sawDiff = false;
-    for (let i = 0; i < Math.round(eff.lifetimeSec / dt); i += 1) { tick(w, 1); const bs = live(w, 'spiral'); for (const b of bs) { const d = Math.abs(b.x - p.x); if (d > maxDx) maxDx = d; } if (bs.length >= 2 && Math.abs(bs[0].x - bs[1].x) > 5) sawDiff = true; }
-    assert.ok(maxDx <= eff.ampPx * 1.1 + 2 && maxDx > eff.ampPx * 0.5, `진폭 안에서 진동(오일러 오차 ≤ 10%) (max ${maxDx.toFixed(1)} vs amp ${eff.ampPx})`);
-    assert.ok(sawDiff, '줄기끼리 위상이 다르다');
-    const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'spiral', 8, true);
-    tick(w2, 1); const b2 = live(w2, 'spiral')[0];
-    assert.near(b2.lifetimeSec, eff2.lifetimeSec * eff2.evoLifetimeMul, 1e-9, '진화 수명');
-    void s; void s2;
-  });
-});

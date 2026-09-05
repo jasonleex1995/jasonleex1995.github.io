@@ -31,9 +31,8 @@ import missile from './missile.js';   // ㉟ 신설 5종
 import chain from './chain.js';
 import beam from './beam.js';
 import pinball from './pinball.js';
-import spiral from './spiral.js';
 
 /** 키 = §9.5 의 family (id == family, 15종 1:1 — ㉟) */
-export const weapons = { forward, fan, seeker, boomerang, aura, nova, lance, orbit, barrage, drone, missile, chain, beam, pinball, spiral };
+export const weapons = { forward, fan, seeker, boomerang, aura, nova, lance, orbit, barrage, drone, missile, chain, beam, pinball };
 
 export default weapons;

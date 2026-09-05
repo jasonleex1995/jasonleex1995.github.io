@@ -1882,7 +1882,7 @@ G-2, ρ 상한)은 소프트 게이트와 함께 폐기. 값은 그대로(테마
 ★ **v1.10 ㊲ 재보정 (패시브 분류 재편 뒤).** 전무기 공통 탄두 증량과 랜스·바라지·오빗의 다중 장전이 사라져 같은 빌드의 화력이 내려갔다.
 두 계기로 다시 쟀다 — ① 봇 자연 빌드(㉝ 과 같은 방법, 시드 5): 패시브를 사다리 마지막에 고르는 봇은 ㊲ 뒤 s2 Lv50 191 · s3 Lv75 143 ·
 s5 Lv90 223 으로 크게 느려졌다. ② **합성 «합리적인 사람» 빌드**(`scratchpad synth.mjs`: 새 무기 5 → 속성 ≤12(15%) → 나머지 무기 60 / 패시브 40,
-패시브 6 = 로스터에 유효한 분류 패시브 우선, 로스터 A 벌컨·시커·랜스·노바·오빗·바라지 / B 팬아웃·스파이럴·미사일·빔·옵션·펄스필드 /
+패시브 6 = 로스터에 유효한 분류 패시브 우선, 로스터 A 벌컨·시커·랜스·노바·오빗·바라지 / B 팬아웃·미사일·빔·옵션·펄스필드(㊵ ~~스파이럴~~) /
 C 핀볼·리턴·체인·랜스·오빗·노바, 시드 2): 사람은 봇보다 훨씬 강하고 **로스터 편차가 2.5 배**(A 가 C 의 2.5 배 빠르다 — 무기 자체의 DPS 편차, ㊳ 과제).
 그 사이에서 값을 골랐다:
 
@@ -2736,7 +2736,7 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
 > | `chain` | 체인 라이트닝 | 즉발. `acquireRadius` 안 최근접 → `chainRangePx` 로 `chainCount` 홉, 홉마다 ×`chainDmgMul`. 한 볼리에 같은 적 1회(`enemy.chainEpoch`). 탄 없음 | `acquireRadius chainRangePx chainCount chainDmgMul` | 폭풍 `evoForkOnSuper evoChainCountMul` — 홉 ×2, 상성 ×2 적에서 두 갈래(재귀 1) | `resonance`(속성) | 뱀서 번개 반지 |
 > | `beam` | 빔 | 최근접에 레이저를 «계속» 댄다(`hitCooldownSec` 틱 피해, 표적 유지). `pierce` = 같은 직선 뒤 적을 더 꿴다(폭 `beamWidthPx`). 탄 없음 | `rangePx beamWidthPx` | 프리즘 빔 `evoSplitCount evoSplitDmgMul evoSplitRangePx` — 뚫은 적에서 갈래 | `coating`(관통) | 동방 마스터 스파크 · 홀로큐어 BL 북 |
 > | `pinball` | 핀볼 | 무거운 공을 대각(`launchDeg`, 좌우 교대)으로. 벽 반사 무제한(`bounceLeft -1`, step.bounceOffWalls) · 관통 -1 · 재히트 | `bounceLeft launchDeg` | 멀티볼 `evoSplitOnBounce evoMaxBalls` — 좌우 벽 반사(vx 부호 뒤집힘)마다 +1, 무대 공 수 상한 | `battery`(지속) | 알카노이드 · 뱀서 룬트레이서 |
-> | `spiral` | 스파이럴 | `count` 줄기가 위상 360°/n 으로 엇갈리며 x = amp·sin(ω·age+φ) 나선(모듈이 매 틱 vx 를 쓴다) | `ampPx freqHz` | 토네이도 `evoAmpMul evoLifetimeMul` | `stabilizer`(자이로) | 슈팅 고전 나선탄 |
+> | ~~`spiral` 스파이럴~~ | **㊵ 삭제** — 역할이 벌컨·팬아웃과 겹쳤다(정면으로 뿌린다). 짝 `autoload` 는 팬아웃과 공유였으므로 고아 없음 | | | | |
 >
 > - 렌더 신호: 체인·빔 갈래·빔 관통은 `world.chainFx`(«이번 틱» 선분 링, hitFx 와 같은 규약 — step 진입 때 0, 무기가 채우고 `draw.drawChainFx` 가 그 프레임에 그린다).
 >   빔의 첫 줄기는 슬롯 스크래치(a0 = 표적 idx · a2 = gen)로 `draw.drawBeams` 가 플레이어→표적 선분을 그린다.
@@ -2752,6 +2752,7 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
 { "schemaVersion": 1,
   "weapons": [{
     "id": "seeker", "family": "seeker", "name": "시커", "desc": "최근접 적을 자동 추적",
+    "slotClass": "element", "class": "bullet",        // ★ ㊵ class = 무기 분류(bullet|beam|area|orbital) — 패시브 분류(§9.6)의 짝이자 화면 표기의 소유자
     "elementStampMode": "spawn",
     "base": { "dmg":6, "cooldownSec":0.9, "count":1, "projSpeed":190, "projRadius":5,
               "lifetimeSec":2.4, "pierce":0, "hitCooldownSec":0.2,
@@ -2787,15 +2788,21 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 않았다(= 고를 «구조적 이유»가 없었다). 이제 11 패시브 중 10 이 진화 하나씩을 연다(남는 하나 = `bulkhead`, 최대 HP — 이유가 필요 없는 스탯).
 
 ★★ **v1.10 ㊲ (사용자 2026-09-05 「탄 무기 7 · 나머지 8 = 15종. 탄 특화 패시브 4, 나머지용 6(빔 2·범위 2·궤도 1·공용 1), 기체 4(강화 격벽·자세 안정기·학습 회로·상성 증폭) — 무기 짝을 맞추는 방향」)**
-— 패시브를 **무기 분류**로 재편했다(§9.6 14종). 무기 분류: **탄 7**(벌컨·팬아웃·스파이럴·시커·리턴·미사일·핀볼) · **빔 3**(랜스·빔·체인) ·
-**범위 3**(펄스필드·노바·바라지) · **궤도 2**(오빗·옵션). 진화 짝은 **무기 분류 패시브 10 중 하나**(기체 4 는 짝이 될 수 없다, S41)이고 15 무기 ↔ 10 패시브라
-5 패시브가 두 무기를 연다(같은 분류 안에서). ~~㉙·㉟ 의 1:1 짝~~
+— 패시브를 **무기 분류**로 재편했다(§9.6 14종). 무기 분류(★ ㊵ 스파이럴 삭제로 탄 6): **탄 6**(벌컨·팬아웃·시커·리턴·미사일·핀볼) · **빔 3**(랜스·빔·체인) ·
+**범위 3**(펄스필드·노바·바라지) · **궤도 2**(오빗·옵션). 진화 짝은 **무기 분류 패시브 10 중 하나**(기체 4 는 짝이 될 수 없다, S41)이고 14 무기 ↔ 10 패시브라
+4 패시브가 두 무기를 연다(같은 분류 안에서). ~~㉙·㉟ 의 1:1 짝~~
+
+★★ **v1.10 ㊵ (사용자 2026-09-05 「차라리 스파이럴을 빼자」)** — **스파이럴 삭제(15 → 14종)**. 근거는 «역할 중복»이다: 벌컨·팬아웃과 같은
+「정면으로 뿌린다」인데 궤적만 흔들려 화면에서 팬아웃의 변주로 읽혔다. 짝이었던 `autoload` 는 팬아웃과 **공유**였으므로 고아가 된 패시브는 없다.
+같이 고친 것 — **핀볼은 `추진기`(projSpeedMul)를 받지 않는다**(`speedKeys: []`): 공이 빨라지면 같은 적을 다시 때리기까지의 거리를 더 빨리 벗어나
+**패시브가 무기를 약하게 만들고 있었다**(측정: 패시브 만렙 키트 ÷ 패시브 0 = 0.95배). 그 손해만큼 기본 피해로 되돌렸다(밴드 유지, §13.5.2).
+★ **무기 분류의 거처 = `weapons.json` 의 `class`**(`bullet|beam|area|orbital`) — ㊲ 까지는 게이트가 자기 표를 들고 있었고, 그 표는 조용히 어긋날 수 있다.
+이제 데이터가 소유하고 S34 가 «훅이 그 분류와 맞는가»를 검사한다. 화면(무기 슬롯의 분류 칩 · 패시브 카드의 「내 무기: …」)도 같은 값을 읽는다.
 
 | 무기 (분류) | 진화 | 짝 패시브 (Lv3) | 유추 근거 |
 |---|---|---|---|
 | `forward` 벌컨 (탄) | 오버드라이브 | `overclock` 오버클럭 (공용) | 연사 램프 = 연사 |
-| `fan` 팬아웃 (탄) | 플레어 팬 | `autoload` 다중 장전 (스파이럴과 공유) | 부채 = 탄 수 |
-| `spiral` 스파이럴 (탄) | 토네이도 | `autoload` 다중 장전 (~~stabilizer~~) | 줄기 수 = 회오리 |
+| `fan` 팬아웃 (탄) | 플레어 팬 | `autoload` 다중 장전 | 부채 = 탄 수 |
 | `seeker` 시커 (탄) | 스웜 | `coating` 관통 코팅 (~~study~~) | 벌떼가 뚫고 지나간다 |
 | `boomerang` 리턴 (탄) | 체인 리턴 | `booster` 추진기 | 빨리 던지고 빨리 되받는다 |
 | `pinball` 핀볼 (탄) | 멀티볼 | `battery` 장기 배터리 | 오래 남을수록 강하다 |
@@ -3012,6 +3019,7 @@ v1.2의 `passives[]` 필드 집합은 `{id, name, stat, values}`였다 — **`de
 > · **H8 `orbitKeys`** — `orbitMul`(궤도 확장) ×(1+Σ): orbit = `[orbitRadius, projRadius, angularSpeedDegSec]` · drone = `[droneRangePx]` · 그 외 `[]`. (오빗 구체는 H3 클램프를 그대로 받는다.)
 > · **`dmgStat`** — 그 패밀리의 «피해 패시브» 스탯: `"beamDmgMul"`(lance·beam·chain) · `"areaDmgMul"`(nova·barrage·**missile**) · `"orbitMul"`(orbit·drone — 궤도는 패시브가 하나뿐이라 **궤도 확장이 피해도 든다**) · `null`(탄 6·aura = 피해 패시브 없음). §3.1-2항의 가산항 = `familyDmgMul(world, family)` = `dmgStat ? stats[dmgStat] : 0`. 탄은 슬롯의 패밀리로 매 탄 결정(`collide`), 직접 피해 무기는 자기 모듈이 넘긴다.
 > · **분류 순수성(S34)**: 탄 특화 훅(`countKey ≠ null` · `pierceApplies` · `speedKeys` · `durationKeys`)은 **탄 7 에만** · 빔 훅(`beamKeys`·`beamDmgMul`)은 **빔 3 에만** · 범위 훅(`areaKeys`·`areaDmgMul`)은 **범위 3 + 미사일 폭발에만** · 궤도 훅은 **궤도 2 에만**. 그래서 ~~orbit.countKey bodyCount~~ ~~barrage.countKey strikesPerVolley~~ ~~lance/beam/chain.countKey count~~ ~~beam/lance/drone.pierceApplies~~ ~~orbit.speedKeys angularSpeedDegSec~~ ~~barrage/nova.durationKeys~~ 는 지웠다 — 그 무기들의 발사 수·관통은 **자기 레벨 표**(`levels[]`)에서만 큰다.
+> · **㊵**: `pinball.speedKeys` = `[]`(추진기 무효 — 빨라지면 재히트가 줄어 «패시브가 무기를 약화»시켰다) · `spiral` 행 삭제 · 분류의 값은 `weapons.json > class` 가 소유하고 S34 가 훅과의 정합을 본다.
 > · 값 전체는 `data/rules.json > passiveHooks` 가 소유한다(아래 옛 12행 블록은 v1.3 의 인쇄 — 키·행이 그 뒤 ㉚·㉟·㊲ 로 바뀌었고 **현행 값은 데이터가 정본**이다).
 
 > ★ **v1.10 ㉟ — H5 `speedKeys` · H6 `durationKeys`** (패밀리마다 배열, `rateKey·countKey·pierceApplies·areaKeys` 와 같은 자리):
