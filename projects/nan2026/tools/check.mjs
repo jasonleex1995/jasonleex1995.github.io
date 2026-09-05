@@ -1270,6 +1270,17 @@ function S5_bossRules() {
       }
     }
 
+    // R8 (v1.10 ㉞): 주변부 속성 ⊆ 그 스테이지의 «테마 + 먹이»(stages[].mix > 0) — 사용자(2026-09-05): 「늪은 풀·물만 나오니
+    //   보스의 공격 모듈도 주로 풀·물로」. 최종은 mix 가 3속성이라 자동 충족. 파트 속성이 잡몹 속성 밖이면 스탠스 문법이 보스에서 깨진다.
+    {
+      const stg = STAGES().find((t) => isObj(t) && t.bossId === b.id);
+      if (stg && isObj(stg.mix)) {
+        const allowed = Object.keys(stg.mix).filter((el) => num(stg.mix[el]) && stg.mix[el] > 0);
+        const bad = periph.filter((p) => isObj(p) && p.element !== 'normal' && !isAmb(p.element) && allowed.indexOf(p.element) < 0);
+        if (bad.length > 0) V('S5', `${tag}: R8 위반 — 주변부 [${bad.map((p) => `${p.id}:${p.element}`).join(', ')}] ∉ 스테이지 «테마+먹이» [${allowed.join(', ')}] (§8.14 ㉞)`);
+      }
+    }
+
     // R5: armor 부위 속성 ≠ 테마 속성 (최종은 테마 없음 → 공허참)
     if (rb.armorElementNotTheme === true && themeEl) {
       const bad = armor.filter((p) => p.element === themeEl);

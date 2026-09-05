@@ -1883,10 +1883,11 @@ R5: armor 부위 속성 ≠ 테마 속성
 | **R1** | `core` 속성 = **항상 노말** | `boss.coreElement = "normal"` | **브릭 방지** — 어떤 스탠스로도 ×1 마무리 가능 |
 | **R2** | 주변부 속성에 **노말 금지** | `boss.partNormalForbidden = true` | 모든 주변부는 상성 대상 |
 | **R3** | 주변부는 **서로 다른 속성 ≥ 2종** | `boss.partElementDistinctMin = 2` | **스탠스 1개 샌드백 금지** |
-| **R4** ★v1.5 | **테마 속성은 최대 2개 부위** | `boss.partThemeElementMax = 2` | 보스 = «대부분 테마»(테마 일관성) — 단 R3·R6 이 장갑 2개를 여전히 distinct 로 강제해 2-스탠스 유지 |
+| **R4** ★v1.5·㉞ | **테마 속성은 최대 4개 부위**(6 중) · ~~2~~ | `boss.partThemeElementMax = 4` | 보스 = «대부분 테마»(테마 일관성) — 단 R3·R6 이 장갑 2개를 여전히 distinct 로 강제해 2-스탠스 유지 |
 | **R5** ★v1.5 | **`armor` 부위 속성 = 테마 허용** | `boss.armorElementNotTheme = false` | 장갑 하나는 테마·하나는 다른속성 → «테마 카운터 + 장갑 1개용 스탠스»의 2-스탠스 퍼즐 |
 | **★ v1.5 개정 (사용자 결정 2026-07-23)** | 위 R4·R5 는 v1.4 의 「보스=예고편·테마 반대」(§8.6/§8.9)를 **뒤집었다** — 보스·중간보스가 테마와 일치. 중간보스 규칙도 `notThemeAndNotNormal → themeElseNonTheme`. §8.9 의 «예고편» 산문(§본 절 아래·1512)은 이 개정으로 **폐기**이며, 스탠스 전환은 이제 «장갑 1개가 테마 아님»에서 나온다 | | |
 | **R6** | ★ **`armor` 부위 수 = 2** (최종은 3, `exemptRules`) | `boss.armorPartCountRange = [2, 2]` | §8.13.2 — 게이트 강도 + **특화의 전멸 방지** |
+| **R8** ★v1.10 ㉞ | **주변부 속성 ⊆ 그 스테이지의 «테마 + 먹이»**(`stages[].mix > 0`, `bossId` 로 연결) | 파생 — 새 키 0 | 사용자(2026-09-05): 「늪은 풀·물만 나오니 보스의 공격 모듈도 주로 풀·물로」. 스테이지의 스탠스 문법(테마 카운터 + 테마 스탠스)이 보스에서도 그대로 통한다. 테마 4 : 먹이 2 로 저작 |
 | **R7** ★ | **`armorCoreRatio` φ ∈ [0.85·B, B)**, `B = 0.4^-a − 1` | ★ 값 = **`bosses[].armorCoreRatio`** / 밴드 = **`boss.armorCoreRatioBandPct`** (v1.3 정정) | §8.13.1 — **게이트가 게이트이기 위한 조건** |
 
 > **R4 + R5의 결합이 이 게임의 셀링 포인트를 규칙으로 보장한다**: 테마 정답 스탠스 하나만 갈고 온 특화 빌드는 **보스에서 반드시 스탠스를 바꿔야 한다.** 6개 보스를 AI가 생성해도 전부 스탠스 퍼즐이 됨이 보장된다.
@@ -1899,8 +1900,9 @@ R5: armor 부위 속성 ≠ 테마 속성
 | 부위 | `partType` | 속성 | **정답 스탠스** | 파괴 효과 |
 |---|---|---|---|---|
 | 스러스터 | `mobility` | **물** | 풀 | 이동 ×0.5, 좌우 회피 기동 중단 |
-| 좌 지느러미 | `armor` | 불 | **물** | 코어 게이트 1/2 해제 |
-| 우 지느러미 | `armor` | 풀 | **불** | 코어 게이트 2/2 해제 |
+| 좌 지느러미 | `armor` | **물**(㉞ · ~~불~~) | 풀 | 모듈 1/6 |
+| 우 지느러미 | `armor` | 불(먹이, ㉞ · ~~풀~~) | **물** | 모듈 2/6 |
+| ext1~3 | `armament` | 물·불·물 (㉞) | 풀·물·풀 | 포지션이 오르며 3→6 으로 늘어난다(§8.9.1) |
 | 코어(몸체) | `core` | 노말 | 아무거나 | **사망** |
 
 - 규칙 검증: R1 ✔ / R2 ✔ / R3 distinct = 3 ✔ / R4 테마(물) 부위 1개 ✔ / R5 armor 둘 다 ≠ 물 ✔ / **R6 armor = 2 ✔** / **R7 φ = 4.90 ∈ [4.46, 5.25) ✔** / partCount = 4 ✔
@@ -5048,12 +5050,12 @@ killTime(stage i) = 소요피해 × bossHpScale[i] / (dpsRef[i] × 0.60 × m)
 
 | `bossId` | 테마 | `armor` #1 | `armor` #2 | 선택 부위 | `movePattern` |
 |---|---|---|---|---|---|
-| **`manta`** 강철 가오리 | `sea`/물 | `finL` 불 | `finR` 풀 | `thruster` **mobility**/물 | `sway` |
-| **`frostCrown`** 빙관 | `glacier`/물 | `crownL` 풀 | `crownR` 불 | `pylon` **armament**/불 | `sway` |
-| **`kiln`** 용광로 거신 | `volcano`/불 | `plate` 물 | `vent` 풀 | `turret` **armament**/불 | `holdCenter` |
-| **`scarab`** 태양갑충 | `desert`/불 | `carapace` 물 | `stinger` 풀 | `legs` **mobility**/불 | `orbitArc` |
-| **`thornKing`** 가시왕 | `forest`/풀 | `podL` 물 | `podR` 불 | `bloom` **armament**/풀 | `sway` |
-| **`mire`** 늪주 | `bog`/풀 | `shell` 불 | `tendril` 물 | `sac` **armament**/풀 | `holdCenter` |
+| **`manta`** 강철 가오리 | `sea`/물 | `finL` 물 (㉞) | `finR` 불 | `thruster` **mobility**/물 | `sway` |
+| **`frostCrown`** 빙관 | `glacier`/물 | `crownL` 물 (㉞) | `crownR` 불 | `pylon` **armament**/물 | `sway` |
+| **`kiln`** 용광로 거신 | `volcano`/불 | `plate` 불 (㉞) | `vent` 풀 | `turret` **armament**/불 | `holdCenter` |
+| **`scarab`** 태양갑충 | `desert`/불 | `carapace` 불 (㉞) | `stinger` 풀 | `legs` **mobility**/불 | `orbitArc` |
+| **`thornKing`** 가시왕 | `forest`/풀 | `podL` 풀 (㉞) | `podR` 물 | `bloom` **armament**/풀 | `sway` |
+| **`mire`** 늪주 | `bog`/풀 | `shell` 풀 (㉞) | `tendril` 물 | `sac` **armament**/풀 | `holdCenter` |
 
 **★ HP (전 6종 동일 — `bossHpScale`이 스테이지 축을, 저작이 구조 축을 담당한다)**
 

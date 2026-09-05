@@ -115,7 +115,7 @@
     "coreEmitterId": "bossCore",
     "partNormalForbidden": true,
     "partElementDistinctMin": 2,
-    "partThemeElementMax": 2,
+    "partThemeElementMax": 4,
     "armorElementNotTheme": false,
     "armorPartCountRange": [2, 2],
     "armorCoreRatioMax": 15,
