@@ -219,6 +219,7 @@
       "stanceGrass": "KeyR",
       "pause": "Escape",
       "options": "KeyO",
+      "tutorial": "KeyT",
       "draftPick": ["Digit1", "Digit2", "Digit3"],
       "reorderToggle": "Tab",
       "grab": "Space",

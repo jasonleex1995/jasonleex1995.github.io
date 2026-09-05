@@ -843,23 +843,57 @@ function cardBody(world, c) {
  * 폭 maxW 로 자동 줄바꿈. align/weight 는 선택 (기본 left / 400).
  * @returns 마지막으로 그린 줄의 y (다음 블록을 이 아래로 이어 붙일 수 있게)
  */
+/**
+ * ★ v1.10 ㊴ — 폭 maxW 안으로 줄을 나눈다(순수 함수 · 테스트 가능). **공백이 없는 한 덩어리도 반드시 안에 들어간다**.
+ *   옛 판은 공백으로만 쪼개서, 한국어의 긴 토큰(예: 「무기(벌컨·팬아웃·스파이럴·시커·리턴·미사일·핀볼)의」)이
+ *   maxW 보다 넓으면 그대로 한 줄에 그려 **카드 밖으로 삐져나갔다**(플레이테스트 스크린샷 2026-09-05).
+ *   토큰이 넘치면 글자 단위로 자르되 끊는 자리는 «·」·「,」·「)」·「]」 뒤를 우선한다(읽는 결을 지킨다).
+ * @param measure  문자열 → 픽셀 폭 (렌더는 ctx.measureText, 테스트는 길이 × 상수)
+ */
+export function wrapLines(measure, s, maxW) {
+  const fits = (t) => measure(t) <= maxW;
+  const parts = [];
+  for (const word of String(s).split(' ')) {
+    if (word === '') continue;
+    if (fits(word)) { parts.push(word); continue; }
+    let cur = '';
+    let lastBreak = -1;
+    for (let i = 0; i < word.length; i += 1) {
+      const ch = word[i];
+      if (cur === '' || fits(cur + ch)) {
+        cur += ch;
+        if (ch === '·' || ch === ',' || ch === ')' || ch === ']') lastBreak = cur.length;
+        continue;
+      }
+      const cut = lastBreak > 0 && lastBreak < cur.length ? lastBreak : cur.length;
+      parts.push(cur.slice(0, cut));
+      cur = cur.slice(cut) + ch;
+      lastBreak = -1;
+    }
+    if (cur !== '') parts.push(cur);
+  }
+  const lines = [];
+  let line = '';
+  for (let i = 0; i < parts.length; i += 1) {
+    const t = line === '' ? parts[i] : `${line} ${parts[i]}`;
+    if (!fits(t) && line !== '') { lines.push(line); line = parts[i]; } else line = t;
+  }
+  if (line !== '') lines.push(line);
+  return lines;
+}
+
+/** wrapLines 로 나눈 줄을 그린다. 반환 = 마지막 줄의 y. */
 function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH, align, weight) {
   const w = weight === undefined ? 400 : weight;
   const al = align === undefined ? 'left' : align;
   ctx.font = font(world, px, w);
-  const words = s.split(' ');
-  let line = '';
+  const lines = wrapLines((t) => ctx.measureText(t).width, s, maxW);
   let cy = y;
-  for (let i = 0; i < words.length; i += 1) {
-    const t = line === '' ? words[i] : `${line} ${words[i]}`;
-    if (ctx.measureText(t).width > maxW && line !== '') {
-      text(ctx, world, pal, line, x, cy, px, color, al, w);
-      line = words[i];
-      cy += lineH;
-    } else line = t;
+  for (let i = 0; i < lines.length; i += 1) {
+    text(ctx, world, pal, lines[i], x, cy, px, color, al, w);
+    if (i < lines.length - 1) cy += lineH;
   }
-  if (line !== '') { text(ctx, world, pal, line, x, cy, px, color, al, w); return cy; }
-  return cy - lineH;
+  return cy;
 }
 // hudText 별칭은 importer 0 이었다 → 제거(text 는 이 파일 안에서 직접 쓰인다, 모듈-프라이빗)
 
@@ -917,3 +951,36 @@ export function drawResults(ctx, world, pal, t, seedText) {
 
 // ★ v1.5 — 사망 화면(drawDeath)/컨티뉴는 폐지됐다: 경제 제거 + 원데스=게임오버.
 //   사망 = 즉시 결과 화면(main.js).
+
+// ---------------------------------------------------------------------------
+// §6.7(v1.10 ㊴) 튜토리얼 안내 띠 — 아레나 «위»에 제목 · 설명 · 지금 할 일. 판정 채널을 가리지 않는다.
+//   ★ 규칙을 문장으로 늘어놓지 않는다: 한 스텝에 한 가지, 그리고 그것을 «해 보게» 한다(§6.7).
+// ---------------------------------------------------------------------------
+export function drawTutorial(ctx, world, pal, step) {
+  const v = world.data.rules.view;
+  const h = world.data.rules.hud;
+  const a = v.arena;
+  const tu = world.tut;
+  const n = world.data.tutorial.steps.length;
+  const bandH = 92;
+  const y0 = a.y + 8;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = pal.hud.panelBg;
+  ctx.fillRect(a.x + 8, y0, a.w - 16, bandH);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = pal.hud.panelRule;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(a.x + 8, y0, a.w - 16, bandH);
+  const cx = a.x + a.w / 2;
+  if (step === null) {
+    text(ctx, world, pal, '튜토리얼 완료', cx, y0 + 34, h.fontMediumPx, pal.hud.textPrimary, 'center', 700);
+    ctx.restore();
+    return;
+  }
+  // 진행 표시 — «몇 번째 / 몇 개»
+  text(ctx, world, pal, `${tu.i + 1} / ${n}   ${step.title}`, cx, y0 + 18, h.fontSmallPx, pal.hud.accent, 'center', 700);
+  wrap(ctx, world, pal, step.body, cx, y0 + 42, a.w - 48, h.fontSmallPx, pal.hud.textPrimary, 18, 'center');
+  text(ctx, world, pal, step.hint, cx, y0 + bandH - 12, h.fontSmallPx, pal.hud.textDim, 'center', 600);
+  ctx.restore();
+}

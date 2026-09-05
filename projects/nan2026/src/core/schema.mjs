@@ -18,9 +18,9 @@
  *   둘은 §9.3의 같은 규칙을 집행하되 check.mjs 가 상위집합이다.
  */
 
-/** §9.2 — 정확히 9개, 닫힘 */
+/** §9.2 — 정확히 11개, 닫힘 */
 export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
-  'enemies', 'bosses', 'stages', 'meta', 'traits'];   // v1.10 ⑲ traits (§11.6 특성)
+  'enemies', 'bosses', 'stages', 'meta', 'traits', 'tutorial'];   // v1.10 ⑲ traits (§11.6) · ㊴ tutorial (§6.7)
 export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 v1.10 ㉒ — 특성 3종과 1:1(재생·흡혈·쉴드)
 /** §11.6 ㉗ 효과 kind 별 «추가 키» — 흡혈의 hpRatio(이 비율 이하일 때만 듣는다). 로더가 닫힌 키·(0,1] 로 지킨다. */
 export const TRAIT_EFFECT_EXTRA = { lifestealPct: ['hpRatio'] };
@@ -142,6 +142,7 @@ export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fi
 /** §8.21 ③(v1.10 ⑳) finale 의 terrainKind — 3종이 slow→inertia→heat 순으로 «돌아가며» 나온다(테마가 없으니 전부 나온다). */
 export const TERRAIN_MIXED = 'mixed';
 export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
+export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'stances', 'survive', 'terrain', 'boss', 'confirm'];   // §6.7 ㊴
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
 export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)
@@ -283,7 +284,7 @@ function checkRules(c, r) {
   c.closed('rules.input', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings']);
   if (isObj(r.input)) {
     c.closed('rules.input.bindings', r.input.bindings, ['move', 'stanceNormal', 'stanceFire',
-      'stanceWater', 'stanceGrass', 'pause', 'options', 'draftPick',
+      'stanceWater', 'stanceGrass', 'pause', 'options', 'tutorial', 'draftPick',
       'reorderToggle', 'grab', 'confirm', 'mute', 'cursor']);
   }
 
@@ -585,6 +586,39 @@ function checkStages(c, s) {
   }
 }
 
+/** §6.7(v1.10 ㊴) tutorial.json — 체험형 튜토리얼의 스텝 목록. 닫힌 키 · 닫힌 목표 어휘 · 참조 무결성. */
+function checkTutorial(c, t) {
+  c.closed('tutorial', t, ['schemaVersion', 'startWeaponId', 'spawnYPx', 'spawnGapPx', 'hpMul', 'safeHpFloor', 'steps']);
+  if (typeof t.startWeaponId !== 'string' || t.startWeaponId === '') c.fail('tutorial.startWeaponId', '빈 문자열 — 튜토리얼의 시작 무기는 고정이다(§6.7)');
+  for (const k of ['spawnYPx', 'spawnGapPx']) if (typeof t[k] !== 'number' || !(t[k] > 0)) c.fail(`tutorial.${k}`, '양수여야 한다');
+  for (const k of ['hpMul', 'safeHpFloor']) if (typeof t[k] !== 'number' || !(t[k] > 0) || t[k] > 1) c.fail(`tutorial.${k}`, '(0, 1] 이어야 한다');
+  if (!Array.isArray(t.steps) || t.steps.length === 0) { c.fail('tutorial.steps', '비어 있지 않은 배열이어야 한다'); return; }
+  const ids = new Set();
+  for (let i = 0; i < t.steps.length; i += 1) {
+    const st = t.steps[i];
+    const p = `tutorial.steps[${i}]`;
+    if (!c.closed(p, st, ['id', 'title', 'body', 'hint', 'goal', 'spawn', 'grant'])) continue;
+    for (const k of ['id', 'title', 'body', 'hint']) if (typeof st[k] !== 'string' || st[k] === '') c.fail(`${p}.${k}`, '빈 문자열');
+    if (ids.has(st.id)) c.fail(`${p}.id`, `중복 id "${st.id}"`);
+    ids.add(st.id);
+    if (c.closed(`${p}.goal`, st.goal, ['kind', 'value'])) {
+      c.vocab(`${p}.goal.kind`, st.goal.kind, TUTORIAL_GOALS);
+      if (typeof st.goal.value !== 'number' || st.goal.value < 0) c.fail(`${p}.goal.value`, '0 이상의 수여야 한다');
+    }
+    if (!Array.isArray(st.spawn)) { c.fail(`${p}.spawn`, '배열이어야 한다'); continue; }
+    for (let k = 0; k < st.spawn.length; k += 1) {
+      const sp = st.spawn[k];
+      if (!c.closed(`${p}.spawn[${k}]`, sp, ['archetypeId', 'element', 'count'])) continue;
+      c.vocab(`${p}.spawn[${k}].element`, sp.element, ELEMENTS4);
+      if (!Number.isInteger(sp.count) || sp.count < 1) c.fail(`${p}.spawn[${k}].count`, '1 이상의 정수여야 한다');
+    }
+    // grant = 없으면 **null**(§9.3 — 누락 키는 에러다. «없음»도 저작한다)
+    if (st.grant !== null) {
+      if (c.closed(`${p}.grant`, st.grant, ['invest'])) c.vocab(`${p}.grant.invest`, st.grant.invest, ELEMENTS4);
+    }
+  }
+}
+
 /** §11.6(v1.10 ⑲) traits.json — 특성(보스 처치 보상). 닫힌 키 · 어휘 · 값 범위. */
 function checkTraits(c, t) {
   c.closed('traits', t, ['schemaVersion', 'maxLevel', 'traits']);
@@ -679,6 +713,16 @@ function checkRefs(c, d) {
     if (id === null || id === undefined) return;
     if (list.indexOf(id) < 0) c.fail(where, `참조 무결성 실패 — "${id}" 가 존재하지 않는다 (§9.3)`);
   };
+
+  // §6.7 ㊴ — 튜토리얼이 부르는 아키타입·시작 무기는 실재해야 한다
+  if (isObj(d.tutorial)) need(weaponIds, d.tutorial.startWeaponId, 'tutorial.startWeaponId');
+  if (isObj(d.tutorial) && Array.isArray(d.tutorial.steps)) {
+    for (let i = 0; i < d.tutorial.steps.length; i += 1) {
+      const st = d.tutorial.steps[i];
+      if (!isObj(st) || !Array.isArray(st.spawn)) continue;
+      for (let k = 0; k < st.spawn.length; k += 1) need(archIds, st.spawn[k].archetypeId, `tutorial.steps[${i}].spawn[${k}].archetypeId`);
+    }
+  }
 
   for (let i = 0; i < d.enemies.archetypes.length; i += 1) {
     const a = d.enemies.archetypes[i];
@@ -797,7 +841,7 @@ export function validate(raw) {
   const given = Object.keys(raw);
   for (let i = 0; i < given.length; i += 1) {
     if (MANIFEST.indexOf(given[i]) < 0) {
-      c.fail(`data/${given[i]}.json`, '§9.2 매니페스트(정확히 10개, 닫힘) 밖의 파일');
+      c.fail(`data/${given[i]}.json`, '§9.2 매니페스트(정확히 11개, 닫힘) 밖의 파일');
     }
   }
   for (let i = 0; i < MANIFEST.length; i += 1) {
@@ -823,6 +867,7 @@ export function validate(raw) {
   checkStages(c, raw.stages);
   checkMeta(c, raw.meta);
   checkTraits(c, raw.traits);   // v1.10 ⑲
+  checkTutorial(c, raw.tutorial);   // v1.10 ㊴
   if (c.errs.length > 0) throwAll(c.errs);
 
   // 구조가 성립한 뒤에만 참조·공정성을 본다 (undefined 를 훑지 않기 위해)

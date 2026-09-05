@@ -193,11 +193,11 @@ function vocab(check, value, allowedList, path) {
 const pascal = (s) => (typeof s === 'string' && s.length ? s[0].toUpperCase() + s.slice(1) : s);
 
 // ---------------------------------------------------------------------------
-// §9.2 파일 매니페스트 — 정확히 10개, 닫힘 (v1.10 ⑲ traits)
+// §9.2 파일 매니페스트 — 정확히 11개, 닫힘 (v1.10 ⑲ traits)
 // ---------------------------------------------------------------------------
 const MANIFEST = [
   'rules', 'elements', 'weapons', 'passives', 'bullets',
-  'enemies', 'bosses', 'stages', 'meta', 'traits',
+  'enemies', 'bosses', 'stages', 'meta', 'traits', 'tutorial',   // ㊴ §6.7 튜토리얼
 ];
 const SCHEMA_VERSION = 1;   // §9.4~§9.9 의 전 인쇄 블록이 1을 인쇄한다
 
@@ -207,11 +207,11 @@ function loadAll() {
     console.error(`FATAL: data 디렉터리가 없다: ${DATA_DIR}`);
     process.exit(2);
   }
-  // 매니페스트가 닫혀 있으므로 여분 파일도 에러다 (§9.2 "정확히 10개, 닫힘")
+  // 매니페스트가 닫혀 있으므로 여분 파일도 에러다 (§9.2 "정확히 11개, 닫힘")
   const present = readdirSync(DATA_DIR).filter((f) => extname(f) === '.json');
   const expect = new Set(MANIFEST.map((n) => `${n}.json`));
   for (const f of present) {
-    if (!expect.has(f)) V('S2', `data/${f}: §9.2 매니페스트(정확히 10개, 닫힘) 밖의 파일`);
+    if (!expect.has(f)) V('S2', `data/${f}: §9.2 매니페스트(정확히 11개, 닫힘) 밖의 파일`);
   }
   for (const name of MANIFEST) {
     const p = join(DATA_DIR, `${name}.json`);
@@ -614,7 +614,7 @@ function S2_schema() {
   closedKeys('S2', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings'], 'rules.input');
   if (isObj(r.input)) {
     closedKeys('S2', r.input.bindings, ['move', 'stanceNormal', 'stanceFire', 'stanceWater', 'stanceGrass',
-      'pause', 'options', 'draftPick', 'reorderToggle', 'grab',
+      'pause', 'options', 'tutorial', 'draftPick', 'reorderToggle', 'grab',
       'confirm', 'mute', 'cursor'], 'rules.input.bindings');
   }
 

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "startWeaponId": "forward",
+  "spawnYPx": 150,
+  "spawnGapPx": 90,
+  "hpMul": 0.6,
+  "safeHpFloor": 0.5,
+  "steps": [
+    { "id": "move", "title": "이동", "body": "방향키로 움직인다. 맞는 판정은 기체 한가운데의 «작은 점»뿐이다.",
+      "hint": "← ↑ → ↓ 로 420px 만큼 움직여 보자",
+      "goal": { "kind": "move", "value": 420 }, "grant": null,
+      "spawn": [] },
+
+    { "id": "fire", "title": "사격은 자동", "body": "발사 버튼이 없다. 적을 정면에 두는 것이 조준이다.",
+      "hint": "앞의 세 기를 부수자",
+      "goal": { "kind": "clear", "value": 0 }, "grant": null,
+      "spawn": [ { "archetypeId": "drifter", "element": "normal", "count": 3 } ] },
+
+    { "id": "xp", "title": "구슬과 레벨업", "body": "적이 남긴 구슬이 점선 원 안에 들면 끌려온다. 모이면 레벨업 — 카드 세 장 중 하나를 고른다.",
+      "hint": "구슬을 모아 레벨업 카드를 골라 보자",
+      "goal": { "kind": "level", "value": 2 }, "grant": null,
+      "spawn": [ { "archetypeId": "drifter", "element": "normal", "count": 6 } ] },
+
+    { "id": "matrix", "title": "속성 상성", "body": "왼쪽 상성표가 규칙이다. 내 스탠스가 «오른쪽 이웃»을 때리면 피해 ×2, 반대 방향이면 ×½.",
+      "hint": "[W] 불 스탠스로 바꿔 풀(✚) 적을 전부 때려 보자 — 숫자가 커진다",
+      "goal": { "kind": "superHit", "value": 3 }, "grant": {"invest": "fire"},
+      "spawn": [ { "archetypeId": "drifter", "element": "grass", "count": 4 } ] },
+
+    { "id": "stance", "title": "스탠스 전환", "body": "Q 무 · W 불 · E 물 · R 풀. 속성에 투자한 수만큼 «앞쪽 무기»에 그 속성이 각인된다.",
+      "hint": "세 속성(W·E·R)을 모두 한 번씩 눌러 보자",
+      "goal": { "kind": "stances", "value": 3 }, "grant": {"invest": "water"},
+      "spawn": [ { "archetypeId": "drifter", "element": "fire", "count": 2 }, { "archetypeId": "drifter", "element": "water", "count": 2 } ] },
+
+    { "id": "dodge", "title": "적 탄은 피한다", "body": "탄은 부술 수 없다. 맞아도 1초는 무적이지만, 피하는 것이 정답이다.",
+      "hint": "8초 동안 탄을 피해 보자",
+      "goal": { "kind": "survive", "value": 8 }, "grant": null,
+      "spawn": [ { "archetypeId": "spitter", "element": "normal", "count": 2 } ] },
+
+    { "id": "terrain", "title": "지형", "body": "바닥의 옅은 원은 지형이다. 풀=둔화 · 물=미끄러움 · 불=과열(잠깐 멈춘다). 피해는 없다.",
+      "hint": "지형 위를 한 번 지나가 보자",
+      "goal": { "kind": "terrain", "value": 1 }, "grant": null,
+      "spawn": [] },
+
+    { "id": "boss", "title": "보스의 봉인", "body": "보스의 무기 모듈이 하나라도 살아 있으면 코어는 무적이다 — 탄이 통과한다. 모듈부터 부순다.",
+      "hint": "양옆 모듈 두 개를 먼저 부수고 코어를 치자",
+      "goal": { "kind": "boss", "value": 0 }, "grant": null,
+      "spawn": [] },
+
+    { "id": "done", "title": "준비 완료", "body": "보스를 잡으면 금색 구슬이 나온다 — 자연 재생·흡혈·쉴드 중 하나를 고르는 특성이다. 나머지는 직접 해 보자.",
+      "hint": "[Space] 를 눌러 끝낸다",
+      "goal": { "kind": "confirm", "value": 0 }, "grant": null,
+      "spawn": [] }
+  ]
+}

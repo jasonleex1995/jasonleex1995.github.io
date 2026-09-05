@@ -34,7 +34,8 @@ import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, PHASE 
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
-import { drawPanels, drawDraft, drawResults } from './render/hud.js';
+import { drawPanels, drawDraft, drawResults, drawTutorial } from './render/hud.js';
+import { makeTutorialState, tickTutorial, tutorialStep, tutorialConfirm } from './core/tutorial.js';   // §6.7 ㊴
 
 // ---------------------------------------------------------------------------
 // 에러 화면 (§9.3 — 로드 실패는 조용히 지나가지 않는다)
@@ -421,6 +422,26 @@ async function boot() {
     enterBanner();                           // 스테이지 1 테마 배너 → PLAY
   }
 
+  /**
+   * §6.7(v1.10 ㊴) 튜토리얼 — 스테이지 디렉터 대신 tickTutorial 을 `hooks.run` 에 꽂은 «같은 게임»이다.
+   *   보스 훅도 끈다(보스는 튜토리얼이 직접 세운다). 죽지 않으며, 끝나면 타이틀로 돌아간다.
+   */
+  function startTutorial() {
+    difficultyId = DIFFS[0];
+    tickDur = 1000 / (TICK_HZ * data.meta.difficulty[difficultyId].speed);
+    seed = 1;                                   // 튜토리얼은 매번 같아야 «배울» 수 있다 (§10.2 결정성)
+    world = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters, run: tickTutorial, boss: null },
+      startWeaponId: data.tutorial.startWeaponId });    // 튜토리얼의 시작 무기는 «가장 단순한 것»으로 고정(데이터 소유)
+    world.difficultyId = difficultyId;
+    initRun(world);                             // run 구조체(지형·구간 질의)가 필요하다 — 페이즈는 튜토리얼이 안 쓴다
+    world.tut = makeTutorialState();
+    interp = makeInterp(world);
+    fx = makeFx(world);
+    document.title = `${baseTitle} — 튜토리얼`;
+    enter('PLAY');
+    last = performance.now(); acc = 0;
+  }
+
   let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | PAUSE | RESULTS | TOO_SMALL  (v1.5: SHOP·DEATH 폐지)
   const DIFFS = Object.keys(data.meta.difficulty).filter((k) => data.meta.difficulty[k].speed !== undefined);
   let diffCursor = 0;
@@ -559,6 +580,7 @@ async function boot() {
 
     // ── §6.5 메뉴(런 없음) ─────────────────────────────────────────
     if (state === 'TITLE') {
+      if (edge.pressed(rules.input.bindings.tutorial)) { startTutorial(); return; }   // §6.7 ㊴ — 처음이면 여기부터
       if (advanceEdge) enter('DIFFICULTY');
       else if (optionsEdge) { optionsFrom = 'TITLE'; enter('OPTIONS'); }
       renderFrame();
@@ -600,6 +622,13 @@ async function boot() {
     // §6.5 — RESULTS 에서 Space/Enter = 같은 난이도 즉시 재시작(통일)
     if (advanceEdge && state === 'RESULTS') { startRun(difficultyId); }
     if (DEMO && state === 'RESULTS') { demoHoldT -= elapsed; if (demoHoldT <= 0) startRun('normal'); }  // 데모 루프
+
+    // §6.7 ㊴ — 튜토리얼: 마지막 스텝의 확정(Space) · 전 스텝 완료 → 타이틀
+    if (world !== null && world.tut !== undefined && state === 'PLAY') {
+      world.over = false;                                          // 튜토리얼에는 사망이 없다(§6.7) — step 은 over 면 아무것도 안 한다
+      if (advanceEdge) tutorialConfirm(world);
+      if (world.tut.done) { world = null; document.title = baseTitle; enter('TITLE'); return; }
+    }
 
     if (state === 'PLAY') {
       // §10.1 — 고정 타임스텝. maxFrameGapMs 로 프레임 갭을 자른다
@@ -677,6 +706,7 @@ async function boot() {
     const alpha = state === 'PLAY' ? acc / tickDur : 0;    // §10.1 — 위치 lerp 만. 로직 금지
     drawWorld(ctx, world, pal, fx, interp, alpha);
     drawPanels(ctx, world, pal);
+    if (world.tut !== undefined) drawTutorial(ctx, world, pal, tutorialStep(world));   // §6.7 ㊴
     if (state === 'THEME_BANNER') drawThemeBanner();
     if (state === 'DRAFT') drawDraft(ctx, world, pal, draft, cursor);
     if (state === 'PAUSE') banner(ctx, data, pal, '일시정지', '[Esc] 재개   ·   [O] 옵션');
@@ -706,7 +736,7 @@ async function boot() {
     const h = rules.hud;
     mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
-    mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
+    mText('[Space/Enter] 시작        [T] 튜토리얼        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
   const DIFF_LABEL = { normal: '노멀', hard: '하드', hell: '헬', disaster: '디재스터' };

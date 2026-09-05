@@ -21,7 +21,7 @@ import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
-import { drawPanels, drawResults, drawDraft } from '../src/render/hud.js';
+import { drawPanels, drawResults, drawDraft, wrapLines } from '../src/render/hud.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
 
@@ -170,5 +170,41 @@ suite('render · §7.4 밀도 알파 (v1.10 ㉖ — 만렙 빌드의 백지 화�
     // 풀 상한(caps.playerBullets)에서의 총 밝기가 ref × 상한의 몇 배인가 — 바닥 때문에 조금 넘지만 4배는 안 넘는다
     const cap = d.rules.caps.playerBullets;
     assert.ok(cap * bulletDensityAlpha(r, cap) <= 4 * r.playerBulletDensityRef * r.playerBulletMaxAlpha, `풀 상한 ${cap}발의 총 밝기 ≤ 4 × 기준`);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('render · §11.1 ㊴ 카드 줄바꿈 — 어떤 문장도 카드를 넘지 않는다', () => {
+  const measure = (t) => t.length * 10;          // 글자당 10px 인 가짜 폰트(순수 함수라 테스트가 결정적이다)
+
+  test('공백이 없는 긴 한 덩어리도 maxW 안으로 쪼갠다 (플레이테스트 회귀: 「다중 장전」 카드가 삐져나갔다)', () => {
+    const s = '[탄] 탄 무기(벌컨·팬아웃·스파이럴·시커·리턴·미사일·핀볼)의 발사 수 +N';
+    const lines = wrapLines(measure, s, 200);
+    assert.gt(lines.length, 1, '여러 줄로 나뉜다');
+    for (const l of lines) assert.ok(measure(l) <= 200, `줄이 폭 안에 있다: "${l}" (${measure(l)}px)`);
+    assert.eq(lines.join('').replace(/ /g, ''), s.replace(/ /g, ''), '글자는 하나도 잃지 않는다');
+  });
+
+  test('실제 데이터의 모든 카드 문장이 카드 폭 안에 들어간다 (패시브·무기·특성 desc 전수)', () => {
+    const d = loadData();
+    const maxW = 264;                            // drawDraft 의 cw(300) − 36
+    const strings = [];
+    for (const p of d.passives.passives) strings.push(p.desc, p.name);
+    for (const w of d.weapons.weapons) { strings.push(w.desc, w.name, w.evolution.desc, w.evolution.name); }
+    for (const t of d.traits.traits) strings.push(t.desc, t.name);
+    for (const st of d.tutorial.steps) strings.push(st.body, st.hint);
+    let n = 0;
+    for (const s of strings) {
+      for (const l of wrapLines(measure, s, maxW)) {
+        assert.ok(measure(l) <= maxW, `카드 폭 초과: "${l}"`);
+        n += 1;
+      }
+    }
+    assert.gt(n, 60, `검사한 줄 ${n} (vacuous 아님)`);
+  });
+
+  test('한 글자가 폭보다 넓어도 무한 루프에 빠지지 않는다 (극단)', () => {
+    const lines = wrapLines(measure, '가나다라', 3);
+    assert.eq(lines.length, 4, '글자마다 한 줄');
   });
 });
