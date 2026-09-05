@@ -383,7 +383,7 @@ suite('boss — 등장 쓸어내기 (§8.22 v1.10 ⑧)', () => {
     assert.gte(a.liveNow, 1, '보스 구간에도 지형이 있다');
   });
 
-  test('finale(mixed) — 쓸어내기 뒤 지형 무리 3개 = 3종이 하나씩', () => {
+  test('finale(mixed) — 쓸어내기 뒤 지형 무리(bossEntryCount)에 3종이 전부 선다', () => {
     const w = mkAtPhaseEnd(2, 'finale');
     w.run.order[5] = 'finale'; w.run.stageIndex = 5;
     const b = w.data.rules.boss;
@@ -393,6 +393,8 @@ suite('boss — 등장 쓸어내기 (§8.22 v1.10 ⑧)', () => {
     assert.eq(mobs(w), 0, '잡몹 0');
     const kinds = w.terrain.items.filter((t) => t.alive).map((t) => t.kind).sort();
     assert.eq(kinds.length, tr.bossEntryCount, `지형 무리 ${tr.bossEntryCount}`);
-    assert.eq(kinds.join(','), TERRAIN_KINDS.map((_, i) => i).join(','), '3종이 하나씩 (slow·inertia·heat)');
+    // 가방(3종)이라 bossEntryCount ≥ 3 이면 3종이 전부 들어 있고, 넘치는 몫은 다음 가방에서 온다(어느 종이든)
+    for (let k = 0; k < TERRAIN_KINDS.length; k += 1) assert.ok(kinds.includes(k), `종 ${TERRAIN_KINDS[k]} 가 무리에 있다`);
+    assert.ok(tr.bossEntryCount >= TERRAIN_KINDS.length, '무리 ≥ 3 이어야 3종이 전부 선다');
   });
 });

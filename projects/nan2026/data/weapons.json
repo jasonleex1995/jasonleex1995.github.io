@@ -42,7 +42,7 @@
                   {"dmg":16}, {"dmg":18,"count":5} ],
       "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
-                     "requiresPassive": { "id":"autoload", "level":3 } }
+                     "requiresPassive": { "id":"study", "level":3 } }
     },
     {
       "id": "lance", "slotClass": "element", "family": "lance", "name": "랜스", "desc": "잠깐 모았다가 정면을 꿰뚫는다",
@@ -94,7 +94,7 @@
                   {"dmg":24}, {"dmg":28,"count":4} ],
       "evolution": { "name":"체인 리턴", "desc":"돌아오는 길에 가까운 적들을 들른다",
                      "params": { "evoChainCount":3 },
-                     "requiresPassive": { "id":"autoload", "level":3 } }
+                     "requiresPassive": { "id":"stabilizer", "level":3 } }
     },
     {
       "id": "barrage", "slotClass": "utility", "family": "barrage", "name": "바라지", "desc": "아무 데나 포격이 떨어져 적을 느리게 한다",
@@ -109,7 +109,7 @@
                   {"dmg":90}, {"dmg":105,"strikesPerVolley":4} ],
       "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
                      "params": { "evoRadiusMul":2.0 },
-                     "requiresPassive": { "id":"coil", "level":3 } }
+                     "requiresPassive": { "id":"warhead", "level":3 } }
     },
     {
       "id": "drone", "slotClass": "utility", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다",
@@ -141,7 +141,7 @@
                   {"dmg":280}, {"dmg":340,"intervalSec":2.9} ],
       "evolution": { "name":"슈퍼노바", "desc":"폭발이 더 멀리 퍼지고, 더 오래 늦춘다",
                      "params": { "evoRing2Radius":320, "evoSecondaryDmgMul":0.5, "evoActionSlowSec":2.40 },
-                     "requiresPassive": { "id":"coil", "level":3 } }
+                     "requiresPassive": { "id":"resonance", "level":3 } }
     }
   ]
 }

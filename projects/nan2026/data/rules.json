@@ -156,10 +156,10 @@
   "terrain": {
     "radiusPx": 72,
     "scrollSpeedPx": 42,
-    "everySec": 3.2,
-    "maxOnScreen": 3,
+    "everySec": 2.2,
+    "maxOnScreen": 5,
     "spawnIn": ["early", "midboss", "boss"],
-    "bossEntryCount": 3,
+    "bossEntryCount": 4,
     "fadeSec": 0.8,
     "inertia": { "responseTauSec": 0.35 },
     "heat": { "fullSec": 1.5, "stallSec": 0.6, "coolSec": 1.0 }

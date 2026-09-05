@@ -2180,7 +2180,7 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 
 **③ 거처와 값.** `stages[].terrainKind` ∈ `{slow, inertia, heat}` \| **`"mixed"`**(finale) \| null(지형 없음 — 어휘상 허용, 현재 데이터엔 없다).
 ★ **finale 은 `mixed` (v1.10 ⑳, 사용자 질문 2026-09-05 「최종 stage 6 에서는 장판 효과가 어떻게 되는가」에 대한 결정)**: 테마가 없으니 지형이 «없는» 것이 아니라 **셋이 전부 나온다** — ★ v1.10 ㉑(사용자 「최종이니까 3종이 다 랜덤하게」): **가방**(`run.terrainBag[3]`·`terrainBagN`, `terrain.nextKind`) — 비면 3종을 `rng.terrain` 으로 섞어 채우고 하나씩 꺼낸다. 순서는 무작위, 그러나 **3개마다 전부 한 번씩**(순수 무작위는 한 종이 안 나오는 런을 만들고, 고정 순환은 외워진다 — §8.2 의 속성 가방과 같은 문법). 보스 등장 무리 3개 = 하나씩 전부(순서만 무작위). `mix` 0.34/0.33/0.33 과 같은 정신이고, 지형 저항 패시브(⑥)가 마지막 스테이지에서 죽지 않게 하는 조건이기도 하다. 그림의 색은 **종의 속성**(`TERRAIN_KIND_ELEMENT` = 풀 slow · 물 inertia · 불 heat)이라 finale 한 화면에 세 색이 같이 보인다. ~~null(finale — 테마가 없으니 지형도 없다)~~
-`rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 3.2, maxOnScreen 3, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }`.
+`rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 2.2, maxOnScreen 5, bossEntryCount 4, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }` — ★ v1.10 ㉙(사용자 「장판이 생각보다 자주 안 나와 저항을 안 올리게 된다」): `everySec 3.2 → 2.2`, `maxOnScreen 3 → 5`, `bossEntryCount 3 → 4`. 실측(늪 초기 48초): 놓인 장판 12 · 동시 최대 5 · 평균 덮인 면적 13.7%(전 ~8%).
 `caps.terrain 16`(overflow `rejectSpawn`) · `visual.terrain { fillAlpha 0.14, edgeAlpha 0.35, patternAlpha 0.30, heatPulseHz 0.8 }`.
 `rules.json` 루트는 **17개**가 됐다(`terrain` 추가 — `RULES_ROOT_17`).
 
@@ -2190,7 +2190,7 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 ★ **위기(`crisis`)에는 없다** — 사용자(2026-09-04): 「위기 구간 같이 촉박한 상황에 있어야 하는가 하면 좀 아닌 것 같다」.
 186px/s 새떼 속의 둔화·정지는 «확정 피격»이라 §2.1 ① 을 깬다 → S56 ⑥ 이 `'crisis' ∉ spawnIn` 을 못박는다. 위기가 켜지는
 순간 무대의 장판은 **`fadeSec`(0.8) 동안 줄어들며 사라지고 효과는 그 즉시 꺼진다**(`fadeTerrain`, `terrainUnder` 가 무시).
-★ **보스 구간**은 §8.22 의 쓸어내기가 끝난 자리에 `bossEntryCount`(3)개를 아레나 «전체»에 무작위로 놓고(이미 놓여 있는
+★ **보스 구간**은 §8.22 의 쓸어내기가 끝난 자리에 `bossEntryCount`(4, ㉙ · ~~3~~)개를 아레나 «전체»에 무작위로 놓고(이미 놓여 있는
 상태로 시작), 그 뒤 평소 주기로 계속 흘러온다. 스테이지 전이(`advanceStage`)가 무대와 열을 비운다. 흐름·반납·페이드는
 페이즈 무관, 스폰은 허용 구간만. 소유: `src/core/terrain.js`(시각표·구간 `sectionOf`·흐름·페이드·무리 `terrainBurst`·술어
 `terrainUnder`) · 효과의 «적용»은 `step.movePlayer`(이동의 단일 소유자, §2.2) · 그림은 `draw.drawTerrain`(레이어 1, 페이드
@@ -2426,8 +2426,8 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
                "telegraphConcurrentMaxPerEntity":2,
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
-  "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":3.2, "maxOnScreen":3,
-               "spawnIn":["early","midboss","boss"], "bossEntryCount":3, "fadeSec":0.8,                          // §8.21 ④ · §8.22 (v1.10 ⑧)
+  "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":2.2, "maxOnScreen":5,                                   // ㉙ 더 자주(3.2→2.2 · 3→5)
+               "spawnIn":["early","midboss","boss"], "bossEntryCount":4, "fadeSec":0.8,                          // §8.21 ④ · §8.22 (v1.10 ⑧)
                "inertia":{ "responseTauSec":0.35 }, "heat":{ "fullSec":1.5, "stallSec":0.6, "coolSec":1.0 } },   // §8.21 v1.10 ⑦
   "hud":     { "...§9.4.1 전 키..." },
   "passiveHooks": { "...§9.6.1 전 키..." },
@@ -2680,14 +2680,22 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 
 > ★ **유추가능성 실증 채택**: 7명 독립 추측 워크숍(무기·패시브 «설명만» 제공, 의도 은닉)으로 «사람이 유추 가능한 짝»을 실측했다. 대부분 무기의 직관적 강화가 «투사체 수↑(autoload)」·「범위↑(coil)」로 뭉쳤다(무기 «유형»이 짝을 정한다). 애매하게 갈린 `orbit`·`barrage`는 **진화 효과**가 가리키는 짝으로 확정(분산 + 게이트 강화). threshold = 3(튜너블).
 
-| 유형 | 짝 패시브 | 무기 | 유추 근거 |
+★ **v1.10 ㉙ (사용자 2026-09-05 「너무 선택을 안 하게 되는 패시브들이 보인다」)** — 짝을 **패시브 하나당 무기 하나**로 다시 깔았다.
+v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`resonance`·`bulkhead`·`stabilizer`·`study` 는 어떤 진화도 요구하지
+않았다(= 고를 «구조적 이유»가 없었다). 이제 11 패시브 중 10 이 진화 하나씩을 연다(남는 하나 = `bulkhead`, 최대 HP — 이유가 필요 없는 스탯).
+
+| 무기 | 진화 | 짝 패시브 (Lv3) | 유추 근거 |
 |---|---|---|---|
-| 연사 | `overclock` | `forward` | 오버드라이브 = 연사 램프 |
-| 관통 | `coating` | `lance` | 레일건 = 무제한 관통 |
-| 범위 | `coil` | `aura` · `nova` · `barrage` | 오라·대폭발·오비탈(반경2배) = 범위 |
-| 다투사체 | `autoload` | `fan` · `seeker` · `mine` · `omni` · `boomerang` | 부채·스웜·기뢰밭·전방위·왕복 = 탄 수 |
-| 편대/잔상 | `afterimage` | `drone` | 잔상 편대 = 잔광 |
-| 탄소거 | `reactive` | `orbit` | 이지스 = 적 탄 소거 = 반응장갑 |
+| `forward` 벌컨 | 오버드라이브 | `overclock` 오버클럭 | 연사 램프 = 연사 |
+| `fan` 팬아웃 | 플레어 팬 | `autoload` 다중 장전 | 부채 = 탄 수 |
+| `seeker` 시커 | 스웜 | `study` 학습 회로 (㉙ · ~~autoload~~) | 스웜 = «학습된 조준»(서로 다른 표적·처치 시 재조준) |
+| `lance` 랜스 | 레일건 | `coating` 관통 코팅 | 무제한 관통 |
+| `orbit` 오빗 | 이지스 | `reactive` 반응 장갑 | 적 탄 소거 = 반응 장갑 |
+| `aura` 펄스필드 | 싱귤래리티 | `coil` 확장 코일 | 범위 |
+| `boomerang` 리턴 | 체인 리턴 | `stabilizer` 자세 안정기 (㉙ · ~~autoload~~) | 체인 = «궤도 안정»(안정기가 궤도를 잇는다) |
+| `barrage` 바라지 | 오비탈 스트라이크 | `warhead` 탄두 증량 (㉙ · ~~coil~~) | 큰 탄두 = 궤도 폭격 |
+| `drone` 옵션 | 잔상 편대 | `afterimage` 잔광 | 잔상 |
+| `nova` 노바 | 슈퍼노바 | `resonance` 상성 증폭 (㉙ · ~~coil~~) | 속성 폭발 = 상성 |
 
 - ★ **기계적 유효성 (S41 강제)**: 짝 패시브는 그 무기의 «무효» 목록에 들면 안 된다 — `coating` 무효(`orbit aura mine barrage nova boomerang`) · `autoload` 무효(`aura nova drone`). 위 표는 전부 유효(예: `boomerang`은 `coating` 무효라 `autoload`).
 - ★ **밸런스 부수효과**: 진화가 무기 Lv8 + 짝 패시브 Lv3 콤보가 되어 후반 진화 수가 줄고 화력이 낮아진다 → §13.6의 속성 게이트가 자연히 강화된다(dpsRef 재도출 필요).
