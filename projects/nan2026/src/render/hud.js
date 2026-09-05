@@ -21,7 +21,7 @@
  */
 
 import { rgba, glyphPath } from './draw.js';
-import { WEAPON_MAX_LEVEL, BODY_STATS } from '../core/schema.mjs';
+import { WEAPON_MAX_LEVEL, WEAPON_EVOLVE_LEVEL, BODY_STATS } from '../core/schema.mjs';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
 import { passiveAffectsSlot } from '../core/state.js';   // ㊸ — 「이 패시브가 지금 내 무기에 실제로 듣는가」(§11.1, eff 기준)
 
@@ -482,8 +482,21 @@ function drawRightPanel(ctx, world, pal) {
       ctx.font = font(world, h.fontBodyPx, 600);
       const nameW = ctx.measureText(name).width;
       text(ctx, world, pal, CLASS_KO[def.class], x + 26 + nameW + 8, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.accent, 'left', 700);
-      // §9.5(v1.5) — Lv7 은 «진화 임박»(짝 패시브 필요). 강조색으로 유추를 유도(짝은 안 밝힌다).
-      const nearEvo = s.level === 7 && !s.evolved;
+      // §9.5(v1.5 · ★㊹ 개정) — Lv7 은 «진화 임박»이고, 짝 패시브 Lv3 이 없으면 **그 무기의 레벨업 카드가 아예 안 나온다**.
+      //   v1.5 는 「짝은 안 밝힌다(유추를 유도)」였는데, 실제로는 «카드가 왜 사라졌는지 모르는» 상태가 됐다(사용자 2026-09-06:
+      //   「플레이해보면서 알게 됐다」). ㊲ 로 패시브가 분류를 달고부터는 짝이 이미 읽히므로, 조건을 **그 자리에서 말한다**.
+      const nearEvo = s.level === WEAPON_EVOLVE_LEVEL - 1 && !s.evolved;
+      if (nearEvo) {
+        const req = def.evolution.requiresPassive;
+        let have = 0;
+        for (let k = 0; k < world.passives.length; k += 1) if (world.passives[k].id === req.id) { have = world.passives[k].level; break; }
+        const pdef = world.data.passives.passives.find((q) => q.id === req.id);
+        ctx.font = font(world, h.fontBodyPx, 600);
+        const nameW2 = ctx.measureText(name).width;
+        text(ctx, world, pal, `진화: ${pdef === undefined ? req.id : pdef.name} ${have}/${req.level}`,
+          x + 26 + nameW2 + 28, y + (rowH - 4) / 2, h.fontSmallPx,
+          have >= req.level ? pal.element.normal : pal.hud.accent, 'left', 700);
+      }
       text(ctx, world, pal, s.evolved ? `EVO ${s.level}/${WEAPON_MAX_LEVEL}` : `Lv.${s.level}/${WEAPON_MAX_LEVEL}`, x + w - 46, y + (rowH - 4) / 2,
         h.fontSmallPx, (s.evolved || nearEvo) ? pal.element.normal : pal.hud.textDim, 'right', 600);
     }
