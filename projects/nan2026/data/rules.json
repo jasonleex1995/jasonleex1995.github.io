@@ -89,7 +89,7 @@
 
   "elite": {
     "perWaveMax": 1,
-    "hpMult": 4.0,
+    "hpMult": 2.5,
     "sizeMult": 1.4,
     "contactDmgMul": 1.5,
     "xpMult": 3.0,
