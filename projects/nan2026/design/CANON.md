@@ -2835,6 +2835,8 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
 | `orbit` 오빗 (궤도) | 이지스 | `orbitext` 궤도 확장 (옵션과 공유 · ~~reactive~~) | 궤도 |
 | `drone` 옵션 (궤도) | 잔상 편대 | `orbitext` 궤도 확장 (~~afterimage~~) | 편대 = 궤도 |
 
+- ★ **㊸ 카드의 «내 무기» 줄은 무기 분류 패시브에만 붙는다** (사용자 2026-09-06: 「강화 격벽은 무기랑 상관 없잖아」). 기체 4(최대 HP·지형 저항·XP·상성 증폭)는
+  무기를 가리지 않으므로 그 줄이 **없는 것이 정답**이다 — 있으면 「무기 덕분에 좋은 카드」로 읽힌다. 판정 목록의 소유자 = `schema.mjs > BODY_STATS`(화면·게이트가 같은 목록을 읽는다).
 - ★ **기계적 유효성 (S41 강제, ㊲ 일반화)**: 짝 패시브의 stat 이 그 무기에 유효해야 한다 — 표 = `passiveAppliesTo`(§11.1, `state.js` 와 `check.mjs` 의 같은 표: `fireRateMul` ⇔ `rateKey ≠ null` · `projCountAdd` ⇔ `countKey ≠ null` · `pierceAdd` ⇔ `pierceApplies ∧ base.pierce ≠ −1` · `projSpeedMul/durationMul/beamAreaMul/areaMul/orbitMul` ⇔ 해당 키 배열 비어 있지 않음 · `beamDmgMul/areaDmgMul` ⇔ `dmgStat` 일치). **기체 4 는 짝 불가.**
 - ★ **밸런스 부수효과**: 진화가 무기 Lv8 + 짝 패시브 Lv3 콤보가 되어 후반 진화 수가 줄고 화력이 낮아진다 → §13.6의 속성 게이트가 자연히 강화된다(dpsRef 재도출 필요).
 
@@ -2976,11 +2978,11 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
     { "id":"overclock",  "name":"오버클럭",     "desc":"[공용] 모든 무기의 발사 주기 단축",                                   "stat":"fireRateMul",     "values":[0.06,0.12,0.18,0.23,0.28,0.32,0.36,0.40,0.43,0.46] },
     { "id":"autoload",   "name":"다중 장전",    "desc":"[탄] 탄 무기의 발사 수 +N",   "stat":"projCountAdd",    "values":[0,1,1,1,2,2,2,3,3,4] },
     { "id":"coating",    "name":"관통 코팅",    "desc":"[탄] 탄 무기의 관통 +N (리턴·미사일·핀볼 무효)",           "stat":"pierceAdd",       "values":[1,1,2,2,3,3,4,4,5,5] },
-    { "id":"booster",    "name":"추진기",       "desc":"[탄] 탄 무기의 탄속 +N%",                          "stat":"projSpeedMul",    "values":[0.06,0.11,0.16,0.20,0.24,0.28,0.32,0.35,0.38,0.40] },
-    { "id":"battery",    "name":"장기 배터리",  "desc":"[탄] 탄 무기의 탄 수명 +N%",                                          "stat":"durationMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
+    { "id":"booster",    "name":"추진기",       "desc":"[탄] 탄이 더 빠르게 날아간다 (리턴은 돌아오는 속도도)",                          "stat":"projSpeedMul",    "values":[0.06,0.11,0.16,0.20,0.24,0.28,0.32,0.35,0.38,0.40] },
+    { "id":"battery",    "name":"장기 배터리",  "desc":"[탄] 탄이 사라지기까지 +N% — 더 멀리 날아간다 (핀볼은 더 오래 튄다)",                                          "stat":"durationMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
     { "id":"highvolt",   "name":"고압",         "desc":"[빔] 빔 무기의 피해 +N%",                                "stat":"beamDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
     { "id":"lens",       "name":"집속 렌즈",    "desc":"[빔] 빔 무기의 폭·사거리 +N%",                "stat":"beamAreaMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
-    { "id":"coil",       "name":"확장 코일",    "desc":"[범위] 범위 무기의 반경 +N% · 자석 반경도", "stat":"areaMul",   "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
+    { "id":"coil",       "name":"확장 코일",    "desc":"[범위] 범위 무기의 반경 +N% · 구슬을 끌어오는 반경도", "stat":"areaMul",   "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
     { "id":"shockwave",  "name":"충격파",       "desc":"[범위] 범위 무기의 피해 +N%",                        "stat":"areaDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
     { "id":"orbitext",   "name":"궤도 확장",    "desc":"[궤도] 궤도 무기의 피해·궤도 반경·공전 속도 +N%", "stat":"orbitMul", "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"[기체] 최대 HP +N",                                                   "stat":"maxHpAdd",        "values":[6,12,18,24,30,36,42,48,54,60] },

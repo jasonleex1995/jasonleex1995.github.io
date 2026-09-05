@@ -21,7 +21,9 @@ import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
-import { drawPanels, drawResults, drawDraft, wrapLines } from '../src/render/hud.js';
+import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine } from '../src/render/hud.js';
+import { BODY_STATS } from '../src/core/schema.mjs';
+import { giveWeapon as giveW } from '../src/core/state.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
 
@@ -206,5 +208,29 @@ suite('render · §11.1 ㊴ 카드 줄바꿈 — 어떤 문장도 카드를 넘�
   test('한 글자가 폭보다 넓어도 무한 루프에 빠지지 않는다 (극단)', () => {
     const lines = wrapLines(measure, '가나다라', 3);
     assert.eq(lines.length, 4, '글자마다 한 줄');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('render · §11.1 ㊸ 패시브 카드의 «내 무기» 줄', () => {
+  test('기체 패시브에는 줄이 붙지 않는다 — 무기와 무관하기 때문이다 (강화 격벽이 「내 무기: 벌컨…」을 달던 회귀)', () => {
+    const w = mkRun(5);
+    for (const p of w.data.passives.passives) {
+      const line = passiveWeaponLine(w, p.id);
+      if (BODY_STATS.indexOf(p.stat) >= 0) assert.eq(line, null, `${p.id}(기체) = 줄 없음`);
+      else assert.ok(line !== null && typeof line.text === 'string', `${p.id}(무기 분류) = 줄 있음`);
+    }
+  });
+
+  test('무기 분류 패시브는 «내가 든 무기 중 듣는 것»만 센다', () => {
+    const w = mkRun(6);
+    for (const s of w.slots) { s.weaponId = null; s.family = ''; }
+    giveW(w, 'lance');                                   // 빔 하나만 든다
+    const beam = passiveWeaponLine(w, 'highvolt');       // 빔 피해
+    assert.eq(beam.hit.length, 1, '랜스 하나');
+    assert.ok(beam.text.indexOf('랜스') >= 0, `${beam.text}`);
+    const bullet = passiveWeaponLine(w, 'autoload');     // 탄 발사 수
+    assert.eq(bullet.hit.length, 0, '탄 무기가 없다');
+    assert.eq(bullet.text, '지금 내 무기엔 효과 없음', bullet.text);
   });
 });

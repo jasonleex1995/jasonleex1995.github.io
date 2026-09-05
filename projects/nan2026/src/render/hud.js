@@ -21,7 +21,7 @@
  */
 
 import { rgba, glyphPath } from './draw.js';
-import { WEAPON_MAX_LEVEL } from '../core/schema.mjs';
+import { WEAPON_MAX_LEVEL, BODY_STATS } from '../core/schema.mjs';
 import { PHASE, stageEntry } from '../core/stage.js';   // 읽기 전용 상수·질의 (render 는 core 를 읽기만 한다, §9.1)
 import { passiveAppliesTo } from '../core/state.js';   // ㊵ — 「이 패시브가 내 무기에 듣는가」의 유일한 판정(§11.1)
 
@@ -42,6 +42,18 @@ export function affectedOwnedWeapons(world, stat) {
     if (passiveAppliesTo(hooks[s.family], def.base, stat)) out.push(s.evolved ? def.evolution.name : def.name);
   }
   return out;
+}
+
+/**
+ * ㊸ — 패시브 카드의 «내 무기» 줄. ★ **무기와 관련된 패시브에만 붙는다**(사용자 2026-09-06: 「강화 격벽은 무기랑 상관 없잖아」).
+ *   기체 4(최대 HP·지형 저항·XP·상성 증폭)는 무기를 가리지 않으므로 이 줄이 없는 것이 정답이다 — 있으면 «무기 때문에 좋은 카드»로 읽힌다.
+ *   @returns { text, hit } · 기체 패시브면 null
+ */
+export function passiveWeaponLine(world, passiveId) {
+  const def = world.data.passives.passives.find((p) => p.id === passiveId);
+  if (def === undefined || BODY_STATS.indexOf(def.stat) >= 0) return null;
+  const hit = affectedOwnedWeapons(world, def.stat);
+  return { hit, text: hit.length > 0 ? `내 무기: ${hit.join(' · ')}` : '지금 내 무기엔 효과 없음' };
 }
 
 const KEYCAP = { normal: 'Q', fire: 'W', water: 'E', grass: 'R' };
@@ -590,11 +602,11 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     cy = wrap(ctx, world, pal, body.desc, cx, cy + 18, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
     // ★ ㊵ — 패시브 카드는 «내 무기 중 무엇에 듣는지»를 말한다. 분류를 외우게 하지 않는다(사용자 2026-09-05).
     if (c.category === 'passive') {
-      const def = world.data.passives.passives.find((q) => q.id === c.passiveId);
-      const hit = def === undefined ? [] : affectedOwnedWeapons(world, def.stat);
-      const line = hit.length > 0 ? `내 무기: ${hit.join(' · ')}` : '지금 내 무기엔 효과 없음';
-      wrap(ctx, world, pal, line, cx, cy + 24, cw - 36, h.fontSmallPx,
-        hit.length > 0 ? pal.hud.accent : rgba(pal.hud.textDim, 0.8), 18, 'center', 700);
+      const line = passiveWeaponLine(world, c.passiveId);      // ㊸ 기체 패시브면 null — 줄을 붙이지 않는다
+      if (line !== null) {
+        wrap(ctx, world, pal, line.text, cx, cy + 24, cw - 36, h.fontSmallPx,
+          line.hit.length > 0 ? pal.hud.accent : rgba(pal.hud.textDim, 0.8), 18, 'center', 700);
+      }
     }
   }
   // ★ v1.5 — 리롤 표시 폐지(경제 제거). 드래프트는 3장 고정.
