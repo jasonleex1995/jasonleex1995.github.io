@@ -747,9 +747,18 @@ function pickups(world, dt) {
   const grab = rp.spriteRadius;
   const items = world.pickups.items;
 
+  // §2.6(v1.10 ㊼) 구슬은 «내려온다» — 무대는 위에서 아래로 흐르는데 구슬만 제자리에 서 있으면, **사거리가 긴 무기가
+  //   자기 보상을 못 받는다**: 빔(사거리 630)이 스폰 라인에서 잡으면 구슬이 화면 맨 위에 쌓이고 플레이어는 아래에 있다
+  //   (실측 2026-09-06: 만렙 빔 25초 위기 478처치 → 획득 XP **0**, 구슬 중앙값 y 56 vs 플레이어 664. 벌컨도 165처치 0).
+  //   「죽였는데 못 먹는 것은 규칙이 아니라 사고다」(§2.6 v1.7) 의 같은 문제다 → 구슬은 xpDriftPxSec 로 내려오고
+  //   플레이어가 설 수 있는 아래 끝(bounds.maxY)에서 멈춘다. 잃지 않는다 · 가로로 움직여 «주우러 가는» 조작은 남는다.
+  const drift = rp.xpDriftPxSec * dt;
+  const floorY = world.bounds.maxY;
+
   for (let i = 0; i < items.length; i += 1) {
     const q = items[i];
     if (!q.alive) continue;
+    if (q.kind === 'xp' && !q.magnet && q.y < floorY) q.y = Math.min(floorY, q.y + drift);
     const dx = p.x - q.x;
     const dy = p.y - q.y;
     const d2 = dx * dx + dy * dy;

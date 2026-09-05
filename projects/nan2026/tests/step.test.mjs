@@ -572,3 +572,30 @@ suite('step · 유령몹 (§8.9 v1.5)', () => {
     assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - g0, 0, '유령 처치 = xp 픽업 0 (파밍 불가)');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('step · §2.6 ㊼ XP 구슬은 내려온다 (사거리 긴 무기가 자기 보상을 못 받던 회귀)', () => {
+  test('구슬은 xpDriftPxSec 로 내려오고 아래 끝에서 멈춘다 — 잃지 않는다', () => {
+    const w = mk(); silence(w);
+    const rp = w.data.rules.player;
+    assert.gt(rp.xpDriftPxSec, 0, '낙하 속도가 저작돼 있다');
+    const far = w.player.x + rp.magnetRadius * 3;              // 자석 밖(가로로 떨어진 자리)
+    const q = spawnPickup(w, 'xp', 3, far, 60);                 // 화면 맨 위에서 죽은 적의 구슬
+    const y0 = q.y;
+    for (let i = 0; i < 60; i += 1) step(w, makeInput(), TICK_DT);
+    assert.gt(q.y, y0, `내려왔다 (${y0} → ${q.y.toFixed(0)})`);
+    assert.near(q.y - y0, rp.xpDriftPxSec, 2, '한 게임초에 xpDriftPxSec 만큼');
+    for (let i = 0; i < 60 * 20; i += 1) step(w, makeInput(), TICK_DT);
+    assert.ok(q.alive, '아래로 사라지지 않는다');
+    assert.near(q.y, w.bounds.maxY, 1, '플레이어가 설 수 있는 아래 끝에서 멈춘다');
+  });
+
+  test('맨 위에서 죽어도 결국 먹을 수 있다 — 같은 세로줄이면 자석에 걸린다 (실측 회귀: 만렙 빔 478처치 XP 0)', () => {
+    const w = mk(); silence(w);
+    const before = w.player.xp;
+    spawnPickup(w, 'xp', 5, w.player.x, 60);                    // 플레이어 «바로 위»에서 죽은 적
+    for (let i = 0; i < 60 * 12; i += 1) step(w, makeInput(), TICK_DT);
+    assert.eq(w.pickups.live, 0, '구슬이 회수됐다');
+    assert.gt(w.player.xp, before, 'XP 가 들어왔다');
+  });
+});

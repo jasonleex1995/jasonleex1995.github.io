@@ -538,7 +538,7 @@ function S2_schema() {
   //   (누락=에러, §9.3 폴백 금지)로 잠근다 — 향후 실수로 빠지면 게이트가 짖는다.
   closedKeys('S2', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',
     'moveResponseTau', 'diagonalNormalize', 'iframeSec', 'defenseBase', 'damageFloorRatio',
-    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'elementSlots',
+    'lowHpThreshold', 'lowHpCriticalThreshold', 'magnetRadius', 'xpDriftPxSec', 'elementSlots',
     'startStance', 'stanceSwitchCooldown', 'stancePersistAcrossStages', 'elementCapPerElement',
     'elementCapTotal', 'weaponSlots', 'passiveSlots', 'lives'], 'rules.player');
   if (has(r.player, 'hpSegment')) {
