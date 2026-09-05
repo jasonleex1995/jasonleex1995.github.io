@@ -507,7 +507,7 @@ function checkStages(c, s) {
     if (typeof s.theme.offThemeHpMul !== 'number' || !(s.theme.offThemeHpMul > 0) || s.theme.offThemeHpMul > 1) c.fail('stages.theme.offThemeHpMul', '(0, 1] 이어야 한다 (§8.2 ③)');
   } else c.fail('stages.theme', '객체가 아니다 (§8.2 ③)');
   c.closed('stages.themeDraw', s.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId']);
-  c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
+  c.closed('stages.curve', s.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'midBossHpScale', 'bossBulletScale', 'firingPartsPerStage',
     'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'crisisHpScale', 'rearSpawnAllowed',
     'shooterRatio', 'threatBudgetScale']);
   c.closed('stages.phase', s.phase, ['mobPhaseSec', 'mobPhaseSkippable', 'mobPhaseMaxWaves',

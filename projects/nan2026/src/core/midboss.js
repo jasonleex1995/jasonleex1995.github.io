@@ -11,7 +11,7 @@
  *   §8.9   3종 전 테마 공용(`bosses.json`, tier "mid", parts [], phases 1개) · 단일 몸체
  *          mbHammer(anchor + fan/zone 교대) · mbLancer(charge + laser) · mbNest(anchor + aimed + 소환)
  *   §8.9   등장 시각 = `stages.phase.midBossAtSec[stageIndex]`(배열) — 그 길이 == `curve.midBossCount[i]`
- *          (S29). hp = `bosses[].hp × curve.bossHpScale[stageIndex]` — **enemyHpScale 이 아니다**
+ *          (S29). hp = `bosses[].hp × curve.midBossHpScale[stageIndex]`(㉝ 보스 곡선과 분리) — **enemyHpScale 이 아니다**
  *          (그러면 "DPS 체크 = 보스전 예고편"이 소멸한다).
  *   §8.9   `midBossElementRule "notThemeAndNotNormal"` = **런타임 주입**. 저작값 element 는 null 이고
  *          그것이 곧 「주입 대상」 표식이다(S15). 최종 스테이지는 테마가 없으므로 "테마가 아님"이
@@ -120,7 +120,7 @@ function spawnOne(world) {
   const defs = ensureMidDefs(world);
   const def = pickDef(world, defs);
   const a = world.data.rules.view.arena;
-  const hp = def.hp * world.data.stages.curve.bossHpScale[world.run.stageIndex];
+  const hp = def.hp * world.data.stages.curve.midBossHpScale[world.run.stageIndex];   // ㉝ 중간보스는 자기 곡선(보스와 분리)
   const slot = (world.run.midBossNext - 1) % 3;         // 0=중앙 1=우 2=좌 (연속 3스폰 = 3슬롯)
   const q = a.w / 4;
   const off = slot === 0 ? 0 : (slot === 1 ? q : -q);

@@ -833,7 +833,7 @@ function S2_files() {
     V('S2', 'stages.themes: 개명된 키 → stages.stages (§9.9/§23.3) — 파일 이름이 stages.json 이고 게이트가 stages[] 라 부른다');
   }
   closedKeys('S2', D.stages.themeDraw, ['pool', 'count', 'allowRepeat', 'stage1RequiresIntroOk', 'finalStageId'], 'stages.themeDraw');
-  closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'bossBulletScale', 'firingPartsPerStage',
+  closedKeys('S2', D.stages.curve, ['enemyHpScale', 'xpScale', 'bossHpScale', 'midBossHpScale', 'bossBulletScale', 'firingPartsPerStage',
     'spawnDensityScale', 'mobFireRateScale', 'mobBulletDmgScale', 'midBossCount', 'elitePerWaveChance', 'swarmTotalScale', 'crisisHpScale', 'rearSpawnAllowed',
     'shooterRatio', 'threatBudgetScale'], 'stages.curve');
   // §9.9 v1.3: crisisPerStage · crisisWaves · midBossAtSec 신설 / bossEntrySec · crisisElementRule 삭제
