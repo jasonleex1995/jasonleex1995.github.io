@@ -31,7 +31,7 @@
 
   "caps": {
     "playerBullets": 512,
-    "enemyBullets": 384,
+    "enemyBullets": 768,
     "enemies": 576,
     "pickups": 384,
     "zones": 64,

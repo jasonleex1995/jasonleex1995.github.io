@@ -171,9 +171,10 @@ export function resolvePalette(rules) {
 // 속성 글리프 (§7.2 — ● 원 / ▲ 삼각(위) / ◆ 마름모 / ✚ 십자(사엽))
 //   ★ 이 4실루엣이 색맹·mono 에서 속성의 **유일한** 채널이다 (§7.3). 형태를 바꾸면 그 보증이 깨진다.
 // ---------------------------------------------------------------------------
-export function glyphPath(ctx, element, x, y, r) {
-  ctx.beginPath();
+/** §7.12 속성 글리프를 «현재 경로에 이어 붙인다»(beginPath 없음) — 같은 색 탄 수백 발을 한 번의 fill 로 그리는 배치용(㉛). */
+export function glyphSub(ctx, element, x, y, r) {
   if (element === 'normal') {
+    ctx.moveTo(x + r, y);
     ctx.arc(x, y, r, 0, Math.PI * 2);
     return;
   }
@@ -207,6 +208,12 @@ export function glyphPath(ctx, element, x, y, r) {
   throw new Error(`draw: 글리프가 없는 속성 "${element}" (§7.2 — 어휘 4종)`);
 }
 
+/** 글리프 하나 = 새 경로. 단일 도형(픽업 아이콘 등)용. */
+export function glyphPath(ctx, element, x, y, r) {
+  ctx.beginPath();
+  glyphSub(ctx, element, x, y, r);
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -219,6 +226,17 @@ function poly(ctx, x, y, r, pts) {
   for (let i = 0; i < pts.length; i += 2) {
     const px = x + pts[i] * r;
     const py = y + pts[i + 1] * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/** 정다각형을 «현재 경로에 이어 붙인다»(배치용, ㉛). */
+function regularSub(ctx, x, y, r, n, rot) {
+  for (let i = 0; i < n; i += 1) {
+    const a = rot + (i * Math.PI * 2) / n;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
   ctx.closePath();
@@ -700,20 +718,28 @@ function drawPlayerBullets(ctx, world, pal, interp, alpha) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';                  // §7.4 — additive
   ctx.globalAlpha = bulletDensityAlpha(r, world.playerBullets.live);   // §7.4 · §12.3 — 0.80 상한, 밀도로 내려간다(㉖)
-  for (let i = 0; i < items.length; i += 1) {
-    const b = items[i];
-    if (!b.alive) continue;
-    const x = lerpX(interp, interp.playerBullets, b, alpha);
-    const y = lerpY(interp, interp.playerBullets, b, alpha);
-    // §4.4 · I-2 — live 각인(orbit·aura)은 슬롯의 **현재** 각인을 보여야 색이 거짓말하지 않는다
-    const el = b.stampMode === 'live' ? world.slots[b.slot].stampElement : b.element;
-    glyphPath(ctx, el, x, y, b.radius);
-    ctx.fillStyle = pal.element[el];
-    ctx.fill();
-    // §7.12.8 — 같은 hue 의 밝은 코어. 비율이라 H3 클램프를 자동 상속. 외곽선 없음(I-1)
-    glyphPath(ctx, el, x, y, b.radius * vb.coreRadiusRatio);
-    ctx.fillStyle = pal.elementCore[el];
-    ctx.fill();
+  // §12.3(v1.10 ㉛) 배치 — 탄 한 발마다 fill 하면 만렙 빌드에서 프레임당 fill 1,900회가 되어 GPU 플러시 스파이크(60~200ms)가
+  //   났다(실측). 가산 합성은 순서 무관이므로 «속성별 한 경로 → fill 1회»로 묶는다: 4색 × 2패스(글리프·코어) = 최대 8회.
+  const order = world.data.elements.order;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const ratio = pass === 0 ? 1 : vb.coreRadiusRatio;
+    for (let k = 0; k < order.length; k += 1) {
+      const el = order[k];
+      let any = false;
+      ctx.beginPath();
+      for (let i = 0; i < items.length; i += 1) {
+        const b = items[i];
+        if (!b.alive) continue;
+        // §4.4 · I-2 — live 각인(orbit·aura)은 슬롯의 **현재** 각인을 보여야 색이 거짓말하지 않는다
+        const be = b.stampMode === 'live' ? world.slots[b.slot].stampElement : b.element;
+        if (be !== el) continue;
+        glyphSub(ctx, el, lerpX(interp, interp.playerBullets, b, alpha), lerpY(interp, interp.playerBullets, b, alpha), b.radius * ratio);
+        any = true;
+      }
+      if (!any) continue;
+      ctx.fillStyle = pass === 0 ? pal.element[el] : pal.elementCore[el];   // §7.12.8 — 같은 hue 의 밝은 코어. 외곽선 없음(I-1)
+      ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -1227,30 +1253,61 @@ function drawEnemyBullets(ctx, world, pal, interp, alpha) {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1.0;                                     // §7.4 — 알파 1.0 고정
-  for (let i = 0; i < items.length; i += 1) {
-    const b = items[i];
-    if (!b.alive) continue;
-    const x = lerpX(interp, interp.enemyBullets, b, alpha);
-    const y = lerpY(interp, interp.enemyBullets, b, alpha);
-
-    // §7.4 · S14 — (status ≠ null) ⟺ (육각) ⟺ (호박 테두리). 3중 동치
-    if (b.status !== null) regular(ctx, x, y, b.radius, 6, Math.PI / 6);
-    else { ctx.beginPath(); ctx.arc(x, y, b.radius, 0, Math.PI * 2); }
-    ctx.fillStyle = pal.threat.enemyBullet;
-    ctx.fill();
+  // §12.3(v1.10 ㉛) 배치 — 탄마다 fill+stroke+fill(3~4회 × 384 발)이 프레임을 스파이크시켰다. «외곽선 패스 → 채움 패스 →
+  //   스페큘러 패스»로 묶으면 겹친 탄에서 이웃 탄의 채움이 내 외곽선을 덮는 것까지 낱개 그리기와 같다(외곽선을 먼저, 채움을 뒤에).
+  //   원(status 없음)과 육각(status 있음, 호박 테두리)은 모양·색이 달라 두 묶음. 호출 수: 최대 7회.
+  const hex = Math.PI / 6;
+  for (let shape = 0; shape < 2; shape += 1) {
+    let any = false;
+    // ① 외곽선 — 반지름 r+1 을 폭 2 로 스트로크 = r~r+2 의 검은 링(§7.4 「검은 하드 외곽선 2px」)
+    ctx.beginPath();
+    for (let i = 0; i < items.length; i += 1) {
+      const b = items[i];
+      if (!b.alive || (b.status !== null) !== (shape === 1)) continue;
+      const x = lerpX(interp, interp.enemyBullets, b, alpha);
+      const y = lerpY(interp, interp.enemyBullets, b, alpha);
+      if (shape === 0) { ctx.moveTo(x + b.radius + 1, y); ctx.arc(x, y, b.radius + 1, 0, Math.PI * 2); }
+      else regularSub(ctx, x, y, b.radius + 1, 6, hex);
+      any = true;
+    }
+    if (!any) continue;
     ctx.lineWidth = 2;
     ctx.strokeStyle = pal.threat.outline;
     ctx.stroke();
-    if (b.status !== null) {                                 // §7.12.4-⑤ — 호박 테두리
+    if (shape === 1) {                                       // §7.12.4-⑤ — 호박 테두리(육각 바깥 한 겹)
+      ctx.beginPath();
+      for (let i = 0; i < items.length; i += 1) {
+        const b = items[i];
+        if (!b.alive || b.status === null) continue;
+        regularSub(ctx, lerpX(interp, interp.enemyBullets, b, alpha), lerpY(interp, interp.enemyBullets, b, alpha), b.radius + 2, 6, hex);
+      }
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = pal.status.band;
-      regular(ctx, x, y, b.radius + 2, 6, Math.PI / 6);
       ctx.stroke();
     }
-    // 흰 스페큘러 점 — hue 가 없다 (플레이어 탄의 「같은 hue 의 밝은 판」과 배타, §7.12.8)
-    ctx.fillStyle = pal.threat.bulletCore;
+    // ② 채움 — 자홍(§7.4 자홍 고정)
     ctx.beginPath();
-    ctx.arc(x - b.radius * 0.28, y - b.radius * 0.28, Math.max(1, b.radius * 0.24), 0, Math.PI * 2);
+    for (let i = 0; i < items.length; i += 1) {
+      const b = items[i];
+      if (!b.alive || (b.status !== null) !== (shape === 1)) continue;
+      const x = lerpX(interp, interp.enemyBullets, b, alpha);
+      const y = lerpY(interp, interp.enemyBullets, b, alpha);
+      if (shape === 0) { ctx.moveTo(x + b.radius, y); ctx.arc(x, y, b.radius, 0, Math.PI * 2); }
+      else regularSub(ctx, x, y, b.radius, 6, hex);
+    }
+    ctx.fillStyle = pal.threat.enemyBullet;
+    ctx.fill();
+    // ③ 흰 스페큘러 점 — hue 가 없다 (플레이어 탄의 「같은 hue 의 밝은 판」과 배타, §7.12.8)
+    ctx.beginPath();
+    for (let i = 0; i < items.length; i += 1) {
+      const b = items[i];
+      if (!b.alive || (b.status !== null) !== (shape === 1)) continue;
+      const x = lerpX(interp, interp.enemyBullets, b, alpha) - b.radius * 0.28;
+      const y = lerpY(interp, interp.enemyBullets, b, alpha) - b.radius * 0.28;
+      const sr = Math.max(1, b.radius * 0.24);
+      ctx.moveTo(x + sr, y); ctx.arc(x, y, sr, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = pal.threat.bulletCore;
     ctx.fill();
   }
   ctx.restore();

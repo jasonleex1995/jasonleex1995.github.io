@@ -832,7 +832,7 @@ normal #F2F6FA (L*96) │ fire #FFA83A (L*76) │ water #2E86E0 (L*55) │ grass
 | 코어 | 같은 hue의 밝은 코어(L\*+25) | **흰 스페큘러 점** |
 | 엣지 | 소프트(글로우) | **하드 + 검은 외곽선 2px** |
 | 합성 | additive | **불투명(source-over)** |
-| 알파 | ≤ 0.80 — ★ v1.10 ㉖ **밀도 알파**: 무대의 플레이어 탄 수 `live` 가 `render.playerBulletDensityRef`(64)를 넘으면 `0.80 × 64 / live`, 바닥 `playerBulletMinAlpha`(0.20). 총 밝기(수 × 알파)가 늘지 않아 «많이 쏘면 얇아진다». 랜스 빔 다발도 줄마다 ÷√n(다발의 총 밝기 = 한 줄). 플레이테스트 Lv99 최종: 만렙 6무기 + 다중 장전이 탄 풀을 채워(평균 227/256) 가산 합성이 화면을 «백지»로 만들었다 — 판정·수치 불변, 연출만 | **1.0 고정** |
+| 알파 | ≤ 0.80 — ★ v1.10 ㉖ **밀도 알파**·★ ㉛ **배치**(플레이어 탄 = 속성별 한 경로 → 4색 × 2패스 ≤ 8회 fill · 적 탄 = 외곽선 패스 → 채움 패스 → 스페큘러 패스, 원/육각 두 묶음 ≤ 7회 — 탄 한 발마다 그리면 만렙 빌드에서 프레임당 fill 1,900회. 외곽선을 먼저·채움을 뒤에 두면 겹친 탄에서 이웃의 채움이 내 외곽선을 덮는 것까지 낱개 그리기와 같다): 무대의 플레이어 탄 수 `live` 가 `render.playerBulletDensityRef`(64)를 넘으면 `0.80 × 64 / live`, 바닥 `playerBulletMinAlpha`(0.20). 총 밝기(수 × 알파)가 늘지 않아 «많이 쏘면 얇아진다». 랜스 빔 다발도 줄마다 ÷√n(다발의 총 밝기 = 한 줄). 플레이테스트 Lv99 최종: 만렙 6무기 + 다중 장전이 탄 풀을 채워(평균 227/256) 가산 합성이 화면을 «백지»로 만들었다 — 판정·수치 불변, 연출만 | **1.0 고정** |
 | 레이어 | 4 | **9 (최상단 게임플레이)** |
 | 모양 | 속성 글리프 (●▲◆✚) | **원 / 육각(상태이상)** |
 
@@ -2370,7 +2370,7 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
                "playerBoundsInset":{"top":56,"bottom":56,"left":20,"right":20},
                "spawnLineY":-40, "minViewportW":1024, "minViewportH":576, "maxDpr":2 },
   "collide": { "gridCellPx": 64 },
-  "caps":    { "playerBullets":512, "enemyBullets":384, "enemies":96, "pickups":256,   // ㉖ playerBullets 512
+  "caps":    { "playerBullets":512, "enemyBullets":768, "enemies":96, "pickups":256,   // ㉖ playerBullets 512 · ㉛ enemyBullets 768
                "zones":64, "drones":8, "particles":400, "telegraphs":96,
                "damageNumbers":10, "effectMarkers":12, "terrain":16,
                "overflow": { "playerBullet":"rejectSpawn", "enemyBullet":"rejectSpawn",
@@ -4159,7 +4159,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | 키 | 값 | 초과 시 정책 |
 |---|---|---|
 | `enemies` | **576** (v1.10 ⑤) · ~~320~~ ~~128~~ ~~96~~ | **`defer`** — 스포너가 다음 틱 재시도 (웨이브가 공짜로 사라지지 않음) |
-| `enemyBullets` | **384** | **`rejectSpawn`** |
+| `enemyBullets` | **768** (v1.10 ㉛) · ~~384~~ | **`rejectSpawn`** — 최종 스테이지 초기 구간(헥서 나선 + 터렛 + 엘리트)이 384 를 30초에 44회 넘겨 적이 «조용히 불발»했다(실측, 만렙 빌드 기준 최대 428). 그리기는 ㉛ 배치로 발수와 무관하게 호출 7회 |
 | `playerBullets` | **512** (v1.10 ㉖) · ~~256~~ | **`rejectSpawn`** — 만렙 빌드(6무기 Lv10 + 다중 장전 +4)가 256 을 20초에 189회 넘겨 무기가 «조용히 불발»했다(실측). 판정 순회 576 × 512 도 직접 순회 범위 |
 | `pickups` | **384** · ~~256~~ | **`merge`** — 신규 픽업 값을 최근접 기존 픽업에 합산 (**손실 0 = 무-노가다 기둥 보존**) |
 | `zones` | 64 | `rejectSpawn` |
