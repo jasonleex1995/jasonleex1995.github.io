@@ -10,6 +10,36 @@
 
 import { DEG2RAD } from './angle.js';
 
+const ARC_SEGS = 64;
+
+/** 반지름 1 · 납작함 flatten(y 배율)인 타원 호(±span/2)의 길이 — 중점 적분 ARC_SEGS 등분. 순수·결정적. check.mjs S54 ⑨ 가 같은 식을 쓴다. */
+export function arcEllipseLength(spanRad, flatten) {
+  let L = 0;
+  const h = spanRad / ARC_SEGS;
+  for (let k = 0; k < ARC_SEGS; k += 1) {
+    const th = -spanRad / 2 + (k + 0.5) * h;
+    const c = Math.cos(th); const sn = Math.sin(th);
+    L += Math.sqrt(c * c + flatten * flatten * sn * sn) * h;
+  }
+  return L;
+}
+
+/** 호 길이의 비율 frac(0..1)에 해당하는 각 — 누적 길이를 걸어 선형 보간. frac 0 = −span/2, 1 = +span/2. */
+function arcAngleAtFraction(spanRad, flatten, frac) {
+  const total = arcEllipseLength(spanRad, flatten);
+  const target = frac * total;
+  const h = spanRad / ARC_SEGS;
+  let acc = 0;
+  for (let k = 0; k < ARC_SEGS; k += 1) {
+    const th = -spanRad / 2 + (k + 0.5) * h;
+    const c = Math.cos(th); const sn = Math.sin(th);
+    const seg = Math.sqrt(c * c + flatten * flatten * sn * sn) * h;
+    if (acc + seg >= target) return -spanRad / 2 + k * h + (seg > 0 ? (target - acc) / seg : 0) * h;
+    acc += seg;
+  }
+  return spanRad / 2;
+}
+
 /**
  * 편대의 i번째(총 count) 개체 좌표를 out 에 쓴다. 원점(originX, originY)이 편대의 기준점이다.
  * 아레나 가로 밖으로 새지 않게 구조적으로 클램프한다(밸런스 값이 아니라 좌표계 경계다).
@@ -35,12 +65,17 @@ export function formationPos(world, formationId, i, count, originX, originY, out
 
   if (formationId === 'arc') {
     const f = forms.arc;
-    const t = count > 1 ? i / (count - 1) : 0.5;
-    const ang = (-f.spanDeg / 2 + t * f.spanDeg) * DEG2RAD;
-    x = originX + Math.sin(ang) * f.radiusPx;
+    const spanRad = f.spanDeg * DEG2RAD;
+    // §9.9.2(v1.10 ㊱) 호 = 납작한 타원(x = sinθ·R, y = −(1−cosθ)·R·flatten). 몸은 **타원 길이를 등분**해 선다(등각이 아니다 —
+    //   등각이면 날개 끝의 간격이 가운데의 0.56 배로 눌려 «목걸이 튜브»가 됐다: 위기 새떼 37기 = 가운데 15px·날개 8.8px, 몸 지름 12).
+    //   반지름은 저작값과 «(count−1)·minSepPx 를 세울 수 있는 값» 중 큰 쪽 — 37기 → 264px(현 457 < 아레나 488). 난수 0.
+    const I = arcEllipseLength(spanRad, f.flatten);                   // 단위 반지름의 타원 호 길이
+    const radius = Math.max(f.radiusPx, count > 1 ? (count - 1) * f.minSepPx / I : 0);
+    const ang = arcAngleAtFraction(spanRad, f.flatten, count > 1 ? i / (count - 1) : 0.5);
+    x = originX + Math.sin(ang) * radius;
     // 가운데가 앞선(=최대 y, 하강 방향으로 선두) 아래로 볼록한 호. (1-cos) 은 가운데 0·날개 양수라
     //   **빼야** 가운데가 앞선다(더하면 날개가 앞서는 ∩ 로 뒤집힌다 — 주석과 반대였다).
-    y = originY - (1 - Math.cos(ang)) * f.radiusPx * 0.3;
+    y = originY - (1 - Math.cos(ang)) * radius * f.flatten;
   } else if (formationId === 'lineH') {
     const f = forms.lineH;
     x = originX + (i - (count - 1) / 2) * f.gapPx;

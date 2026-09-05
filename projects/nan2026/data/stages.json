@@ -372,7 +372,7 @@
     "lineH": { "gapPx": 64 },
     "columnV": { "gapSec": 0.5 },
     "vWedge": { "gapPx": 56, "angleDeg": 35 },
-    "arc": { "radiusPx": 180, "spanDeg": 120 },
+    "arc": { "radiusPx": 180, "spanDeg": 120, "flatten": 0.3, "minSepPx": 13 },
     "pincer": { "yStartPx": 120, "yStepPx": 60 },
     "scatter": { "jitterPx": 90, "minSepPx": 40 },
     "wall": { "gapPx": 20, "rowGapPx": 28, "perRow": 28, "laneSlots": 3, "laneStrideCols": 4, "jitterY": 0.85 }

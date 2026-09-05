@@ -877,7 +877,7 @@ function S2_files() {
   closedKeys('S2', D.stages.formations, FORMATION_IDS, 'stages.formations');
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
-    arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
     wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(D.stages.formations)) {
@@ -3089,6 +3089,7 @@ const DESCENT_MOVES = ['dive', 'weave', 'column', 'bounce'];
  *   ⑤ 무공격 칸: stages[].introArchetypeId 가 실재 ∧ attack == null ∧ 위기 전용 아님
  *   ⑥ 속성 3종 보장: themeDraw.count 개를 pool 에서 어떻게 뽑아도 물·불·풀이 전부 나온다
  *      — 2×3 구조가 «우연히» 보장하던 것을 못박는다(테마를 늘리면 조용히 깨진다)
+ *   ⑨(㊱) 호 편대 최소 간격: formations.arc.minSepPx ≥ 2 × (arc 로 서는 모든 몸의 반지름) — 몸이 겹치지 않는다(§9.9.2)
  */
 function S54_sectionsAndRatio() {
   const st = D.stages; const cu = st && st.curve; const ph = st && st.phase;
@@ -3152,6 +3153,26 @@ function S54_sectionsAndRatio() {
     const lane = (w.laneSlots + 1) * w.gapPx - 2 * chaff.radius;
     const minGap = D.rules.fairness.minGapWidthPx;
     if (lane < minGap) V('S54', `wall 차선 순틈 ${lane.toFixed(1)}px < fairness.minGapWidthPx ${minGap} — 못 지나가는 벽은 §2.1 ① 위반`);
+  }
+  // ⑨(㊱) 호 편대의 몸이 겹치지 않는다: 레코드마다 실제 간격 = max(minSepPx, radiusPx × I(span, flatten) ÷ (count−1)) ≥ 2 × 몸의 반지름.
+  //   I = 반지름 1 타원 호의 길이(formations.js arcEllipseLength 와 같은 중점 적분 64 등분). 위기 새떼(crisisWaves, swarmTotalScale 상한 1.0
+  //   → count 그대로)와 정상 웨이브(stages[].waves) 중 formationId == 'arc' 전부. 엘리트 배율은 새떼 몸에 안 붙고 웨이브 엘리트는 1기라 무시.
+  const arcF = st.formations && st.formations.arc;
+  if (isObj(arcF)) {
+    n += 1;
+    const ok = (k) => typeof arcF[k] === 'number' && arcF[k] > 0;
+    if (!ok('minSepPx') || !ok('flatten') || !ok('radiusPx') || !ok('spanDeg')) V('S54', 'formations.arc: radiusPx·spanDeg·flatten·minSepPx 는 양수여야 한다 (§9.9.2 ㊱)');
+    else {
+      const span = arcF.spanDeg * Math.PI / 180; const SEG = 64; const h = span / SEG; let I = 0;
+      for (let k = 0; k < SEG; k += 1) { const th = -span / 2 + (k + 0.5) * h; const c = Math.cos(th); const sn = Math.sin(th); I += Math.sqrt(c * c + arcF.flatten * arcF.flatten * sn * sn) * h; }
+      const recs = [];
+      for (const r of rowsQuiet(ph.crisisWaves)) if (isObj(r) && r.formationId === 'arc' && arch[r.bodyId]) recs.push([arch[r.bodyId], r.count, 'crisisWaves']);
+      for (const s2 of rowsQuiet(st.stages)) for (const wv of rowsQuiet(s2.waves)) if (isObj(wv) && wv.formationId === 'arc' && arch[wv.archetypeId]) recs.push([arch[wv.archetypeId], wv.count, `stages[${s2.id}]`]);
+      for (const [b, count, where] of recs) {
+        const sep = count > 1 ? Math.max(arcF.minSepPx, arcF.radiusPx * I / (count - 1)) : Infinity;
+        if (sep < 2 * b.radius) V('S54', `${where} arc ${b.id}×${count}: 간격 ${sep.toFixed(1)}px < 2 × 반지름 ${b.radius} — 호 편대의 몸이 겹쳐 «튜브»로 보인다 (§9.9.2 ㊱)`);
+      }
+    }
   }
   // ⑤ 무공격 칸
   for (const s2 of st.stages) {

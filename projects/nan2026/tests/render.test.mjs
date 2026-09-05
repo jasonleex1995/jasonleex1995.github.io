@@ -13,7 +13,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld } from '../src/core/state.js';
+import { createWorld, giveWeapon, levelUpWeapon } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
@@ -25,19 +25,59 @@ import { drawPanels, drawResults, drawDraft } from '../src/render/hud.js';
 import { buildDraft } from '../src/core/draft.js';
 import { tally } from '../src/core/score.js';
 
-/** 모든 호출을 삼키는 2D 컨텍스트. 조회 실패만 통과시킨다. */
+/**
+ * 브라우저를 흉내 내는 검증 2D 컨텍스트(v1.10 ㊱). 칠은 안 하지만 브라우저가 **던지는 것은 똑같이 던지고**, 브라우저가 조용히
+ *   삼키는 잘못은 로그로 남긴다:
+ *   · arc/ellipse/arcTo 음수 반지름 = IndexSizeError · roundRect 음수 = RangeError · 그라데이션 비유한 인자 = NotSupportedError
+ *   · save/restore 깊이 · globalAlpha · globalCompositeOperation 을 추적한다(프레임이 끝나면 전부 원상이어야 한다)
+ *   · fillStyle/strokeStyle 에 색이 아닌 문자열(NaN 등)이 들어오면 로그(브라우저는 무시해 «직전 색»으로 칠한다 = 조용한 버그)
+ * ★ 이 스텁이 «전부 삼키는» 스텁이던 때, 둔화 장판 페이드 끝의 음수 반지름 arc() 를 못 잡았다 — 실제 브라우저는 예외를 던져
+ *   프레임을 중간에 끊었고, 굳은 globalAlpha(≈0.02)로 다음 프레임의 배경이 칠해져 런 끝까지 «모든 물체가 잔상»을 남겼다
+ *   (플레이테스트 스크린샷 · 숲 위기 진입). 스텁은 브라우저만큼 엄격해야 회귀망이 된다.
+ */
+const COLOR_RE = /^(#[0-9a-fA-F]{3,8}|rgba?\([-\d.e\s,]+\)|hsla?\([-\d.e\s,%]+\))$/;
 function stubCtx() {
   const noop = () => {};
+  const state = { globalAlpha: 1, globalCompositeOperation: 'source-over', fillStyle: '#000', strokeStyle: '#000', lineWidth: 1 };
+  const stack = [];
+  const log = [];
+  const grad = { addColorStop: (o, c) => { if (typeof c === 'string' && !COLOR_RE.test(c)) log.push(`gradient color ${c}`); } };
+  const finite = (...a) => a.every((v) => Number.isFinite(v));
   const target = {
     canvas: { width: 1280, height: 800 },
-    createLinearGradient: () => ({ addColorStop: noop }),
-    createRadialGradient: () => ({ addColorStop: noop }),
+    save: () => { stack.push({ ...state }); },
+    restore: () => { if (stack.length === 0) { log.push('restore on empty stack'); return; } Object.assign(state, stack.pop()); },
+    arc: (x, y, r) => { if (!finite(x, y, r)) return; if (r < 0) throw new Error(`IndexSizeError: arc radius ${r}`); },
+    ellipse: (x, y, rx, ry) => { if (!finite(x, y, rx, ry)) return; if (rx < 0 || ry < 0) throw new Error(`IndexSizeError: ellipse ${rx},${ry}`); },
+    arcTo: (x1, y1, x2, y2, r) => { if (!finite(x1, y1, x2, y2, r)) return; if (r < 0) throw new Error(`IndexSizeError: arcTo ${r}`); },
+    roundRect: (x, y, w, h, r) => { if (typeof r === 'number' && r < 0) throw new RangeError(`roundRect ${r}`); },
+    createLinearGradient: (...a) => { if (!finite(...a)) throw new Error(`NotSupportedError: linear gradient ${a}`); return grad; },
+    createRadialGradient: (x0, y0, r0, x1, y1, r1) => {
+      if (!finite(x0, y0, r0, x1, y1, r1)) throw new Error(`NotSupportedError: radial gradient ${[x0, y0, r0, x1, y1, r1]}`);
+      if (r0 < 0 || r1 < 0) throw new Error(`IndexSizeError: radial gradient ${r0},${r1}`);
+      return grad;
+    },
     measureText: () => ({ width: 10 }),
+    __depth: () => stack.length,
+    __state: state,
+    __log: log,
   };
   return new Proxy(target, {
-    get(t, k) { return (k in t) ? t[k] : noop; },
-    set() { return true; },
+    get(t, k) { if (k in t) return t[k]; if (k in state) return state[k]; return noop; },
+    set(t, k, v) {
+      if ((k === 'fillStyle' || k === 'strokeStyle' || k === 'shadowColor') && typeof v === 'string' && !COLOR_RE.test(v)) log.push(`${k} ${v}`);
+      if (k === 'globalAlpha' && !(v >= 0 && v <= 1)) log.push(`globalAlpha ${v}`);
+      state[k] = v; return true;
+    },
   });
+}
+
+/** 한 프레임 뒤의 캔버스 상태가 원상인지 — 깊이 0 · 알파 1 · source-over · 잘못된 색 0. 아니면 그 프레임 번호로 실패한다. */
+function assertClean(ctx, frame) {
+  assert.eq(ctx.__depth(), 0, `f${frame}: save/restore 균형`);
+  assert.eq(ctx.__state.globalAlpha, 1, `f${frame}: globalAlpha 원상`);
+  assert.eq(ctx.__state.globalCompositeOperation, 'source-over', `f${frame}: 합성 모드 원상`);
+  assert.eq(ctx.__log.length, 0, `f${frame}: 잘못된 색/알파 0 — ${ctx.__log.slice(0, 3).join(' | ')}`);
 }
 
 function mkRun(seed) {
@@ -65,6 +105,7 @@ suite('render — 한 판 전 프레임이 던지지 않는다 (회귀망)', () 
       updateFx(fx, w, TICK_DT);
       drawWorld(ctx, w, pal, fx, interp, 1);           // 던지면 여기서 테스트가 깨진다
       drawPanels(ctx, w, pal);
+      assertClean(ctx, frames);
       frames += 1;
       for (const e of w.enemies.items) {
         if (!e.alive) continue;
@@ -77,6 +118,30 @@ suite('render — 한 판 전 프레임이 던지지 않는다 (회귀망)', () 
     assert.eq(frames, total, '전 프레임을 그렸다');
     assert.gt(midFrames, 0, '중간보스가 실제로 화면에 있었다 (vacuous 아님)');
     assert.gt(bossFrames, 0, '보스가 실제로 화면에 있었다 (vacuous 아님)');
+  });
+
+  test('둔화 장판이 있는 숲 · 위기 진입(장판 페이드 → 반지름 0)에서도 전 프레임이 깨끗하다 (㊱ 잔상 회귀)', () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 19, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w); w.run.order[0] = 'forest'; w.run.stageIndex = 0;
+    for (const id of ['lance', 'spiral', 'beam', 'aura', 'nova']) giveWeapon(w, id);
+    for (let i = 0; i < w.slots.length; i += 1) { if (w.slots[i].weaponId === null) continue; for (let k = 0; k < 6; k += 1) levelUpWeapon(w, i); }
+    w.player.hp = 1e9; w.player.hpMax = 1e9;
+    const pal = resolvePalette(d.rules); const fx = makeFx(w); const interp = makeInterp(w); const ctx = stubCtx();
+    let faded = 0; let crisisFrames = 0;
+    const total = Math.floor(120 / TICK_DT);
+    for (let i = 0; i < total; i += 1) {
+      captureInterp(interp, w);
+      step(w, makeInput(), TICK_DT);
+      updateFx(fx, w, TICK_DT);
+      for (const t of w.terrain.items) if (t.alive && t.fadeT >= 0) { faded += 1; break; }
+      if (w.run.crisis) crisisFrames += 1;
+      drawWorld(ctx, w, pal, fx, interp, (i % 3) / 3);
+      drawPanels(ctx, w, pal);
+      assertClean(ctx, i);
+    }
+    assert.gt(crisisFrames, 0, '위기에 실제로 들어갔다');
+    assert.gt(faded, 0, '페이드 중인 장판을 실제로 그렸다 (vacuous 아님)');
   });
 
   test('결정 화면(드래프트·결과)도 던지지 않는다 (v1.5: 상점·사망 화면 폐지)', () => {

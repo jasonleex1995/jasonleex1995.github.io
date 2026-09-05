@@ -543,7 +543,7 @@ function checkStages(c, s) {
   c.closed('stages.formations', s.formations, FORMATION_IDS);
   const FORM_PARAMS = {
     lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
-    arc: ['radiusPx', 'spanDeg'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
     wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(s.formations)) {

@@ -41,7 +41,8 @@ import { drawPanels, drawDraft, drawResults } from './render/hud.js';
 // ---------------------------------------------------------------------------
 function fatal(err) {
   const el = document.getElementById('fatal');
-  el.textContent = String(err && err.message ? err.message : err);
+  el.textContent = String(err && err.message ? err.message : err)
+    + (err && err.stack ? `\n\n${String(err.stack).split('\n').slice(0, 6).join('\n')}` : '');   // ㊱ 어디서 던졌는지도 보인다
   el.hidden = false;
   document.getElementById('game').hidden = true;
 }
@@ -498,8 +499,15 @@ async function boot() {
     if (!openDraftIfQueued()) { enter('PLAY'); last = performance.now(); }
   }
 
+  // §9.3(v1.10 ㊱) — 프레임 안의 예외는 **조용히 지나가지 않는다**. rAF 콜백에서 던진 예외는 콘솔에만 남고 루프는 계속 돌아,
+  //   캔버스 상태(globalAlpha·save 스택·클립)가 던진 자리에서 굳은 채 다음 프레임이 이어졌다 — 배경이 알파 0.02 로 칠해져
+  //   런 끝까지 «모든 물체가 잔상»을 남기는 화면(플레이테스트)이 그것이다. 예외 = 버그이므로 루프를 멈추고 이유를 보인다(fatal).
   function frame(now) {
-    requestAnimationFrame(frame);
+    const raf = requestAnimationFrame(frame);
+    try { frameBody(now); } catch (err) { cancelAnimationFrame(raf); fatal(err); throw err; }
+  }
+
+  function frameBody(now) {
     if (audio !== null) audio.bgmTick();          // §7.10 v1.5 — BGM look-ahead 스케줄(매 프레임)
 
     if (viewportTooSmall(view)) {

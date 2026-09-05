@@ -1004,6 +1004,7 @@ v1.2는 이 행을 **「보스 대형 패턴」**이라 썼는데 ★ **「대�
 | 배경 hue | 4속성 hue 사용 가능하나 **위 상한 내에서만** (화산 = 붉은 차콜, 늪·숲 = 녹회색 차콜). **자홍 금지** |
 | 패럴랙스 | `palette.bg.parallaxLayers = 2`, `palette.bg.maxScrollSpeed = 90` (PxSec) — ★ **`visual.bg`는 존재하지 않는다**(§9.4.3) |
 | 배경 대비 | **엣지 대비 금지(소프트만)** → 하드 엣지 = 게임플레이 오브젝트 전용 |
+| ★ 프레임 클리어 ㊱ | 배경 채우기(레이어 0)는 **알파 1 · source-over** 이어야 한다 — 그 전제가 깨지면 모든 물체가 잔상을 남긴다. 전제를 깬 실제 사고: 둔화 장판(§8.21)이 위기 진입 페이드로 반지름 0 에 가까워질 때 물결 링의 반지름(`r/3 + sin·2`)이 음수가 되어 `arc()` 가 던졌고(0 으로 클램프), 예외가 프레임을 끊어 `globalAlpha = k(≈0.02)` 가 새었다. 규칙: **그리는 반지름은 전부 ≥ 0 으로 클램프** · 예외는 §9.3 프레임 예외 규칙이 잡는다 |
 
 > ★ 초안 B의 "배경 스크롤 90 ≤ 적 탄 최저속(≥140)의 절반" 규칙은 **폐기**한다. B가 인용한 `140`은 B 자신의 `enemyBulletMinSpawnRadiusPx`(**반지름**)이며 B는 최저 탄속 키를 정의한 적이 없다(B 내부 오류). **배경과 탄의 분리는 속도가 아니라 hue(자홍 금지) + 엣지(소프트만) + 레이어(0)가 보증한다** — B §4 자신이 이미 그렇게 썼다. 속도 기반 규칙은 불필요하고 존재하지 않는다.
 
@@ -2099,6 +2100,8 @@ v1.2는 「최종 전용 키」 행에 **5개**를 열거하면서 §9.4의 `bos
 `ceil((midBossAtSec[0] − earlyDrainSec) ÷ earlyWaveIntervalSec) + ceil((mobPhaseSec − midBossAtSec[last]) ÷ waveIntervalSec) ≤ mobPhaseMaxWaves`
 ④ 벽 차선 ≥ `minGapWidthPx`(구 S52) ⑤ 무공격 칸 실재·무공격·비위기 ⑥ **속성 3종 보장** — `themeDraw` 5/6 조합
 전수에서 물·불·풀이 다 나온다(2×3 구조가 «우연히» 보장하던 것을 못박는다. 테마를 늘리면 조용히 깨진다).
+⑨ ★v1.10 ㊱ **호 편대 최소 간격** — `arc` 로 서는 모든 레코드(`crisisWaves` · `stages[].waves`)에 대해 실제 간격
+`max(minSepPx, radiusPx × I ÷ (count−1)) ≥ 2 × 몸의 반지름`(몸이 겹치지 않는다, §9.9.2).
 
 **게이트 S55 (§13.4) — 중간보스 구간.** ① `midBossFirstId` 가 tier mid 에 실재 ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed`
 ② 소환자를 뺀 tier mid 종 ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`
@@ -2349,6 +2352,7 @@ data/traits.json     (v1.10 ⑲ — §11.6 특성)
 | 참조 무결성 | 모든 `*Id`는 로드 시 대상 존재 확인 |
 | 공정성 | 모든 이미터가 `rules.fairness` 통과 필수. 위반 → 로드 실패 |
 | 검증기 | `src/core/schema.mjs`가 **게임과 시뮬 양쪽에서 동일하게** 실행. 개발·배포 빌드 항상(수 ms) |
+| ★ 프레임 예외 ㊱ | **런 중 프레임(`step`·렌더) 안의 예외도 조용히 지나가지 않는다** — `main.js frame()` 이 잡아 rAF 루프를 멈추고 `fatal`(메시지 + 스택 6줄)로 보인다. rAF 콜백의 예외는 콘솔에만 남고 루프가 계속 돌아, 던진 자리의 캔버스 상태(`globalAlpha`·`save` 스택·클립)가 굳은 채 다음 프레임이 이어졌다 — 배경이 알파 0.02 로 칠해져 런 끝까지 «모든 물체가 잔상»을 남기는 화면(플레이테스트 2026-09-05, 숲 위기 진입). 회귀망 = `tests/render.test.mjs` 의 **브라우저 충실 스텁**(음수 반지름 `arc()` = IndexSizeError · 비유한 그라데이션 = NotSupportedError · 프레임마다 save/restore 깊이 0 · 알파 1 · source-over · 색 문자열 유효) |
 
 **★ "누락 키 = 에러"의 유일한 명시적 예외 (딱 하나)**: `weapons[].levels[i]` 는 **부분 오버라이드**다.
 
@@ -3450,7 +3454,7 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 | `lineH` | `gapPx: 64` | 수평 1열, `spawnEdge` 중앙 기준 좌우 대칭 |
 | `columnV` | `gapSec: 0.5` | **`column` 전용.** 같은 x, `gapSec` 간격으로 순차 스폰 |
 | `vWedge` ★v1.10 ㉕ | `gapPx: 56, angleDeg: 35` | V자, 선두 1기 + 좌우 대칭. **폭에 맞춰 접힌다**: 한 V 의 최대 단 = `floor((아레나 반폭 − 여백) / (gapPx × sin angle))`(구조 파생), 넘치는 몸은 한 단(gapPx) 뒤의 다음 V — 위기 화살 37기 = 17·17·3 의 세 겹. ~~옛 계산~~은 폭 1156px(아레나 580)라 9단부터 전부 경계에 쌓여 «양쪽 벽에 세로줄»(스크린샷) |
-| `arc` | `radiusPx: 180, spanDeg: 120` | 호, 중심 = 아레나 중앙 상단 |
+| `arc` ★v1.10 ㊱ | `radiusPx: 180, spanDeg: 120, flatten: 0.3, minSepPx: 13` | 호 = 납작 타원(x = sinθ·R, y = −(1−cosθ)·R·`flatten`), 중심 = 아레나 중앙 상단. **몸은 타원 길이를 등분**해 선다(등각이면 날개 끝 간격이 가운데의 0.56 배로 눌린다). **반지름 = max(`radiusPx`, (count−1)·`minSepPx` ÷ I)**, I = 단위 반지름 타원 호 길이(중점 적분 64 등분) — 위기 새떼 37기는 R 264·현 457px(여백 안 488). 사용자 스크린샷(2026-09-05): 37기가 간격 10px(몸 지름 12)로 겹쳐 «목걸이 튜브». S54 ⑨ |
 | `pincer` | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
 | `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 가장자리 여백 = `max(minSepPx, bodyMargin)` (㉕) |
 | ★ `wall` (v1.9 · **v1.10 `jitterY`** · **v1.10 ⑤ 촘촘한 격자**) | `gapPx: 20, rowGapPx: 28, perRow: 28, laneSlots: 3, laneStrideCols: 4, jitterY: 0.85` · ~~29/40/20/2/3~~ | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
@@ -4878,7 +4882,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S49** ★ | **부위 도달 가능성** (v1.8, §8.11) — 각 `stage`/`final` 보스의 모든 부위에 대해, 점탄(반경 0) 기준 **노출폭 ≥ `boss.partReachMinPx`**(32). 노출폭 = `yFirst(P,dx) > yFirst(core,dx)` 인 `dx`(1px 격자)의 개수, `yFirst(E,dx) = E.ay + √(E.r² − (E.ax−dx)²)`. ★ **재는 것은 «코어에 가리는가»뿐이다** — 형제 부위 차폐도 `sealedNow` 도 세지 않는다. 실측 분리도가 그래도 결정적이었다: v1.8 이전의 위반 5건은 **전부 0px**, 통과 부위의 최소는 **41px** → 문턱 32 는 그 한가운데다. ★ **v1.8 이전에 `anchor` 를 검사하는 게이트는 «하나도» 없었다**(닫힌 키가 존재만 봤다) |
 | **S50** ★ | **웨이브 몸 수 하한의 정합** (v1.8, §8.7.1) — ① 4밴드 전부 선언 · 정수 ≥1 ② `hpMult` 오름차순으로 `minPerWave` **단조 비증가**(총 HP 예산 보존과 같은 방향) ③ `minPerWave ≤ enemyConcurrentMax ÷ 2`(한 웨이브가 A층 예산 절반을 혼자 먹지 않는다). ★ 이 게이트는 «값의 정합»만 본다 — effHP 가 감당 가능한가는 **계측이 답할 몫**이다 |
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
-| **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장. 본문은 §8.19 |
+| **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장 ⑦ 배수 ⑧ `crisisHpScale` ⑨ ㊱ 호 편대 최소 간격(§9.9.2). 본문은 §8.19 |
 | **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
 | **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale `mixed`(3종 순환, v1.10 ⑳)|null ② kind = 속성 사전(풀 slow·물 inertia·불 heat)의 역 — 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0` |
 | **S57** ★ | **보스 등장 쓸어내기** (v1.10 ⑧, §8.22) — ① `0 < boss.entryWipeSec < boss.introSec`(강림 안에서 끝난다) ② 앞선 속도 `(arena.h + 40 − spawnLineY) ÷ entryWipeSec` > `fairness.maxBulletSpeed`(어떤 탄도 앞선을 앞지르지 못한다 = 0.7초 뒤 무대는 보스뿐) ③ `visual.wipe.bandPx > 0` · `flashAlpha ∈ [0,1]` |

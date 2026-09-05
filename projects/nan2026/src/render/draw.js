@@ -572,7 +572,10 @@ function drawTerrain(ctx, world, pal) {
     ctx.lineWidth = 1.5;
     if (t.kind === 0) {
       for (let q = 1; q <= 2; q += 1) {
-        const rr = r * (q / 3) + Math.sin(world.time * 1.2 + q) * 2;
+        // ★ 페이드 끝(r → 0)에서 물결 항(±2)이 반지름을 음수로 만들면 arc() 가 IndexSizeError 를 던진다 — 예외가 프레임을 중간에
+        //   끊어 globalAlpha(=k≈0.02)·save 가 새고, 다음 프레임의 배경이 알파 0.02 로 칠해져 **모든 물체가 잔상**을 남겼다
+        //   (플레이테스트 스크린샷: 숲 위기 진입 = 둔화 장판 페이드 순간). 0 으로 클램프한다(㊱).
+        const rr = Math.max(0, r * (q / 3) + Math.sin(world.time * 1.2 + q) * 2);
         ctx.beginPath(); ctx.arc(t.x, t.y, rr, 0, Math.PI * 2); ctx.stroke();
       }
     } else if (t.kind === 1) {
