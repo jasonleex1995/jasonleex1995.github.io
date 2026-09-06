@@ -92,7 +92,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -970,9 +970,14 @@ function S2_files() {
     closedKeys('S2', D.meta.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase'], 'meta.flow.attract');
   }
   if (isObj(D.meta.difficulty)) {
-    closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'disaster', 'stunMinDifficulty'], 'meta.difficulty');
-    for (const k of ['normal', 'hard', 'hell', 'disaster']) {
-      if (has(D.meta.difficulty, k)) closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul'], `meta.difficulty.${k}`);
+    closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty'], 'meta.difficulty');
+    for (const k of ['normal', 'hard', 'hell']) {
+      if (has(D.meta.difficulty, k)) {
+        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected'], `meta.difficulty.${k}`);
+      }
+    }
+    if (has(D.meta.difficulty, 'disaster')) {
+      V('S2', 'meta.difficulty.disaster: 삭제된 난이도 (v1.10 ㊿) — 난이도는 튜토리얼/노멀/하드/헬 넷이다 (§11.3)');
     }
   }
   // §10.4 — bot. ★ grazeTolerancePx 는 삭제됐다 (§2.3 "그레이즈 없음")
@@ -3587,6 +3592,90 @@ function S47_shapeLaw() {
   EX('S47', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S60 — 난이도 (§11.3 v1.10 ㊿)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자(2026-09-06): 「차라리 디자인을 튜토리얼, 노멀, 하드, 헬 이렇게 구분하고 노멀은 진화 무기를 3개 이상,
+ *   하드는 4개 이상, 헬은 진화 무기를 5개 이상 개방해야 잡을 수 있는 수준으로 만드는게 좋을것 같아.」
+ *   → 난이도의 «뜻»이 배속·점수에서 «필요한 진화 무기 수»로 바뀌었다. 그 뜻을 데이터가 지키는지 여기서 본다:
+ *   ① 난이도는 정확히 셋(normal·hard·hell) — 디재스터는 삭제됐고, 튜토리얼은 난이도가 아니다(배속·점수가 없다)
+ *   ② 노멀이 기준선 — hpMul == 1
+ *   ③ 네 열(speed·scoreMul·hpMul·evolutionsExpected)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
+ *      그 난이도는 «이름만 다른 난이도»다
+ *   ④ evolutionsExpected ∈ [1, player.weaponSlots] — 무기 슬롯보다 많은 진화를 요구할 수는 없다
+ *   ⑤ hpMul 계단 ≤ 1.25 — 실측(고정 픽 예산 110, 최종 보스, 로스터 3종 중앙값): 진화 3→4 는 +12%,
+ *      4→5 는 +2%, 3→5 는 +14% 화력이다. 계단이 이보다 크면 «진화 하나 더»로는 못 메우고, 난이도가
+ *      진화가 아니라 파밍을 요구하게 된다(사용자의 설계와 반대)
+ *   ⑥ stunMinDifficulty 는 실재하는 난이도를 가리킨다
+ *   ⑦ 소스 검사 — hpMul 은 state.js 의 difficultyHpMul 한 문으로만 들어가고, **네 스포너 전부**가 그 문을 지난다
+ *      (잡몹·중간보스·보스 코어·보스 파트). 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍
+ */
+function S60_difficulty() {
+  const md = D.meta && D.meta.difficulty;
+  if (!isObj(md)) { V('S60', 'meta.difficulty 가 없다 (§11.3)'); return; }
+  const TIERS = ['normal', 'hard', 'hell'];
+  let n = 0;
+  n += 1;
+  for (const k of TIERS) if (!isObj(md[k])) V('S60', `meta.difficulty.${k} 가 없다 — 난이도는 셋이다 (§11.3 ①)`);
+  n += 1;
+  if (isObj(md.normal) && md.normal.hpMul !== 1) {
+    V('S60', `meta.difficulty.normal.hpMul = ${md.normal.hpMul} ≠ 1 — 노멀이 기준선이다 (§11.3 ②)`);
+  }
+  for (const col of ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']) {
+    n += 1;
+    for (let i = 1; i < TIERS.length; i += 1) {
+      const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
+      if (!isObj(a) || !isObj(b)) continue;
+      if (!num(a[col]) || !num(b[col])) { V('S60', `meta.difficulty.*.${col}: 수가 아니다 (§11.3 ③)`); continue; }
+      if (!(b[col] > a[col])) {
+        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 네 열 모두 순증해야 한다 (§11.3 ③)`);
+      }
+    }
+  }
+  const slots = D.rules && D.rules.player && D.rules.player.weaponSlots;
+  for (const k of TIERS) {
+    if (!isObj(md[k])) continue;
+    n += 1;
+    const e = md[k].evolutionsExpected;
+    if (!Number.isInteger(e) || e < 1 || (num(slots) && e > slots)) {
+      V('S60', `meta.difficulty.${k}.evolutionsExpected = ${e} ∉ 정수 [1, weaponSlots ${slots}] (§11.3 ④)`);
+    }
+  }
+  const STEP_MAX = 1.25;
+  for (let i = 1; i < TIERS.length; i += 1) {
+    const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
+    if (!isObj(a) || !isObj(b) || !num(a.hpMul) || !num(b.hpMul) || a.hpMul <= 0) continue;
+    n += 1;
+    const r = b.hpMul / a.hpMul;
+    if (r > STEP_MAX + 1e-9) {
+      V('S60', `meta.difficulty: hpMul 계단 ${TIERS[i - 1]}→${TIERS[i]} = ${r.toFixed(3)} > ${STEP_MAX} `
+        + '— 진화 무기 하나가 주는 화력(실측 +12%)으로 못 메운다 (§11.3 ⑤)');
+    }
+  }
+  n += 1;
+  if (!TIERS.includes(md.stunMinDifficulty)) {
+    V('S60', `meta.difficulty.stunMinDifficulty = "${md.stunMinDifficulty}" 가 난이도 목록에 없다 (§11.3 ⑥)`);
+  }
+  // ⑦ 소스 — 네 스포너가 전부 difficultyHpMul 을 지난다
+  const sp = join(ROOT, 'src', 'core', 'state.js');
+  if (!existsSync(sp)) { V('S60', 'src/core/state.js 가 없다'); EX('S60', n); return; }
+  const src = readFileSync(sp, 'utf8');
+  n += 1;
+  if (!/export function difficultyHpMul\(world\)/.test(src)) {
+    V('S60', 'state.js 에 difficultyHpMul 이 없다 — 난이도 체력 배율의 유일한 문 (§11.3 ⑦)');
+  }
+  for (const fn of ['spawnEnemy', 'spawnMidBoss', 'spawnBossCore', 'spawnBossPart']) {
+    n += 1;
+    const m = src.match(new RegExp(`export function ${fn}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`));
+    if (m === null) { V('S60', `state.js 에서 ${fn} 본문을 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라 (§11.3 ⑦)`); continue; }
+    if (!/difficultyHpMul\(world\)/.test(m[1])) {
+      V('S60', `state.js ${fn}: hp 에 difficultyHpMul 이 안 걸렸다 — 이 적만 난이도를 안 탄다 (§11.3 ⑦)`);
+    }
+  }
+  EX('S60', n);
+}
+
 function S45_draftParamLabels() {
   const hudPath = join(ROOT, 'src', 'render', 'hud.js');
   if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
@@ -3873,7 +3962,7 @@ function dynamicGateStubs() {
     ['bossTimeoutRate', '분모 = runs 전체. 분자 = deaths.csv 사인이 "시간 초과"인 런. 컨티뉴는 사인을 리셋 (§13.1.1)'],
     ['noDeadLuck', '테마 순서 720개를 스테이지 5 테마별 6군집(각 ≥1300런)으로 집계 + draft 축 6정책 각각의 runClearRate 최솟값 (§13.1.1)'],
     ['stanceValue', 'runClearRate(baseline) − runClearRate(stance="static", 나머지 3축 baseline) (§13.1.1)'],
-    ['difficultySpread', 'disaster(speed 3.0) 의 runClearRate ∈ [0.02, 0.12] (§13.1)'],
+    ['difficultySpread', '헬(speed 2.0 · hpMul 1.3 · 진화 5개) 의 runClearRate ∈ [0.05, 0.30] (§13.1)'],
     ['dominance.maxWeaponPickShare', `분모 = runs × 3 = ${(c.runs || 0) * 3}. forward 제외 후 11종 재정규화 (§13.1.1)`],
     ['dominance.maxWeaponWinShare', '★ 피해 지분의 평균. 분모 = 클리어 런 수. forward 제외 후 11종 재정규화 (§13.1.1)'],
     ['dominance.startWeaponDamageShare', 'forward 전용. 분모 = 클리어 런의 4무기 총 피해 (§13.1.1)'],
@@ -4047,7 +4136,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S59 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S60 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4114,6 +4203,7 @@ function main() {
   S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
   S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
+  S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·순증 4열·진화 요구·hpMul 계단·네 스포너
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

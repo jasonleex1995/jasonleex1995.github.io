@@ -121,10 +121,15 @@ suite('score/집계 tally', () => {
     assert.eq(t.total, Math.floor(10.7 * t.scoreMul), '총점 = floor(합 × 배율) — floor 1회 (26 ≠ pre-floor 25)');
   });
 
-  test('난이도별 배율이 총점에 반영된다', () => {
+  test('난이도별 배율이 총점에 반영된다 — 표에 있는 난이도 «전부»가 순증', () => {
+    // ★ 난이도 id 를 하드코딩하지 않는다(㊿ 에서 「디재스터」가 삭제됐다). 표를 읽고 그 순서대로 본다.
+    const diff = loadData().meta.difficulty;
+    const ids = Object.keys(diff).filter((k) => diff[k] !== null && typeof diff[k] === 'object');
+    assert.gt(ids.length, 1, '난이도가 둘 이상');
     const mk = (d) => { const w = mkWorld(d); w.score.kills = 1000; return tally(w).total; };
-    assert.gt(mk('disaster'), mk('normal'), 'disaster > normal');
-    assert.gt(mk('hell'), mk('hard'), 'hell > hard');
+    for (let i = 1; i < ids.length; i += 1) {
+      assert.gt(mk(ids[i]), mk(ids[i - 1]), `${ids[i]} > ${ids[i - 1]}`);
+    }
   });
 
   test('미지 난이도는 소리내어 실패', () => {

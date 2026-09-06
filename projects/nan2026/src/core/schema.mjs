@@ -676,10 +676,14 @@ function checkMeta(c, m) {
     c.closed('meta.flow.attract', m.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase']);
   }
   if (isObj(m.difficulty)) {
-    c.closed('meta.difficulty', m.difficulty, ['normal', 'hard', 'hell', 'disaster', 'stunMinDifficulty']);
-    const ds = ['normal', 'hard', 'hell', 'disaster'];
+    // ★ v1.10 ㊿ — 「디재스터」 삭제. 난이도는 «필요한 진화 무기 수» 3/4/5 로 재정의됐고(§11.3),
+    //   그 요구를 hpMul 이 체력으로 표현한다. 배속·점수만 있던 표에 두 열이 늘었다.
+    c.closed('meta.difficulty', m.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty']);
+    const ds = ['normal', 'hard', 'hell'];
     for (let i = 0; i < ds.length; i += 1) {
-      if (own(m.difficulty, ds[i])) c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul']);
+      if (own(m.difficulty, ds[i])) {
+        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']);
+      }
     }
   }
   if (isObj(m.bot)) {

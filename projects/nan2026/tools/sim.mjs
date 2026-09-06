@@ -488,8 +488,8 @@ function grade(data, summary) {
   const r = summary.run;
   band('runClearRate', r.runClearRate, rm.runClearRate.min, rm.runClearRate.max);
   band('bossTimeoutRate', r.bossTimeoutRate, rm.bossTimeoutRate.min, rm.bossTimeoutRate.max);
-  band('difficultySpread.disaster', summary.disasterRunClearRate,
-    rm.difficultySpread.disasterRunClearRate.min, rm.difficultySpread.disasterRunClearRate.max);
+  band('difficultySpread.hell', summary.hellRunClearRate,
+    rm.difficultySpread.hellRunClearRate.min, rm.difficultySpread.hellRunClearRate.max);
   band('static.growthBudget.maxLevelUps', r.maxLevelUps, undefined, c.static.growthBudget.maxLevelUps);
   band('static.capHits', r.capHitsB, undefined, c.static.capHits.max);
   band('dominance.maxThemeClearStddev', r.themeClearStddev, undefined, rm.dominance.maxThemeClearStddev);
@@ -607,7 +607,7 @@ export function main(argv) {
   summary.worstThemeClear = null;
   summary.farmXpRatio = null;
   summary.crisisKillShare = null;
-  summary.disasterRunClearRate = null;
+  summary.hellRunClearRate = null;
   summary.probe = null;
 
   if (a.certify) {
@@ -631,9 +631,9 @@ export function main(argv) {
     summary.farmXpRatio = passive.medianXpGained > 0 ? maxFarm.medianXpGained / passive.medianXpGained : null;
     log(`  farm maxFarm/passive XP ${maxFarm.medianXpGained.toFixed(0)} / ${passive.medianXpGained.toFixed(0)}`);
 
-    const dis = aggregate(data, runBatch(data, sweepN, a.seed + 50000, { difficulty: 'disaster', policy: {} }), {});
-    summary.disasterRunClearRate = dis.runClearRate;
-    log(`  difficulty disaster clear ${(dis.runClearRate * 100).toFixed(1)}%`);
+    const dis = aggregate(data, runBatch(data, sweepN, a.seed + 50000, { difficulty: 'hell', policy: {} }), {});
+    summary.hellRunClearRate = dis.runClearRate;
+    log(`  difficulty hell clear ${(dis.runClearRate * 100).toFixed(1)}%`);
   }
 
   let probe = null;

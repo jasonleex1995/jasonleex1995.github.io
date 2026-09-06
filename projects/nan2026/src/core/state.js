@@ -795,6 +795,18 @@ function emitterTypeOf(world, emitterId) {
   throw new Error(`state: 미지의 이미터 "${emitterId}" (§8.5 — 폴백 금지)`);
 }
 
+/**
+ * §11.3(v1.10 ㊿) — 난이도 체력 배율. **모든 적의 hp 는 이 문을 지난다**(잡몹·중간보스·보스 코어/파트,
+ *   즉 아래 네 스포너 전부). 난이도는 이제 «배속·점수»만이 아니라 «필요한 진화 무기 수»를 정하고,
+ *   그 요구를 체력으로 표현한다 — 노멀 3개 / 하드 4개 / 헬 5개(meta.difficulty[].evolutionsExpected).
+ *   ★ 여기가 아니라 각 곡선(enemyHpScale·bossHpScale…)에 곱하면 난이도가 스테이지 곡선을 오염시킨다.
+ */
+export function difficultyHpMul(world) {
+  const d = world.data.meta.difficulty[world.difficultyId];
+  if (d === undefined) throw new Error(`state: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
+  return d.hpMul;
+}
+
 export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }
@@ -812,7 +824,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.attackType = def.attack === null ? '' : emitterTypeOf(world, def.attack.emitterId);
   e.element = element;                    // §8.6 — element 는 아키타입 필드가 아니다. 편성이 주입한다
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;
-  e.hp = elite ? hp * el.hpMult : hp;     // §8.6 — 엘리트 = 접두 플래그다. 별도 개체가 아니다
+  e.hp = (elite ? hp * el.hpMult : hp) * difficultyHpMul(world);   // §8.6 엘리트 = 접두 플래그 · §11.3 난이도 배율
   e.hpMax = e.hp;
   e.radius = elite ? def.radius * el.sizeMult : def.radius;
   e.contactDmg = elite ? def.contactDmg * el.contactDmgMul : def.contactDmg;
@@ -852,7 +864,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y) {
   e.archetypeId = ''; e.band = ''; e.shapeId = core.shapeId;
   e.element = core.element;                       // §8.14 R1 — 코어는 노말
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;           // 위치는 boss.js 가 직접 세팅(vx/vy=0)
-  e.hp = hp; e.hpMax = hp;
+  e.hp = hp * difficultyHpMul(world); e.hpMax = e.hp;   // §11.3 난이도 배율
   e.radius = core.radius; e.contactDmg = core.contactDmg;
   e.xp = 0; e.score = core.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false; e.chainEpoch = 0;
@@ -875,7 +887,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.element = part.element;
   e.anchorX = part.anchor[0]; e.anchorY = part.anchor[1];
   e.x = cx + e.anchorX; e.y = cy + e.anchorY; e.vx = 0; e.vy = 0;
-  e.hp = hp; e.hpMax = hp;
+  e.hp = hp * difficultyHpMul(world); e.hpMax = e.hp;   // §11.3 난이도 배율
   e.radius = part.radius; e.contactDmg = part.contactDmg;
   e.xp = 0; e.score = part.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false; e.chainEpoch = 0;
@@ -901,7 +913,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.archetypeId = ''; e.band = ''; e.shapeId = def.shapeId;
   e.element = element;                            // §8.9 런타임 주입(저작값은 null)
   e.x = x; e.y = y; e.vx = 0; e.vy = 0;
-  e.hp = hp; e.hpMax = hp;
+  e.hp = hp * difficultyHpMul(world); e.hpMax = e.hp;   // §11.3 난이도 배율
   e.radius = def.radius; e.contactDmg = def.contactDmg;
   e.xp = def.xp; e.score = def.score;
   e.elite = false; e.ghost = false; e.introBody = false; e.wallX = false; e.chainEpoch = 0;
