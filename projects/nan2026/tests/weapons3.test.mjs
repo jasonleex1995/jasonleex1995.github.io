@@ -10,7 +10,7 @@
  *   공통     — 전 무기가 레지스트리·드래프트 후보에 있다 · 계열별 후보 수 > 칸 수 · 훅 H5/H6
  */
 
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { createWorld, recomputeEff, giveWeapon, spawnEnemy, givePassive } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -18,7 +18,8 @@ import { candidates } from '../src/core/draft.js';
 
 const dt = TICK_DT;
 function mkWorld(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward' });
+  return createWorld({ data: loadData(), seed, weapons, hooks: { enemies: null, emitters: null }, startWeaponId: 'forward',
+    difficulty: baselineDifficulty() });
 }
 function slotOf(world, family) { for (const s of world.slots) if (s.family === family) return s; return null; }
 function setup(world, family, level, evolved) {

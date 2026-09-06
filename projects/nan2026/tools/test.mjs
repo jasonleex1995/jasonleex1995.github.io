@@ -65,6 +65,18 @@ export function loadData() {
   return _data;
 }
 
+/**
+ * §11.3(v1.10 ㊿) — «저작값 그대로»가 나오는 난이도 = hpMul 이 1 인 난이도(= 가장 어려운 것).
+ *   저작값(bosses[].hp · curve.*)이 곧 그 난이도의 값이고 쉬운 난이도는 그 할인이므로,
+ *   「hp = 저작값 × 곡선」을 주장하는 테스트는 **이 난이도의 월드**에서 봐야 한다.
+ *   ★ 상수로 박지 않는다 — 표를 읽는다(난이도 이름이 또 바뀌어도 테스트는 안 깨진다).
+ */
+export function baselineDifficulty() {
+  const d = loadData().meta.difficulty;
+  for (const k of Object.keys(d)) if (d[k] !== null && typeof d[k] === 'object' && d[k].hpMul === 1) return k;
+  throw new Error('test: hpMul === 1 인 난이도가 없다 (§11.3 ②)');
+}
+
 // ── 실행 ────────────────────────────────────────────────────────────────
 async function main() {
   const filter = process.argv[2];

@@ -10,13 +10,13 @@
  *
  * 값은 전부 정본/데이터에서 유도한다 (하드코딩 매직넘버 지양).
  */
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { makePool, createWorld, recomputeStats, recomputeEff, giveWeapon, levelUpWeapon, givePassive, swapSlots, spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext, familyDmgMul } from '../src/core/state.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { killEnemy } from '../src/core/step.js';
 
 function mk(seed = 1) {
-  return createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward' });
+  return createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', difficulty: baselineDifficulty() });
 }
 /** 풀 불변식: free 스택 + live == size, 언제나 (§10.3 무결) */
 function poolIntact(p) {

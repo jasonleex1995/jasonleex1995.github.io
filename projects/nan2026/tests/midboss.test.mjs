@@ -16,7 +16,7 @@
  *   처치   — xp 확정 드랍 + 중간보스 격파 점수 + 반납 (v1.5: 코인 폐지)
  */
 
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { createWorld, spawnMidBoss } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -28,7 +28,7 @@ const dt = TICK_DT;
 
 function mkRun(seed = 1, withEmitters = false) {
   const world = createWorld({
-    data: loadData(), seed, weapons,
+    data: loadData(), seed, weapons, difficulty: baselineDifficulty(),
     hooks: { enemies: null, emitters: withEmitters ? emitters : null, run: null, boss: null },
   });
   initRun(world);

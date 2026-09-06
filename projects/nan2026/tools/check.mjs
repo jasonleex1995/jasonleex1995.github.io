@@ -3600,13 +3600,16 @@ function S47_shapeLaw() {
  *   하드는 4개 이상, 헬은 진화 무기를 5개 이상 개방해야 잡을 수 있는 수준으로 만드는게 좋을것 같아.」
  *   → 난이도의 «뜻»이 배속·점수에서 «필요한 진화 무기 수»로 바뀌었다. 그 뜻을 데이터가 지키는지 여기서 본다:
  *   ① 난이도는 정확히 셋(normal·hard·hell) — 디재스터는 삭제됐고, 튜토리얼은 난이도가 아니다(배속·점수가 없다)
- *   ② 노멀이 기준선 — hpMul == 1
+ *   ② **가장 어려운 난이도가 기준선** — hell.hpMul == 1. 사용자(2026-09-06): 「지금 내가 노말모드에서 한 설정이
+ *      그대로 헬모드에 들어가면 될 것 같아」 → 저작값(bosses.json·stages.curve)은 «가장 어려운 난이도»의 값이고,
+ *      쉬운 난이도는 그것의 할인(hpMul < 1)이다. 만드는 사람이 조율하는 자리가 곧 헬이 된다
  *   ③ 네 열(speed·scoreMul·hpMul·evolutionsExpected)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
  *      그 난이도는 «이름만 다른 난이도»다
  *   ④ evolutionsExpected ∈ [1, player.weaponSlots] — 무기 슬롯보다 많은 진화를 요구할 수는 없다
- *   ⑤ hpMul 계단 ≤ 1.25 — 실측(고정 픽 예산 110, 최종 보스, 로스터 3종 중앙값): 진화 3→4 는 +12%,
- *      4→5 는 +2%, 3→5 는 +14% 화력이다. 계단이 이보다 크면 «진화 하나 더»로는 못 메우고, 난이도가
- *      진화가 아니라 파밍을 요구하게 된다(사용자의 설계와 반대)
+ *   ⑤ hpMul 계단 ≤ 1.35 — 실측 사다리(엄격 모델: 최강 무기 정확히 N자루 · 진화 짝 패시브만 · 시드 3종 중앙값):
+ *      최종 보스를 170초에 잡는 총 HP 가 3종 215,600 · 4종 302,800 · 5종 380,300 · 6종 501,400 이다.
+ *      한 칸 = ×1.26~1.32 → 계단이 1.35 를 넘으면 «최강 무기 한 자루 더»로도 못 메운다 = 난이도가
+ *      빌드의 질이 아니라 파밍을 요구하게 된다(사용자의 설계와 반대)
  *   ⑥ stunMinDifficulty 는 실재하는 난이도를 가리킨다
  *   ⑦ 소스 검사 — hpMul 은 state.js 의 difficultyHpMul 한 문으로만 들어가고, **네 스포너 전부**가 그 문을 지난다
  *      (잡몹·중간보스·보스 코어·보스 파트). 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍
@@ -3619,8 +3622,14 @@ function S60_difficulty() {
   n += 1;
   for (const k of TIERS) if (!isObj(md[k])) V('S60', `meta.difficulty.${k} 가 없다 — 난이도는 셋이다 (§11.3 ①)`);
   n += 1;
-  if (isObj(md.normal) && md.normal.hpMul !== 1) {
-    V('S60', `meta.difficulty.normal.hpMul = ${md.normal.hpMul} ≠ 1 — 노멀이 기준선이다 (§11.3 ②)`);
+  const top = TIERS[TIERS.length - 1];
+  if (isObj(md[top]) && md[top].hpMul !== 1) {
+    V('S60', `meta.difficulty.${top}.hpMul = ${md[top].hpMul} ≠ 1 — 저작값은 «가장 어려운 난이도»의 값이다 (§11.3 ②)`);
+  }
+  for (const k of TIERS) {
+    if (k === top || !isObj(md[k]) || !num(md[k].hpMul)) continue;
+    n += 1;
+    if (!(md[k].hpMul < 1)) V('S60', `meta.difficulty.${k}.hpMul = ${md[k].hpMul} ≥ 1 — 쉬운 난이도는 저작값의 «할인»이다 (§11.3 ②)`);
   }
   for (const col of ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']) {
     n += 1;
@@ -3642,7 +3651,7 @@ function S60_difficulty() {
       V('S60', `meta.difficulty.${k}.evolutionsExpected = ${e} ∉ 정수 [1, weaponSlots ${slots}] (§11.3 ④)`);
     }
   }
-  const STEP_MAX = 1.25;
+  const STEP_MAX = 1.35;
   for (let i = 1; i < TIERS.length; i += 1) {
     const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
     if (!isObj(a) || !isObj(b) || !num(a.hpMul) || !num(b.hpMul) || a.hpMul <= 0) continue;
@@ -3650,7 +3659,7 @@ function S60_difficulty() {
     const r = b.hpMul / a.hpMul;
     if (r > STEP_MAX + 1e-9) {
       V('S60', `meta.difficulty: hpMul 계단 ${TIERS[i - 1]}→${TIERS[i]} = ${r.toFixed(3)} > ${STEP_MAX} `
-        + '— 진화 무기 하나가 주는 화력(실측 +12%)으로 못 메운다 (§11.3 ⑤)');
+        + `— 최강 무기 한 자루가 주는 화력(실측 사다리 한 칸 ×1.26~1.32)으로 못 메운다 (§11.3 ⑤)`);
     }
   }
   n += 1;

@@ -9,7 +9,7 @@
  *   - crisisSuspendsWaves — 위기 중 정상 웨이브 정지(정본 true).
  */
 
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { createWorld } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -19,7 +19,8 @@ import { bossHook } from '../src/core/boss.js';
 import { initRun, tickRun, PHASE } from '../src/core/stage.js';
 
 function mkCrisisWorld(seed, stageId, pos) {
-  const w = createWorld({ data: loadData(), seed, weapons, hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
+  const w = createWorld({ data: loadData(), seed, weapons, difficulty: baselineDifficulty(),
+    hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
   initRun(w);
   w.run.order[pos] = stageId;
   w.run.stageIndex = pos;

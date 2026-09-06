@@ -9,7 +9,7 @@
  *   clearField — 보스 등장 시 잔존 잡몹·적탄 정리
  */
 
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, spawnEnemyBullet, spawnPlayerBullet, recomputeEff, familyDmgMul } from '../src/core/state.js';
 import { killEnemy, step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -22,7 +22,8 @@ import { initRun, tickRun, stageEntry, PHASE } from '../src/core/stage.js';
 
 function mkRunWorld(seed, stageIndex) {
   // ㉟ 시작 무기 풀이 10종(속성)이 되어 추첨이 빔·체인(탄 없음)을 뽑을 수 있다 — 탄 전제 테스트는 벌컨으로 못박는다
-  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
+  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', difficulty: baselineDifficulty(),
+    hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
   initRun(w);
   if (stageIndex !== undefined) w.run.stageIndex = stageIndex;
   return w;

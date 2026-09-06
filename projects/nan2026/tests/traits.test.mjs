@@ -11,7 +11,7 @@
  *   봇     — 자연 재생을 올린다
  */
 
-import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, applyTrait } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy, applyHit } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
@@ -24,7 +24,7 @@ import { hitEnemy } from '../src/core/damage.js';
 const dt = TICK_DT;
 
 function mkRun(seed, stageId, pos = 0, hooks = { enemies: null, emitters: null, run: tickRun, boss: bossHook }) {
-  const w = createWorld({ data: loadData(), seed, weapons, hooks });
+  const w = createWorld({ data: loadData(), seed, weapons, hooks, difficulty: baselineDifficulty() });
   initRun(w);
   if (stageId) w.run.order[pos] = stageId;
   w.run.stageIndex = pos;
