@@ -2,8 +2,7 @@
  * tests/difficulty.test.mjs — §11.3 난이도 (v1.10 ㊿).
  *
  * 정본 계약:
- *   난이도는 «필요한 진화 무기 수»다 — 노멀 3 / 하드 4 / 헬 5(meta.difficulty[].evolutionsExpected).
- *   그 요구를 hpMul 이 «적 체력»으로 표현하고, state.difficultyHpMul 이 **유일한 문**이다:
+ *   난이도는 «적 체력»이다(hpMul) — 그리고 state.difficultyHpMul 이 **유일한 문**이다:
  *   잡몹·중간보스·보스 코어·보스 파트 네 스포너 전부가 이 문을 지난다. 하나라도 빠지면
  *   그 적만 난이도를 안 탄다 = 조용한 구멍.
  *   ★ 난이도 id 를 하드코딩하지 않는다 — 표(meta.difficulty)를 읽는다. 「디재스터」가 그래서 죽었다.
@@ -39,21 +38,18 @@ suite('difficulty/표 §11.3', () => {
     // ㊿ — 저작값(bosses.json·stages.curve)은 «가장 어려운 난이도»의 값이다. 쉬운 난이도는 그 할인.
     assert.eq(d[ids[ids.length - 1]].hpMul, 1, '가장 어려운 난이도가 기준선 — hpMul 1');
     for (let i = 0; i < ids.length - 1; i += 1) assert.gt(1, d[ids[i]].hpMul, `${ids[i]}: hpMul < 1`);
-    for (const col of ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']) {
+    for (const col of ['speed', 'scoreMul', 'hpMul']) {
       for (let i = 1; i < ids.length; i += 1) {
         assert.gt(d[ids[i]][col], d[ids[i - 1]][col], `${col}: ${ids[i]} > ${ids[i - 1]}`);
       }
     }
   });
 
-  test('진화 요구는 정수이고 무기 슬롯 수를 넘지 않는다', () => {
+  test('난이도 항목의 열은 셋뿐이다 — 죽은 키가 없다 (㊿-c)', () => {
+    // 화면에서 「진화 무기 N개 이상」을 빼자 evolutionsExpected 는 읽는 곳이 0 이 됐다 → 삭제했다.
     const d = loadData().meta.difficulty;
-    const slots = loadData().rules.player.weaponSlots;
     for (const id of tierIds()) {
-      const e = d[id].evolutionsExpected;
-      assert.eq(e, Math.round(e), `${id}: 정수`);
-      assert.gt(e, 0, `${id}: ≥ 1`);
-      assert.gt(slots + 1, e, `${id}: ≤ weaponSlots(${slots})`);
+      assert.eq(Object.keys(d[id]).sort().join(','), 'hpMul,scoreMul,speed', `${id}: 열 셋`);
     }
   });
 

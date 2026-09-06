@@ -676,13 +676,13 @@ function checkMeta(c, m) {
     c.closed('meta.flow.attract', m.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase']);
   }
   if (isObj(m.difficulty)) {
-    // ★ v1.10 ㊿ — 「디재스터」 삭제. 난이도는 «필요한 진화 무기 수» 3/4/5 로 재정의됐고(§11.3),
-    //   그 요구를 hpMul 이 체력으로 표현한다. 배속·점수만 있던 표에 두 열이 늘었다.
+    // ★ v1.10 ㊿ — 「디재스터」 삭제 · hpMul 신설(난이도 = 적 체력, §11.3).
+    //   ㊿-c: evolutionsExpected 삭제 — 화면에서 뺐더니 읽는 곳이 0 이 됐다(죽은 키). 설계 의도는 정본이 소유한다.
     c.closed('meta.difficulty', m.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty']);
     const ds = ['normal', 'hard', 'hell'];
     for (let i = 0; i < ds.length; i += 1) {
       if (own(m.difficulty, ds[i])) {
-        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']);
+        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul']);
       }
     }
   }

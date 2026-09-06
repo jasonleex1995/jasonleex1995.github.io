@@ -973,11 +973,17 @@ function S2_files() {
     closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty'], 'meta.difficulty');
     for (const k of ['normal', 'hard', 'hell']) {
       if (has(D.meta.difficulty, k)) {
-        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected'], `meta.difficulty.${k}`);
+        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul'], `meta.difficulty.${k}`);
       }
     }
     if (has(D.meta.difficulty, 'disaster')) {
       V('S2', 'meta.difficulty.disaster: 삭제된 난이도 (v1.10 ㊿) — 난이도는 튜토리얼/노멀/하드/헬 넷이다 (§11.3)');
+    }
+    for (const k of ['normal', 'hard', 'hell']) {
+      if (has(D.meta.difficulty, k) && has(D.meta.difficulty[k], 'evolutionsExpected')) {
+        V('S2', `meta.difficulty.${k}.evolutionsExpected: 삭제된 키 (v1.10 ㊿-c) — 화면에서 빼자 읽는 곳이 0 이 됐다. `
+          + '설계 의도(진화 3/4/5)는 §11.3 이 소유하고, 난이도 간격은 hpMul 사다리가 집행한다');
+      }
     }
   }
   // §10.4 — bot. ★ grazeTolerancePx 는 삭제됐다 (§2.3 "그레이즈 없음")
@@ -3603,9 +3609,10 @@ function S47_shapeLaw() {
  *   ② **가장 어려운 난이도가 기준선** — hell.hpMul == 1. 사용자(2026-09-06): 「지금 내가 노말모드에서 한 설정이
  *      그대로 헬모드에 들어가면 될 것 같아」 → 저작값(bosses.json·stages.curve)은 «가장 어려운 난이도»의 값이고,
  *      쉬운 난이도는 그것의 할인(hpMul < 1)이다. 만드는 사람이 조율하는 자리가 곧 헬이 된다
- *   ③ 네 열(speed·scoreMul·hpMul·evolutionsExpected)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
+ *   ③ 세 열(speed·scoreMul·hpMul)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
  *      그 난이도는 «이름만 다른 난이도»다
- *   ④ evolutionsExpected ∈ [1, player.weaponSlots] — 무기 슬롯보다 많은 진화를 요구할 수는 없다
+ *   ④ (㊿-c 폐지 — evolutionsExpected 는 죽은 키라 삭제했다. 진화 개수는 고정 픽 예산에서 화력의 10~25% 라
+ *      «집행되는 게이트»가 될 수 없다 — 실측 표는 §11.3 이 소유한다)
  *   ⑤ hpMul 계단 ≤ 1.35 — 실측 사다리(엄격 모델: 최강 무기 정확히 N자루 · 진화 짝 패시브만 · 시드 3종 중앙값):
  *      최종 보스를 170초에 잡는 총 HP 가 3종 215,600 · 4종 302,800 · 5종 380,300 · 6종 501,400 이다.
  *      한 칸 = ×1.26~1.32 → 계단이 1.35 를 넘으면 «최강 무기 한 자루 더»로도 못 메운다 = 난이도가
@@ -3631,24 +3638,15 @@ function S60_difficulty() {
     n += 1;
     if (!(md[k].hpMul < 1)) V('S60', `meta.difficulty.${k}.hpMul = ${md[k].hpMul} ≥ 1 — 쉬운 난이도는 저작값의 «할인»이다 (§11.3 ②)`);
   }
-  for (const col of ['speed', 'scoreMul', 'hpMul', 'evolutionsExpected']) {
+  for (const col of ['speed', 'scoreMul', 'hpMul']) {
     n += 1;
     for (let i = 1; i < TIERS.length; i += 1) {
       const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
       if (!isObj(a) || !isObj(b)) continue;
       if (!num(a[col]) || !num(b[col])) { V('S60', `meta.difficulty.*.${col}: 수가 아니다 (§11.3 ③)`); continue; }
       if (!(b[col] > a[col])) {
-        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 네 열 모두 순증해야 한다 (§11.3 ③)`);
+        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 세 열 모두 순증해야 한다 (§11.3 ③)`);
       }
-    }
-  }
-  const slots = D.rules && D.rules.player && D.rules.player.weaponSlots;
-  for (const k of TIERS) {
-    if (!isObj(md[k])) continue;
-    n += 1;
-    const e = md[k].evolutionsExpected;
-    if (!Number.isInteger(e) || e < 1 || (num(slots) && e > slots)) {
-      V('S60', `meta.difficulty.${k}.evolutionsExpected = ${e} ∉ 정수 [1, weaponSlots ${slots}] (§11.3 ④)`);
     }
   }
   const STEP_MAX = 1.35;
@@ -4212,7 +4210,7 @@ function main() {
   S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
   S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
-  S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·순증 4열·진화 요구·hpMul 계단·네 스포너
+  S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·기준선·순증 3열·hpMul 계단·네 스포너
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

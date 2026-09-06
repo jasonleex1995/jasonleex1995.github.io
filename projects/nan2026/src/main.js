@@ -791,9 +791,12 @@ async function boot() {
       const tut = id === MENU_TUTORIAL;
       const d = tut ? null : data.meta.difficulty[id];
       // ㊻ 사용자(2026-09-06): 「튜토리얼 이렇게만 하자」 — 부제·설명 줄 없이 이름만.
+      // ㊿-c 사용자(2026-09-06): 「진화 무기 3개 이상 · ×0.62 체력 이런거 빼고, 속도랑 점수만」 —
+      //   「일반인 기준에서는 노멀을 선택할 것 같거든? 그래서 그냥 저런 언급 없이도 괜찮을것 같아.」
+      //   ★ 체력 배율(hpMul)은 «있지만 안 보인다» — 난이도의 뜻은 이름이 말하고, 수치는 고르는 사람을 겁준다.
       const label = tut
         ? `${sel ? '▶ ' : '   '}튜토리얼`
-        : `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   진화 무기 ${d.evolutionsExpected}개 이상   ·   ×${d.speed} 속도 · ×${d.hpMul} 체력 · ×${d.scoreMul} 점수`;
+        : `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.scoreMul} 점수`;
       mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
     }
     mText('[↑↓] 선택   [Space/Enter] 시작   [Esc] 뒤로',
