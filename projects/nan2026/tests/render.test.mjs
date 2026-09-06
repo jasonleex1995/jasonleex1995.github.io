@@ -21,7 +21,7 @@ import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
-import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine } from '../src/render/hud.js';
+import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine, weaponRowLayout } from '../src/render/hud.js';
 import { BODY_STATS } from '../src/core/schema.mjs';
 import { giveWeapon as giveW, passiveAffectsSlot, recomputeEff } from '../src/core/state.js';
 import { buildDraft } from '../src/core/draft.js';
@@ -249,5 +249,57 @@ suite('render · §11.1 ㊸ 패시브 카드의 «내 무기» 줄', () => {
     const bullet = passiveWeaponLine(w, 'autoload');     // 탄 발사 수
     assert.eq(bullet.hit.length, 0, '탄 무기가 없다');
     assert.eq(bullet.text, '지금 내 무기엔 효과 없음', bullet.text);
+  });
+});
+
+suite('render/무기 행 배치 §9.5 (v1.10 ㊿-d)', () => {
+  // 한글 = 전각, ASCII ≈ 0.56 배 — 캔버스 없이 결정적으로 재는 근사 폰트
+  const mm = (t, px) => [...t].reduce((a, c) => a + (/[가-힣]/.test(c) ? px : px * 0.56), 0);
+  const W = () => loadData().rules.view.panelRightW - loadData().rules.hud.panelPadPx * 2;
+  const SM = () => loadData().rules.hud.fontSmallPx;
+  const BD = () => loadData().rules.hud.fontBodyPx;
+
+  test('진화 임박 행: 이름·칩·힌트·레벨이 «겹치지 않는다» — 14 무기 전부', () => {
+    const d = loadData();
+    const w = W();
+    const lvText = `Lv.${7}/10`;
+    const lvW = mm(lvText, SM());
+    let shown = 0;
+    for (const wd of d.weapons.weapons) {
+      const req = wd.evolution.requiresPassive;
+      const pdef = d.passives.passives.find((q) => q.id === req.id);
+      const full = `${pdef.name} 0/${req.level}`;
+      const chip = '궤도';                       // 분류 칩 중 가장 긴 것(2자) = 최악
+      const lay = weaponRowLayout(w, mm(wd.name, BD()), mm(chip, SM()), lvW, [full, `0/${req.level}`], (t) => mm(t, SM()));
+      assert.ok(lay.hint !== '', `${wd.name}: 진화 힌트가 그려진다`);
+      if (lay.hint === full) shown += 1;
+      const hintRight = lay.hintX + mm(lay.hint, SM());
+      const levelLeft = w - 46 - lvW;
+      assert.ok(hintRight <= levelLeft, `${wd.name}: 힌트 우측 ${hintRight.toFixed(0)} ≤ 레벨 좌측 ${levelLeft.toFixed(0)}`);
+      if (lay.showChip) {
+        assert.ok(lay.chipX + mm(chip, SM()) <= lay.hintX, `${wd.name}: 칩이 힌트와 안 겹친다`);
+      }
+      assert.ok(26 + mm(wd.name, BD()) <= lay.chipX, `${wd.name}: 이름이 칩/힌트와 안 겹친다`);
+    }
+    assert.eq(shown, d.weapons.weapons.length, '14 무기 모두 «패시브 이름 + 진행»을 온전히 보여준다');
+  });
+
+  test('폭이 모자라면 칩 → 짧은 힌트 → 힌트 없음 순으로 양보한다', () => {
+    const long = '아주아주아주 긴 무기 이름';
+    const hints = ['자기 코일 0/3', '0/3'];
+    const wide = weaponRowLayout(400, 30, 28, 46, hints, (t) => mm(t, 14));
+    assert.eq(wide.hint, hints[0], '넉넉하면 전부');
+    assert.eq(wide.showChip, true, '넉넉하면 칩도');
+    const mid = weaponRowLayout(240, mm(long, 16), 28, 46, hints, (t) => mm(t, 14));
+    assert.ok(mid.hint === hints[1] || mid.hint === '' || mid.showChip === false, '좁으면 양보한다');
+    const tiny = weaponRowLayout(120, mm(long, 16), 28, 46, hints, (t) => mm(t, 14));
+    assert.eq(tiny.hint, '', '아주 좁으면 힌트를 접는다 (겹쳐 찍지 않는다)');
+    assert.eq(tiny.showChip, true, '힌트를 접었으면 칩은 남는다');
+  });
+
+  test('진화 임박이 아니면 힌트가 없다 (hints 빈 배열)', () => {
+    const lay = weaponRowLayout(318, 32, 28, 55, [], (t) => mm(t, 14));
+    assert.eq(lay.hint, '', '힌트 없음');
+    assert.eq(lay.showChip, true, '칩은 그린다');
   });
 });

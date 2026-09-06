@@ -65,6 +65,44 @@ function atSecList(world) {
 }
 
 /**
+ * §8.19(v1.10 ㊿-e) — 중간보스 등장 시각. 저작 시각에서 `run.midBossShiftSec` 만큼 «당겨진» 값이다.
+ *   사용자(2026-09-06): 「초기 구간에서 적을 일찍 죽여놓고 중간 보스까지 시간이 오래 걸려서 애매하게 기다린다.
+ *   적이 다 죽으면 바로 나오도록」. → 배수 창(스폰이 멈추고 무리가 흘러 나가는 구간)에서 **필드가 비면**
+ *   스케줄 «전체»를 같은 양만큼 당긴다. 전체를 당기는 이유: 서로의 간격(3초 = 「우르르」)이 설계이기 때문이다.
+ *   ★ 이 함수가 시각의 **유일한 입구**다 — 저작 배열을 직접 읽는 곳이 남으면 구간 판정이 어긋난다.
+ */
+export function midBossDueSec(world, i) {
+  const list = atSecList(world);
+  return i >= list.length ? Infinity : list[i] - world.run.midBossShiftSec;
+}
+
+/** §8.19 — 첫 중간보스의 (당겨진) 등장 시각. 「초기 구간」의 끝이자 배수 창의 기준점. */
+export function firstMidBossDueSec(world) {
+  return midBossDueSec(world, 0);
+}
+
+/**
+ * ㊿-e — 「지금 당겨도 되는가」. ① 아직 첫 마리 전이고 ② 배수 창에 들어왔고(초기 스폰이 끝났고)
+ *   ③ 잡몹이 하나도 안 남았다. ①의 이유: 2번째 이후는 3초 간격이라 «기다림»이 없다.
+ *   ②가 없으면 웨이브 0 이 스폰되기 «전» 첫 틱에 필드가 비어 보여 즉시 발화한다.
+ */
+function earlyFieldDrained(world, ph) {
+  const run = world.run;
+  if (run.midBossNext !== 0) return false;
+  // ★ 스포너가 «실제로 웨이브를 낸» 뒤에만 본다. 슬라이스/테스트 월드(enemies 훅 없음)엔 필드라는 개념이 없고,
+  //   첫 웨이브 전의 빈 화면을 «다 죽였다»로 읽으면 스테이지가 시작하자마자 중간보스가 나온다.
+  if (world.spawner === undefined || world.spawner.wavesSpawned <= 0) return false;
+  const first = firstMidBossDueSec(world);
+  if (!Number.isFinite(first) || run.phaseT < first - ph.earlyDrainSec) return false;
+  const it = world.enemies.items;
+  for (let i = 0; i < it.length; i += 1) {
+    const e = it[i];
+    if (e.alive && !e.isBoss && e.midBossId === '') return false;
+  }
+  return true;
+}
+
+/**
  * §8.9 `notThemeAndNotNormal` 의 주입. 테마 속성을 뺀 나머지에서 `rng.spawn` 이 뽑는다.
  *   최종 스테이지(테마 없음)는 후보 3종 전부 · **같은 스테이지에서 이미 쓴 속성은 제외**(비복원).
  */
@@ -255,7 +293,12 @@ export function midBoss(world, dt) {
   //     제거 → 스케줄(midBossAtSec)이 곧 등장이다. 5초 간격 = 겹쳐서 «우르르»(보스 구간처럼 함께 선다).
   if (!run.crisis) {
     const list = atSecList(world);
-    while (run.midBossNext < list.length && run.phaseT >= list[run.midBossNext]) {
+    // ★ ㊿-e — 배수 창에서 필드가 비면 스케줄을 «지금»으로 당긴다(사용자: 「적이 다 죽으면 바로 나오도록」).
+    if (ph.midBossOnFieldClear && run.midBossNext < list.length && earlyFieldDrained(world, ph)) {
+      const due = midBossDueSec(world, run.midBossNext);
+      if (run.phaseT < due) run.midBossShiftSec += due - run.phaseT;
+    }
+    while (run.midBossNext < list.length && run.phaseT >= midBossDueSec(world, run.midBossNext)) {
       run.midBossNext += 1;
       spawnOne(world);
     }

@@ -477,27 +477,36 @@ function drawRightPanel(ctx, world, pal) {
     } else {
       const def = world.weaponDefs[s.family];
       const name = s.evolved ? def.evolution.name : def.name;
-      text(ctx, world, pal, name, x + 26, y + (rowH - 4) / 2, h.fontBodyPx, pal.hud.textPrimary, 'left', 600);
-      // ㊵ 분류 칩(탄·빔·범위·궤도) — 패시브 카드의 «[탄]» 과 같은 어휘. 이게 없으면 「내 무기가 탄인가?」를 화면이 답하지 못한다.
-      ctx.font = font(world, h.fontBodyPx, 600);
-      const nameW = ctx.measureText(name).width;
-      text(ctx, world, pal, CLASS_KO[def.class], x + 26 + nameW + 8, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.accent, 'left', 700);
+      const chip = CLASS_KO[def.class];        // ㊵ 분류 칩(탄·빔·범위·궤도) — 패시브 카드의 «[탄]» 과 같은 어휘
       // §9.5(v1.5 · ★㊹ 개정) — Lv7 은 «진화 임박»이고, 짝 패시브 Lv3 이 없으면 **그 무기의 레벨업 카드가 아예 안 나온다**.
       //   v1.5 는 「짝은 안 밝힌다(유추를 유도)」였는데, 실제로는 «카드가 왜 사라졌는지 모르는» 상태가 됐다(사용자 2026-09-06:
       //   「플레이해보면서 알게 됐다」). ㊲ 로 패시브가 분류를 달고부터는 짝이 이미 읽히므로, 조건을 **그 자리에서 말한다**.
       const nearEvo = s.level === WEAPON_EVOLVE_LEVEL - 1 && !s.evolved;
+      const lvText = s.evolved ? `EVO ${s.level}/${WEAPON_MAX_LEVEL}` : `Lv.${s.level}/${WEAPON_MAX_LEVEL}`;
+      let hints = [];
+      let hintDone = false;
       if (nearEvo) {
         const req = def.evolution.requiresPassive;
         let have = 0;
         for (let k = 0; k < world.passives.length; k += 1) if (world.passives[k].id === req.id) { have = world.passives[k].level; break; }
         const pdef = world.data.passives.passives.find((q) => q.id === req.id);
-        ctx.font = font(world, h.fontBodyPx, 600);
-        const nameW2 = ctx.measureText(name).width;
-        text(ctx, world, pal, `진화: ${pdef === undefined ? req.id : pdef.name} ${have}/${req.level}`,
-          x + 26 + nameW2 + 28, y + (rowH - 4) / 2, h.fontSmallPx,
-          have >= req.level ? pal.element.normal : pal.hud.accent, 'left', 700);
+        hintDone = have >= req.level;
+        // ★ ㊿-d — 「진화: 」 접두를 지운다(사용자). 그래도 폭이 모자라면 «수»만이라도 남긴다.
+        hints = [`${pdef === undefined ? req.id : pdef.name} ${have}/${req.level}`, `${have}/${req.level}`];
       }
-      text(ctx, world, pal, s.evolved ? `EVO ${s.level}/${WEAPON_MAX_LEVEL}` : `Lv.${s.level}/${WEAPON_MAX_LEVEL}`, x + w - 46, y + (rowH - 4) / 2,
+      ctx.font = font(world, h.fontBodyPx, 600);
+      const nameW = ctx.measureText(name).width;
+      ctx.font = font(world, h.fontSmallPx, 700);
+      const chipW = ctx.measureText(chip).width;
+      const levelW = ctx.measureText(lvText).width;
+      const lay = weaponRowLayout(w, nameW, chipW, levelW, hints, (t) => ctx.measureText(t).width);
+      text(ctx, world, pal, name, x + 26, y + (rowH - 4) / 2, h.fontBodyPx, pal.hud.textPrimary, 'left', 600);
+      if (lay.showChip) text(ctx, world, pal, chip, x + lay.chipX, y + (rowH - 4) / 2, h.fontSmallPx, pal.hud.accent, 'left', 700);
+      if (lay.hint !== '') {
+        text(ctx, world, pal, lay.hint, x + lay.hintX, y + (rowH - 4) / 2, h.fontSmallPx,
+          hintDone ? pal.element.normal : pal.hud.accent, 'left', 700);
+      }
+      text(ctx, world, pal, lvText, x + w - 46, y + (rowH - 4) / 2,
         h.fontSmallPx, (s.evolved || nearEvo) ? pal.element.normal : pal.hud.textDim, 'right', 600);
     }
     // 부여 칩 — 기체의 슬롯 스트립(§7.5 ②)과 **같은 어휘**. 두 표면이 같은 것을 말한다
@@ -907,6 +916,38 @@ function cardBody(world, c) {
  *   토큰이 넘치면 글자 단위로 자르되 끊는 자리는 «·」·「,」·「)」·「]」 뒤를 우선한다(읽는 결을 지킨다).
  * @param measure  문자열 → 픽셀 폭 (렌더는 ctx.measureText, 테스트는 길이 × 상수)
  */
+/**
+ * §9.5(v1.10 ㊹ · ★㊿-d) — 무기 행의 가로 배치. **순수 함수**(폭은 주입받는다)라 렌더 없이 겹침을 테스트할 수 있다.
+ *   행은 `[번호] 이름 [분류칩] [진화 힌트] ……… [Lv.7/10]` 이고, 힌트는 **남는 폭에만** 들어간다.
+ *   ★ ㊿-d 사용자(2026-09-06): 「궤도진화: 궤도 확장 0/3 가 뭉쳐져 있어서 — 그냥 궤도 확장 0/3 만」.
+ *     원인은 둘이었다: ① 힌트를 «이름 뒤»에 놓느라 **분류 칩의 폭을 안 셌다**(칩 위에 겹쳐 찍혔다)
+ *     ② 「진화: 」 접두가 폭을 더 먹었다. 그래서 칩 폭을 세고, 접두를 지우고, 그래도 안 맞으면 짧은 형태로 내려간다.
+ * @param hints 정보량이 많은 순서. 다 안 맞으면 '' (안 그린다 — 겹쳐 찍는 것보다 낫다).
+ */
+export function weaponRowLayout(w, nameW, chipW, levelW, hints, measureHint) {
+  const NAME_X = 26;          // 번호 뒤 = 이름 시작
+  const GAP_NAME_CHIP = 8;
+  const GAP_CHIP_HINT = 10;
+  const GAP_HINT_LEVEL = 8;
+  const LEVEL_RIGHT = w - 46;                 // 레벨 텍스트의 오른쪽 기준선(right 정렬)
+  const chipX = NAME_X + nameW + GAP_NAME_CHIP;
+  const limit = LEVEL_RIGHT - levelW - GAP_HINT_LEVEL;
+  const withChip = chipX + chipW + GAP_CHIP_HINT;
+  const noChip = NAME_X + nameW + GAP_CHIP_HINT;
+  const base = { chipX, showChip: true, hintX: withChip, hint: '' };
+  if (hints.length === 0) return base;
+  // ★ 양보 사다리 — «정보량이 많은 것»부터 넣어 보고, 폭이 모자라면 한 칸씩 내려간다.
+  //   ② 에서 분류 칩을 접는 이유: 진화 임박 행에서 실제로 행동을 바꾸는 정보는 «어떤 패시브가 몇 레벨 필요한가»이고,
+  //   분류는 그 패시브 이름이 이미 말한다(㊲ — 패시브가 분류를 달고 있다). 칩은 다른 다섯 행에 그대로 남는다.
+  const full = hints[0];
+  if (withChip + measureHint(full) <= limit) return { chipX, showChip: true, hintX: withChip, hint: full };
+  if (noChip + measureHint(full) <= limit) return { chipX, showChip: false, hintX: noChip, hint: full };
+  for (let i = 1; i < hints.length; i += 1) {
+    if (withChip + measureHint(hints[i]) <= limit) return { chipX, showChip: true, hintX: withChip, hint: hints[i] };
+  }
+  return base;                                 // 다 안 맞으면 칩만 — 겹쳐 찍는 것보다 낫다
+}
+
 export function wrapLines(measure, s, maxW) {
   const fits = (t) => measure(t) <= maxW;
   const parts = [];

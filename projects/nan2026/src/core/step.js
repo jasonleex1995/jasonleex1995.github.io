@@ -661,8 +661,9 @@ export function killEnemy(world, e) {
   if (e.isBoss) { killBossEntity(world, e); return; }              // §8.11 — 보스 개체는 별도 처치 규칙
   if (e.midBossId !== '') { killMidBoss(world, e); return; }       // §8.9 — 중간보스는 개체 필드가 보상을 소유
   addKill(world, e);                                                // §11.3 처치 점수(유령몹은 score 0 → 0점)
-  // §8.9(v1.5) 유령몹은 처치해도 XP 픽업 없음 = 파밍 불가. 일반 잡몹만 xp 드랍.
-  if (!e.ghost) spawnPickup(world, 'xp', e.xp, e.x, e.y);
+  // §8.9(★v1.10 ㊿-f) 유령몹도 xp 를 «비율만큼» 흘린다 — 값은 spawnEnemy 가 ghostXpRatio 로 이미 깎아 뒀다.
+  //   여기서 «유령이냐»를 다시 묻지 않는 이유: 보상의 크기는 개체가 소유하고, 이 자리는 「죽었으면 준다」만 안다.
+  if (e.xp > 0) spawnPickup(world, 'xp', e.xp, e.x, e.y);
   // v1.5 — 회복 픽업 드랍 폐지(사용자 지시). 잡몹 드랍원은 xp 뿐. 회복 = 스테이지클리어(10%)·보급카드(5%).
   world.enemies.release(e);
 }

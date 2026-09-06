@@ -21,6 +21,7 @@ import { createWorld, spawnMidBoss } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { emitters } from '../src/core/emitters.js';
+import { enemies } from '../src/core/enemies.js';
 import { initRun, tickRun } from '../src/core/stage.js';
 import { midBoss } from '../src/core/midboss.js';
 
@@ -176,6 +177,9 @@ suite('midboss — 이탈 (§8.9 「선택적」의 정의 · v1.10 보스 구�
     tickMob(w, Math.floor(ph.midBossAtSec[0][0] / dt) + 2);
     const e = midOf(w);
     assert.ne(e, null, '등장했다');
+    // ★ ㊿-f — 유령도 xp 를 흘리므로(플레이어 무기가 유령을 잡는다) «중간보스의» 드랍만 격리해서 본다:
+    //   무기를 내려놓으면 이 창에서 죽는 것은 아무것도 없다 = 새 구슬은 중간보스의 것뿐이다.
+    for (const sl of w.slots) sl.weaponId = null;
     const before = livePickups(w).length;
     const scoreBefore = w.score.midBossClear;
     tickMob(w, Math.floor((ph.crisisStartSec - w.run.phaseT) / dt) + 2);   // 위기 진입
@@ -429,5 +433,90 @@ suite('midboss — 처치 보상 (§8.9, 거처 = bosses[] 개체 필드)', () =
     assert.eq(ps.filter((p) => p.kind === 'coin').length, 0, '코인 픽업 없음 (경제 폐지)');
     assert.eq(w.score.midBossClear - before, w.data.meta.score.midBossClearBonus, '격파 보너스');
     assert.eq(e.alive, false, '반납');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+suite('midboss — 필드가 비면 앞당긴다 (§8.19 v1.10 ㊿-e)', () => {
+  // 사용자(2026-09-06): 「초기 구간에서 적을 일찍 죽여놓고, 중간 보스까지 나오는데 시간이 오래걸려서
+  //   애매하게 기다리는 경우가 있어. 적이 다 죽으면 바로 나오도록.」
+  function mkSpawner(seed = 1) {
+    const world = createWorld({
+      data: loadData(), seed, weapons, difficulty: baselineDifficulty(),
+      hooks: { enemies, emitters: null, run: tickRun, boss: null },
+    });
+    initRun(world);
+    world.player.hp = 1e9; world.player.hpMax = 1e9;
+    for (const sl of world.slots) sl.weaponId = null;      // 적을 죽이는 것은 «테스트»다(무기 아님)
+    return world;
+  }
+  /** 첫 중간보스가 «등장한» phaseT. killFrom 초부터 매 틱 잡몹을 전멸시킨다(null = 안 죽인다). */
+  function appearAt(world, killFrom) {
+    for (let i = 0; i < Math.floor(90 / dt); i += 1) {
+      step(world, makeInput(), dt);
+      if (killFrom !== null && world.run.phaseT >= killFrom) {
+        for (const e of world.enemies.items) if (e.alive && !e.isBoss && e.midBossId === '') killEnemy(world, e);
+      }
+      if (midOf(world) !== null) return world.run.phaseT;
+    }
+    return Infinity;
+  }
+
+  test('정본이 규칙을 켜 뒀다', () => {
+    assert.eq(loadData().stages.phase.midBossOnFieldClear, true, 'midBossOnFieldClear');
+  });
+
+  test('배수 창에서 필드를 비우면 «그 자리에서» 등장한다 — 저작 시각을 크게 앞당긴다', () => {
+    const w = mkSpawner();
+    const ph = w.data.stages.phase;
+    const due = ph.midBossAtSec[w.run.stageIndex][0];
+    const drainStart = due - ph.earlyDrainSec;
+    const t = appearAt(w, drainStart);
+    assert.lt(t, due - ph.earlyDrainSec + 2, `배수 창 초입에 나온다 — ${t.toFixed(1)}초 (저작 ${due}초)`);
+    assert.gt(w.run.midBossShiftSec, ph.earlyDrainSec - 2, '스케줄 전체가 배수 길이만큼 당겨졌다');
+  });
+
+  test('안 죽이면 저작 시각 근처다 — 앞당김은 «비었을 때»만 (자연 배수는 배수 창을 다 쓴다)', () => {
+    const w = mkSpawner();
+    const due = w.data.stages.phase.midBossAtSec[w.run.stageIndex][0];
+    const t = appearAt(w, null);
+    assert.lt(Math.abs(t - due), 2, `저작 ${due}초 근처 — ${t.toFixed(1)}초`);
+  });
+
+  test('앞당김은 죽인 쪽이 «훨씬» 빠르다 (규칙이 실제로 무는지)', () => {
+    const a = mkSpawner(2);
+    const b = mkSpawner(2);
+    const ph = a.data.stages.phase;
+    const due = ph.midBossAtSec[a.run.stageIndex][0];
+    const fast = appearAt(a, due - ph.earlyDrainSec);
+    const slow = appearAt(b, null);
+    assert.gt(slow - fast, ph.earlyDrainSec * 0.5, `죽이면 ${fast.toFixed(1)}초 vs 두면 ${slow.toFixed(1)}초`);
+  });
+
+  test('초기 스폰 구간(배수 전)에는 앞당기지 않는다 — 웨이브가 아직 올 예정이다', () => {
+    const w = mkSpawner();
+    const ph = w.data.stages.phase;
+    const due = ph.midBossAtSec[w.run.stageIndex][0];
+    const cut = due - ph.earlyDrainSec - 2;
+    for (let i = 0; i < Math.floor(cut / dt); i += 1) {
+      step(w, makeInput(), dt);
+      for (const e of w.enemies.items) if (e.alive && !e.isBoss && e.midBossId === '') killEnemy(w, e);
+    }
+    assert.eq(w.run.midBossShiftSec, 0, '초기 스폰 중에는 당기지 않는다');
+    assert.eq(midOf(w), null, '중간보스 없음');
+  });
+
+  test('스케줄 전체가 같은 양만큼 당겨져 서로의 간격(우르르)이 보존된다', () => {
+    const w = mkSpawner();
+    const ph = w.data.stages.phase;
+    const list = ph.midBossAtSec[w.run.stageIndex];
+    appearAt(w, list[0] - ph.earlyDrainSec);
+    const shift = w.run.midBossShiftSec;
+    assert.gt(shift, 0, '당겨졌다');
+    const gap = list[1] - list[0];
+    for (let i = 0; i < Math.floor((gap + 0.3) / dt); i += 1) step(w, makeInput(), dt);
+    let n = 0;
+    for (const e of w.enemies.items) if (e.alive && e.midBossId !== '') n += 1;
+    assert.gt(n, 1, `간격 ${gap}초 뒤 둘째도 나왔다 (당김 ${shift.toFixed(1)}초)`);
   });
 });

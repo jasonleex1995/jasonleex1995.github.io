@@ -58,7 +58,7 @@
       { "subWave": 6, "formationId": "vWedge",  "bodyId": "swarmDart",  "count": 36, "spawnEdge": "top" }
     ],
     "midBossAtSec": [[48, 48, 51], [48, 48, 51, 54], [48, 48, 51, 54, 57], [48, 48, 51, 54, 57, 60], [48, 48, 51, 54, 57, 60, 63, 66], [48, 48, 51, 54, 57, 60, 63, 66, 69, 72]],
-    "midBossFirstId": "mbNest",
+    "midBossOnFieldClear": true, "midBossFirstId": "mbNest",
     "midBossElementRule": "themeElseNonTheme",
     "midBossForcedLeaveOnCrisis": true,
     "bossTimerSec": 180,

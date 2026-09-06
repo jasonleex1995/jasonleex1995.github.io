@@ -559,17 +559,22 @@ suite('step · 유령몹 (§8.9 v1.5)', () => {
     // 일반 잡몹: xp>0, 처치 시 xp 픽업 1
     const normal = spawnEnemy(w, 'drifter', 'normal', 200, 200, def.hp, false, false);
     assert.gt(normal.xp, 0, '일반 잡몹 xp>0');
+    const normalXp = normal.xp;                 // ★ killEnemy 는 개체를 풀에 반납한다 — 뒤에서 재사용되므로 «값»을 잡아 둔다
     const before = w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length;
     killEnemy(w, normal);
     assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - before, 1, '일반 잡몹 = xp 픽업 1');
-    // 유령몹: xp=0·score=0, 처치 시 xp 픽업 0
+    // ★ v1.10 ㊿-f — 유령몹: score 는 여전히 0(순위표 파밍 차단)이지만 xp 는 «ghostXpRatio 만큼» 준다.
+    //   0 이던 시절엔 중간보스 구간(웨이브 정지 → 죽일 게 유령뿐)의 XP 가 정확히 0 이었다.
+    const ratio = w.data.rules.boss.ghostXpRatio;
+    assert.ok(ratio > 0 && ratio < 1, `ghostXpRatio ∈ (0,1) — 지금 ${ratio}`);
     const ghost = spawnEnemy(w, 'drifter', 'normal', 300, 200, def.hp, false, true);
     assert.eq(ghost.ghost, true, 'ghost 플래그');
-    assert.eq(ghost.xp, 0, '유령 xp 0');
-    assert.eq(ghost.score, 0, '유령 score 0');
+    assert.eq(ghost.score, 0, '유령 score 0 (점수는 못 판다)');
+    assert.near(ghost.xp, normalXp * ratio, 1e-9, '유령 xp = 같은 개체 × ghostXpRatio');
+    assert.lt(ghost.xp, normalXp, '유령이 일반보다 적다 = 파밍 유인 없음');
     const g0 = w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length;
     killEnemy(w, ghost);
-    assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - g0, 0, '유령 처치 = xp 픽업 0 (파밍 불가)');
+    assert.eq(w.pickups.items.filter((p) => p.alive && p.kind === 'xp').length - g0, 1, '유령 처치도 구슬 1개는 남긴다');
   });
 });
 

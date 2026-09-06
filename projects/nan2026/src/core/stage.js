@@ -83,6 +83,7 @@ export function initRun(world) {
     terrainBagN: 0,                 //   가방에 남은 수(0 = 다음에 다시 섞어 채운다). clearTerrain 이 0 으로
     wipeT: -1,                      // §8.22(v1.10 ⑧) — 보스 등장 쓸어내기 경과(-1 = 없음). boss.js 가 진행·종료
     midBossNext: 0,                 // §8.9 — 이 스테이지에서 다음에 낼 중간보스의 스케줄 인덱스
+    midBossShiftSec: 0,             // §8.19(㊿-e) — 배수 창에서 필드가 비면 스케줄 전체를 이만큼 «앞당긴다»
     midBossElementPrev: '',         //   최종 스테이지의 «서로 다른 속성»(비복원) 기억
     bossTimer: 0,                   // 보스 타이머 잔여(BOSS 진입 시 bossTimerSec)
     timedOut: false,                // §6.3 — 타이머 만료 지연 확정 플래그(막타가 이기게)
@@ -234,6 +235,7 @@ export function advanceStage(world) {
   run.phaseT = 0;
   run.crisis = false; run.crisisAtSec = -1;
   run.midBossNext = 0;
+  run.midBossShiftSec = 0;
   run.midBossElementPrev = '';
   run.bossTimer = 0;
   run.timedOut = false;

@@ -839,7 +839,13 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.introBody = false;                    // §8.19.1 — 스포너가 도입 구간에서만 켠다
   e.wallX = false;                        // §8.7 ㉕ — 스포너가 켠다
   e.chainEpoch = 0;                       // ㉟
-  if (e.ghost) { e.xp = 0; e.score = 0; }
+  // §8.9(v1.5 · ★v1.10 ㊿-f) 유령몹 — score 는 0(순위표 파밍 차단), **xp 는 ghostXpRatio 만큼은 준다**.
+  //   사용자(2026-09-06): 「위기 구간에서 어느 순간 경험치 드랍이 안되는 경우가 있었어」. 실측 원인:
+  //   중간보스 구간은 웨이브가 정지(midBossSuspendsWaves)라 **죽일 수 있는 것이 유령뿐**이고, 유령 xp 가 0 이라
+  //   그 40초 동안 잡몹 XP 가 «정확히 0» 이었다(실측 포지션 3~6: 처치 3~50, 전부 유령, XP 0). 그 유령들은
+  //   위기가 시작해도 남아 흘러들어가(midBossForcedLeaveOnCrisis) 위기 초반까지 «안 나오는» 것으로 보인다.
+  //   ★ 파밍 차단은 유지된다 — 비율이 1 미만이고 소환 구간 자체가 시계로 닫힌다(위기가 온다).
+  if (e.ghost) { e.xp *= world.data.rules.boss.ghostXpRatio; e.score = 0; }
   e.isCore = false;
   e.isBoss = false; e.bossId = ''; e.partId = ''; e.partType = ''; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.sealLayer = 0; e.sealedNow = false;

@@ -555,7 +555,7 @@ function S2_schema() {
     'timerStartsAfterIntro', 'timerExpire', 'mobilityPenalty', 'partXpRatio', 'escalateFireRateMul', 'escalateFireRateMax', 'coreElement', 'coreEmitterId',
     'partNormalForbidden', 'partElementDistinctMin', 'partThemeElementMax', 'armorElementNotTheme',
     'armorPartCountRange', 'armorCoreRatioMax', 'optionalPartArmorRatio', 'partReachMinPx',
-    'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale'], 'rules.boss');
+    'ghostXpRatio', 'midBossSummonsAllowed', 'bossSummonsAllowed', 'finale'], 'rules.boss');
   if (isObj(r.boss)) {
     // ★ v1.3: finale.armorCoreRatio 삭제 — 유일 소유자 = bosses[].armorCoreRatio (§23.3)
     closedKeys('S2', r.boss.finale, ['partCount', 'armorPartCount', 'exemptRules', 'allowNormalPeripheral'],
@@ -888,7 +888,7 @@ function S2_files() {
     'enemyExitForfeitsReward', 'waveListExhausted', 'crisisPerStage', 'crisisStartSec', 'crisisCycleSec', 'crisisSwarmLoop', 'crisisShooterId',
     'crisisSuspendsWaves', 'crisisOnMidBossClear', 'crisisTotal', 'crisisSubWaves', 'crisisWaves',
     'introFormationId', 'sectionSpeedMul', 'earlyWaveIntervalSec', 'earlyDrainSec', 'midBossSuspendsWaves',
-    'midBossAtSec', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
+    'midBossAtSec', 'midBossOnFieldClear', 'midBossFirstId', 'midBossElementRule', 'midBossForcedLeaveOnCrisis',
     'bossTimerSec', 'timerWarnSec', 'timerRedAlertSec', 'statusStunMaxPerStage'], 'stages.phase');
   if (has(D.stages.phase, 'bossEntrySec')) {
     V('S2', 'stages.phase.bossEntrySec: 삭제된 키 (§9.9/§23.3) — 유일 소유자 = rules.boss.introSec (§6.3)');

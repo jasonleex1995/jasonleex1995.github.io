@@ -34,6 +34,7 @@ const DEG2RAD = Math.PI / 180;
 const ANCHOR_SWAY_HZ = 0.35;   // §8.4 「좌우 소폭 왕복」의 주기. 진폭은 swayAmpPx 가 소유한다
 import { formationPos } from './formations.js';
 import { offThemeHpMul } from './elements.js';   // §8.2 ③ 테마 밖 속성 HP
+import { firstMidBossDueSec } from './midboss.js';   // §8.19(㊿-e) — 구간 경계는 «당겨진» 시각이 소유한다
 import { PHASE } from './stage.js';
 
 /** 슬라이스 스테이지 = sea, 스테이지 번호 1 (curve/해금 인덱스 0). 런 미구동(테스트) 시 폴백. */
@@ -355,8 +356,7 @@ function spawnWave(world, s) {
   // ★ 아키타입은 로스터 라운드로빈으로 다양화한다(웨이브 골격 = 편대·element·count·eliteIndex 는 그대로).
   //   wave 0 → roster[0](= drifter, 첫 필터 통과 아키타입)이라 element 테스트의 전제와 정합한다.
   //   슬라이스(런 없음)는 구간이 없다 → 레코드 편대. 런이면 첫 중간보스 시각 «전»이 초기 구간.
-  const mbAt = phase.midBossAtSec[s.curveIdx];
-  const early = world.run != null && Array.isArray(mbAt) && mbAt.length > 0 && world.run.phaseT < mbAt[0];
+  const early = world.run != null && world.run.phaseT < firstMidBossDueSec(world);   // ㊿-e 당겨진 경계
   // 주 아키타입 = «공격형» 로스터의 순환. 밴드·count 는 이것이 정한다.
   const archetypeId = s.shooters[s.waveIndex % s.shooters.length];
   const def = s.archIndex[archetypeId];
@@ -551,10 +551,9 @@ function sectionSpeedMul(world) {
   const ph = world.data.stages.phase;
   const m = ph.sectionSpeedMul;
   if (run.crisis) return m.crisis;
-  const mbAt = ph.midBossAtSec[world.spawner.curveIdx];
   // §8.19 ① 배수는 «속도를 올리지 않는다»(v1.10 ⑮, 사용자: 「천천히 잡으면서 파밍하는 구간인데 왜 빨라지나」) —
   //   스폰만 멈추고 무리는 초기 속도 그대로 흘러 나간다. 그래서 earlyDrainSec 이 벽 한 벌의 통과 시간(≈ 23초)만큼 길다(S54 ⑦).
-  if (Array.isArray(mbAt) && mbAt.length > 0 && run.phaseT < mbAt[0]) return m.early;
+  if (run.phaseT < firstMidBossDueSec(world)) return m.early;   // ㊿-e 당겨진 경계
   return m.mid;
 }
 
@@ -694,8 +693,7 @@ export function enemies(world, dt) {
   //   슬라이스(런 없음)는 구간이 없다.
   let interval = ph.waveIntervalSec;
   if (runMode) {
-    const mbAt = ph.midBossAtSec[s.curveIdx];
-    const firstMb = Array.isArray(mbAt) && mbAt.length > 0 ? mbAt[0] : Infinity;
+    const firstMb = firstMidBossDueSec(world);   // ㊿-e — 필드가 비면 당겨진다
     const t = world.run.phaseT;
     if (world.run.crisis) {                                                          // 위기
       spawnCrisis(world, s);
