@@ -7,13 +7,12 @@
  *         - dmgMul = 1 + Σ(패시브 dmgMul)  → ★가산 풀 1회 적용 (곱연산 폭주 방지, 회귀)
  *         - elem  : elementTerm 위임 (elem>1 만 resonance 증폭)
  *         - (㉘) 게이트 항 없음 — 코어 무적은 hitEnemy 의 sealedNow(하드 게이트)
- *   §3.1-6항  displayDamage = Math.round (적용은 float, 표시만 반올림)
  *   §3.2  taken = ceil( max( raw − defense , raw × damageFloorRatio ) )
  *         - 실측(정본): defense 8 기준 소형탄 8→2, 레이저 22→14.
  *         - 25% 하한 → 무적화 불가.
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { playerToEnemy, displayDamage, enemyToPlayer } from '../src/core/damage.js';
+import { playerToEnemy, enemyToPlayer } from '../src/core/damage.js';
 import { elementMul } from '../src/core/elements.js';
 
 const d = loadData();
@@ -127,16 +126,6 @@ suite('damage.playerToEnemy.composed', () => {
   });
 });
 
-// ── §3.1-6항: displayDamage ─────────────────────────────────────────────────
-suite('damage.displayDamage', () => {
-  test('Math.round 규칙 (표시 전용, 적용 아님)', () => {
-    assert.eq(displayDamage(12.5), 13, '.5 올림');
-    assert.eq(displayDamage(12.4), 12, '내림');
-    assert.eq(displayDamage(12.6), 13, '올림');
-    assert.eq(displayDamage(200), 200, '정수 불변');
-    assert.eq(displayDamage(0), 0, '0');
-  });
-});
 
 // ── §3.2: 적 → 플레이어 ─────────────────────────────────────────────────────
 suite('damage.enemyToPlayer', () => {

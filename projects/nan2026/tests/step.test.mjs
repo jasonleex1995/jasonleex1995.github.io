@@ -12,7 +12,7 @@
  * ★ 결정성 = 같은 시드+입력열 → 비트 동일 / 다른 시드 → 상이.
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnPlayerBullet, spawnEnemyBullet, spawnPickup, givePassive, xpToNext } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnPlayerBullet, spawnEnemyBullet, spawnPickup, xpToNext } from '../src/core/state.js';
 import { step, makeInput, applyHit, killEnemy, TICK_DT } from '../src/core/step.js';
 import { investElement, requestStance } from '../src/core/stance.js';
 import { elementMul } from '../src/core/elements.js';

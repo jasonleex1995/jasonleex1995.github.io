@@ -60,10 +60,6 @@ export function isInvestable(elements, element) {
   return elements.investable.indexOf(element) >= 0;
 }
 
-/** §4.1 — 스탠스로 선택 가능한 4속성인가 (order = normal fire water grass) */
-export function isElement(elements, element) {
-  return elements.order.indexOf(element) >= 0;
-}
 
 /**
  * §8.2 ③(v1.10 ㉔) — 테마 밖 속성의 HP 배율. 사용자(2026-09-05): 「늪은 풀이 메인이니까 풀 몹은 3방, 다른 속성은 2방 —

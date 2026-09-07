@@ -127,12 +127,6 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
   return dealt;
 }
 
-/**
- * §3.1-6항 — 표시용 반올림. 적용에는 절대 쓰지 않는다.
- */
-export function displayDamage(v) {
-  return Math.round(v);
-}
 
 /**
  * §3.2 — 적 → 플레이어. 정액 감산 + 원본의 damageFloorRatio 하한.

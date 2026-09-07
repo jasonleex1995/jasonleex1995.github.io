@@ -55,6 +55,9 @@
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// ★ v1.10 ㊿-i — «비교 전용» import. 게이트는 자기 어휘 사본을 계속 들고 있고(적대적 독립: 검사기가 피검사자를
+//   그대로 믿으면 아무것도 인증하지 않는다), S61 이 «두 사본이 같은가»만 본다. 조용한 드리프트를 소리나게 만드는 자리다.
+import * as SCHEMA from '../src/core/schema.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -92,7 +95,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -521,10 +524,10 @@ function S2_schema() {
   closedKeys('S2', r.collide, ['gridCellPx'], 'rules.collide');
 
   closedKeys('S2', r.caps, ['playerBullets', 'enemyBullets', 'enemies', 'pickups', 'zones', 'drones',
-    'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'terrain', 'overflow'], 'rules.caps');
+    'particles', 'telegraphs', 'terrain', 'overflow'], 'rules.caps');
   if (isObj(r.caps)) {
     closedKeys('S2', r.caps.overflow, ['playerBullet', 'enemyBullet', 'enemy', 'pickup', 'zone',
-      'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker', 'terrain'], 'rules.caps.overflow');
+      'drone', 'telegraph', 'particle', 'terrain'], 'rules.caps.overflow');
     // §12.1 "모든 캡에 정책이 있다" — 10 캡 ⟺ 10 정책
     const capNames = Object.keys(r.caps).filter((k) => k !== 'overflow');
     if (isObj(r.caps.overflow) && capNames.length !== Object.keys(r.caps.overflow).length) {
@@ -3683,6 +3686,45 @@ function S60_difficulty() {
   EX('S60', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S61 — 어휘 사본의 일치 (v1.10 ㊿-i)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 이 게이트와 `src/core/schema.mjs` 는 **같은 닫힌 어휘를 각자 한 벌씩** 들고 있다.
+ *   그 이중화는 «의도»다 — 검사기가 피검사자의 표를 그대로 쓰면 「표가 표를 검사」하는 공허 통과가 된다(적대적 독립).
+ *   문제는 두 사본이 **조용히 어긋날 수 있다**는 것이고, 실제로 그런 사고가 이 저장소에 이미 있었다
+ *   (§9.5 ㊲: 「게이트가 자기 표를 들고 있었고, 그 표는 조용히 어긋날 수 있다」 — 그때는 무기 분류를 데이터로 옮겨 해결했다).
+ *   → 사본은 그대로 두고, **어긋남만 소리나게** 한다. 두 벌이 다르면 어느 쪽이 틀렸는지는 사람이 정한다.
+ *   ★ FAMILIES 는 짝이 schema 가 아니라 «데이터»다 — `weapons.json` 의 family 집합과 같아야 한다.
+ */
+function S61_vocabMirrors() {
+  let n = 0;
+  const same = (label, mine, theirs) => {
+    n += 1;
+    if (!Array.isArray(mine) || !Array.isArray(theirs)) {
+      V('S61', `${label}: 한쪽이 배열이 아니다 — check ${JSON.stringify(mine)} vs schema ${JSON.stringify(theirs)}`);
+      return;
+    }
+    if (mine.length !== theirs.length || mine.some((x, i) => x !== theirs[i])) {
+      V('S61', `${label}: 두 사본이 어긋났다 — check.mjs ${JSON.stringify(mine)} vs schema.mjs ${JSON.stringify(theirs)} (§9.3)`);
+    }
+  };
+  same('MANIFEST', MANIFEST, SCHEMA.MANIFEST);
+  same('WEAPON_CLASSES', WEAPON_CLASSES, SCHEMA.WEAPON_CLASSES);
+  same('BODY_STATS', BODY_STATS, SCHEMA.BODY_STATS);
+  same('TERRAIN_KINDS', TERRAIN_KINDS, SCHEMA.TERRAIN_KINDS);
+  same('TRAIT_EFFECT_KINDS', TRAIT_EFFECT_KINDS, SCHEMA.TRAIT_EFFECT_KINDS);
+  // FAMILIES 의 짝은 데이터다 — 무기가 늘거나 줄면 이 목록이 «먼저» 거짓이 된다(㊵ 스파이럴 삭제 때 실제로 그랬다)
+  n += 1;
+  const fromData = rowsQuiet(D.weapons && D.weapons.weapons).map((w) => w.family);
+  if (fromData.length !== FAMILIES.length || fromData.some((f) => !FAMILIES.includes(f))) {
+    V('S61', `FAMILIES: check.mjs 의 목록(${FAMILIES.length}종)이 weapons.json(${fromData.length}종)과 다르다 — `
+      + `데이터에만 있는 것 [${fromData.filter((f) => !FAMILIES.includes(f)).join(', ')}] · `
+      + `목록에만 있는 것 [${FAMILIES.filter((f) => !fromData.includes(f)).join(', ')}] (§9.5)`);
+  }
+  EX('S61', n);
+}
+
 function S45_draftParamLabels() {
   const hudPath = join(ROOT, 'src', 'render', 'hud.js');
   if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
@@ -3985,7 +4027,7 @@ function dynamicGateStubs() {
   S('CERT-DYN', `dpsProbe (balancedPass/specialistPass/noElementPass/killTimeMedianBalanced): `
     + `셀 = (보스, 스테이지) 쌍 = 3 + 24 + 1 = 28 셀 × runsPerCell(${dp.runsPerCell}), farm="${dp.farm}", uptimeRef=${dp.uptimeRef} (§10.4.2)`);
   S('CERT-DYN', `capHits: ★ A층(enemyConcurrentMax·swarmConcurrentMax·crisisWaveResidualMax·telegraphConcurrentMaxGlobal 의 defer) `
-    + `+ B층(caps.* overflow, 순수 FX 3종 제외) 를 4축 분리 출력. 상한 ${(c.static && c.static.capHits && c.static.capHits.max)} (§13.1.1)`);
+    + `+ B층(caps.* overflow, 순수 FX(particle) 제외) 를 4축 분리 출력. 상한 ${(c.static && c.static.capHits && c.static.capHits.max)} (§13.1.1)`);
   S('CERT-DYN', `fairnessViolations: 런타임 어서션(특히 minSpawnRadiusPx — v1.3이 S6에서 여기로 옮겼다). `
     + `상한 ${(c.static && c.static.fairnessViolations && c.static.fairnessViolations.max)} (§13.1/§13.4-S6)`);
   // ★ v1.3 신설 — certify.m 의 교정 프로토콜 (§13.1.0)
@@ -4143,7 +4185,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S60 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S61 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4211,6 +4253,7 @@ function main() {
   S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
   S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·기준선·순증 3열·hpMul 계단·네 스포너
+  S61_vocabMirrors();        // §9.3 v1.10 ㊿-i 어휘 사본 — check.mjs 와 schema.mjs 의 닫힌 어휘가 어긋나면 소리낸다
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

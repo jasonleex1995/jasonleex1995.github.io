@@ -23,7 +23,7 @@ export const MANIFEST = ['rules', 'elements', 'weapons', 'passives', 'bullets',
   'enemies', 'bosses', 'stages', 'meta', 'traits', 'tutorial'];   // v1.10 ⑲ traits (§11.6) · ㊴ tutorial (§6.7)
 export const TRAIT_EFFECT_KINDS = ['regenHpPerSec', 'lifestealPct', 'shieldEverySec'];   // §11.6 v1.10 ㉒ — 특성 3종과 1:1(재생·흡혈·쉴드)
 /** §11.6 ㉗ 효과 kind 별 «추가 키» — 흡혈의 hpRatio(이 비율 이하일 때만 듣는다). 로더가 닫힌 키·(0,1] 로 지킨다. */
-export const TRAIT_EFFECT_EXTRA = { lifestealPct: ['hpRatio'] };
+const TRAIT_EFFECT_EXTRA = { lifestealPct: ['hpRatio'] };
 
 /** §9.3 — 모든 파일 루트에 필수. 불일치 → 로드 실패 */
 export const SCHEMA_VERSION = 1;
@@ -138,9 +138,9 @@ export const TERRAIN_KINDS = ['slow', 'inertia', 'heat'];   // §8.21 — 지형
 export const TERRAIN_KIND_ELEMENT = { slow: 'grass', inertia: 'water', heat: 'fire' };
 /** §8.21 ③(v1.10 ⑳) finale 의 terrainKind — 3종이 slow→inertia→heat 순으로 «돌아가며» 나온다(테마가 없으니 전부 나온다). */
 export const TERRAIN_MIXED = 'mixed';
-export const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
+const TERRAIN_KIND_VALUES = [...TERRAIN_KINDS, TERRAIN_MIXED];
 export const WEAPON_CLASSES = ['bullet', 'beam', 'area', 'orbital'];   // §9.5 ㊲ 무기 분류(패시브 분류와 짝) · ㊵ 데이터가 소유한다
-export const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'terrain', 'boss'];   // §6.7 ㊻ 6스텝   // §6.7 ㊴
+const TUTORIAL_GOALS = ['move', 'clear', 'level', 'superHit', 'terrain', 'boss'];   // §6.7 ㊻ 6스텝   // §6.7 ㊴
 export const SECTIONS = ['early', 'midboss', 'crisis', 'boss'];   // §8.19 — 스테이지 구간 어휘(배수는 early 에 속한다)
 export const WEAPON_MAX_LEVEL = 10;   // §9.5 v1.10 ⑱ — Lv8 진화 + Lv9·10 진화체 강화
 export const WEAPON_EVOLVE_LEVEL = 8; // §9.5 — Lv7→Lv8 카드 = 진화(짝 패시브 Lv3)
@@ -220,10 +220,10 @@ function checkRules(c, r) {
   }
   c.closed('rules.collide', r.collide, ['gridCellPx']);
   c.closed('rules.caps', r.caps, ['playerBullets', 'enemyBullets', 'enemies', 'pickups', 'zones',
-    'drones', 'particles', 'telegraphs', 'damageNumbers', 'effectMarkers', 'terrain', 'overflow']);
+    'drones', 'particles', 'telegraphs', 'terrain', 'overflow']);
   if (isObj(r.caps)) {
     c.closed('rules.caps.overflow', r.caps.overflow, ['playerBullet', 'enemyBullet', 'enemy',
-      'pickup', 'zone', 'drone', 'telegraph', 'particle', 'damageNumber', 'effectMarker', 'terrain']);
+      'pickup', 'zone', 'drone', 'telegraph', 'particle', 'terrain']);
   }
   // ★ §2.1 healPickupPct — 회복 드랍량의 유일한 거처. data 에 0.35 로 착지됨(required).
   c.closed('rules.player', r.player, ['hpMax', 'spriteRadius', 'hitboxRadius', 'moveSpeed',

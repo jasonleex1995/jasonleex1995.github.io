@@ -32,7 +32,7 @@ const CLASS_KO = { bullet: '탄', beam: '빔', area: '범위', orbital: '궤도'
  * ㊵·㊸ — 이 패시브(stat)에서 «지금 내가 든 무기» 중 **실제로 혜택을 받는** 것들. 사용자(2026-09-05): 「내 무기가 탄인지 아닌지를 잘 모르겠다」.
  *   판정은 core 의 passiveAppliesTo 하나뿐이다(드래프트 필터·S41 과 같은 표) — 화면이 다른 답을 하면 그게 거짓말이다.
  */
-export function affectedOwnedWeapons(world, stat) {
+function affectedOwnedWeapons(world, stat) {
   const out = [];
   for (let i = 0; i < world.slots.length; i += 1) {
     const s = world.slots[i];

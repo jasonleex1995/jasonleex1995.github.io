@@ -14,7 +14,7 @@
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, spawnBeam, spawnZone } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
-import { enemies, threatLive, introLive } from '../src/core/enemies.js';
+import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { TAU } from '../src/core/angle.js';

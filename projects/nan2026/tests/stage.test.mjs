@@ -8,12 +8,10 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
+import { createWorld } from '../src/core/state.js';
 import { TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
-import {
-  initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, isFinale, PHASE,
-} from '../src/core/stage.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, isFinale, PHASE } from '../src/core/stage.js';
 
 const dt = TICK_DT;
 function mkWorld(seed = 1) { return createWorld({ data: loadData(), seed, weapons, hooks: {} }); }

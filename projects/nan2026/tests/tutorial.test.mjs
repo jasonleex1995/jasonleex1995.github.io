@@ -10,7 +10,7 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, recomputeEff } from '../src/core/state.js';
+import { createWorld } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { emitters } from '../src/core/emitters.js';

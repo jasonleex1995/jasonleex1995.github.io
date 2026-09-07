@@ -71,7 +71,7 @@ function atSecList(world) {
  *   스케줄 «전체»를 같은 양만큼 당긴다. 전체를 당기는 이유: 서로의 간격(3초 = 「우르르」)이 설계이기 때문이다.
  *   ★ 이 함수가 시각의 **유일한 입구**다 — 저작 배열을 직접 읽는 곳이 남으면 구간 판정이 어긋난다.
  */
-export function midBossDueSec(world, i) {
+function midBossDueSec(world, i) {
   const list = atSecList(world);
   return i >= list.length ? Infinity : list[i] - world.run.midBossShiftSec;
 }

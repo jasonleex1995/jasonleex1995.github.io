@@ -179,12 +179,12 @@ function makeEnemyBullet() {
 }
 
 /** §11.6(v1.10 ㉒) — 특성 효과의 평면 표현. 0 = «없음». 핫패스(step·damage)는 이것만 읽는다(문자열 비교 0). */
-export function makeTraitFx() {
+function makeTraitFx() {
   return { regenHpPerSec: 0, lifestealPct: 0, lifestealHpRatio: 0, shieldEverySec: 0 };   // lifestealHpRatio: 이 비율 이하일 때만(㉗)
 }
 
 /** §11.6 — 보유 레벨 표 {id: 0..maxLevel}. 0 = 없음. 키 집합은 데이터가 정한다(특성이 늘면 여기가 따라온다). */
-export function makeTraitLevels(data) {
+function makeTraitLevels(data) {
   const lv = {};
   const defs = data.traits.traits;
   for (let i = 0; i < defs.length; i += 1) lv[defs[i].id] = 0;
@@ -192,7 +192,7 @@ export function makeTraitLevels(data) {
 }
 
 /** §11.6 — 보유 레벨로 traitFx 를 다시 만든다(결정적). 값은 «그 레벨의 절대값»(values[lv-1]). 미지의 kind 는 폴백 없이 던진다(§9.3). */
-export function recomputeTraitFx(world) {
+function recomputeTraitFx(world) {
   const fx = world.traitFx;
   const base = makeTraitFx();
   for (const k of Object.keys(base)) fx[k] = base[k];

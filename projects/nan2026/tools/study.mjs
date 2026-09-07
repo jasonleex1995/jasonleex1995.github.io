@@ -15,7 +15,7 @@
  * 사용: node tools/study.mjs --runs 8000 --shard 0/12 --out report/study-0.jsonl
  *   샤드로 갈라 여러 프로세스가 나눠 돌린다. 합산은 --merge 로.
  */
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate, MANIFEST } from '../src/core/schema.mjs';   // 매니페스트 = 단일 소유자(v1.10 ⑳: 9파일 하드코딩이 traits.json 뒤로 깨져 있었다)

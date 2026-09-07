@@ -172,7 +172,7 @@ export function resolvePalette(rules) {
 //   ★ 이 4실루엣이 색맹·mono 에서 속성의 **유일한** 채널이다 (§7.3). 형태를 바꾸면 그 보증이 깨진다.
 // ---------------------------------------------------------------------------
 /** §7.12 속성 글리프를 «현재 경로에 이어 붙인다»(beginPath 없음) — 같은 색 탄 수백 발을 한 번의 fill 로 그리는 배치용(㉛). */
-export function glyphSub(ctx, element, x, y, r) {
+function glyphSub(ctx, element, x, y, r) {
   if (element === 'normal') {
     ctx.moveTo(x + r, y);
     ctx.arc(x, y, r, 0, Math.PI * 2);

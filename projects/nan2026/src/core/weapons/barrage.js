@@ -20,7 +20,7 @@
  */
 
 import { spawnTelegraph, familyDmgMul } from '../state.js';
-import { hitEnemy, onScreen, targetable } from '../damage.js';
+import { hitEnemy, targetable } from '../damage.js';
 import { stampFor } from '../stance.js';
 import { killEnemy } from '../step.js';
 

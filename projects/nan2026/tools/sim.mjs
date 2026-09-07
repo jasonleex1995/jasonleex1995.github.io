@@ -30,15 +30,12 @@ import { dirname, join } from 'node:path';
 import { validate, MANIFEST } from '../src/core/schema.mjs';
 import { sectionOf } from '../src/core/terrain.js';   // ㉜ 구간별 텔레메트리
 import { createWorld } from '../src/core/state.js';
-import { step, makeInput, TICK_DT, TICK_HZ } from '../src/core/step.js';
+import { step, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { bossHook } from '../src/core/boss.js';
-import { spawnBoss } from '../src/core/boss.js';
-import {
-  initRun, tickRun, advanceStage, applyStageClearHeal, PHASE,
-} from '../src/core/stage.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, PHASE } from '../src/core/stage.js';
 import { buildDraft, buildTraitDraft, applyCard } from '../src/core/draft.js';
 import { setBotPolicy, botInput, botDraftPick } from '../src/core/bot.js';
 import { tally } from '../src/core/score.js';

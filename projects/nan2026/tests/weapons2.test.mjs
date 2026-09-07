@@ -15,11 +15,8 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import {
-  createWorld, recomputeEff, giveWeapon, spawnEnemy, spawnEnemyBullet,
-} from '../src/core/state.js';
-import { killEnemy } from '../src/core/step.js';
-import { step, makeInput, TICK_DT } from '../src/core/step.js';
+import { createWorld, recomputeEff, giveWeapon, spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
+import { step, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { TAU, DEG2RAD, wrapAngle } from '../src/core/angle.js';
 

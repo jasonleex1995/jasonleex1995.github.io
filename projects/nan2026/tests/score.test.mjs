@@ -15,7 +15,7 @@ import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { bossHook } from '../src/core/boss.js';
 import { initRun, tickRun } from '../src/core/stage.js';
-import { addKill, addBossClear, addMidBossClear, addRunClear, noteHit, tally } from '../src/core/score.js';
+import { addKill, addBossClear, addMidBossClear, addRunClear, tally } from '../src/core/score.js';
 
 function mkWorld(difficulty) {
   const w = createWorld({

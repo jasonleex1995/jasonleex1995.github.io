@@ -2590,12 +2590,11 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
   "collide": { "gridCellPx": 64 },
   "caps":    { "playerBullets":512, "enemyBullets":768, "enemies":96, "pickups":256,   // ㉖ playerBullets 512 · ㉛ enemyBullets 768
                "zones":64, "drones":8, "particles":400, "telegraphs":96,
-               "damageNumbers":10, "effectMarkers":12, "terrain":16,
+               "terrain":16,
                "overflow": { "playerBullet":"rejectSpawn", "enemyBullet":"rejectSpawn",
                              "enemy":"defer", "pickup":"merge", "zone":"rejectSpawn",
                              "drone":"rejectSpawn", "telegraph":"deferAttack",
-                             "particle":"evictOldest", "damageNumber":"evictOldest",
-                             "effectMarker":"evictOldest", "terrain":"rejectSpawn" } },
+                             "particle":"evictOldest", "terrain":"rejectSpawn" } },
   "player":  { "hpMax":100, "spriteRadius":14, "hitboxRadius":4,
                "moveSpeed":280, "moveResponseTau":0.0, "diagonalNormalize":true,
                "iframeSec":1.0, "defenseBase":0, "damageFloorRatio":0.25,
@@ -4548,8 +4547,6 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | `drones` | 8 | `rejectSpawn` |
 | `particles` | 400 | `evictOldest` |
 | **`telegraphs`** | ★ **128** (v1.0의 8은 폐기) · ~~96~~ | ★ **`deferAttack` — 공격 자체를 연기** (I-3) |
-| `damageNumbers` | 10 | `evictOldest` |
-| `effectMarkers` | 12 | `evictOldest` |
 
 **초과 정책의 규칙 (결정성 필수)**
 - **게임플레이 개체(적 탄·플레이어 탄) 초과 = `rejectSpawn`. 오래된 것 재활용 절대 금지** — 날아가던 탄이 사라지면 화면이 거짓말한다(I-2 위반), 플레이어 발밑에 탄이 순간이동한다(불공정).
@@ -4817,7 +4814,7 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
 | **`noDeadLuck.minRunClearWorstThemeOrder`** | 720개 테마 순서(6C5 × 5!) 각각의 `runClearRate` 중 **최솟값.** 표본은 순서별 ≥ 11런(8000/720) — 잡음이 크므로 **순서를 6개 군집**(스테이지 5의 테마별)으로 묶어 각 ≥ 1300런으로 집계 |
 | **`noDeadLuck.minRunClearWorstDraftPolicy`** | `draft` 축 6정책 각각의 `runClearRate` 중 **최솟값.** 나머지 3축 baseline 고정 (§10.4.1) |
 | **`farmXpRatio`** | `(farm="maxFarm"의 스테이지 평균 획득 XP) ÷ (farm="passive"의 스테이지 평균 획득 XP)`. 나머지 3축 baseline |
-| **`capHits`** | ★ **v1.2 개정 — A층과 B층 **양쪽**의 발화를 센다.** ⓐ **B층**: `caps.*`의 `overflow` 정책이 발동한 틱 수. 순수 FX 3종(`particle` `damageNumber` `effectMarker`)의 `evictOldest`는 **집계 제외**(core 바깥, 시뮬 무관) ⓑ ★ **A층**: `fairness.enemyConcurrentMax`(40) · `swarmConcurrentMax`(70) · `crisisWaveResidualMax`(10) · `telegraphConcurrentMaxGlobal`(80)의 **`defer`가 발동한 틱 수.** <br>**왜 개정하는가**: v1.1의 정의는 「`caps.*`의 overflow 정책」뿐이라 **A층 예산은 어느 게이트에도 잡히지 않았다** → **A층 40은 검사기 없는 죽은 제약**이었고, 그 위에 `telegraphConcurrentMaxGlobal = 80`(= 40 × 2)이 **파생**돼 있었다. §12.1의 대원칙(「**캡에 닿는 콘텐츠는 콘텐츠 버그다**」)은 **A층에 더 강하게 적용된다** — A층은 애초에 오써링 예산이므로 닿으면 안 되는 것이 정의 그 자체다. `report/summary.json`이 **4축을 각각 분리 출력**한다(어느 예산이 터졌는지 모르면 고칠 수 없다) |
+| **`capHits`** | ★ **v1.2 개정 — A층과 B층 **양쪽**의 발화를 센다.** ⓐ **B층**: `caps.*`의 `overflow` 정책이 발동한 틱 수. 순수 FX 의 `evictOldest`(`particle` 하나 — ★ ㊿-i 에서 `damageNumber`·`effectMarker` 는 **풀이 없는 죽은 예산**이라 삭제됐다)는 **집계 제외**(core 바깥, 시뮬 무관) ⓑ ★ **A층**: `fairness.enemyConcurrentMax`(40) · `swarmConcurrentMax`(70) · `crisisWaveResidualMax`(10) · `telegraphConcurrentMaxGlobal`(80)의 **`defer`가 발동한 틱 수.** <br>**왜 개정하는가**: v1.1의 정의는 「`caps.*`의 overflow 정책」뿐이라 **A층 예산은 어느 게이트에도 잡히지 않았다** → **A층 40은 검사기 없는 죽은 제약**이었고, 그 위에 `telegraphConcurrentMaxGlobal = 80`(= 40 × 2)이 **파생**돼 있었다. §12.1의 대원칙(「**캡에 닿는 콘텐츠는 콘텐츠 버그다**」)은 **A층에 더 강하게 적용된다** — A층은 애초에 오써링 예산이므로 닿으면 안 되는 것이 정의 그 자체다. `report/summary.json`이 **4축을 각각 분리 출력**한다(어느 예산이 터졌는지 모르면 고칠 수 없다) |
 
 **★ `dominance` 정규화가 없으면 무슨 일이 일어나는가 (v1.0의 산술적 불가능)**
 ```
@@ -5212,6 +5209,7 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S58** ★ | **오빗 반경 = 자석 점선 원** (v1.10 ⑨, §7.8) — `weapons.orbit.base.orbitRadius == player.magnetRadius` ∧ 어느 레벨도 `orbitRadius` 를 바꾸지 않는다. 화면에 상시 보이는 원(자석 반경)과 공의 궤도가 어긋나면 «내 영역»이 둘로 읽힌다 |
 | **S59** ★ | **특성** (v1.10 ⑲·㉒, §11.6) — ① `maxLevel` = 한 런의 구슬 수 5 ② 효과 어휘 3종 전부 쓰인다(특성 수 = 어휘 수) ③ 레벨은 좋아지는 방향으로 단조(재생·흡혈 ↑ · 쉴드 주기 ↓) ②' 흡혈 `hpRatio ∈ [0.3, 0.6]`(㉗ — HP 50% 이하일 때만) ④ 값 범위(재생 ≤ 2.0/s · 흡혈 ≤ 2% · 쉴드 주기 ≥ i-frame × 5) ⑤ `palette.pickup.trait` |
 | **S60** ★ | **난이도** (v1.10 ㊿·㊿-c, §11.3) — ① 난이도는 정확히 셋(`normal`·`hard`·`hell`; 「디재스터」 삭제 · 튜토리얼은 난이도가 아니다) ② **가장 어려운 난이도가 기준선**(`hell.hpMul == 1`)이고 나머지는 `< 1` — 저작값은 «만드는 사람이 조율하는 난이도»의 값이고 쉬운 난이도는 그 할인이다 ③ **세 열 전부**(`speed`·`scoreMul`·`hpMul`)가 노멀→하드→헬로 순증 — 한 열이라도 평평하면 «이름만 다른 난이도»다 ④ ~~`evolutionsExpected` ∈ [1, weaponSlots]~~ **㊿-c 폐지** — 화면에서 빼자 읽는 곳이 0 이 된 죽은 키라 삭제했다(진화 개수는 고정 픽 예산에서 화력의 10~25% 라 애초에 집행 가능한 게이트가 아니다) ⑤ `hpMul` 계단 ≤ 1.35 — 실측 사다리(최종 보스를 170초에 잡는 총 HP: 상위 3종 215,600 · 4종 302,800 · 5종 380,300 · 6종 501,400)의 한 칸이 ×1.26~1.32 다 ⑥ `stunMinDifficulty` 가 실재하는 난이도를 가리킨다 ⑦ **소스 검사** — `state.difficultyHpMul` 이 존재하고 **네 스포너**(`spawnEnemy`·`spawnMidBoss`·`spawnBossCore`·`spawnBossPart`) 본문이 전부 그 문을 지난다. 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍 |
+| **S61** ★ | **어휘 사본의 일치** (v1.10 ㊿-i, §9.3) — `check.mjs` 와 `src/core/schema.mjs` 는 같은 닫힌 어휘를 **각자 한 벌씩** 들고 있다. 그 이중화는 **의도**다(검사기가 피검사자의 표를 그대로 쓰면 「표가 표를 검사」하는 공허 통과가 된다). 문제는 두 사본이 **조용히 어긋날 수 있다**는 것이고 실제로 그런 사고가 있었다(㊲ — 그때는 무기 분류를 데이터로 옮겨 해결했다). → 사본은 그대로 두고 **어긋남만 소리나게** 한다: `MANIFEST`·`WEAPON_CLASSES`·`BODY_STATS`·`TERRAIN_KINDS`·`TRAIT_EFFECT_KINDS` 5종을 원소 단위로 비교하고, `FAMILIES` 는 짝이 schema 가 아니라 **데이터**이므로 `weapons.json` 의 family 집합과 맞춘다(㊵ 스파이럴 삭제 때 이 목록이 먼저 거짓이 됐다) |
 | ~~**S46**~~ | ~~공격 기호 어휘의 완결성 (v1.7)~~ — ★ **v1.8 삭제.** 기호 자체를 폐지했다(§7.6.1). 번호는 재사용하지 않는다 |
 | ~~**S40**~~ | ~~상점 스키마 (v1.3) — `shop`의 키 집합 == §11.2 표의 `id` 10종~~ → ★ **v1.5에서 폐지** (상점 자체가 스코프아웃). `check.mjs` 에 구현체 없음. 번호는 재사용하지 않는다 |
 

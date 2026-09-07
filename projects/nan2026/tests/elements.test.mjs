@@ -7,10 +7,10 @@
  *   - 노말은 행·열 전부 ×1.
  *   - 미지 속성 → throw (§4.1 폴백 금지, §9.3 정신).
  *   - elementTerm: elem>1 만 resonance(k) 증폭 · ×1·×0.5 는 k와 무관하게 불변.
- *   - isInvestable / isElement.
+ *   - isInvestable.
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { elementMul, elementTerm, hitTier, isInvestable, isElement } from '../src/core/elements.js';
+import { elementMul, elementTerm, hitTier, isInvestable } from '../src/core/elements.js';
 
 const d = loadData();
 const M = d.elements.matrix;
@@ -177,10 +177,6 @@ suite('elements.membership', () => {
     assert.ok(INVEST.indexOf('normal') < 0, 'normal 불포함');
   });
 
-  test('isElement: order 4종 전부 true, 미지 false', () => {
-    for (const e of ORDER) assert.ok(isElement(d.elements, e), `${e} 유효 속성`);
-    assert.ok(!isElement(d.elements, 'poison'), '미지 속성 false');
-  });
 
   test('order = [normal, fire, water, grass] (§4.1 키 순서 동결)', () => {
     assert.deepEq(ORDER, ['normal', 'fire', 'water', 'grass'], 'Q W E R 순');

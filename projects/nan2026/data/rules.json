@@ -39,8 +39,6 @@
     "particles": 400,
     "terrain": 16,
     "telegraphs": 128,
-    "damageNumbers": 10,
-    "effectMarkers": 12,
     "overflow": {
       "playerBullet": "rejectSpawn",
       "enemyBullet": "rejectSpawn",
@@ -49,9 +47,7 @@
       "zone": "rejectSpawn",
       "drone": "rejectSpawn",
       "telegraph": "deferAttack",
-      "particle": "evictOldest",
-      "damageNumber": "evictOldest",
-      "effectMarker": "evictOldest", "terrain": "rejectSpawn"
+      "particle": "evictOldest", "terrain": "rejectSpawn"
     }
   },
 
