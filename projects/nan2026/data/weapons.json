@@ -74,12 +74,13 @@
     {
       "id": "aura", "slotClass": "utility", "class": "area", "family": "aura", "name": "펄스필드", "desc": "주위의 적 탄을 느리게 만든다",
       "elementStampMode": "live",
-      "base": { "radius":70, "slowMul":0.50 },
-      "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
-                  {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148},
-                  {"radius":162}, {"radius":176,"slowMul":0.40} ],
+      "base": { "radius":70, "slowMul":0.950 },
+      "levels": [ {}, {"radius":82,"slowMul":0.9}, {"radius":92,"slowMul":0.85},
+                  {"radius":102,"slowMul":0.8}, {"radius":112,"slowMul":0.75}, {"radius":122,"slowMul":0.7},
+                  {"radius":134,"slowMul":0.65}, {"radius":148,"slowMul":0.6}, {"radius":162,"slowMul":0.55},
+                  {"radius":176,"slowMul":0.5} ],
       "evolution": { "name":"싱귤래리티", "desc":"적 탄이 기어가고, 잡몹이 끌려온다",
-                     "params": { "evoPullForce":90, "evoSlowMul":0.25 },
+                     "params": { "evoPullForce":90, "evoSlowMul":0.35 },
                      "requiresPassive": { "id": "coil", "level":3 } }
     },
     {

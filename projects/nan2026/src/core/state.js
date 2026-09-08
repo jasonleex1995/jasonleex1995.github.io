@@ -82,6 +82,10 @@ function makeEnemy(slotCount) {
     // §2.7(v1.7) 행동 감속 — 노바의 동사. 이동(slowSec)이 아니라 «발사 주기»를 늘린다.
     //   제자리에서 쏘는 anchor 3종에게 이동 감속은 무효이므로, 그들에게 듣는 유일한 비-스턴 제어다.
     actionSlowSec: 0,
+    // §9.5(v1.10 ㊿-p) 펄스필드의 «구역 감속» — 이번 틱의 배율(1 = 없음). 탄의 b.slowMul 과 같은 규약:
+    //   aura.update(무기 발사 단계)가 세우고, emitters(발사 주기)와 moveBullets(이동)가 읽고, moveBullets 가 1 로 되돌린다.
+    //   ★ 상태이상(slowSec·actionSlowSec)과 «다른 축»이다: 그쪽은 «타이머 + 전역 고정 강도»고, 이쪽은 «구역 + 무기 레벨 강도»다.
+    fieldSlowMul: 1,
     archetypeId: '', band: '', element: NORMAL,
     // ★ 개체가 자기 글리프를 들고 다닌다 — 보스 개체는 archetypes 에 없어서(archetypeId '')
     //   렌더가 아키타입으로 모양을 찾을 수 없다. 프레임당 스캔도 사라진다(§10.3).
@@ -851,7 +855,7 @@ export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) 
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = '';
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.slowSec = 0; e.stunSec = 0; e.fieldSlowMul = 1; e.actionSlowSec = 0; e.floorAt.fill(0);
   // §8.17(v1.7) 적 개성 — 선택 키(§8.11 sealLayer 와 같은 규약). 미선언 = 기본값 = 현행 동작.
   e.hitFloorSec = def.hitFloorSec === undefined ? 0 : def.hitFloorSec;
   e.pierceCost = def.pierceCost === undefined ? 1 : def.pierceCost;
@@ -879,7 +883,7 @@ export function spawnBossCore(world, bossId, core, hp, x, y) {
   e.isBoss = true; e.bossId = bossId; e.partId = ''; e.partType = 'core'; e.anchorX = 0; e.anchorY = 0; e.phase = 0;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.slowSec = 0; e.stunSec = 0; e.fieldSlowMul = 1; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
   e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;   // §8.17(v1.7) 개성은 잡몹 전용 — 보스는 봉인(sealLayer)·코어게이트가 그 역할을 한다
   e.sealLayer = 0; e.sealedNow = false;            // §8.13(㉘) — 코어 봉인은 boss.js 가 «모듈 생존»으로 켠다. 풀 재사용 stale 방지(나머지 3개 스포너와 대칭)
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
@@ -903,7 +907,7 @@ export function spawnBossPart(world, bossId, part, hp, cx, cy) {
   e.sealLayer = part.sealLayer === undefined ? 0 : part.sealLayer; e.sealedNow = false;
   e.midBossId = ''; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.slowSec = 0; e.stunSec = 0; e.fieldSlowMul = 1; e.emitT = 0; e.emitPhase = 0; e.moveT = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
   e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;   // §8.17(v1.7) 개성은 잡몹 전용 — 보스는 봉인(sealLayer)·코어게이트가 그 역할을 한다
   e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;                 // makeEnemy 대칭 — 스크래치도 전량 리셋(재사용 stale 방지)
   return e;
@@ -929,7 +933,7 @@ export function spawnMidBoss(world, def, element, hp, x, y) {
   e.sealLayer = 0; e.sealedNow = false;
   e.midBossId = def.id;
   e.dmgTotal = 0; e.dmgSuper = 0;
-  e.slowSec = 0; e.stunSec = 0; e.actionSlowSec = 0; e.floorAt.fill(0);
+  e.slowSec = 0; e.stunSec = 0; e.fieldSlowMul = 1; e.actionSlowSec = 0; e.floorAt.fill(0);
   e.hitFloorSec = 0; e.pierceCost = 1; e.ccImmune = false;
   e.emitT = 0; e.emitPhase = 0; e.emitT2 = 0; e.emitPhase2 = 0; e.summonT = 0;
   e.moveT = 0; e.mp0 = 0; e.mp1 = 0; e.mp2 = 0;

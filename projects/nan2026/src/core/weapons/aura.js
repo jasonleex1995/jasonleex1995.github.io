@@ -19,19 +19,36 @@
 const CHAFF = 'chaff';
 
 /**
- * 반경 안의 적 탄에 이동 배율 factor 를 «이번 틱» 세팅한다(더 강한 슬로우가 이긴다). moveBullets 가
- *   적용 후 1 로 리셋 → 필드 밖으로 나가면 원속도. factor=0 이면 필드 안에서 정지(진화).
+ * 반경 안의 «적 탄 + 적 기체»에 이동 배율 factor 를 «이번 틱» 세팅한다(더 강한 슬로우가 이긴다).
+ *   moveBullets 가 적용 후 1 로 리셋 → 필드 밖으로 나가면 원속도. 기체는 발사 주기도 같은 배율을 탄다(emitters). factor=0 이면 필드 안에서 정지(진화).
  */
 function slowField(world, eff, factor) {
   const p = world.player;
   const r = eff.radius;
+  const rr = r * r;
   const eb = world.enemyBullets.items;
   for (let i = 0; i < eb.length; i += 1) {
     const b = eb[i];
     if (!b.alive) continue;
     const dx = b.x - p.x;
     const dy = b.y - p.y;
-    if (dx * dx + dy * dy <= r * r && factor < b.slowMul) b.slowMul = factor;
+    if (dx * dx + dy * dy <= rr && factor < b.slowMul) b.slowMul = factor;
+  }
+  // ★ v1.10 ㊿-p — 구역은 «탄만»이 아니라 «그 안의 모든 것»을 늦춘다: 적 기체의 이동과 발사 주기도 같은 배율.
+  //   사용자(2026-09-09): 「반경 안의 적들도 속도가 느려지는 건 어때? 탄환과 기체를 모두 느려지게 하는 거지.
+  //   해당 구역 안에 든 기체는 발사속도도 느려지게 되고, 탄도 느려지고!」
+  //   ★ 이것은 정본이 삭제한 knockback 의 뒷문이 «아니다» — 감속은 개체를 **옮기지 않는다**. 편대(column·anchor·
+  //     pincer)의 «모양»은 그대로고 «속도»만 준다. 그래서 evoPullForce 를 chaff 로 묶은 논거(편대 파괴)가
+  //     여기엔 적용되지 않으며, 밴드 제한도 필요 없다.
+  //   ★ 보스·중간보스는 제외 — 그쪽은 자기 사격 곡선(bossBulletScale·escalateFireRateMul)과 페이즈를 갖는다.
+  //     보스의 발사 주기를 구역으로 늦추면 보스전이 통째로 무너진다(§8.11·§8.9 의 압박 장치를 무력화).
+  const en = world.enemies.items;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || e.isBoss || e.midBossId !== '') continue;
+    const dx = e.x - p.x;
+    const dy = e.y - p.y;
+    if (dx * dx + dy * dy <= rr && factor < e.fieldSlowMul) e.fieldSlowMul = factor;
   }
 }
 

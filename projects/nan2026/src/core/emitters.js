@@ -265,7 +265,9 @@ export function emitters(world, dt) {
     // §2.7(v1.7) 행동 감속 — 노바의 동사. 스턴처럼 멈추지는 않고 «발사 주기»만 늘린다.
     //   emitT 가 느리게 흐르므로 scheduledVolleys 가 보는 시간이 늦어진다 = 발사가 뜸해진다.
     //   ★ 이동(slowSec)과 갈라 둔 이유: 제자리에서 쏘는 anchor 3종에게 이동 감속은 무효다.
-    const actMul = e.actionSlowSec > 0 ? world.data.rules.status.actionSlowMul : 1;
+    // §9.5(㊿-p) 구역 감속 — 펄스필드 반경 안이면 발사 주기도 같은 배율로 늦어진다(사용자 2026-09-09:
+    //   「해당 구역 안에 든 기체는 발사속도도 느려지게 되고, 탄도 느려지고」). 상태이상과 «곱»으로 겹친다.
+    const actMul = (e.actionSlowSec > 0 ? world.data.rules.status.actionSlowMul : 1) * e.fieldSlowMul;
     // §8.18(v1.7) 잡몹 사격 «강도»의 스테이지 곡선. v1.6 까지 잡몹의 발사 주기와 탄 피해는
     //   전 스테이지 동일했다 — 스테이지 1 의 적이 스테이지 6 의 적과 «똑같이» 쏘았다.
     //   체력·밀도만 오르고 사격은 안 올랐으므로 초반이 상대적으로 과하고 후반이 싱거웠다.

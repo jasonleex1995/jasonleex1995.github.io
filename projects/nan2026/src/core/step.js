@@ -352,15 +352,19 @@ function moveBullets(world, dt) {
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (!e.alive) continue;
+    // §9.5(㊿-p) 구역 감속 — 이번 틱의 배율을 «먼저 꺼내고 즉시 1 로 되돌린다». 스턴으로 continue 해도
+    //   되돌림이 빠지지 않게 이 순서다(안 그러면 구역을 벗어난 적이 영원히 느린 채로 남는다).
+    const field = e.fieldSlowMul;
+    e.fieldSlowMul = 1;
     if (e.stunSec > 0) { e.stunSec -= dt; continue; }
-    let m = 1;
-    if (e.slowSec > 0) { e.slowSec -= dt; m = world.data.rules.status.slowMoveSpeedMul; }
+    let m = field;
+    if (e.slowSec > 0) { e.slowSec -= dt; m *= world.data.rules.status.slowMoveSpeedMul; }
     // §2.7(v1.7) 행동 감속 — 감소는 여기가 «단일 소유»다(stunSec 과 같은 규약, 이중 감소 방지).
     //   읽는 곳은 emitters.js(발사 주기)이며 이동에는 관여하지 않는다 — 제자리형 적에게 듣는 유일한 비-스턴 제어.
     if (e.actionSlowSec > 0) { e.actionSlowSec -= dt; if (e.actionSlowSec < 0) e.actionSlowSec = 0; }
     e.x += e.vx * m * dt;
     e.y += e.vy * m * dt;
-    e.moveT += dt;
+    e.moveT += dt * field;      // ㊿-p — 구역 안에서는 «시간»이 느리다(weave/strafe 위상도 함께 늦어져 궤적이 일관된다)
     // §8.7(v1.10 ㉕) 옆벽 클램프 — 잡몹은 아레나 옆벽 «안»에만 있다(몸 전체). 편대 여백(bodyMargin)이 자리를, 이것이 그 뒤
     //   이동(weave 의 오일러 오차·엘리트 반지름·궤도)을 지킨다. 사용자: 「적이 있는 구간은 일정해야 한다 — 화면 밖에 걸치지 않게」.
     //   strafe(벽 밖 진입)·보스·중간보스는 wallX 가 꺼져 있다. 아래(y)는 «지나간다»가 규칙이라 그대로 몰수 경로.

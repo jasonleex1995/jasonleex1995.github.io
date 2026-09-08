@@ -486,19 +486,50 @@ suite('weapons/boomerang', () => {
 // aura · nova · lance (인라인 피해 3종)
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/aura', () => {
-  test('base(펄스필드) = 반경 안 적 탄을 «느리게»(slowMul 0.5), 지우지 않음·무피해 (§9.5 v1.5)', () => {
+  // ★ v1.10 ㊿-p — 감속량이 레벨로 10등분된다(Lv1 5% → Lv10 50%). 값은 데이터가 소유하므로 테스트도 데이터를 읽는다.
+  test('base(펄스필드) = 반경 안 적 «탄과 기체»를 느리게, 지우지 않음·무피해 (§9.5)', () => {
     const w = mkWorld();
     const { s, eff } = setup(w, 'aura', 1, false);
     const p = w.player;
     const inB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 0.5, 0, 100);
     const outB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 2, 0, 100);
     const en = addEnemy(w, p.x, p.y - eff.radius * 0.5);     // 반경 안 적
+    const out = addEnemy(w, p.x, p.y - eff.radius * 3);      // 반경 밖 적
     const h0 = en.hp;
     aura.update(w, s, eff, dt);
-    assert.near(inB.slowMul, 0.5, 1e-9, '반경 안 적 탄 = ×0.5 슬로우');
+    assert.near(inB.slowMul, eff.slowMul, 1e-9, `반경 안 적 탄 = ×${eff.slowMul}`);
     assert.eq(outB.slowMul, 1, '반경 밖 적 탄 = 원속도');
+    assert.near(en.fieldSlowMul, eff.slowMul, 1e-9, `★ 반경 안 «기체»도 ×${eff.slowMul} (㊿-p)`);
+    assert.eq(out.fieldSlowMul, 1, '반경 밖 기체 = 원속도');
     assert.eq(inB.alive, true, '탄을 지우지 않는다 (남는다)');
     assert.eq(en.hp, h0, 'base 는 적에게 무피해 (순수 제어)');
+  });
+
+  // ★ 조용한 사고 방어 — 구역을 벗어난 적이 «영원히 느린 채» 남으면 아무도 모른다.
+  //   탄의 slowMul 과 같은 규약이어야 한다: 매 틱 세팅 → 소비 → 1 로 되돌림(step.moveBullets 가 소유).
+  test('구역을 벗어나면 원속도로 돌아온다 — 배율은 매 틱 되돌려진다 (㊿-p)', () => {
+    const w = mkWorld();
+    const { s, eff } = setup(w, 'aura', 10, false);
+    const p = w.player;
+    const en = addEnemy(w, p.x, p.y - eff.radius * 0.5);
+    aura.update(w, s, eff, dt);
+    assert.near(en.fieldSlowMul, eff.slowMul, 1e-9, '구역 안 = 감속');
+    step(w, makeInput(), dt);                          // moveBullets 가 소비하고 1 로 되돌린다
+    assert.eq(en.fieldSlowMul, 1, '★ 한 틱 뒤 배율이 1 로 돌아온다 (누적·잔류 없음)');
+    en.x = p.x + eff.radius * 3;                        // 구역 밖으로
+    aura.update(w, s, eff, dt);
+    assert.eq(en.fieldSlowMul, 1, '구역 밖 = 원속도');
+  });
+
+  test('감속량이 레벨로 «10등분»된다 — Lv1 이 Lv10 보다 약하고 단조롭게 강해진다 (㊿-p)', () => {
+    const d = loadData();
+    const w = d.weapons.weapons.find((x) => x.family === 'aura');
+    const c = []; let v = w.base.slowMul;
+    for (let i = 0; i < 10; i += 1) { if (w.levels[i].slowMul !== undefined) v = w.levels[i].slowMul; c.push(v); }
+    assert.eq(c.length, 10, '10 레벨');
+    for (let i = 1; i < 10; i += 1) assert.gt(c[i - 1], c[i], `Lv${i + 1} 이 Lv${i} 보다 강한 감속`);
+    assert.near(c[9], 0.5, 1e-9, 'Lv10 = ×0.5 (감속 50%)');
+    assert.lt(w.evolution.params.evoSlowMul, c[9], '진화는 Lv10 보다 더 강한 감속');
   });
 
   // ★ v1.10 ㊿-o — 진화는 «완전 정지»가 아니라 «더 강한 감속»(evoSlowMul)이다.
