@@ -17,7 +17,6 @@
  */
 
 const CHAFF = 'chaff';
-const STOP = 0;     // 진화 — 완전 정지
 
 /**
  * 반경 안의 적 탄에 이동 배율 factor 를 «이번 틱» 세팅한다(더 강한 슬로우가 이긴다). moveBullets 가
@@ -60,7 +59,7 @@ function pull(world, eff, dt) {
 export function update(world, slot, eff, dt) {
   // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티): 완전 정지 + 끌어당김
   if (slot.evolved) {
-    slowField(world, eff, STOP);
+    slowField(world, eff, eff.evoSlowMul);   // ㊿-o — 정지(0)가 아니라 «기어가기». 값은 데이터가 소유한다
     pull(world, eff, dt);
   } else {
     slowField(world, eff, eff.slowMul);   // §9.1(v1.7) 값은 데이터가 소유한다

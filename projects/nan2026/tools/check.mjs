@@ -95,7 +95,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -370,7 +370,7 @@ const FAMILY_OWN_EVO = {
   seeker:    ['evoDistinctTargets', 'evoRetargetOnKill'],
   lance:     ['evoFullHeight'],
   orbit:     ['evoGuardBodies'],
-  aura:      ['evoPullForce'],
+  aura:      ['evoPullForce', 'evoSlowMul'],
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
   drone:     ['evoTrailDelaySec', 'evoTrailAnchor'],
@@ -3727,6 +3727,59 @@ function S61_vocabMirrors() {
   EX('S61', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S62 — 감속은 «삭제»가 되어서는 안 된다 (§9.5 v1.10 ㊿-o)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 이 결함은 **세 번** 났다. v1.4 는 펄스필드가 탄막을 «지웠고»(너무 쉬움 → v1.5 폐기), ㊿ 까지는 진화가
+ *   탄을 «완전 정지»시켰고(사용자 2026-09-08: 「모든 탄이 멈춰서 게임이 너무 쉬워져」 — 실측: 탄 풀이
+ *   768/768 로 포화돼 보스가 새 탄을 **291번 못 쐈다**), 그리고 그 «정지»를 «강한 감속»으로 바꾸는 것만으로도
+ *   **아직 삭제였다** — 탄은 `maxBulletAgeSec`(6초)에 사라지므로 반경을 건너지 못할 만큼 느려지면 필드 안에서
+ *   수명이 다한다. 조건: `R ≤ 최저 탄속 × maxBulletAgeSec × slowMul`. 실측 R 최대 271px · 최저 탄속 90 ·
+ *   6초 → 필요 slowMul **0.50** 이므로 **base 0.4 조차** 느린 탄을 지우고 있었다.
+ *   ★ 값으로는 못 고친다(반경은 패시브로 자라고 탄속은 이미터마다 다르다) → «시간»을 고쳤다:
+ *     필드 안에서는 이동도 나이도 같은 배율로 흐른다. 그래서 어떤 반경·배율에서도 탄은 결국 건너온다.
+ *   이 게이트가 그 셋을 한꺼번에 막는다:
+ *   ① 감속 계수는 **> 0** — 0 은 정지이고, 정지 반경이 기체 히트박스(4px)보다 크면 «반경이 얼마든 무적»이다
+ *   ② 진화 계수 < base 계수 — 진화는 «더 강한 감속»이라는 계약(같거나 약하면 진화가 아니다)
+ *   ③ **소스 검사** — `step.js` 의 적 탄 나이 누적이 slowMul 을 탄다. 이 한 줄이 ①②를 의미 있게 만든다
+ */
+function S62_slowNotDelete() {
+  let n = 0;
+  const ws = rowsQuiet(D.weapons && D.weapons.weapons);
+  for (const w of ws) {
+    for (const [where, obj] of [['base', w.base], ['evolution.params', w.evolution && w.evolution.params]]) {
+      if (!isObj(obj)) continue;
+      for (const k of Object.keys(obj)) {
+        if (!/slowMul$/i.test(k)) continue;
+        n += 1;
+        if (!num(obj[k]) || obj[k] <= 0) {
+          V('S62', `weapons[${w.family}].${where}.${k} = ${obj[k]} — 감속 계수는 0 보다 커야 한다. `
+            + '0 = 정지이고, 정지 반경이 기체 히트박스보다 크면 탄이 도달할 수 없다 = 반경이 얼마든 무적이다 (§9.5 ①)');
+        }
+        if (!(obj[k] < 1)) V('S62', `weapons[${w.family}].${where}.${k} = ${obj[k]} ≥ 1 — 감속이 아니다 (§9.5 ①)`);
+      }
+    }
+    const b = isObj(w.base) ? w.base.slowMul : undefined;
+    const e = isObj(w.evolution) && isObj(w.evolution.params) ? w.evolution.params.evoSlowMul : undefined;
+    if (num(b) && num(e)) {
+      n += 1;
+      if (!(e < b)) {
+        V('S62', `weapons[${w.family}]: 진화 감속 ${e} 이 base ${b} 보다 강하지 않다 — 진화는 «더 강한 감속»이다 (§9.5 ②)`);
+      }
+    }
+  }
+  // ③ 소스 — 적 탄의 나이가 slowMul 을 탄다(시간 지연). 없으면 감속이 곧 삭제가 된다.
+  const sp = join(ROOT, 'src', 'core', 'step.js');
+  n += 1;
+  if (!existsSync(sp)) V('S62', 'src/core/step.js 가 없다');
+  else if (!/b\.age \+= dt \* slow\b/.test(readFileSync(sp, 'utf8'))) {
+    V('S62', 'step.js: 적 탄의 나이 누적이 slowMul 을 타지 않는다 — 감속이 «삭제»가 된다 '
+      + '(R ≤ 최저 탄속 × maxBulletAgeSec × slowMul 을 못 지키면 필드 안에서 수명이 다한다) (§9.5 ③)');
+  }
+  EX('S62', n);
+}
+
 function S45_draftParamLabels() {
   const hudPath = join(ROOT, 'src', 'render', 'hud.js');
   if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
@@ -4187,7 +4240,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S61 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S62 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4256,6 +4309,7 @@ function main() {
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
   S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·기준선·순증 3열·hpMul 계단·네 스포너
   S61_vocabMirrors();        // §9.3 v1.10 ㊿-i 어휘 사본 — check.mjs 와 schema.mjs 의 닫힌 어휘가 어긋나면 소리낸다
+  S62_slowNotDelete();       // §9.5 v1.10 ㊿-o 감속 ≠ 삭제 — 계수 > 0 · 진화 < base · 나이가 slowMul 을 탄다
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

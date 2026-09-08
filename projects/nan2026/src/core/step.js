@@ -321,15 +321,26 @@ function moveBullets(world, dt) {
         b.y += (b.vx / sp3) * pv * dt;
       }
     }
-    // §9.5(v1.5) 펄스필드 슬로우/정지 — slowMul(펄스필드가 이번 틱 세팅)로 이동을 줄인다. 적용 후 1로 리셋
-    //   → 필드를 벗어나면 다음 틱부터 원속도(«범위 안에서만 느려진다»). 정지(0)면 이 틱 이동 0.
-    b.x += b.vx * b.slowMul * dt;
-    b.y += b.vy * b.slowMul * dt;
+    // §9.5(v1.5) 펄스필드 슬로우 — slowMul(펄스필드가 이번 틱 세팅)로 이동을 줄인다. 적용 후 1로 리셋
+    //   → 필드를 벗어나면 다음 틱부터 원속도(«범위 안에서만 느려진다»).
+    // ★★ v1.10 ㊿-o — **나이도 같은 배율로 흐른다**(시간 지연). 이게 없으면 «느리게»가 «지우기»가 된다:
+    //   탄은 maxBulletAgeSec(6초)에 사라지므로, 반경 R 을 건너지 못할 만큼 느려지면 필드 안에서 수명이 다한다.
+    //   조건은 `R ≤ 최저 탄속 × maxBulletAgeSec × slowMul` 인데, 실측 R 최대 271px(Lv10 176 × 확장 코일 +54%)에
+    //   최저 탄속 90 · 6초를 넣으면 필요한 slowMul 이 **0.50** 이다 — 즉 진화(0.15)는 물론 **base(0.4)조차
+    //   느린 탄을 지우고 있었다**(사용자 2026-09-08: 「펄스 필드가 진화해버리면 모든 탄이 멈춰서 게임이 너무 쉬워져」).
+    //   ★ 값으로는 못 고친다 — 반경은 패시브로 자라고 탄속은 이미터마다 다르다. 그래서 «시간»을 고친다:
+    //     필드 안에서는 이동도 나이도 같은 비율로 느려지므로 **어떤 반경·어떤 배율에서도 탄은 결국 건너온다.**
+    //     그 대가로 필드가 탄을 오래 머금는다 — 그것은 «위협이 쌓이는» 그림이고, 사라지는 것과 정반대다.
+    //   ★ 유도(homingSec)·파동(waveHz)·재조준(retargetT)도 age 를 읽으므로 함께 늦어진다 = 시간 지연으로 일관.
+    const slow = b.slowMul;
+    b.x += b.vx * slow * dt;
+    b.y += b.vy * slow * dt;
     b.slowMul = 1;
-    b.age += dt;
+    b.age += dt * slow;
     bounceOffWalls(b, a);                      // §8.5(v1.7) 적 탄도 같은 규칙으로 되튄다
-    // §9.5(v1.5) — 최대 수명(maxBulletAgeSec): 펄스필드 정지 등으로 화면에 묶인 탄이 무한 누적하지
-    //   않게 흩어져 사라진다(정상 탄은 그 전에 off-screen 으로 나간다). 풀 포화(capHits) 방지.
+    // §9.5(v1.5) — 최대 수명(maxBulletAgeSec): 화면에 묶인 탄이 무한 누적하지 않게 흩어져 사라진다
+    //   (정상 탄은 그 전에 off-screen 으로 나간다). 풀 포화(capHits) 방지.
+    //   ★ ㊿-o 이후 이 시계는 «필드 안에서는 느리게» 간다 — 안 그러면 슬로우가 삭제가 된다(위 참조).
     if (b.x < a.x - pad || b.x > a.x + a.w + pad || b.y < a.y - pad || b.y > a.y + a.h + pad
         || b.age > world.data.rules.fairness.maxBulletAgeSec) {
       world.enemyBullets.release(b);

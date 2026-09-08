@@ -78,8 +78,8 @@
       "levels": [ {}, {"radius":82}, {"radius":92}, {"radius":102},
                   {"radius":112}, {"radius":122}, {"radius":134}, {"radius":148},
                   {"radius":162}, {"radius":176,"slowMul":0.40} ],
-      "evolution": { "name":"싱귤래리티", "desc":"적 탄이 아예 멈추고, 잡몹이 끌려온다",
-                     "params": { "evoPullForce":90 },
+      "evolution": { "name":"싱귤래리티", "desc":"적 탄이 기어가고, 잡몹이 끌려온다",
+                     "params": { "evoPullForce":90, "evoSlowMul":0.25 },
                      "requiresPassive": { "id": "coil", "level":3 } }
     },
     {

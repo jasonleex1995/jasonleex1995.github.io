@@ -85,7 +85,7 @@ const FAMILY_EVO_KEYS = {
   seeker: ['evoDistinctTargets', 'evoRetargetOnKill'],
   lance: ['evoFullHeight'],
   orbit: ['evoGuardBodies'],
-  aura: ['evoPullForce'],
+  aura: ['evoPullForce', 'evoSlowMul'],
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
   drone: ['evoTrailDelaySec', 'evoTrailAnchor'],

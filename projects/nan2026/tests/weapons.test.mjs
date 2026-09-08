@@ -501,22 +501,27 @@ suite('weapons/aura', () => {
     assert.eq(en.hp, h0, 'base 는 적에게 무피해 (순수 제어)');
   });
 
-  test('진화(싱귤래리티) = 반경 안 적 탄 «완전 정지»(slowMul 0), 무피해', () => {
+  // ★ v1.10 ㊿-o — 진화는 «완전 정지»가 아니라 «더 강한 감속»(evoSlowMul)이다.
+  //   정지 반경이 기체 히트박스(4px)보다 크면 탄이 도달할 수 없다 = 반경이 얼마든 무적 장치다
+  //   (사용자 2026-09-08: 「펄스 필드가 진화해버리면 모든 탄이 멈춰서 게임이 너무 쉬워져」).
+  //   v1.4 의 «탄막 제거»가 「너무 쉬움」으로 폐기된 것과 같은 결함의 재발이다.
+  test('진화(싱귤래리티) = 반경 안 적 탄이 «기어간다»(evoSlowMul) — 멈추지는 않는다, 무피해', () => {
     const w = mkWorld();
-    const { s, eff } = setup(w, 'aura', 1, true);            // 진화 = 정지 + 끌어당김
+    const { s, eff } = setup(w, 'aura', 1, true);            // 진화 = 강한 감속 + 끌어당김
     const p = w.player;
     const inB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 0.5, 0, 100);
     const en = addEnemy(w, p.x, p.y - 1);
     const h0 = en.hp;
     aura.update(w, s, eff, dt);
-    assert.eq(inB.slowMul, 0, '진화: 반경 안 = 완전 정지(×0)');
+    assert.near(inB.slowMul, eff.evoSlowMul, 1e-9, `진화: 반경 안 = ×${eff.evoSlowMul}`);
+    assert.gt(inB.slowMul, 0, '★ 0 이 아니다 — 탄은 여전히 «온다»(무적 장치 금지)');
     assert.eq(en.hp, h0, '진화도 무피해(순수 제어)');
-    // base 는 슬로우(0.5)일 뿐 정지 아님 — 대조
+    // base 보다는 강해야 «진화»다 — 대조
     const w2 = mkWorld();
     const su = setup(w2, 'aura', 1, false);
     const b2 = spawnEnemyBullet(w2, 'pelletS', w2.player.x, w2.player.y - 1, 0, 100);
     aura.update(w2, su.s, su.eff, dt);
-    assert.near(b2.slowMul, 0.5, 1e-9, 'base 는 정지가 아니라 슬로우');
+    assert.lt(inB.slowMul, b2.slowMul, `진화가 base(×${b2.slowMul}) 보다 강한 감속이다`);
   });
 
   test('진화 격리(싱귤래리티): evolved 만 chaff 를 끌어당긴다', () => {
