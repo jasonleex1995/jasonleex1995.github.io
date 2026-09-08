@@ -65,8 +65,8 @@
   },
 
   "difficulty": {
-    "normal":   { "speed": 1.0,  "scoreMul": 1.0, "hpMul": 0.62 },
-    "hard":     { "speed": 1.1,  "scoreMul": 1.2, "hpMul": 0.78 },
+    "normal":   { "speed": 1.0,  "scoreMul": 1.0, "hpMul": 0.59 },
+    "hard":     { "speed": 1.1,  "scoreMul": 1.2, "hpMul": 0.76 },
     "hell":     { "speed": 1.25, "scoreMul": 1.5, "hpMul": 1.0 },
     "stunMinDifficulty": "hard"
   },
