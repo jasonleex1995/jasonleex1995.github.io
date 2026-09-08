@@ -580,7 +580,7 @@ suite('step · 유령몹 (§8.9 v1.5)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────
 suite('step · §2.6 ㊼ XP 구슬은 내려온다 (사거리 긴 무기가 자기 보상을 못 받던 회귀)', () => {
-  test('구슬은 xpDriftPxSec 로 내려오고 아래 끝에서 멈춘다 — 잃지 않는다', () => {
+  test('구슬은 xpDriftPxSec 로 내려오고, 아래 끝을 뚫지 않는다', () => {
     const w = mk(); silence(w);
     const rp = w.data.rules.player;
     assert.gt(rp.xpDriftPxSec, 0, '낙하 속도가 저작돼 있다');
@@ -590,9 +590,34 @@ suite('step · §2.6 ㊼ XP 구슬은 내려온다 (사거리 긴 무기가 자�
     for (let i = 0; i < 60; i += 1) step(w, makeInput(), TICK_DT);
     assert.gt(q.y, y0, `내려왔다 (${y0} → ${q.y.toFixed(0)})`);
     assert.near(q.y - y0, rp.xpDriftPxSec, 2, '한 게임초에 xpDriftPxSec 만큼');
+    for (let i = 0; i < 60 * 3; i += 1) step(w, makeInput(), TICK_DT);
+    assert.ok(q.y <= w.bounds.maxY + 1, `아래 끝을 뚫고 내려가지 않는다 (y ${q.y.toFixed(0)} ≤ ${w.bounds.maxY})`);
+  });
+
+  // ★ v1.10 ㊿-l — 바닥에 닿은 구슬은 «가로로» 플레이어에게 흘러온다.
+  //   내려오기만 하면 바닥선에 줄지어 쌓인다: 실측(포지션 5 위기 32초) 회수율 43~61%, 살아 있는 구슬의 66~72% 가 바닥에 붙어 있었다.
+  test('바닥에 닿으면 플레이어 쪽으로 흘러와 결국 회수된다 (바닥에 줄지어 쌓이지 않는다)', () => {
+    const w = mk(); silence(w);
+    const rp = w.data.rules.player;
+    const before = w.player.xp;
+    const far = w.player.x + rp.magnetRadius * 3;
+    const q = spawnPickup(w, 'xp', 3, far, 60);
+    const x0 = q.x;
+    for (let i = 0; i < 60 * 8; i += 1) step(w, makeInput(), TICK_DT);
+    assert.ok(Math.abs(q.alive ? q.x - w.player.x : 0) < Math.abs(x0 - w.player.x), '플레이어 쪽으로 가까워졌다');
     for (let i = 0; i < 60 * 20; i += 1) step(w, makeInput(), TICK_DT);
-    assert.ok(q.alive, '아래로 사라지지 않는다');
-    assert.near(q.y, w.bounds.maxY, 1, '플레이어가 설 수 있는 아래 끝에서 멈춘다');
+    assert.eq(w.pickups.live, 0, '결국 회수됐다');
+    assert.gt(w.player.xp, before, 'XP 가 들어왔다');
+  });
+
+  test('가로 흐름은 즉시가 아니다 — 자리잡기가 여전히 의미를 갖는다', () => {
+    const w = mk(); silence(w);
+    const rp = w.data.rules.player;
+    const far = w.player.x + rp.magnetRadius * 3;
+    const q = spawnPickup(w, 'xp', 3, far, w.bounds.maxY);      // 이미 바닥
+    const x0 = q.x;
+    step(w, makeInput(), TICK_DT);
+    assert.near(Math.abs(q.x - x0), rp.xpDriftPxSec * TICK_DT, 1e-6, '한 틱에 xpDriftPxSec × dt 만큼만');
   });
 
   test('맨 위에서 죽어도 결국 먹을 수 있다 — 같은 세로줄이면 자석에 걸린다 (실측 회귀: 만렙 빔 478처치 XP 0)', () => {

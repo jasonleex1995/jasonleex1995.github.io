@@ -751,15 +751,26 @@ function pickups(world, dt) {
   // §2.6(v1.10 ㊼) 구슬은 «내려온다» — 무대는 위에서 아래로 흐르는데 구슬만 제자리에 서 있으면, **사거리가 긴 무기가
   //   자기 보상을 못 받는다**: 빔(사거리 630)이 스폰 라인에서 잡으면 구슬이 화면 맨 위에 쌓이고 플레이어는 아래에 있다
   //   (실측 2026-09-06: 만렙 빔 25초 위기 478처치 → 획득 XP **0**, 구슬 중앙값 y 56 vs 플레이어 664. 벌컨도 165처치 0).
-  //   「죽였는데 못 먹는 것은 규칙이 아니라 사고다」(§2.6 v1.7) 의 같은 문제다 → 구슬은 xpDriftPxSec 로 내려오고
-  //   플레이어가 설 수 있는 아래 끝(bounds.maxY)에서 멈춘다. 잃지 않는다 · 가로로 움직여 «주우러 가는» 조작은 남는다.
+  //   「죽였는데 못 먹는 것은 규칙이 아니라 사고다」(§2.6 v1.7) 의 같은 문제다 → 구슬은 xpDriftPxSec 로 내려온다.
+  // ★ v1.10 ㊿-l — 내려오기만 하면 **바닥에 가로로 줄지어 쌓인다**. 사용자(2026-09-08): 「위기 구간에서 계속
+  //   경험치를 안 뱉는다」. 실측(포지션 5 · 위기 32초): 드랍은 정상(3,545~4,410)인데 **회수는 43~61%** 였고
+  //   살아 있는 구슬의 **66~72% 가 바닥선(bounds.maxY)에 붙어** 있었다(동시 최대 291개). 위기는 새떼를 피하느라
+  //   가로로 훑을 여유가 없는 구간이라 「주우러 가는 조작」이 성립하지 않는다 — 초기 구간 회수율은 99~100% 다.
+  //   → 바닥에 닿은 구슬은 **같은 속도로 플레이어 쪽으로 가로로 흐른다**. 즉시 오지 않으므로(아레나 반폭 290px ≈ 3.2초)
+  //     자리잡기는 여전히 의미가 있고, 다만 «영영 못 먹는 줄»이 생기지 않는다. 새 키 0(xpDriftPxSec 재사용).
   const drift = rp.xpDriftPxSec * dt;
   const floorY = world.bounds.maxY;
 
   for (let i = 0; i < items.length; i += 1) {
     const q = items[i];
     if (!q.alive) continue;
-    if (q.kind === 'xp' && !q.magnet && q.y < floorY) q.y = Math.min(floorY, q.y + drift);
+    if (q.kind === 'xp' && !q.magnet) {
+      if (q.y < floorY) q.y = Math.min(floorY, q.y + drift);
+      else {
+        const toX = p.x - q.x;                       // 바닥에 닿은 뒤에는 가로로 흘러온다
+        if (toX !== 0) q.x += (toX > 0 ? 1 : -1) * Math.min(drift, Math.abs(toX));
+      }
+    }
     const dx = p.x - q.x;
     const dy = p.y - q.y;
     const d2 = dx * dx + dy * dy;
