@@ -68,7 +68,7 @@
                   {"dmg":40}, {"bodyCount":5,"dmg":61,"hitCooldownSec":0.41}, {"dmg":113},
                   {"dmg":225,"bodyCount":6} ],
       "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다",
-                     "params": { "evoBulletClearCooldownSec":1.0 },
+                     "params": { "evoGuardBodies":1 },
                      "requiresPassive": { "id": "orbitext", "level":3 } }
     },
     {
@@ -113,16 +113,16 @@
     {
       "id": "drone", "slotClass": "utility", "class": "orbital", "family": "drone", "name": "옵션", "desc": "위성이 따라다니며 쏜다",
       "elementStampMode": "spawn",
-      "base": { "dmg":4, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
+      "base": { "dmg":3, "projSpeed":340, "projRadius":4, "lifetimeSec":1.20, "pierce":0,
                 "hitCooldownSec":0.0, "targetMode":"nearest",
                 "droneCount":1, "anchorOffsets":[[0,-38]],
                 "droneFireSec":0.55, "droneRangePx":260 },
-      "levels": [ {}, {"dmg":5}, {"droneCount":2,"anchorOffsets":[[-34,-22],[34,-22]]},
-                  {"dmg":8,"droneFireSec":0.5}, {"dmg":13}, {"droneCount":3,"anchorOffsets":[[-40,-18],[40,-18],[0,-52]],"dmg":14},
-                  {"dmg":17,"pierce":1}, {"droneCount":4,"dmg":22,"droneFireSec":0.46,"anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]}, {"dmg":26},
-                  {"dmg":28,"droneFireSec":0.42} ],
+      "levels": [ {}, {"dmg":4}, {"droneCount":2,"anchorOffsets":[[-34,-22],[34,-22]]},
+                  {"dmg":6,"droneFireSec":0.5}, {"dmg":10}, {"droneCount":3,"anchorOffsets":[[-40,-18],[40,-18],[0,-52]],"dmg":11},
+                  {"dmg":14,"pierce":1}, {"droneCount":4,"dmg":18,"droneFireSec":0.46,"anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]}, {"dmg":21},
+                  {"dmg":22,"droneFireSec":0.42} ],
       "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라와 궤적을 넓게 쓴다",
-                     "params": { "evoTrailDelaySec": 2.5 },
+                     "params": { "evoTrailDelaySec":1.2, "evoTrailAnchor":[0, 44] },
                      "requiresPassive": { "id": "orbitext", "level":3 } }
     },
     {

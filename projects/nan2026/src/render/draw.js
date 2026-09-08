@@ -744,6 +744,21 @@ function drawPlayerBullets(ctx, world, pal, interp, alpha) {
       ctx.fill();
     }
   }
+  // ★ v1.10 ㊿-n — 이지스의 «방패 공»(orbit.place 가 s0=1 로 표시)에 링을 두른다.
+  //   규칙이 「어느 공이 탄을 지우는가」인데 화면이 그걸 말하지 않으면 플레이어는 규칙을 못 배운다
+  //   (사용자 2026-09-08: 「어떤 게 탄을 지운다는 건지 알기가 어려워」). 링 = «이 공이 방패다».
+  let guard = false;
+  ctx.beginPath();
+  for (let i = 0; i < items.length; i += 1) {
+    const b = items[i];
+    if (!b.alive || b.s0 !== 1) continue;
+    const gx = lerpX(interp, interp.playerBullets, b, alpha);
+    const gy = lerpY(interp, interp.playerBullets, b, alpha);
+    ctx.moveTo(gx + b.radius + 3, gy);
+    ctx.arc(gx, gy, b.radius + 3, 0, Math.PI * 2);
+    guard = true;
+  }
+  if (guard) { ctx.lineWidth = 2; ctx.strokeStyle = pal.hud.accent; ctx.stroke(); }
   ctx.restore();
 }
 

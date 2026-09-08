@@ -684,9 +684,9 @@ const PARAM_KO = {
   healCooldownSec: '회수 쿨다운', slowMul: '탄 감속',
   // 진화 파라미터 — 불리언은 «켜짐/꺼짐»이라 수치가 없다. desc 가 이미 그것을 말하므로 표기에서 뺀다.
   evoRampSec: '가속까지', evoRampFireRateMul: '가속 후 발사', evoBlastRadius: '폭발 반경',
-  evoSecondaryDmgMul: '2차 피해', evoBulletClearCooldownSec: '탄 소거 쿨다운',
+  evoSecondaryDmgMul: '2차 피해', evoGuardBodies: '방패 공 수',
   evoPullForce: '흡인력', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
-  evoTrailDelaySec: '잔상 지연',
+  evoTrailDelaySec: '잔상 지연', evoTrailAnchor: '잔상 자리',
   evoRing2Radius: '2단 링', evoActionSlowSec: '행동 감속',
 };
 

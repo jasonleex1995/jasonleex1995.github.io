@@ -3,7 +3,7 @@
  *
  * 폐쇄된 파라미터 계약 (§9.5 12행 표):
  *   base            : dmg hitCooldownSec projRadius orbitRadius angularSpeedDegSec bodyCount
- *   evolution.params: evoBulletClearCooldownSec
+ *   evolution.params: evoGuardBodies
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
  *   rateKey "hitCooldownSec" (H1) · countKey null(㊲ — 구체 수는 레벨 표) · pierceApplies false
@@ -16,7 +16,7 @@
  *   - pierceLeft = -1 (무제한) → 한 대상을 때려도 소멸하지 않는다.
  *   - stampMode 는 weaponDefs 가 'live' 를 주므로 collide 가 **적용 순간의 스탠스**를 재평가한다(§4.4).
  *
- * 슬롯 스크래치: a0 = 공전 각(rad) / a1 = 진화(이지스) 탄 소거 쿨다운
+ * 슬롯 스크래치: a0 = 공전 각(rad)   ·   탄 스크래치: s0 = 1 이면 «방패 공»(이지스)
  */
 
 import { spawnPlayerBullet } from '../state.js';
@@ -50,10 +50,13 @@ function place(world, slot, eff) {
   const p = world.player;
   const it = world.playerBullets.items;
   const n = eff.bodyCount;
+  // ㊿-n — 앞선 evoGuardBodies 개가 «방패 공»이다. 비진화면 0개. 렌더도 이 표시(s0)를 읽는다.
+  const guard = slot.evolved ? eff.evoGuardBodies : 0;
   let k = 0;
   for (let i = 0; i < it.length; i += 1) {
     const b = it[i];
     if (!b.alive || b.family !== slot.family) continue;   // §5.3 family-키로만 식별
+    b.s0 = k < guard ? 1 : 0;
     const a = slot.a0 + (k / n) * TAU;
     b.x = p.x + Math.cos(a) * eff.orbitRadius;
     b.y = p.y + Math.sin(a) * eff.orbitRadius;
@@ -68,13 +71,21 @@ function place(world, slot, eff) {
   }
 }
 
-/** 진화(이지스) — 공전체에 닿은 적 탄을 지운다. 쿨다운이 «방패의 재사용 대기»다. */
-function aegis(world, slot, eff) {
+/**
+ * 진화(이지스) — **지정된 «방패 공»에 닿은 적 탄을 지운다. 매 틱, 쿨다운 없음.**
+ *   ★ v1.10 ㊿-n 사용자(2026-09-08): 「이지스가 탄을 지운다는 게 쿨타임이 있는 걸까? 어떤 게 탄을 지우는지
+ *     알기가 어려워. 차라리 공 5개 중에서 1개가 탄을 지우는 역할을 한다든지 하는 게 좋지 않을까.」
+ *   ㊿-n 이전: 1초 쿨다운으로 «전체 공»이 한 번씩 훑었다 → 어느 공이, 언제 지우는지 화면이 말하지 않았고
+ *     탄이 공 위에 최대 1초 얹혀 있다 사라졌다(실측 DPS 기여 0%: 진화해도 화력이 그대로였다).
+ *   ㊿-n 이후: 앞선 `evoGuardBodies` 개만 방패이고 **접촉 즉시** 지운다. 렌더가 그 공에 링을 둘러 «이 공이 방패»라고 말한다.
+ *     규칙이 눈에 보이므로 「방패 공을 탄 쪽으로 돌려 놓는다」는 조작이 처음으로 성립한다.
+ */
+function aegis(world, slot) {
   const it = world.playerBullets.items;
   const eb = world.enemyBullets.items;
   for (let i = 0; i < it.length; i += 1) {
     const b = it[i];
-    if (!b.alive || b.family !== slot.family) continue;
+    if (!b.alive || b.family !== slot.family || b.s0 !== 1) continue;   // 방패 공만
     for (let j = 0; j < eb.length; j += 1) {
       const g = eb[j];
       if (!g.alive) continue;
@@ -94,10 +105,7 @@ export function update(world, slot, eff, dt) {
   place(world, slot, eff);
 
   // ★ slot.evolved 분기 정확히 1개 (§9.5)
-  if (slot.evolved) {
-    slot.a1 -= dt;
-    if (slot.a1 <= 0) { slot.a1 = eff.evoBulletClearCooldownSec; aegis(world, slot, eff); }
-  }
+  if (slot.evolved) aegis(world, slot);
 }
 
 export default { update };

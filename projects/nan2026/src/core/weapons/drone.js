@@ -4,7 +4,7 @@
  * 폐쇄된 파라미터 계약 (§9.5 12행 표):
  *   base            : dmg projSpeed projRadius lifetimeSec pierce hitCooldownSec targetMode
  *                     droneCount anchorOffsets droneFireSec droneRangePx
- *   evolution.params: evoTrailDelaySec
+ *   evolution.params: evoTrailDelaySec evoTrailAnchor
  *
  * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
  *   rateKey "droneFireSec" (H1) · countKey **null** — ★ anchorOffsets 가 droneCount 만큼만 인쇄돼 있어
@@ -50,11 +50,11 @@ function liveDrones(world, slot) {
 /** droneCount 만큼 위성을 유지한다. ox/oy 는 update 가 매 틱 현재 eff 로 다시 각인한다(레벨업 반영). */
 function ensureDrones(world, slot, eff) {
   let have = liveDrones(world, slot);
-  const want = eff.droneCount;
+  const want = eff.droneCount + (slot.evolved ? 1 : 0);     // ㊿-n 진화 = 잔상 한 기 추가
   while (have < want) {
     const d = world.drones.alloc();
     if (d === null) { world.capHits.drone += 1; return; }   // §12.1 초과 = 이번 틱 포기
-    const off = eff.anchorOffsets[have];
+    const off = have < eff.droneCount ? eff.anchorOffsets[have] : eff.evoTrailAnchor;
     d.family = slot.family;
     d.ox = off[0]; d.oy = off[1];
     d.x = world.player.x + d.ox;
@@ -72,10 +72,13 @@ export function update(world, slot, eff, dt) {
   }
   ensureDrones(world, slot, eff);
 
-  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 잔상 편대: 고정 앵커 대신 **플레이어의 과거 위치**를 따른다.
-  //   이력 버퍼 없이 evoTrailDelaySec 를 «따라붙는 부드러움»으로 환원한다(지수 추종) — 결정적·0 alloc.
+  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 잔상 편대.
+  //   ㊿-n 사용자(2026-09-08): 「잔상 편대도 써봤는데 이건 무슨 데미지를 주는 거야? 어떤 데미지를 주는지 아예 안 보여서.」
+  //   ㊿-n 이전: 진화가 **위성 전원**을 늦게 따라오게 했다 → 편대가 늘어지며 사격선을 놓쳐 실측 화력이
+  //     **−7%**(진화가 손해!)였고, 화면에는 「늦게 따라온다」밖에 안 보였다.
+  //   ㊿-n 이후: **위성이 한 기 늘고(잔상), 늘어난 그 한 기만** 뒤(evoTrailAnchor)에서 늦게 따라온다.
+  //     기존 편대는 제 자리를 지키므로 손해가 사라지고, 늘어난 한 기가 그대로 화력이다 — 「위성이 하나 더 생겼다」는 눈에 보인다.
   const trail = slot.evolved;
-  const follow = trail ? dt / (eff.evoTrailDelaySec + dt) : 1;
 
   const p = world.player;
   const it = world.drones.items;
@@ -85,15 +88,19 @@ export function update(world, slot, eff, dt) {
     if (!d.alive || d.family !== slot.family) continue;
 
     // ★ 앵커를 매 틱 현재 eff 로 다시 각인 — 레벨업이 droneCount·anchorOffsets 를 바꾸면 기존 위성도
-    //   새 편대 자리로 옮긴다(스폰 때 굳지 않게). k = 이 family 위성의 순번(0..droneCount-1).
-    const off = eff.anchorOffsets[k];
+    //   새 편대 자리로 옮긴다(스폰 때 굳지 않게). k = 이 family 위성의 순번(0..droneCount).
+    const isTrail = trail && k === eff.droneCount;                 // ㊿-n — 마지막 한 기만 «잔상»
+    const off = isTrail ? eff.evoTrailAnchor : eff.anchorOffsets[k];
     d.ox = off[0]; d.oy = off[1];
     k += 1;
 
     const tx = p.x + d.ox;
     const ty = p.y + d.oy;
-    if (trail) { d.x += (tx - d.x) * follow; d.y += (ty - d.y) * follow; }
-    else { d.x = tx; d.y = ty; }
+    if (isTrail) {
+      // 이력 버퍼 없이 evoTrailDelaySec 를 «따라붙는 부드러움»으로 환원한다(지수 추종) — 결정적·0 alloc.
+      const follow = dt / (eff.evoTrailDelaySec + dt);
+      d.x += (tx - d.x) * follow; d.y += (ty - d.y) * follow;
+    } else { d.x = tx; d.y = ty; }
 
     d.fireT -= dt;
     if (d.fireT > 0) continue;

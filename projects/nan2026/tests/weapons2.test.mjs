@@ -88,6 +88,46 @@ function tickWeapon(world, family, slot, n) {
 
 // ══════════════════════════════════════════════════════════════════════
 suite('weapons/orbit — 공전체 (§9.5)', () => {
+
+  // ★ v1.10 ㊿-n — 이지스는 «지정된 방패 공»이 «접촉 즉시» 탄을 지운다(쿨다운 없음).
+  //   이전에는 1초 쿨다운으로 전체 공이 한 번씩 훑어, 어느 공이 언제 지우는지 화면이 말하지 못했다
+  //   (사용자 2026-09-08: 「어떤 게 탄을 지운다는 건지 알기가 어려워」).
+  test('진화하면 앞선 evoGuardBodies 개가 «방패 공»으로 표시된다 (렌더가 읽는 s0)', () => {
+    const w = mkWorld();
+    const [su] = setup(w, 'orbit', 10, false);
+    tickWeapon(w, 'orbit', su, 1);
+    const plain = w.playerBullets.items.filter((b) => b.alive && b.family === 'orbit');
+    assert.gt(plain.length, 1, '공전체가 여러 개다');
+    assert.eq(plain.filter((b) => b.s0 === 1).length, 0, '비진화면 방패 공 0개');
+
+    const w2 = mkWorld();
+    const [se] = setup(w2, 'orbit', 10, true);
+    tickWeapon(w2, 'orbit', se, 1);
+    const bodies = w2.playerBullets.items.filter((b) => b.alive && b.family === 'orbit');
+    const guards = bodies.filter((b) => b.s0 === 1).length;
+    const def = loadData().weapons.weapons.find((x) => x.family === 'orbit');
+    assert.eq(guards, def.evolution.params.evoGuardBodies, `방패 공 = evoGuardBodies (${guards})`);
+    assert.lt(guards, bodies.length, '전부가 방패는 아니다 — 어느 것이 방패인지 구분이 있다');
+  });
+
+  test('방패 공에 닿은 적 탄은 «그 틱에» 사라지고, 보통 공은 안 지운다', () => {
+    const w = mkWorld();
+    const [s] = setup(w, 'orbit', 10, true);
+    tickWeapon(w, 'orbit', s, 1);
+    const bodies = w.playerBullets.items.filter((b) => b.alive && b.family === 'orbit');
+    const guard = bodies.find((b) => b.s0 === 1);
+    const plain = bodies.find((b) => b.s0 !== 1);
+    assert.ne(guard, undefined, '방패 공이 있다');
+    assert.ne(plain, undefined, '보통 공도 있다');
+    const bid = loadData().bullets.bullets[0].id;
+    const onGuard = spawnEnemyBullet(w, bid, guard.x, guard.y, 0, 0);
+    const onPlain = spawnEnemyBullet(w, bid, plain.x, plain.y, 0, 0);
+    assert.ok(onGuard.alive && onPlain.alive, '둘 다 살아서 시작');
+    tickWeapon(w, 'orbit', s, 1);
+    assert.eq(onGuard.alive, false, '방패 공 위의 탄은 즉시 지워진다 (쿨다운 없음)');
+    assert.eq(onPlain.alive, true, '보통 공 위의 탄은 안 지워진다');
+  });
+
   test('bodyCount 개가 orbitRadius 원주에 균등 배치된다', () => {
     const w = mkWorld();
     const [s, eff] = setup(w, 'orbit', 1, false);
@@ -245,16 +285,32 @@ suite('weapons/drone — 옵션 (§9.5)', () => {
     assert.gt(last.vx, 0, '사거리 안 — 적 쪽(오른쪽)으로 조준');
   });
 
-  test('진화(잔상 편대)는 앵커를 지연 추종한다', () => {
+  // ★ v1.10 ㊿-n — 진화 = 위성이 «한 기 늘고», 늘어난 그 한 기만 뒤에서 늦게 따라온다.
+  //   이전에는 진화가 위성 «전원»을 늦추어 실측 화력이 −7%(진화가 손해!)였고 화면엔 아무 변화도 안 보였다.
+  test('진화(잔상 편대)는 위성을 한 기 늘린다', () => {
+    const w = mkWorld();
+    const [su] = setup(w, 'drone', 8, false);
+    tickWeapon(w, 'drone', su, 1);
+    const plain = liveDrones(w).length;
+    const w2 = mkWorld();
+    const [se] = setup(w2, 'drone', 8, true);
+    tickWeapon(w2, 'drone', se, 1);
+    assert.eq(liveDrones(w2).length, plain + 1, `진화하면 한 기 더 (${plain} → ${plain + 1})`);
+  });
+
+  test('기존 편대는 제 자리를 지키고, 늘어난 «잔상» 한 기만 지연 추종한다', () => {
     const w = mkWorld();
     const [s] = setup(w, 'drone', 8, true);
     tickWeapon(w, 'drone', s, 1);
-    const d = liveDrones(w)[0];
-    const before = { x: d.x, y: d.y };
+    const ds = liveDrones(w);
+    const first = ds[0];
+    const last = ds[ds.length - 1];
+    const b0 = { x: first.x }; const bL = { x: last.x };
     w.player.x += 120;                                             // 급이동
     tickWeapon(w, 'drone', s, 1);
-    const moved = Math.abs(d.x - before.x);
-    assert.gt(moved, 0, '따라오긴 한다');
-    assert.lt(moved, 120, '한 틱에 다 따라잡지 않는다 (지연)');
+    assert.near(Math.abs(first.x - b0.x), 120, 1e-6, '앞 위성은 즉시 따라붙는다 (편대가 안 늘어진다)');
+    const moved = Math.abs(last.x - bL.x);
+    assert.gt(moved, 0, '잔상도 따라오긴 한다');
+    assert.lt(moved, 120, '잔상은 한 틱에 다 따라잡지 않는다 (지연)');
   });
 });
