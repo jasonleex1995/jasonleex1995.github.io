@@ -194,7 +194,7 @@ suite('render · §11.1 ㊴ 카드 줄바꿈 — 어떤 문장도 카드를 넘�
     for (const p of d.passives.passives) strings.push(p.desc, p.name);
     for (const w of d.weapons.weapons) { strings.push(w.desc, w.name, w.evolution.desc, w.evolution.name); }
     for (const t of d.traits.traits) strings.push(t.desc, t.name);
-    for (const st of d.tutorial.steps) strings.push(st.body, st.hint);
+    for (const st of d.tutorial.steps) strings.push(...st.lines);   // ㊿-q 검토: 필드는 title·lines 다(body·hint 는 없어 undefined 를 검사하고 있었다). 제목은 줄바꿈 없이 그려지므로(hud.drawTutorial) 줄만 본다
     let n = 0;
     for (const s of strings) {
       for (const l of wrapLines(measure, s, maxW)) {
@@ -301,5 +301,93 @@ suite('render/무기 행 배치 §9.5 (v1.10 ㊿-d)', () => {
     const lay = weaponRowLayout(318, 32, 28, 55, [], (t) => mm(t, 14));
     assert.eq(lay.hint, '', '힌트 없음');
     assert.eq(lay.showChip, true, '칩은 그린다');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// ㊿-q 회귀 — (1) 이지스 방패 링은 «오빗의 공»에만 (2) 진화 카드에 좌표 배열 파라미터가 숫자 줄로 찍히지 않는다
+// ─────────────────────────────────────────────────────────────────────────
+/** 링 획(선폭 2 · accent)과 fillText 문자열만 세는 기록 컨텍스트. 칠은 안 한다. */
+function recorderCtx(accent) {
+  const state = { globalAlpha: 1, globalCompositeOperation: 'source-over', fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, font: '10px sans-serif' };
+  const stack = [];
+  const rec = { ringStrokes: 0, texts: [] };
+  const target = {
+    canvas: { width: 1280, height: 800 },
+    save: () => { stack.push({ ...state }); },
+    restore: () => { if (stack.length) Object.assign(state, stack.pop()); },
+    measureText: (t) => ({ width: String(t).length * 8 }),
+    createLinearGradient: () => ({ addColorStop() {} }),
+    createRadialGradient: () => ({ addColorStop() {} }),
+    stroke: () => { if (state.lineWidth === 2 && state.strokeStyle === accent) rec.ringStrokes += 1; },
+    fillText: (t) => { rec.texts.push(String(t)); },
+  };
+  const ctx = new Proxy(target, {
+    get(t, k) { if (k in t) return t[k]; if (k in state) return state[k]; return () => {}; },
+    set(t, k, v) { state[k] = v; return true; },
+  });
+  return { ctx, rec };
+}
+
+suite('render — ㊿-q 회귀 (방패 링 · 진화 카드)', () => {
+  test('이지스 방패 링은 오빗의 공에만 그린다 — s0 를 다른 뜻으로 쓰는 무기(핀볼·리턴·미사일·시커)의 탄에는 안 붙는다', () => {
+    const d = loadData();
+    const pal = resolvePalette(d.rules);
+    const mk = (ids) => {
+      const w = createWorld({ data: d, seed: 11, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: ids[0] });
+      initRun(w);
+      for (const id of ids.slice(1)) giveWeapon(w, id);
+      for (let i = 0; i < w.slots.length; i += 1) {
+        if (w.slots[i].weaponId === null) continue;
+        for (let k = 0; k < 6; k += 1) levelUpWeapon(w, i);
+      }
+      w.player.hp = 1e9; w.player.hpMax = 1e9;
+      return w;
+    };
+    const run = (w, frames) => {
+      const fx = makeFx(w);
+      const interp = makeInterp(w);
+      const { ctx, rec } = recorderCtx(pal.hud.accent);
+      let ringFrames = 0;
+      let foreign = 0;
+      for (let i = 0; i < frames; i += 1) {
+        captureInterp(interp, w);
+        step(w, makeInput(), TICK_DT);
+        updateFx(fx, w, TICK_DT);
+        for (const b of w.playerBullets.items) if (b.alive && b.family !== 'orbit' && b.s0 === 1) foreign += 1;
+        const before = rec.ringStrokes;
+        drawWorld(ctx, w, pal, fx, interp, 1);
+        if (rec.ringStrokes > before) ringFrames += 1;
+      }
+      return { ringFrames, foreign };
+    };
+    const none = run(mk(['pinball', 'boomerang', 'missile', 'seeker']), 120);
+    assert.gt(none.foreign, 0, '전제: 다른 무기의 탄이 실제로 s0 = 1 을 갖는다 (vacuous 아님)');
+    assert.eq(none.ringFrames, 0, '오빗이 없으면 방패 링이 한 번도 안 그려진다');
+    const wo = mk(['forward']);
+    const s = wo.slots[giveWeapon(wo, 'orbit')];
+    s.level = 8; s.evolved = true; s.effDirty = true; recomputeEff(wo, s);
+    assert.gt(run(wo, 30).ringFrames, 0, '진화 오빗(이지스)에는 링이 그려진다');
+  });
+
+  test('진화 카드는 좌표 배열 파라미터를 숫자 줄로 찍지 않는다 (「잔상 자리 0,44」 회귀)', () => {
+    const d = loadData();
+    const pal = resolvePalette(d.rules);
+    const w = createWorld({ data: d, seed: 3, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w);
+    const withArrays = d.weapons.weapons.filter((x) => Object.values(x.evolution.params).some(Array.isArray));
+    assert.gt(withArrays.length, 0, '전제: 배열 파라미터를 가진 진화가 있다');
+    for (const def of withArrays) {
+      const si = giveWeapon(w, def.id);
+      const draft = buildDraft(w);
+      draft.cards = [{ category: 'weaponLevel', key: `weaponLevel:${def.id}`, slot: si, weaponId: def.id, from: 7, to: 8, isEvolution: true, weight: 1 }];
+      const { ctx, rec } = recorderCtx(pal.hud.accent);
+      drawDraft(ctx, w, pal, draft, 0);
+      assert.ok(rec.texts.includes(def.evolution.name), `${def.id}: 진화 카드가 실제로 그려졌다`);
+      for (const [k, v] of Object.entries(def.evolution.params)) {
+        if (!Array.isArray(v)) continue;
+        assert.eq(rec.texts.some((t) => t.includes(String(v))), false, `${def.id}.${k}: 「${String(v)}」가 카드에 찍히지 않는다`);
+      }
+    }
   });
 });

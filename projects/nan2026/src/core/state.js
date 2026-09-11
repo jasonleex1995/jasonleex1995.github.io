@@ -812,6 +812,49 @@ export function difficultyHpMul(world) {
   return d.hpMul;
 }
 
+/**
+ * §3.2 · §11.3(v1.10 ㊿-q) — 난이도 공격력 배율. **적이 플레이어에게 주는 피해는 전부 이 문을 지난다** —
+ *   탄·몸통·장판·빔 네 피해원이 step.applyHit 한 곳으로 모이고, 거기서 raw 에 이 배율이 곱해진다(S60 ⑧).
+ *   ★ 기준선은 hpMul 과 «반대쪽» 끝 = 가장 쉬운 난이도다(normal.enemyDmgMul == 1, S60 ②').
+ *     저작 피해(bullets[].dmg · contactDmg · 장판 dmg)는 §2.1 관대함 산술(「최대 단발 22 → 죽으려면 최소 5초」)이 서는 자리이고,
+ *     그 보증은 노멀의 것이다(§6.2 「무-트위치 기둥은 Normal에서 보장된다」). 어려운 난이도는 그 위로 더 아프다.
+ *   ★ 스폰(spawnEnemyBullet·spawnZone·spawnBeam)에 곱하지 않는다 — 몸통 피해가 빠지고, §8.18 의 «1 로 클램프»와 섞여
+ *     어느 배율이 어디서 잘렸는지 아무도 못 읽게 된다.
+ */
+export function difficultyEnemyDmgMul(world) {
+  const d = world.data.meta.difficulty[world.difficultyId];
+  if (d === undefined) throw new Error(`state: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
+  return d.enemyDmgMul;
+}
+
+/** 난이도 표에서 id 의 순번 — 표의 키 순서가 곧 난이도 순서다(normal → hard → hell, S60 ①). 스칼라 키는 난이도가 아니다. 없으면 -1. */
+function difficultyRank(md, id) {
+  const keys = Object.keys(md);
+  let r = 0;
+  for (let i = 0; i < keys.length; i += 1) {
+    const v = md[keys[i]];
+    if (v === null || typeof v !== 'object') continue;   // stunMinDifficulty
+    if (keys[i] === id) return r;
+    r += 1;
+  }
+  return -1;
+}
+
+/**
+ * §2.7 — 이 난이도에서 스턴 탄이 나오는가(난이도 ≥ stunMinDifficulty). 미달이면 스턴 탄을 쏘는 이미터는 «발사 시점»에
+ *   침묵한다(emitters.stunSilenced → fireVolley) — 치환 없음 · 텔레그래프 없음 · rng 무소비.
+ *   ★ v1.10 ㊿-q 전까지 stunMinDifficulty 를 읽는 코드가 0 이었다 — 값 검사(S13 · S60 ⑥)만 통과하고 집행이 없어서
+ *     노멀에서도 서리왕관(pylon)·늪(sac) 보스의 페이즈 3 이 스턴 탄을 쐈다(S60 ⑨ 가 이 자리를 지킨다).
+ */
+export function difficultyAllowsStun(world) {
+  const md = world.data.meta.difficulty;
+  const at = difficultyRank(md, world.difficultyId);
+  if (at < 0) throw new Error(`state: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
+  const min = difficultyRank(md, md.stunMinDifficulty);
+  if (min < 0) throw new Error(`state: stunMinDifficulty "${md.stunMinDifficulty}" 가 난이도 표에 없다 (§2.7)`);
+  return at >= min;
+}
+
 export function spawnEnemy(world, archetypeId, element, x, y, hp, elite, ghost) {
   const e = world.enemies.alloc();
   if (e === null) { world.capHits.enemy += 1; return null; }

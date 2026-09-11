@@ -40,7 +40,7 @@
                   {"turnRateDegSec":320}, {"count":3,"dmg":4}, {"cooldownSec":0.75,"dmg":5},
                   {"pierce":1}, {"count":4,"dmg":7}, {"dmg":10},
                   {"dmg":16,"count":5} ],
-      "evolution": { "name":"스웜", "desc":"탄마다 다른 적을 노린다",
+      "evolution": { "name":"스웜", "desc":"쏠 때 탄마다 다른 적을 노리고, 표적이 죽으면 바로 갈아탄다",
                      "params": { "evoDistinctTargets":true, "evoRetargetOnKill":true },
                      "requiresPassive": { "id": "coating", "level":3 } }
     },
@@ -67,19 +67,19 @@
                   {"angularSpeedDegSec":120}, {"bodyCount":4}, {"dmg":26,"hitCooldownSec":0.45},
                   {"dmg":40}, {"bodyCount":5,"dmg":61,"hitCooldownSec":0.41}, {"dmg":113},
                   {"dmg":225,"bodyCount":6} ],
-      "evolution": { "name":"이지스", "desc":"공에 닿은 적 탄이 지워진다",
+      "evolution": { "name":"이지스", "desc":"링을 두른 공 하나가 닿는 적 탄을 지운다",
                      "params": { "evoGuardBodies":1 },
                      "requiresPassive": { "id": "orbitext", "level":3 } }
     },
     {
-      "id": "aura", "slotClass": "utility", "class": "area", "family": "aura", "name": "펄스필드", "desc": "주위의 적 탄을 느리게 만든다",
+      "id": "aura", "slotClass": "utility", "class": "area", "family": "aura", "name": "펄스필드", "desc": "주위의 적 탄과 잡몹을 느리게 만든다",
       "elementStampMode": "live",
       "base": { "radius":70, "slowMul":0.950 },
       "levels": [ {}, {"radius":82,"slowMul":0.9}, {"radius":92,"slowMul":0.85},
                   {"radius":102,"slowMul":0.8}, {"radius":112,"slowMul":0.75}, {"radius":122,"slowMul":0.7},
                   {"radius":134,"slowMul":0.65}, {"radius":148,"slowMul":0.6}, {"radius":162,"slowMul":0.55},
                   {"radius":176,"slowMul":0.5} ],
-      "evolution": { "name":"싱귤래리티", "desc":"적 탄이 기어가고, 잡몹이 끌려온다",
+      "evolution": { "name":"싱귤래리티", "desc":"적 탄과 잡몹이 기어가고, 작은 잡몹은 끌려온다",
                      "params": { "evoPullForce":90, "evoSlowMul":0.35 },
                      "requiresPassive": { "id": "coil", "level":3 } }
     },
@@ -98,7 +98,7 @@
                      "requiresPassive": { "id": "booster", "level":3 } }
     },
     {
-      "id": "barrage", "slotClass": "utility", "class": "area", "family": "barrage", "name": "바라지", "desc": "아무 데나 포격이 떨어져 적을 느리게 한다",
+      "id": "barrage", "slotClass": "utility", "class": "area", "family": "barrage", "name": "바라지", "desc": "포격이 떨어져 맞은 적을 느리게 한다",
       "elementStampMode": "spawn",
       "base": { "dmg":15, "cooldownSec":2.20, "targetMode":"randomInArena",
                 "strikeIntervalSec":0.25, "strikesPerVolley":2, "blastRadius":58,
@@ -107,7 +107,7 @@
                   {"blastRadius":64,"dmg":37}, {"strikesPerVolley":4,"dmg":39}, {"cooldownSec":1.9,"dmg":38},
                   {"blastRadius":70,"telegraphSec":0.45}, {"cooldownSec":2.4,"targetMode":"densest","dmg":48}, {},
                   {"strikesPerVolley":5} ],
-      "evolution": { "name":"오비탈 스트라이크", "desc":"포격 범위가 두 배가 된다",
+      "evolution": { "name":"오비탈 스트라이크", "desc":"적이 몰린 곳을 노리고, 포격이 넓어진다",
                      "params": { "evoRadiusMul":1.6 },
                      "requiresPassive": { "id": "coil", "level":3 } }
     },
@@ -122,7 +122,7 @@
                   {"dmg":6,"droneFireSec":0.5}, {"dmg":10}, {"droneCount":3,"anchorOffsets":[[-40,-18],[40,-18],[0,-52]],"dmg":11},
                   {"dmg":14,"pierce":1}, {"droneCount":4,"dmg":18,"droneFireSec":0.46,"anchorOffsets":[[-44,-14],[44,-14],[-22,-52],[22,-52]]}, {"dmg":21},
                   {"dmg":22,"droneFireSec":0.42} ],
-      "evolution": { "name":"잔상 편대", "desc":"위성이 늦게 따라와 궤적을 넓게 쓴다",
+      "evolution": { "name":"잔상 편대", "desc":"편대 뒤에서 늦게 따라오는 위성이 하나 더 붙는다",
                      "params": { "evoTrailDelaySec":1.2, "evoTrailAnchor":[0, 44] },
                      "requiresPassive": { "id": "orbitext", "level":3 } }
     },
@@ -175,7 +175,7 @@
                   {"dmg":3}, {"count":2}, {"pierce":2},
                   {"beamWidthPx":8,"dmg":4}, {"dmg":6,"hitCooldownSec":0.12}, {"dmg":7,"rangePx":420,"pierce":3},
                   {"count":3} ],
-      "evolution": { "name":"프리즘 빔", "desc":"뚫은 적에서 빔이 갈라져 주변 적을 함께 지진다",
+      "evolution": { "name":"프리즘 빔", "desc":"맞은 적에서 빔이 갈라져 주변 적을 함께 지진다",
                      "params": { "evoSplitCount":2, "evoSplitDmgMul":0.6, "evoSplitRangePx":140 },
                      "requiresPassive": { "id": "lens", "level":3 } }
     },

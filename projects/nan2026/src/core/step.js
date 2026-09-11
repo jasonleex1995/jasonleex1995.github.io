@@ -23,7 +23,7 @@ import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } f
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
-import { recomputeEff, spawnPickup, pushHitFx, xpToNext, familyDmgMul } from './state.js';
+import { recomputeEff, spawnPickup, pushHitFx, xpToNext, familyDmgMul, difficultyEnemyDmgMul } from './state.js';
 import { tickStance, requestStance, stampFor } from './stance.js';
 import { DEG2RAD, wrapAngle } from './angle.js';
 
@@ -642,7 +642,9 @@ export function applyHit(world, raw, srcArch) {
 
   // §3.2 — 피격: taken 계산 + i-frame 발동 (v1.5: 실드 폐지 = 원데스 긴박함, 방어막 없음)
   noteHit(world);
-  const taken = enemyToPlayer(rp, p, raw);
+  // ★ v1.10 ㊿-q — raw 에 난이도 공격력 배율(meta.difficulty[].enemyDmgMul)을 곱한다. 탄·몸통·장판·빔 네 피해원이 전부
+  //   이 함수로 모이므로 문은 이 한 줄이다(S60 ⑧). 정액 감산·하한보다 «앞» = 원천이 세지는 것이지 방어가 약해지는 것이 아니다(§3.2 1항).
+  const taken = enemyToPlayer(rp, p, raw * difficultyEnemyDmgMul(world));
   noteDamageTaken(world, srcArch === undefined ? '' : srcArch, taken);     // §13.1.1 치사 지분
   p.hp -= taken;
   if (p.hp <= 0) {

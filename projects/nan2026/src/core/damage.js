@@ -135,7 +135,7 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
  *
  * @param player { defense }
  * @param rules  rules.player  (damageFloorRatio)
- * @param raw    bullets[].dmg | contactDmg | zone dmg
+ * @param raw    (bullets[].dmg | contactDmg | zone dmg) × difficulty.enemyDmgMul — applyHit 가 곱해서 넘긴다(§3.2 1항 · ㊿-q)
  */
 export function enemyToPlayer(rules, player, raw) {
   return Math.ceil(Math.max(raw - player.defense, raw * rules.damageFloorRatio));

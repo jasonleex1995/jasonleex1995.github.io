@@ -751,7 +751,9 @@ function drawPlayerBullets(ctx, world, pal, interp, alpha) {
   ctx.beginPath();
   for (let i = 0; i < items.length; i += 1) {
     const b = items[i];
-    if (!b.alive || b.s0 !== 1) continue;
+    // ★ ㊿-q — s0 는 무기마다 뜻이 다른 범용 스크래치다(핀볼·리턴·미사일·시커가 제각기 쓴다). 오빗의 공만 본다 —
+    //   family 를 안 보면 다른 무기의 탄에도 방패 링이 붙는다(검토 실측: 오빗 없이 120프레임에 링 312개).
+    if (!b.alive || b.family !== 'orbit' || b.s0 !== 1) continue;
     const gx = lerpX(interp, interp.playerBullets, b, alpha);
     const gy = lerpY(interp, interp.playerBullets, b, alpha);
     ctx.moveTo(gx + b.radius + 3, gy);

@@ -495,12 +495,15 @@ suite('weapons/aura', () => {
     const outB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 2, 0, 100);
     const en = addEnemy(w, p.x, p.y - eff.radius * 0.5);     // 반경 안 적
     const out = addEnemy(w, p.x, p.y - eff.radius * 3);      // 반경 밖 적
+    const heavy = addEnemy(w, p.x + 4, p.y - eff.radius * 0.5);   // 반경 안 «중장갑»(§8.17)
+    heavy.ccImmune = true;
     const h0 = en.hp;
     aura.update(w, s, eff, dt);
     assert.near(inB.slowMul, eff.slowMul, 1e-9, `반경 안 적 탄 = ×${eff.slowMul}`);
     assert.eq(outB.slowMul, 1, '반경 밖 적 탄 = 원속도');
     assert.near(en.fieldSlowMul, eff.slowMul, 1e-9, `★ 반경 안 «기체»도 ×${eff.slowMul} (㊿-p)`);
     assert.eq(out.fieldSlowMul, 1, '반경 밖 기체 = 원속도');
+    assert.eq(heavy.fieldSlowMul, 1, '★ 중장갑(ccImmune)은 구역의 «기체» 감속을 무시한다 — 바라지·노바와 같은 규칙 (§8.17 · ㊿-q)');
     assert.eq(inB.alive, true, '탄을 지우지 않는다 (남는다)');
     assert.eq(en.hp, h0, 'base 는 적에게 무피해 (순수 제어)');
   });

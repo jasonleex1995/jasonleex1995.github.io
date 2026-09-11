@@ -8,7 +8,7 @@
  * 동사: 가장 가까운 «보이는» 적에게 얇은 레이저를 «계속» 댄다. 표적이 rangePx 안에 있는 동안 hitCooldownSec 마다 dmg.
  *   표적이 죽거나 나가면 «다음 틱»에 다음 표적(재조준 지연 없음). count 는 동시에 대는 빔 수(서로 다른 표적).
  *   pierce: 빔은 표적을 «뚫고» 같은 직선 위(폭 beamWidthPx)의 뒤 적을 pierce 마리까지 더 때린다 — 짝 = 관통 코팅.
- *   진화(프리즘 빔): 빔이 «뚫은 적»에서 evoSplitCount 갈래로 갈라져 그 적 주변 evoSplitRangePx 안의 다른 적에게
+ *   진화(프리즘 빔): 빔이 «맞은 적»(각 빔의 표적)에서 evoSplitCount 갈래로 갈라져 그 적 주변 evoSplitRangePx 안의 다른 적에게
  *   dmg × evoSplitDmgMul — 프리즘 윙의 프리즘.
  *
  * 렌더 신호: slot.a0 = 표적 idx(-1 없음) · slot.a2 = 표적 gen · 두 번째 빔은 world.beamFx(§7.4 ㉟ draw.drawBeams 가 읽는다).
@@ -112,7 +112,7 @@ function tick(world, slot, eff) {
     if (dealt > 0 && e.hp <= 0) killEnemy(world, e);
     // 관통 — 표적 뒤 같은 직선(폭 beamWidthPx)의 적을 pierce 마리까지(가까운 순). 사거리 rangePx 는 표적 기준이 아니라 원점 기준.
     if (eff.pierce > 0) pierceRay(world, slot, eff, stamp, p.x, p.y, ex, ey, epoch);
-    // ★ w.evolved 분기 정확히 1개 — 프리즘: 뚫은 적에서 갈래
+    // ★ w.evolved 분기 정확히 1개 — 프리즘: 맞은 적(이 빔의 표적)에서 갈래 — 관통으로 꿴 적에서는 갈라지지 않는다
     if (slot.evolved) {
       for (let s2 = 0; s2 < eff.evoSplitCount; s2 += 1) {
         const j = nearest(world, ex, ey, eff.evoSplitRangePx, epoch);

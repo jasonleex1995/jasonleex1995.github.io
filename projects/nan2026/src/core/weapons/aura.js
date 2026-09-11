@@ -1,15 +1,16 @@
 /**
- * src/core/weapons/aura.js — 펄스필드 (§9.5, v1.5 «영역 슬로우»)
+ * src/core/weapons/aura.js — 펄스필드 (§9.5, v1.5 «영역 슬로우» · v1.10 ㊿-o·㊿-p «구역 감속»)
  *
  * 폐쇄된 파라미터 계약 (§9.5 12행 표):
  *   base            : radius slowMul  (★v1.7: 죽어 있던 dmg·tickIntervalSec·falloff 삭제 —
  *                     통일 표기가 그 값들을 «피해 3 · 주기 0.7초»로 화면에 띄워 거짓말을 했다)
- *   evolution.params: evoPullForce
+ *   evolution.params: evoPullForce evoSlowMul
  *
- * ★ §9.5(v1.5, 사용자 결정 2026-08-01) — 펄스필드의 정체성 = «영역 슬로우». v1.4의 «탄막 제거»(너무 쉬움)
- *   폐기. 반경 안의 적 탄을 base 는 느리게(×0.5), 진화(싱귤래리티)는 완전 정지(×0)시킨다. 탄을 지우지
- *   않는다 — «이 범위 안에서만» 느려지고, 벗어나면 원속도로 돌아간다(step.moveBullets 의 slowMul).
- *   진화 = 완전 정지 + 잡몹 끌어당김(블랙홀). 피해 없음(순수 제어 무기).
+ * ★ §9.5(v1.5, 사용자 결정 2026-08-01) — 펄스필드의 정체성 = «영역 슬로우». v1.4의 «탄막 제거»(너무 쉬움) 폐기.
+ *   ★ v1.10 ㊿-o·㊿-p — 반경 안의 적 탄과 적 기체(이동·발사 주기)를 base 는 레벨 곡선 slowMul 로, 진화(싱귤래리티)는
+ *   evoSlowMul 로 늦춘다(«정지»가 아니라 «기어가기» — S62). 탄을 지우지 않는다 — «이 범위 안에서만» 느려지고,
+ *   벗어나면 원속도로 돌아간다(step.moveBullets 가 매 틱 1 로 되돌린다). 진화는 거기에 잡몹 끌어당김을 더한다.
+ *   피해 없음(순수 제어 무기).
  *
  * §9.6.1 훅(state.recomputeEff): rateKey **null**(v1.7 — 주기가 없다) · countKey null ·
  *   pierceApplies false · areaKeys ["radius"](필드 확대).
@@ -20,7 +21,7 @@ const CHAFF = 'chaff';
 
 /**
  * 반경 안의 «적 탄 + 적 기체»에 이동 배율 factor 를 «이번 틱» 세팅한다(더 강한 슬로우가 이긴다).
- *   moveBullets 가 적용 후 1 로 리셋 → 필드 밖으로 나가면 원속도. 기체는 발사 주기도 같은 배율을 탄다(emitters). factor=0 이면 필드 안에서 정지(진화).
+ *   moveBullets 가 적용 후 1 로 리셋 → 필드 밖으로 나가면 원속도. 기체는 발사 주기도 같은 배율을 탄다(emitters).
  */
 function slowField(world, eff, factor) {
   const p = world.player;
@@ -42,10 +43,13 @@ function slowField(world, eff, factor) {
   //     여기엔 적용되지 않으며, 밴드 제한도 필요 없다.
   //   ★ 보스·중간보스는 제외 — 그쪽은 자기 사격 곡선(bossBulletScale·escalateFireRateMul)과 페이즈를 갖는다.
   //     보스의 발사 주기를 구역으로 늦추면 보스전이 통째로 무너진다(§8.11·§8.9 의 압박 장치를 무력화).
+  //   ★ ㊿-q — 중장갑(ccImmune, §8.17)도 제외한다: 「둔화·행동감속을 무시한다」가 그 개성의 정의이고, 바라지(둔화)·
+  //     노바(행동감속)도 이미 그 규칙에서 막힌다. 구역의 «기체» 감속은 그 둘을 합친 제어라 같은 규칙을 탄다.
+  //     «탄» 감속은 그대로 걸린다 — 탄은 개체가 아니다.
   const en = world.enemies.items;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
-    if (!e.alive || e.isBoss || e.midBossId !== '') continue;
+    if (!e.alive || e.isBoss || e.midBossId !== '' || e.ccImmune) continue;
     const dx = e.x - p.x;
     const dy = e.y - p.y;
     if (dx * dx + dy * dy <= rr && factor < e.fieldSlowMul) e.fieldSlowMul = factor;
@@ -74,7 +78,7 @@ function pull(world, eff, dt) {
 }
 
 export function update(world, slot, eff, dt) {
-  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티): 완전 정지 + 끌어당김
+  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티): 더 강한 감속(기어가기) + 끌어당김
   if (slot.evolved) {
     slowField(world, eff, eff.evoSlowMul);   // ㊿-o — 정지(0)가 아니라 «기어가기». 값은 데이터가 소유한다
     pull(world, eff, dt);

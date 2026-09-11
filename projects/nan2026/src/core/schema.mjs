@@ -678,11 +678,12 @@ function checkMeta(c, m) {
   if (isObj(m.difficulty)) {
     // ★ v1.10 ㊿ — 「디재스터」 삭제 · hpMul 신설(난이도 = 적 체력, §11.3).
     //   ㊿-c: evolutionsExpected 삭제 — 화면에서 뺐더니 읽는 곳이 0 이 됐다(죽은 키). 설계 의도는 정본이 소유한다.
+    //   ㊿-q: enemyDmgMul 신설 — 난이도 공격력 배율(적 → 플레이어 피해 전부, 기준선 = 노멀, §3.2 · §11.3).
     c.closed('meta.difficulty', m.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty']);
     const ds = ['normal', 'hard', 'hell'];
     for (let i = 0; i < ds.length; i += 1) {
       if (own(m.difficulty, ds[i])) {
-        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul']);
+        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul']);
       }
     }
   }

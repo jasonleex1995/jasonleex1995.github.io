@@ -70,6 +70,8 @@ export function loadData() {
  *   저작값(bosses[].hp · curve.*)이 곧 그 난이도의 값이고 쉬운 난이도는 그 할인이므로,
  *   「hp = 저작값 × 곡선」을 주장하는 테스트는 **이 난이도의 월드**에서 봐야 한다.
  *   ★ 상수로 박지 않는다 — 표를 읽는다(난이도 이름이 또 바뀌어도 테스트는 안 깨진다).
+ *   ★ ㊿-q: «적 공격력»은 반대쪽이다 — enemyDmgMul 의 기준선은 가장 «쉬운» 난이도(1)다. 그래서 「받는 피해 = 저작값」을
+ *     주장하는 테스트는 이 헬퍼(헬 월드 = 피해 ×1.5)가 아니라 기본 난이도(normal) 월드를 쓴다.
  */
 export function baselineDifficulty() {
   const d = loadData().meta.difficulty;

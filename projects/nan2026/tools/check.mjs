@@ -976,7 +976,7 @@ function S2_files() {
     closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty'], 'meta.difficulty');
     for (const k of ['normal', 'hard', 'hell']) {
       if (has(D.meta.difficulty, k)) {
-        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul'], `meta.difficulty.${k}`);
+        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul'], `meta.difficulty.${k}`);
       }
     }
     if (has(D.meta.difficulty, 'disaster')) {
@@ -3602,17 +3602,21 @@ function S47_shapeLaw() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  S60 — 난이도 (§11.3 v1.10 ㊿)
+//  S60 — 난이도 (§11.3 v1.10 ㊿·㊿-q · §2.1 · §2.7)
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * 사용자(2026-09-06): 「차라리 디자인을 튜토리얼, 노멀, 하드, 헬 이렇게 구분하고 노멀은 진화 무기를 3개 이상,
  *   하드는 4개 이상, 헬은 진화 무기를 5개 이상 개방해야 잡을 수 있는 수준으로 만드는게 좋을것 같아.」
  *   → 난이도의 «뜻»이 배속·점수에서 «필요한 진화 무기 수»로 바뀌었다. 그 뜻을 데이터가 지키는지 여기서 본다:
  *   ① 난이도는 정확히 셋(normal·hard·hell) — 디재스터는 삭제됐고, 튜토리얼은 난이도가 아니다(배속·점수가 없다)
+ *      ㊿-q: 표의 «키 순서»가 곧 난이도 순서다 — state.difficultyAllowsStun 이 그 순서로 stunMinDifficulty 와 비교한다
  *   ② **가장 어려운 난이도가 기준선** — hell.hpMul == 1. 사용자(2026-09-06): 「지금 내가 노말모드에서 한 설정이
  *      그대로 헬모드에 들어가면 될 것 같아」 → 저작값(bosses.json·stages.curve)은 «가장 어려운 난이도»의 값이고,
  *      쉬운 난이도는 그것의 할인(hpMul < 1)이다. 만드는 사람이 조율하는 자리가 곧 헬이 된다
- *   ③ 세 열(speed·scoreMul·hpMul)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
+ *   ②' ㊿-q 공격력은 «반대쪽» 끝이 기준선 — normal.enemyDmgMul == 1. 사용자(2026-09-11): 「노말이 x1.0이라면 하드는 x1.2,
+ *      헬은 x1.5로 가보자」 → 저작 피해(bullets[].dmg · contactDmg · 장판 dmg)는 노멀의 값이다. §2.1 관대함 산술
+ *      (「최대 단발 22 → 죽으려면 최소 5초」)이 서는 자리가 노멀이기 때문이다(§6.2 「무-트위치 기둥은 Normal에서 보장된다」)
+ *   ③ 네 열(speed·scoreMul·hpMul·enemyDmgMul)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
  *      그 난이도는 «이름만 다른 난이도»다
  *   ④ (㊿-c 폐지 — evolutionsExpected 는 죽은 키라 삭제했다. 진화 개수는 고정 픽 예산에서 화력의 10~25% 라
  *      «집행되는 게이트»가 될 수 없다 — 실측 표는 §11.3 이 소유한다)
@@ -3625,6 +3629,15 @@ function S47_shapeLaw() {
  *   ⑥ stunMinDifficulty 는 실재하는 난이도를 가리킨다
  *   ⑦ 소스 검사 — hpMul 은 state.js 의 difficultyHpMul 한 문으로만 들어가고, **네 스포너 전부**가 그 문을 지난다
  *      (잡몹·중간보스·보스 코어·보스 파트). 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍
+ *   ⑧ ㊿-q 소스 검사 — enemyDmgMul 은 state.difficultyEnemyDmgMul 한 문으로 들어가고 step.applyHit 가 enemyToPlayer 의
+ *      «raw 인자»에 그것을 곱한다(탄·몸통·장판·빔 네 경로가 전부 applyHit 로 모인다). 그리고 src/ 전체에서 호출은 그 한 곳뿐 —
+ *      스폰에서 한 번 더 곱하는 이중 적용을 막는다(스폰마다 곱하면 몸통 피해도 빠진다)
+ *   ⑨ ㊿-q 소스 검사 — stunMinDifficulty 는 «값»(⑥)만으로는 집행되지 않는다: ~㊿-p 에는 읽는 코드가 0 이었는데 ⑥ 은 통과했고
+ *      노멀에서도 스턴 탄이 나갔다. state.difficultyAllowsStun 이 그 키를 읽고 emitters.fireVolley 의 «첫 문장»이 그 가드인지 본다
+ *   ★ ⑧·⑨ 는 주석을 걷어낸 코드만 본다. 그리고 소스 검사가 지키는 것은 «자리»까지다 — «논리»(항상 허용 · 값을 읽고 버림)는
+ *      tests/difficulty.test.mjs 가 이미터·피격을 실제로 돌려서 잡는다(피해 기댓값은 저작값에서 계산한다). 둘은 짝이다
+ *   ⑩ ㊿-q §2.1 «순삭 불가»의 난이도판 — 가장 어려운 난이도에서도 «가장 큰 한 방»(스폰된 탄·빔·장판 — 스테이지 곡선 반영 · 엘리트/보스 몸통) 2회로는
+ *      만피(rules.player.hpMax)가 죽지 않는다. 공격력 배율이 §2.1 산술을 잠식하므로, 배율을 올리는 편집이 여기 걸린다
  */
 function S60_difficulty() {
   const md = D.meta && D.meta.difficulty;
@@ -3633,6 +3646,12 @@ function S60_difficulty() {
   let n = 0;
   n += 1;
   for (const k of TIERS) if (!isObj(md[k])) V('S60', `meta.difficulty.${k} 가 없다 — 난이도는 셋이다 (§11.3 ①)`);
+  // ① ㊿-q — 표의 «키 순서»가 곧 난이도 순서다(state.difficultyAllowsStun 이 그 순서로 stunMinDifficulty 와 비교한다)
+  n += 1;
+  const order = Object.keys(md).filter((k) => isObj(md[k]));
+  if (order.join(',') !== TIERS.join(',')) {
+    V('S60', `meta.difficulty 의 난이도 키 순서 [${order.join(', ')}] ≠ [${TIERS.join(', ')}] — 키 순서가 곧 난이도 순서다(스턴 게이팅이 읽는다, §2.7 · §11.3 ①)`);
+  }
   n += 1;
   const top = TIERS[TIERS.length - 1];
   if (isObj(md[top]) && md[top].hpMul !== 1) {
@@ -3643,14 +3662,21 @@ function S60_difficulty() {
     n += 1;
     if (!(md[k].hpMul < 1)) V('S60', `meta.difficulty.${k}.hpMul = ${md[k].hpMul} ≥ 1 — 쉬운 난이도는 저작값의 «할인»이다 (§11.3 ②)`);
   }
-  for (const col of ['speed', 'scoreMul', 'hpMul']) {
+  // ②' ㊿-q — 공격력은 «반대쪽» 끝이 기준선이다. 저작 피해(bullets·contactDmg·장판)는 노멀의 값이고, 어려운 난이도는 그 위로 아프다
+  n += 1;
+  const low = TIERS[0];
+  if (isObj(md[low]) && md[low].enemyDmgMul !== 1) {
+    V('S60', `meta.difficulty.${low}.enemyDmgMul = ${md[low].enemyDmgMul} ≠ 1 — 저작 피해는 «가장 쉬운 난이도»의 값이다: `
+      + `§2.1 「최대 단발 22 → 죽으려면 최소 5초」 보증이 서는 자리가 노멀이다 (§11.3 ②')`);
+  }
+  for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul']) {
     n += 1;
     for (let i = 1; i < TIERS.length; i += 1) {
       const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
       if (!isObj(a) || !isObj(b)) continue;
       if (!num(a[col]) || !num(b[col])) { V('S60', `meta.difficulty.*.${col}: 수가 아니다 (§11.3 ③)`); continue; }
       if (!(b[col] > a[col])) {
-        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 세 열 모두 순증해야 한다 (§11.3 ③)`);
+        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 네 열 모두 순증해야 한다 (§11.3 ③)`);
       }
     }
   }
@@ -3662,7 +3688,7 @@ function S60_difficulty() {
     const r = b.hpMul / a.hpMul;
     if (r > STEP_MAX + 1e-9) {
       V('S60', `meta.difficulty: hpMul 계단 ${TIERS[i - 1]}→${TIERS[i]} = ${r.toFixed(3)} > ${STEP_MAX} `
-        + `— 최강 무기 한 자루가 주는 화력(실측 사다리 한 칸 ×1.26~1.32)으로 못 메운다 (§11.3 ⑤)`);
+        + `— 최강 무기 한 자루가 주는 화력(실측 사다리 한 칸 ×1.28~1.31)으로 못 메운다 (§11.3 ⑤)`);
     }
   }
   n += 1;
@@ -3683,6 +3709,123 @@ function S60_difficulty() {
     if (m === null) { V('S60', `state.js 에서 ${fn} 본문을 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라 (§11.3 ⑦)`); continue; }
     if (!/difficultyHpMul\(world\)/.test(m[1])) {
       V('S60', `state.js ${fn}: hp 에 difficultyHpMul 이 안 걸렸다 — 이 적만 난이도를 안 탄다 (§11.3 ⑦)`);
+    }
+  }
+  // 주석을 걷어낸 코드 — «주석 속 호출»로 게이트가 속지 않게 한다(㊿-q 검토: 주석 한 줄로 ⑧·⑨ 가 통과했다).
+  //   ★ 문자열·블록 주석·줄 주석을 «나오는 순서대로» 한 번에 훑는다 — 블록 주석을 먼저 지우면 `// weapons/** …` 같은 줄 주석 속
+  //     `/*` 가 다음 `*/` 까지 진짜 코드를 삼킨다(㊿-q 2차 검토). 문자열은 남기고 주석만 지운다.
+  //   ★ 한계: 정규식 리터럴 안의 따옴표·`//` 는 구분하지 못한다(현재 src 37개 파일엔 없다 — 생기면 이 검사를 다시 볼 것).
+  const code = (text) => text.replace(/(['"`])(?:\\[\s\S]|(?!\1)[^\\])*\1|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m, q) => (q ? m : ''));
+  const bodyOf = (text, fn) => {
+    const mm = code(text).match(new RegExp(`function ${fn}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`));
+    return mm === null ? null : mm[1];
+  };
+  // ⑧ ㊿-q 소스 — 공격력 배율의 문은 하나: state.difficultyEnemyDmgMul 이 enemyDmgMul 을 읽고, step.applyHit 가 enemyToPlayer 의
+  //   «raw 인자»에 곱한다(ceil 뒤에 곱하면 §3.2 가 아니다). 그리고 src/ 전체에서 호출은 그 한 곳뿐이어야 한다 —
+  //   스폰(spawnZone·spawnBeam …)에서 한 번 더 곱하면 이중 적용인데, 개체의 dmg 를 기댓값으로 쓰는 테스트에는 안 보였다.
+  n += 1;
+  const dmgDoor = bodyOf(src, 'difficultyEnemyDmgMul');
+  if (dmgDoor === null || !/\.enemyDmgMul\b/.test(dmgDoor)) {
+    V('S60', 'state.js 에 difficultyEnemyDmgMul 이 없거나 enemyDmgMul 을 안 읽는다 — 난이도 공격력 배율의 유일한 문 (§11.3 ⑧)');
+  }
+  n += 1;
+  const stp = join(ROOT, 'src', 'core', 'step.js');
+  const hitBody = existsSync(stp) ? bodyOf(readFileSync(stp, 'utf8'), 'applyHit') : null;
+  if (hitBody === null) {
+    V('S60', 'step.js 에서 applyHit 본문을 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라 (§11.3 ⑧)');
+  } else if (!/enemyToPlayer\(\s*rp\s*,\s*p\s*,\s*raw\s*\*\s*difficultyEnemyDmgMul\(world\)\s*\)/.test(hitBody)) {
+    V('S60', 'step.js applyHit: `enemyToPlayer(rp, p, raw * difficultyEnemyDmgMul(world))` 가 아니다 — 배율이 빠졌거나 ceil «뒤»에 붙었다 (§3.2 1항 · §11.3 ⑧)');
+  }
+  n += 1;
+  const uses = [];
+  const scanUses = (dir) => {
+    for (const f of readdirSync(dir, { withFileTypes: true })) {
+      const fp = join(dir, f.name);
+      if (f.isDirectory()) { scanUses(fp); continue; }
+      if (!/\.m?js$/.test(f.name)) continue;
+      const found = code(readFileSync(fp, 'utf8')).match(/\bdifficultyEnemyDmgMul\s*\(/g);
+      if (found !== null) uses.push(`${fp.slice(ROOT.length + 1).split('\\').join('/')}×${found.length}`);
+    }
+  };
+  scanUses(join(ROOT, 'src'));
+  const wantUses = ['src/core/state.js×1', 'src/core/step.js×1'];   // 정의 1 · applyHit 호출 1
+  if (uses.sort().join(' ') !== wantUses.join(' ')) {
+    V('S60', `difficultyEnemyDmgMul( 의 출현 = [${uses.join(', ')}] ≠ [${wantUses.join(', ')}] — 정의 한 곳 · applyHit 호출 한 곳뿐이어야 한다. `
+      + `다른 자리(스폰 등)에서 또 곱하면 배율이 두 번 걸린다 (§11.3 ⑧)`);
+  }
+  // ⑨ ㊿-q 소스 — stunMinDifficulty 는 «값»(⑥)만으로 집행되지 않는다. ~㊿-p 에는 읽는 코드가 0 인데도 ⑥ 이 통과했고 노멀에서 스턴 탄이 나갔다.
+  //   state.difficultyAllowsStun 이 그 키를 읽고, emitters.fireVolley(모든 볼리가 지나는 한 곳)의 «첫 문장»이 그 가드인지 본다.
+  //   ★ 지키는 것은 가드의 «자리»까지다. «논리»(항상 허용 · 값을 읽고 버림)는 tests/difficulty.test.mjs 가 이미터를 실제로 돌려서 잡는다.
+  n += 1;
+  const stunDoor = bodyOf(src, 'difficultyAllowsStun');
+  if (stunDoor === null || !/\.stunMinDifficulty\b/.test(stunDoor)) {
+    V('S60', 'state.js 에 difficultyAllowsStun 이 없거나 stunMinDifficulty 를 안 읽는다 — 스턴 게이팅이 집행되지 않는다 (§2.7 · §11.3 ⑨)');
+  }
+  n += 1;
+  const emp = join(ROOT, 'src', 'core', 'emitters.js');
+  const es = existsSync(emp) ? readFileSync(emp, 'utf8') : '';
+  const fv = bodyOf(es, 'fireVolley');
+  const ss = bodyOf(es, 'stunSilenced');
+  if (fv === null || ss === null) {
+    V('S60', 'emitters.js 에서 fireVolley/stunSilenced 본문을 찾지 못했다 — 이름이 바뀌었으면 이 게이트도 함께 고쳐라 (§2.7 · §11.3 ⑨)');
+  } else {
+    if (!/^\s*if \(stunSilenced\(world, look, em\)\) return;/.test(fv)) {
+      V('S60', 'emitters.fireVolley 의 첫 문장이 `if (stunSilenced(world, look, em)) return;` 가 아니다 — 발사 «전에» 묻지 않으면 노멀에서도 스턴 탄이 나간다 (§2.7 · §11.3 ⑨)');
+    }
+    if (!/['"`]stun['"`]/.test(ss) || !/difficultyAllowsStun\(world\)/.test(ss)) {
+      V('S60', 'emitters.stunSilenced 가 탄의 status "stun" 과 difficultyAllowsStun 을 둘 다 보지 않는다 (§2.7 · §11.3 ⑨)');
+    }
+  }
+  // ⑩ ㊿-q — §2.1 «순삭 불가»의 난이도판: 가장 어려운 난이도에서도 «가장 큰 한 방» 2회로는 만피가 죽지 않는다.
+  //   한 방 = §3.2 로 계산(원천 × enemyDmgMul → 정액 감산·하한 → ceil). 원천 후보 = 스폰된 탄·빔·장판(스테이지 곡선 반영) · 잡몹/엘리트 몸통 · 보스/중간보스 몸통.
+  n += 1;
+  const topId = TIERS[TIERS.length - 1];
+  const rpl = D.rules && D.rules.player;
+  const eli = D.rules && D.rules.elite;
+  if (!isObj(md[topId]) || !num(md[topId].enemyDmgMul) || !isObj(rpl) || !num(rpl.hpMax) || !num(rpl.defenseBase)
+    || !num(rpl.damageFloorRatio) || !isObj(eli) || !num(eli.contactDmgMul) || !Array.isArray(eli.bandAllowed)) {
+    V('S60', '⑩ 에 필요한 값(meta.difficulty.*.enemyDmgMul · rules.player.hpMax/defenseBase/damageFloorRatio · rules.elite.contactDmgMul/bandAllowed)이 없다 (§2.1)');
+  } else {
+    const cands = [];
+    // 탄·빔·장판은 «스폰될 때의» 피해로 본다 — §8.18 스테이지 곡선(mobBulletDmgScale)이 탄에는 그대로(최대치), 빔·장판에는
+    //   1 로 클램프되어 곱해진다(state.spawnEnemyBullet · mobDmgMul). 저작값만 보면 곡선이 올린 탄을 놓친다(㊿-q 2차 검토).
+    const curveVals = rowsQuiet(D.stages.curve && D.stages.curve.mobBulletDmgScale).filter((v) => num(v));
+    const curveMax = curveVals.length > 0 ? Math.max(...curveVals) : 1;
+    const bulletDmg = {};
+    for (const b of rowsQuiet(D.bullets.bullets)) if (isObj(b) && num(b.dmg)) bulletDmg[b.id] = b.dmg;
+    let eMax = 0;
+    let eWho = '';
+    for (const em of EMITTERS()) {
+      if (!isObj(em)) continue;
+      const area = em.type === 'zone' || em.type === 'mortar';
+      const clamp = area || em.type === 'laser' || em.type === 'sweep';
+      const base = area ? em.dmg : bulletDmg[em.bulletId];
+      if (!num(base)) continue;
+      const spawned = Math.max(1, Math.round(base * (clamp ? Math.min(1, curveMax) : curveMax)));
+      if (spawned > eMax) { eMax = spawned; eWho = em.id; }
+    }
+    cands.push([`이미터 한 방(${eWho} · 스테이지 곡선 반영)`, eMax]);
+    let aMax = 0;
+    for (const a of ARCHETYPES()) {
+      if (!isObj(a) || !num(a.contactDmg)) continue;
+      const v = a.contactDmg * (eli.bandAllowed.includes(a.band) ? eli.contactDmgMul : 1);
+      if (v > aMax) aMax = v;
+    }
+    cands.push(['잡몹·엘리트 몸통', aMax]);
+    let sMax = 0;
+    for (const b of BOSSES()) {
+      if (!isObj(b)) continue;
+      for (const o of [b, b.core].concat(rowsQuiet(b.parts))) if (isObj(o) && num(o.contactDmg) && o.contactDmg > sMax) sMax = o.contactDmg;
+    }
+    cands.push(['보스·중간보스 몸통', sMax]);
+    const mul = md[topId].enemyDmgMul;
+    for (const [label, raw] of cands) {
+      const scaled = raw * mul;
+      const one = Math.ceil(Math.max(scaled - rpl.defenseBase, scaled * rpl.damageFloorRatio));
+      if (one * 2 >= rpl.hpMax) {
+        V('S60', `§2.1 순삭: ${topId} 에서 ${label} ${raw} × ${mul} = 한 방 ${one} — 두 번(${one * 2})이면 만피 ${rpl.hpMax} 가 죽는다 `
+          + `(어느 난이도에서도 «가장 큰 한 방» 2회로는 죽지 않는다, §2.1 · §11.3 ⑩)`);
+      }
     }
   }
   EX('S60', n);
@@ -4307,7 +4450,7 @@ function main() {
   S57_entryWipe();           // §8.22 v1.10 ⑧ 보스 등장 쓸어내기 — 강림 안·탄보다 빠름·시각값
   S58_orbitRadius();         // §7.8 v1.10 ⑨ 오빗 반경 = 자석 점선 원
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
-  S60_difficulty();          // §11.3 v1.10 ㊿ 난이도 — 셋·기준선·순증 3열·hpMul 계단·네 스포너
+  S60_difficulty();          // §11.3 v1.10 ㊿·㊿-q 난이도 — 셋·순서·기준선 둘·순증 4열·hpMul 계단·네 스포너·피해의 문·스턴 가드·순삭 하한
   S61_vocabMirrors();        // §9.3 v1.10 ㊿-i 어휘 사본 — check.mjs 와 schema.mjs 의 닫힌 어휘가 어긋나면 소리낸다
   S62_slowNotDelete();       // §9.5 v1.10 ㊿-o 감속 ≠ 삭제 — 계수 > 0 · 진화 < base · 나이가 slowMul 을 탄다
   S51_visibleDamage();       // §8.20 v1.8 가시 피해

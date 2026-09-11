@@ -681,11 +681,11 @@ const PARAM_KO = {
   evoClusterCount: '자탄 수', evoClusterDmgMul: '자탄 피해', chainCount: '연쇄 수', chainRangePx: '연쇄 거리', chainDmgMul: '연쇄 감쇠',
   evoChainCountMul: '연쇄 배율', evoSplitCount: '갈래 수', evoSplitDmgMul: '갈래 피해', evoSplitRangePx: '갈래 거리',
   evoMaxBalls: '최대 공 수', launchDeg: '투척 각', ampPx: '나선 폭', freqHz: '나선 빠르기', evoAmpMul: '나선 폭 배율', evoLifetimeMul: '지속 배율',
-  healCooldownSec: '회수 쿨다운', slowMul: '탄 감속',
+  healCooldownSec: '회수 쿨다운', slowMul: '구역 속도',   // ㊿-q — ㊿-p 부터 탄만이 아니라 기체도 늦춘다 · 작을수록 느리다
   // 진화 파라미터 — 불리언은 «켜짐/꺼짐»이라 수치가 없다. desc 가 이미 그것을 말하므로 표기에서 뺀다.
   evoRampSec: '가속까지', evoRampFireRateMul: '가속 후 발사', evoBlastRadius: '폭발 반경',
   evoSecondaryDmgMul: '2차 피해', evoGuardBodies: '방패 공 수',
-  evoPullForce: '흡인력', evoSlowMul: '진화 감속', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
+  evoPullForce: '흡인력', evoSlowMul: '구역 속도', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
   evoTrailDelaySec: '잔상 지연', evoTrailAnchor: '잔상 자리',
   evoRing2Radius: '2단 링', evoActionSlowSec: '행동 감속',
 };
@@ -766,7 +766,7 @@ function cardDelta(world, c) {
       const keys = Object.keys(pr);
       for (let i = 0; i < keys.length && out.length < 3; i += 1) {
         const k = keys[i];
-        if (typeof pr[k] === 'boolean') continue;      // 켜짐/꺼짐은 수치가 아니다 — desc 가 말한다
+        if (typeof pr[k] === 'boolean' || Array.isArray(pr[k])) continue;   // 켜짐/꺼짐·좌표 배열은 수치 한 줄이 아니다 — desc 가 말한다(㊿-q: 「잔상 자리 0,44」가 떴다)
         out.push(`${PARAM_KO[k] || k} ${num(pr[k])}${unitOf(k)}`);
       }
       return out;
@@ -1037,7 +1037,7 @@ export function drawResults(ctx, world, pal, t, seedText) {
   }
 
   y += 10;
-  text(ctx, world, pal, `난이도 ×${t.scoreMul}`, a.x + a.w - 40, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
+  text(ctx, world, pal, `점수 ×${t.scoreMul}`, a.x + a.w - 40, y, h.fontSmallPx, pal.hud.textDim, 'right', 400);
   y += 40;
   text(ctx, world, pal, '총점', a.x + 40, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   text(ctx, world, pal, `${t.total}`, a.x + a.w - 40, y, h.fontHeroPx, pal.hud.accent, 'right', 700);

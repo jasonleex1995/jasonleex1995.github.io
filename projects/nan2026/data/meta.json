@@ -65,9 +65,9 @@
   },
 
   "difficulty": {
-    "normal":   { "speed": 1.0,  "scoreMul": 1.0, "hpMul": 0.81 },
-    "hard":     { "speed": 1.1,  "scoreMul": 1.2, "hpMul": 0.95 },
-    "hell":     { "speed": 1.25, "scoreMul": 1.5, "hpMul": 1.0 },
+    "normal":   { "speed": 1.0,  "scoreMul": 1.0, "hpMul": 0.81, "enemyDmgMul": 1.0 },
+    "hard":     { "speed": 1.1,  "scoreMul": 1.2, "hpMul": 0.95, "enemyDmgMul": 1.2 },
+    "hell":     { "speed": 1.25, "scoreMul": 1.5, "hpMul": 1.0,  "enemyDmgMul": 1.5 },
     "stunMinDifficulty": "hard"
   },
 

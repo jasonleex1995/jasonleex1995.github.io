@@ -125,18 +125,22 @@ suite('bot/회피', () => {
     assert.ok(moved, '위협이 있으면 움직인다');
   });
 
-  test('난이도가 높을수록 반응이 느려진다 (latency = 난이도의 유일한 통로, §10.4.1)', () => {
-    // 같은 상황에서 normal 과 disaster 의 «첫 반응까지 걸린 틱»을 비교한다
-    function firstReactTick(difficulty) {
+  test('난이도가 높을수록 반응이 느려진다 (배속 → 봇 반응 지연, §10.4.1)', () => {
+    // «눈 감는 창»(world.bot.decideT = reactionSec)의 길이를 직접 본다 — 첫 botInput 호출이 창을 연다.
+    //   ★ ㊿-q 검토: 예전엔 삭제된 'disaster' 를 비교했고(표에 없는 난이도 = speed 1 → «같은 값 ≥ 같은 값»),
+    //     재는 것도 «첫 이동 틱»이었다 — 그런데 첫 호출이 곧바로 위협을 지각해 두 난이도 모두 0틱에 움직였다(0 vs 0).
+    //     즉 이 테스트는 지연을 한 번도 잰 적이 없었다. 창의 길이는 봇 상태가 직접 말한다.
+    //   같은 시드 = 같은 지터 draw 이므로 배속이 큰 쪽의 창이 «엄격히» 길어야 한다(250±80ms × 60틱 × speed 반올림).
+    const d = loadData().meta.difficulty;
+    const ids = Object.keys(d).filter((k) => d[k] !== null && typeof d[k] === 'object');
+    const lo = ids[0];
+    const hi = ids[ids.length - 1];
+    assert.gt(d[hi].speed, d[lo].speed, `전제: ${hi} 의 배속이 ${lo} 보다 크다`);
+    function reactWindowSec(difficulty) {
       const w = mkWorld(8, difficulty);
-      const p = w.player;
-      spawnEnemyBullet(w, 'pelletS', p.x, p.y - 300, 0, 200);
-      for (let t = 0; t < 240; t += 1) {
-        const i = botInput(w, TICK_DT);
-        if (i.left || i.right || i.up || i.down) return t;
-      }
-      return 240;
+      botInput(w, TICK_DT);
+      return w.bot.decideT;
     }
-    assert.gte(firstReactTick('disaster'), firstReactTick('normal'), 'disaster 의 눈 감는 창이 더 길다');
+    assert.gt(reactWindowSec(hi), reactWindowSec(lo), `${hi} 의 눈 감는 창이 ${lo} 보다 길다`);
   });
 });

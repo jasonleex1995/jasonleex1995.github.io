@@ -27,7 +27,7 @@
  *   makeEnemy()가 자리를 예약했고 spawnEnemy()가 스폰마다 0 으로 리셋한다(슬롯 재사용 안전).
  */
 
-import { spawnEnemyBullet, spawnZone, spawnBeam } from './state.js';
+import { spawnEnemyBullet, spawnZone, spawnBeam, difficultyAllowsStun } from './state.js';
 import { DEG2RAD, TAU } from './angle.js';
 
 /**
@@ -58,7 +58,8 @@ function ensureLookup(world) {
   const bulletById = Object.create(null);               // §8.5 laser 의 피해는 탄 정의에서 온다
   const bl = world.data.bullets.bullets;
   for (let i = 0; i < bl.length; i += 1) bulletById[bl[i].id] = bl[i];
-  world.emitLookup = { emitById, archById, bossById, bulletById };
+  // stunDiffId·stunAllowed — §2.7 스턴 게이팅 캐시. 난이도가 바뀔 때만 다시 묻는다(런 중엔 안 바뀐다, §6.1) → stunSilenced
+  world.emitLookup = { emitById, archById, bossById, bulletById, stunDiffId: null, stunAllowed: false };
   return world.emitLookup;
 }
 
@@ -233,7 +234,25 @@ function effCount(world, e, em) {
   return Math.round(em.count * mul);
 }
 
+/**
+ * §2.7 — 스턴 게이팅. 난이도 < stunMinDifficulty 이면 스턴 탄(bullets[].status == "stun")을 쏘는 이미터는 «발사 시점»에 침묵한다.
+ *   치환 없음 · 텔레그래프 없음 · rng 무소비(§2.7 표). 묻는 자리는 모든 볼리가 반드시 지나는 fireVolley 다 —
+ *   보스 부위·코어·중간보스·잡몹 네 갈래가 전부 거기로 모이므로 한 곳이면 된다(콘텐츠는 난이도를 모른다).
+ *   ★ v1.10 ㊿-q 전까지 이 판정이 없었다 → 노멀에서도 서리왕관·늪 보스 페이즈 3 이 스턴 탄을 쐈다.
+ *   난이도 판정은 difficultyId 가 바뀔 때만 다시 한다(런 중엔 안 바뀐다, §6.1) → 볼리당 조회 1회 · 0 alloc.
+ */
+function stunSilenced(world, look, em) {
+  const bul = look.bulletById[em.bulletId];
+  if (bul === undefined || bul.status !== 'stun') return false;
+  if (look.stunDiffId !== world.difficultyId) {
+    look.stunDiffId = world.difficultyId;
+    look.stunAllowed = difficultyAllowsStun(world);
+  }
+  return !look.stunAllowed;
+}
+
 function fireVolley(world, e, em, volleyIdx, p, look) {
+  if (stunSilenced(world, look, em)) return;        // §2.7 — 발사 «전에» 묻는다(S60 ⑨). 볼리는 버리고 시계는 흐른다
   const t = em.type;
   const count = effCount(world, e, em);
   if (t === 'straight') fireSpread(world, e, em, count, em.spreadDeg, 0);
