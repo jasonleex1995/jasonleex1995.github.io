@@ -1051,6 +1051,18 @@ function wrap(ctx, world, pal, s, x, y, maxW, px, color, lineH, align, weight) {
 // ---------------------------------------------------------------------------
 // 결과 화면 (§11.3) — 죽어도 집계된다. 내역을 한 줄씩 보여주고 총점을 크게.
 // ---------------------------------------------------------------------------
+/**
+ * ㊿-u 초 → 「m:ss」(1시간 이상이면 「h:mm:ss」). 초 아래는 버린다 — 결과 화면의 한 줄이다.
+ *   ★ 버리기 전에 1e-6 을 더한다 — 틱을 나눠 만든 정초가 소수 오차로 x.9999999 가 되면 1초 모자라게 버려진다(검토).
+ */
+export function clockText(sec) {
+  const s = Math.max(0, Math.floor(sec + 1e-6));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return hh > 0 ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+}
+
 /** t = score.tally(world) 결과. seedText = 재현용 시드 표기 */
 export function drawResults(ctx, world, pal, t, seedText) {
   const a = world.data.rules.view.arena;
@@ -1066,6 +1078,10 @@ export function drawResults(ctx, world, pal, t, seedText) {
     won ? pal.element.normal : pal.threat.enemyBullet, 'center', 700);
   if (!won && timeout) {
     text(ctx, world, pal, '시간 초과', a.x + a.w / 2, a.y + 92, h.fontBodyPx, pal.hud.textDim, 'center', 500);
+  }
+  // ㊿-u 클리어하면 「클리어!」 아래에 걸린 시간(실제로 플레이한 초 — score.tally().clearSec). 사망한 판엔 없다.
+  if (won && t.clearSec !== null) {
+    text(ctx, world, pal, `클리어 시간 ${clockText(t.clearSec)}`, a.x + a.w / 2, a.y + 92, h.fontBodyPx, pal.hud.textPrimary, 'center', 600);
   }
 
   const rows = [

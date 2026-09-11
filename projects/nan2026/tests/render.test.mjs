@@ -21,7 +21,7 @@ import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
-import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine, weaponRowLayout } from '../src/render/hud.js';
+import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine, weaponRowLayout, clockText } from '../src/render/hud.js';
 import { BODY_STATS } from '../src/core/schema.mjs';
 import { giveWeapon as giveW, passiveAffectsSlot, recomputeEff } from '../src/core/state.js';
 import { buildDraft } from '../src/core/draft.js';
@@ -616,5 +616,42 @@ suite('render — ㊿-s 카드 단위 · 데모 드래프트 안내', () => {
     assert.ok(human.some((t) => t.includes('1 / 2 / 3 선택')), '사람 드래프트 = 「1 / 2 / 3 선택」 안내');
     assert.eq(auto.some((t) => t.includes('선택') || t.includes('확정')), false, '데모 드래프트엔 «선택»·«확정» 안내가 없다 — 그 말대로 누르면 데모에서 튕겨 나간다');
     assert.ok(auto.some((t) => t.includes('봇이 고르는 중')), '데모 드래프트 = 「데모 — 봇이 고르는 중」');
+  });
+});
+
+suite('render — ㊿-u 결과 화면의 클리어 시간', () => {
+  const results = (won, ticks, difficulty = 'normal') => {
+    const w = createWorld({ data: loadData(), seed: 7, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward', difficulty });
+    initRun(w);
+    w.tick = ticks;
+    w.run.won = won;
+    const { ctx, rec } = layoutCtx();
+    drawResults(ctx, w, resolvePalette(w.data.rules), tally(w), 'seed');
+    return rec.texts.map((r) => r.t);
+  };
+
+  test('클리어하면 「클리어!」 아래에 「클리어 시간 m:ss」 — 사망한 판에는 없다', () => {
+    const d = loadData();
+    assert.eq(d.meta.difficulty.normal.speed, 1, '전제: 노멀 배속 1');
+    const win = results(true, 43554);                // 43,554틱 = 725.9초
+    assert.ok(win.includes('클리어!'), '전제: 클리어 화면');
+    assert.ok(win.includes('클리어 시간 12:05'), `노멀 725.9초 → 「12:05」(초는 두 자리 · 소수 버림) (${win.filter((t) => t.includes('시간')).join(' | ')})`);
+    // 헬은 배속만큼 실제로 흐른 시간이 짧다 — 725.9 게임초 ÷ 1.25 = 580.7초 → 「9:40」
+    const hellWin = results(true, 43554, 'hell');
+    const hellWant = `클리어 시간 ${clockText(43554 / d.rules.loop.tickHz / d.meta.difficulty.hell.speed)}`;
+    assert.ok(d.meta.difficulty.hell.speed > 1 && hellWant !== '클리어 시간 12:05', `전제: 헬은 배속이 1보다 크다 (${hellWant})`);
+    assert.ok(hellWin.includes(hellWant), `헬 = 실제로 플레이한 초 — 「${hellWant}」 (${hellWin.filter((t) => t.includes('시간')).join(' | ')})`);
+    const lose = results(false, 43554);
+    assert.ok(lose.includes('GAME OVER'), '전제: 사망 화면');
+    assert.eq(lose.some((t) => t.includes('클리어 시간')), false, '사망한 판에는 클리어 시간이 없다');
+  });
+
+  test('clockText — 분:초 · 1시간 넘으면 시:분:초 · 음수·소수는 안전하게', () => {
+    assert.eq(clockText(0), '0:00', '0초');
+    assert.eq(clockText(59.99), '0:59', '초 아래는 버린다');
+    assert.eq(clockText(120 / 60 - 2.2e-15), '0:02', '정초가 소수 오차로 살짝 모자라도 1초 빠지지 않는다(검토)');
+    assert.eq(clockText(605), '10:05', '초는 두 자리');
+    assert.eq(clockText(3725), '1:02:05', '1시간 넘으면 h:mm:ss');
+    assert.eq(clockText(-3), '0:00', '음수 = 0');
   });
 });

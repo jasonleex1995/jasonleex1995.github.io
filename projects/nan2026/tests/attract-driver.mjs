@@ -181,6 +181,8 @@ async function main() {
     keyUp(B.grab); frame(16);
     press(B.grab);
     out.freshSpaceOpensDifficulty = isDifficulty();
+    out.difficultyLines = texts.filter((t) => t.includes('속도'));   // ㊿-u 난이도 메뉴 줄(속도 · 적 공격 · 점수)
+    out.difficultyTexts = texts.slice();                             // ㊿-u 난이도 화면의 글자 전부(체력 배율이 어디에도 없어야 한다)
     out.difficultyIdleNoDemo = until(() => isDemo() || !isDifficulty(), 25000, 100) < 0 && isDifficulty();
     press(B.pause);
     out.escBackToTitle = isTitle();

@@ -110,6 +110,22 @@ suite('score/집계 tally', () => {
     assert.eq(t.perfectBonus, 0, '퍼펙트 보너스 0');
   });
 
+  test('㊿-u 클리어 시간 = 실제로 플레이한 초(틱 ÷ tickHz ÷ 배속) — 사망한 런에는 없다', () => {
+    for (const id of ['normal', 'hard', 'hell']) {
+      const w = mkWorld(id);
+      const speed = w.data.meta.difficulty[id].speed;
+      const hz = w.data.rules.loop.tickHz;
+      w.tick = 45276;                                // 45,276틱 = 게임초 754.6
+      w.time = 0;                                    // ★ world.time 은 읽지 않는다(1/60 누적의 소수 오차) — 틱으로 센다
+      w.run.won = true;
+      const got = tally(w).clearSec;
+      assert.lt(Math.abs(got - 45276 / hz / speed), 1e-9, `${id}: 승리 = 틱 ÷ ${hz} ÷ 배속 ${speed} (실제 ${got})`);
+      if (speed > 1) assert.lt(got, 45276 / hz, `${id}: 배속이 빠르면 실제로 흐른 시간은 게임초보다 짧다(헬 24분이 30:00 으로 보이면 안 된다)`);
+      w.run.won = false;
+      assert.eq(tally(w).clearSec, null, `${id}: 미승리(사망 · 시간 초과) = null`);
+    }
+  });
+
   test('floor 는 마지막 한 번 (roundMode) — 소수 raw 로 pre-floor 회귀를 잡는다', () => {
     const w = mkWorld('hell');                          // scoreMul 2.5
     for (let i = 0; i < w.score.noHit.length; i += 1) w.score.noHit[i] = false;  // 보너스 격리

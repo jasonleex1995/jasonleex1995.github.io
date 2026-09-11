@@ -116,5 +116,12 @@ export function tally(world) {
     perfectBonus,
     scoreMul: diff.scoreMul,
     total: Math.floor(raw * diff.scoreMul),      // ★ floor 는 여기 한 번뿐
+    // §11.3(v1.10 ㊿-u) 클리어 시간 — 사용자(2026-09-12) 「클리어하면 클리어하는데 걸린 시간도 같이 나왔으면 좋겠어」.
+    //   승리한 런에만 있다(사망 = null). = 실제로 플레이한 초: 흐른 틱 ÷ tickHz ÷ 배속(speed). 월드가 도는 동안만 센다 —
+    //   일시정지 · 레벨업/특성 카드 · 스테이지 배너는 빠지고, 보스 «WARNING» 연출 · 특성 구슬 비행은 들어간다.
+    //   ★ 게임초(world.time) 그대로 쓰면 하드 ×1.1 · 헬 ×1.25 에서 실제보다 길게 나온다(헬 24분 클리어가 30:00 — 검토). 보스 타이머는 게임초 그대로다.
+    //   ★ 틱 수로 센다 — world.time 은 1/60 을 더해 쌓여 정초가 소수 오차로 살짝 모자라고, 버리면 1초가 빠진다(검토 실측).
+    //   승리 틱에 world.over 가 서서 step 이 멈추므로 결과 화면에서 읽어도 그 순간의 값이다.
+    clearSec: (world.run !== undefined && world.run.won) ? world.tick / world.data.rules.loop.tickHz / diff.speed : null,
   };
 }

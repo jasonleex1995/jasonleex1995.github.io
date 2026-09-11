@@ -28,7 +28,10 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
   test('시작 · 드래프트 · 끝 — 20초 무입력 → 데모 · 체류 = draftDwellSec ÷ 배속 · 사람이 안 누른 입력은 못 끝낸다 · 키 · 클릭 · Ctrl+Esc = 타이틀 · 다음 데모는 다시 20초 뒤 · 스스로 끝나면 결과 화면 없이 타이틀 · 난이도 화면 · 일시정지는 데모로 안 바뀐다', () => {
     const d = loadData();
     // 체류를 알아볼 수 있게 설정을 바꿔 돌린다: 하드(배속 1.1) · 0.5 게임초 → 실시간 454.5ms. 노멀(500) · 헬(400) · 1200 고정 · ÷배속 누락(500)과 모두 다르다
-    const o = drive('flow', { flow: { attract: { difficulty: 'hard', draftDwellSec: 0.5 } } });
+    // ㊿-u 검토: 적 공격 배율과 점수 배율이 세 난이도 모두 같아서(1 · 1.2 · 1.5) «점수 배율을 적 공격이라 쓴» 메뉴가 초록이었다 —
+    //   점수 배율만 달리 덮어써 둘을 구별한다(점수 배율은 이 판의 흐름에 영향이 없다).
+    const DIFF_PATCH = { hard: { scoreMul: 1.3 }, hell: { scoreMul: 1.7 } };
+    const o = drive('flow', { flow: { attract: { difficulty: 'hard', draftDwellSec: 0.5 } }, difficulty: DIFF_PATCH });
     const idleMs = d.meta.flow.attractIdleSec * 1000;
     const wantDwell = (0.5 * 1000) / d.meta.difficulty.hard.speed;
     const aboutIdle = (v) => v >= idleMs - 50 && v <= idleMs + o.fastMs + 50;
@@ -51,6 +54,19 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     assert.ok(o.ctrlSpaceExitsToTitle, '게임 키는 물리 키(e.code)로 가른다 — Ctrl+Space(key « » · code Space)도 타이틀(배너 건너뛰기 · 난이도 화면이 아니다)');
     assert.ok(o.heldSpaceStaysTitle, '데모를 끝낸 Space 를 누르고 있어도 타이틀에서 «시작»으로 새지 않는다');
     assert.ok(o.freshSpaceOpensDifficulty, '새로 누른 Space = 난이도 화면');
+    // ㊿-u 난이도 메뉴 = ×속도 · ×적 공격 · ×점수 — 값은 meta.difficulty 가 소유한다(체력 배율은 안 보인다)
+    for (const [id, name] of [['normal', '노멀'], ['hard', '하드'], ['hell', '헬']]) {
+      const t = { ...d.meta.difficulty[id], ...(DIFF_PATCH[id] || {}) };
+      if (id !== 'normal') assert.ok(t.enemyDmgMul !== t.scoreMul, `전제: ${name} 의 적 공격 ×${t.enemyDmgMul} ≠ 점수 ×${t.scoreMul}`);
+      const want = `${name}   ×${t.speed} 속도 · ×${t.enemyDmgMul} 적 공격 · ×${t.scoreMul} 점수`;
+      assert.ok(o.difficultyLines.some((line) => line.endsWith(want)), `난이도 메뉴에 「${want}」 (${o.difficultyLines.join(' | ')})`);
+    }
+    // 체력 배율은 난이도 화면 «어디에도» 없다 — 메뉴 줄만 보면 따로 그린 줄(예: 「체력 ×0.81」)을 놓친다(검토)
+    assert.eq(o.difficultyTexts.some((s) => s.includes('체력')), false, '체력 배율은 난이도 화면 어디에도 안 보인다');
+    for (const id of ['normal', 'hard']) {
+      const hp = d.meta.difficulty[id].hpMul;
+      assert.eq(o.difficultyTexts.some((s) => s.includes(`×${hp}`)), false, `${id} 체력 배율 ×${hp} 가 화면에 안 보인다`);
+    }
     assert.ok(o.difficultyIdleNoDemo, '난이도 화면에선 25초 무입력에도 데모가 안 뜬다 — 데모는 타이틀에서만');
     assert.ok(o.escBackToTitle, '난이도 화면에서 Esc = 타이틀');
     const maxEnd = (d.meta.flow.themeBannerSec + d.stages.phase.mobPhaseSec) * 1000 * 1.35;
