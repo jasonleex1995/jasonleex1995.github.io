@@ -12,7 +12,7 @@
  * ★ 값은 전부 data/정본에서 유도한다 (하드코딩 매직넘버 지양).
  */
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, spawnBeam, spawnZone } from '../src/core/state.js';
+import { createWorld, spawnEnemy, spawnBeam, spawnZone, spawnEnemyBullet, spawnBossCore, spawnMidBoss } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
@@ -351,7 +351,7 @@ suite('enemies · HP↔속도 튜닝 (피드백 #3 — 느린=탱키/빠른=약�
 //   v1.6 까지 잡몹의 발사 주기와 탄 피해는 전 스테이지 동일했다 — 체력·밀도만 오르고
 //   사격은 안 올랐으므로 스테이지 1 이 상대적으로 과했다(플레이 피드백: 「1인데 너무 많이 쏜다」).
 //   이 두 테스트가 지키는 것은 «곡선이 존재한다»가 아니라 «곡선이 실제로 적용된다»이다.
-suite('enemies/§8.18 잡몹 사격 강도의 스테이지 곡선 (v1.7)', () => {
+suite('enemies/§8.18 적 사격 강도의 스테이지 곡선 (v1.7 · 발사 주기 = 잡몹만 · 피해 = 보스 포함)', () => {
   const mk = (stageIndex) => {
     const w = createWorld({ data: loadData(), seed: 6, weapons, hooks: {}, startWeaponId: 'forward' });
     w.run = { stageIndex, bossFireRateMul: 1, order: [], crisis: false };
@@ -392,13 +392,61 @@ suite('enemies/§8.18 잡몹 사격 강도의 스테이지 곡선 (v1.7)', () =>
     assert.lt(lo, hi, '★ 초반 탄이 후반 탄보다 덜 아프다');
   });
 
-  test('보스·중간보스는 이 곡선 밖이다 (자기 곡선을 이미 갖는다)', () => {
+  test('보스·중간보스는 «발사 주기» 곡선 밖이다 (자기 곡선을 이미 갖는다) — 피해 곡선은 탄다(아래 ㊿-r)', () => {
     const w = mk(0);
     const p = w.player;
     const e = spawnEnemy(w, 'hexer', 'normal', p.x, p.y - 220, 9e9, false, false);
     e.midBossId = 'mbHammer';                                       // 중간보스로 표시
     for (let t = 0; t < 60; t += 1) emitters(w, TICK_DT);
     assert.lt(Math.abs(e.emitT - 1), 1e-6, '중간보스는 배율 1 — 잡몹 곡선을 안 탄다');
+  });
+
+  // ★ v1.10 ㊿-r — 사용자(2026-09-11) 확정: 「난이도가 높을수록, 스테이지가 높아질수록 강해지는게 맞지!」
+  //   피해 곡선(mobBulletDmgScale)은 보스·중간보스 공격에도 걸린다 — 이미터가 귀속을 'boss'·'mb…' 로 싣기 때문이다.
+  //   ㊿-q 까지 주석·정본·테스트 하나는 「보스는 귀속 '' 이라 제외」라고 적었고, 실제 동작과 반대였다(검토에서 발견).
+  test('피해 곡선은 보스·중간보스 공격에도 걸린다 — 스테이지가 높을수록 세다 (㊿-r)', () => {
+    const d = loadData();
+    const curve = d.stages.curve.mobBulletDmgScale;
+    const shot = d.bullets.bullets.find((b) => b.id === 'heavyRound');
+    const ray = d.bullets.bullets.find((b) => b.id === 'beamCore');
+    for (const src of ['boss', 'mbHammer']) {
+      const lo = spawnEnemyBullet(mk(0), shot.id, 100, 100, 0, 0, src);
+      const hi = spawnEnemyBullet(mk(5), shot.id, 100, 100, 0, 0, src);
+      assert.eq(lo.dmg, Math.max(1, Math.round(shot.dmg * curve[0])), `${src} 탄: 스테이지 1 = 기본 × 곡선`);
+      assert.eq(hi.dmg, Math.max(1, Math.round(shot.dmg * curve[5])), `${src} 탄: 스테이지 6 = 기본 × 곡선`);
+      assert.lt(lo.dmg, hi.dmg, `${src} 탄: 후반이 더 아프다`);
+      const beam = spawnBeam(mk(0), 100, 100, 0, 10, ray.dmg, 1, -1, src);
+      assert.lt(beam.dmg, ray.dmg, `${src} 빔: 초반엔 곡선만큼 깎인다(빔·장판은 1 로 클램프 — §2.1 상한 보존)`);
+    }
+    // 실제 이미터가 싣는 귀속이 정말 'boss' 인지 — 위의 문자열을 테스트가 지어낸 게 아님을 확인한다
+    const w = mk(0);
+    const boss = d.bosses.bosses.find((b) => b.tier !== 'mid' && b.core !== undefined);
+    spawnBossCore(w, boss.id, boss.core, 9e9, 640, 120);
+    let fired = null;
+    for (let t = 0; t < 60 * 8 && fired === null; t += 1) {
+      emitters(w, TICK_DT);
+      fired = w.enemyBullets.items.find((x) => x.alive) || null;
+    }
+    assert.ok(fired !== null, '전제: 보스 코어가 실제로 쐈다');
+    assert.eq(fired.srcArch, 'boss', "★ 실제 보스 이미터가 싣는 귀속 = 'boss' ('' 가 아니다)");
+    const def = d.bullets.bullets.find((b) => b.id === fired.bulletId);
+    assert.eq(fired.dmg, Math.max(1, Math.round(def.dmg * curve[0])), '실제 보스 탄도 스테이지 1 곡선만큼 깎인다');
+    // 중간보스도 — 실제 중간보스 이미터가 싣는 귀속은 자기 id('mb…')이고, 그 탄도 곡선을 탄다(2차 검토: 이 절반은 손으로 넣은 문자열로만 검사됐다)
+    let mbShot = null;
+    let mbDef = null;
+    for (const mb of d.bosses.bosses.filter((b) => b.tier === 'mid')) {
+      const wm = mk(0);
+      spawnMidBoss(wm, mb, 'fire', 9e9, 640, 120);
+      for (let t = 0; t < 60 * 10 && mbShot === null; t += 1) {
+        emitters(wm, TICK_DT);
+        mbShot = wm.enemyBullets.items.find((x) => x.alive) || null;
+      }
+      if (mbShot !== null) { mbDef = mb; break; }
+    }
+    assert.ok(mbShot !== null, '전제: 탄을 쏘는 중간보스가 실제로 쐈다');
+    assert.eq(mbShot.srcArch, mbDef.id, `★ 실제 중간보스 이미터가 싣는 귀속 = '${mbDef.id}' ('' 가 아니다)`);
+    const mbBullet = d.bullets.bullets.find((b) => b.id === mbShot.bulletId);
+    assert.eq(mbShot.dmg, Math.max(1, Math.round(mbBullet.dmg * curve[0])), `실제 중간보스(${mbDef.id}) 탄도 스테이지 1 곡선만큼 깎인다`);
   });
 });
 
@@ -453,7 +501,7 @@ suite('enemies/§8.4 진입 위치 · §8.18 빔·장판 곡선 (v1.7)', () => {
     assert.ok(def.moveParams.yPx > 0 && def.moveParams.yPx < a.h, 'yPx 가 아레나 안이다');
   });
 
-  test('빔·장판도 잡몹 피해 곡선을 탄다 — 단 «깎기만» 한다 (§2.1 상한 보존)', () => {
+  test('빔·장판도 피해 곡선을 탄다(보스 포함) — 단 «깎기만» 한다 (§2.1 상한 보존)', () => {
     const d = loadData();
     const mk = (stageIndex) => {
       const w = createWorld({ data: d, seed: 1, weapons, hooks: {}, startWeaponId: 'forward' });
@@ -466,10 +514,10 @@ suite('enemies/§8.4 진입 위치 · §8.18 빔·장판 곡선 (v1.7)', () => {
     const RAW = 22;
     const lo = spawnBeam(mk(0), 500, 100, 1.57, 16, RAW, 1, -1, 'turretPod', 0.5, false);
     const hi = spawnBeam(mk(5), 500, 100, 1.57, 16, RAW, 1, -1, 'turretPod', 0.5, false);
-    const boss = spawnBeam(mk(5), 500, 100, 1.57, 16, RAW, 1, -1, '', 0.5, false);
+    const boss = spawnBeam(mk(0), 500, 100, 1.57, 16, RAW, 1, -1, 'boss', 0.5, false);
     assert.lt(lo.dmg, RAW, '★ 초반 빔은 깎인다 — 「스테이지 1인데 너무 아프다」의 답');
     assert.eq(hi.dmg, RAW, '★ 후반에도 저작 상한을 넘지 않는다 — §2.1 「최대 단발 22 → 최소 5초」 보증');
-    assert.eq(boss.dmg, RAW, '보스 빔(귀속 \'\')은 곡선 밖이다');
+    assert.lt(boss.dmg, RAW, '보스 빔도 초반엔 깎인다 — 피해 곡선은 보스에게도 걸린다(㊿-r · 사용자 확정)');
     const z = spawnZone(mk(0), 500, 300, 40, 12, 1, false, 'magmaBomb', 0.5);
     assert.lt(z.dmg, 12, '장판도 초반에 깎인다');
   });

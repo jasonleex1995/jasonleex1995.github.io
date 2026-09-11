@@ -4,12 +4,13 @@
  * 폐쇄된 파라미터 계약 (§9.5 12행 표):
  *   base            : radius slowMul  (★v1.7: 죽어 있던 dmg·tickIntervalSec·falloff 삭제 —
  *                     통일 표기가 그 값들을 «피해 3 · 주기 0.7초»로 화면에 띄워 거짓말을 했다)
- *   evolution.params: evoPullForce evoSlowMul
+ *   evolution.params: evoPullForce
  *
  * ★ §9.5(v1.5, 사용자 결정 2026-08-01) — 펄스필드의 정체성 = «영역 슬로우». v1.4의 «탄막 제거»(너무 쉬움) 폐기.
- *   ★ v1.10 ㊿-o·㊿-p — 반경 안의 적 탄과 적 기체(이동·발사 주기)를 base 는 레벨 곡선 slowMul 로, 진화(싱귤래리티)는
- *   evoSlowMul 로 늦춘다(«정지»가 아니라 «기어가기» — S62). 탄을 지우지 않는다 — «이 범위 안에서만» 느려지고,
- *   벗어나면 원속도로 돌아간다(step.moveBullets 가 매 틱 1 로 되돌린다). 진화는 거기에 잡몹 끌어당김을 더한다.
+ *   ★ v1.10 ㊿-o·㊿-p·㊿-r — 반경 안의 적 탄과 적 기체(이동·발사 주기)를 레벨 곡선 slowMul 로 늦춘다(«정지»가 아니라
+ *   «기어가기» — S62). ㊿-r: 진화는 Lv8 에서만 일어나고 Lv8~10 은 늘 진화 상태라, 진화 감속(곡선 +15%p)은 그 레벨 칸이
+ *   직접 갖는다(옛 evoSlowMul 은 곡선을 «대신»해 Lv8~10 칸이 죽어 있었다). 탄을 지우지 않는다 — «이 범위 안에서만» 느려지고,
+ *   벗어나면 원속도로 돌아간다(step.moveBullets 가 매 틱 1 로 되돌린다). 진화는 거기에 작은 잡몹 끌어당김을 더한다.
  *   피해 없음(순수 제어 무기).
  *
  * §9.6.1 훅(state.recomputeEff): rateKey **null**(v1.7 — 주기가 없다) · countKey null ·
@@ -78,13 +79,10 @@ function pull(world, eff, dt) {
 }
 
 export function update(world, slot, eff, dt) {
-  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티): 더 강한 감속(기어가기) + 끌어당김
-  if (slot.evolved) {
-    slowField(world, eff, eff.evoSlowMul);   // ㊿-o — 정지(0)가 아니라 «기어가기». 값은 데이터가 소유한다
-    pull(world, eff, dt);
-  } else {
-    slowField(world, eff, eff.slowMul);   // §9.1(v1.7) 값은 데이터가 소유한다
-  }
+  // §9.1(v1.7) 감속 계수는 데이터(레벨 칸)가 소유한다 — ㊿-r: 진화 구간 Lv8~10 칸이 곡선 +15%p 를 직접 갖는다
+  slowField(world, eff, eff.slowMul);
+  // ★ slot.evolved 분기 정확히 1개 (§9.5) — 진화(싱귤래리티)의 몫: 작은 잡몹(chaff) 끌어당김
+  if (slot.evolved) pull(world, eff, dt);
 }
 
 export default { update };

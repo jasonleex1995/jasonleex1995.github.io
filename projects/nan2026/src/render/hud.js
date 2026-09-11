@@ -570,7 +570,7 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
   }
 
   const cw = 300;
-  const ch = 380;
+  const ch = 450;   // ㊿-r 380 → 450 — 진화 카드가 «특수 효과 수치 + Lv.8 레벨업 수치»를 함께 싣는다
   const gap = 28;
   const total = draft.cards.length * cw + (draft.cards.length - 1) * gap;
   const x0 = (v.logicalW - total) / 2;
@@ -619,6 +619,18 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
     for (let k = 0; k < delta.length; k += 1) {
       text(ctx, world, pal, delta[k], cx, cy, h.fontBodyPx, pal.hud.textPrimary, 'center');
       cy += 22;
+    }
+    // ★ ㊿-r — 진화 카드는 «진화도 레벨업»(Lv7 → Lv8)이다. 같은 순간 그 레벨 칸의 수치도 들어오는데 카드가 그것을 숨겼다
+    //   (옵션: 카드엔 「위성 하나 더」만 보이는데 실제로는 위성이 3 → 5개). 작은 제목 아래에 붙인다
+    //   (사용자 2026-09-11 「진화도 레벨업이면 당연히 붙여줘야할듯」).
+    const gains = evolutionLevelGains(world, c);
+    if (gains.length > 0) {
+      text(ctx, world, pal, `Lv.${c.to} 레벨업`, cx, cy, h.fontSmallPx, pal.hud.textDim, 'center', 600);
+      cy += 22;
+      for (let k = 0; k < gains.length; k += 1) {
+        text(ctx, world, pal, gains[k], cx, cy, h.fontBodyPx, pal.hud.textPrimary, 'center');
+        cy += 22;
+      }
     }
     // 부가 설명(레벨·부여 프리뷰 등) — 작게, 아래에
     cy = wrap(ctx, world, pal, body.desc, cx, cy + 18, cw - 36, h.fontSmallPx, pal.hud.textDim, 20, 'center');
@@ -685,15 +697,19 @@ const PARAM_KO = {
   // 진화 파라미터 — 불리언은 «켜짐/꺼짐»이라 수치가 없다. desc 가 이미 그것을 말하므로 표기에서 뺀다.
   evoRampSec: '가속까지', evoRampFireRateMul: '가속 후 발사', evoBlastRadius: '폭발 반경',
   evoSecondaryDmgMul: '2차 피해', evoGuardBodies: '방패 공 수',
-  evoPullForce: '흡인력', evoSlowMul: '구역 속도', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
+  evoPullForce: '흡인력', evoChainCount: '연쇄', evoRadiusMul: '반경 배수',
   evoTrailDelaySec: '잔상 지연', evoTrailAnchor: '잔상 자리',
   evoRing2Radius: '2단 링', evoActionSlowSec: '행동 감속',
 };
 
+/** ㊿-r — 문자열 파라미터 값(조준 방식)의 한글 이름. 없는 값은 원래 문자를 그대로 보인다(조용히 숨기지 않는다). */
+const VALUE_KO = { forward: '정면', nearest: '가장 가까운 적', sweep: '훑기', randomInArena: '무작위', densest: '적이 몰린 곳' };
+function valueText(v) { return typeof v === 'string' ? (VALUE_KO[v] || v) : num(v); }
+
 /** 키 이름이 단위를 말한다 — Sec = 초, Px/Radius = px, Deg = °. 없으면 단위 없음. */
 function unitOf(k) {
   if (k.endsWith('Sec')) return '초';
-  if (k.endsWith('Px') || k.endsWith('Radius')) return 'px';
+  if (k.endsWith('Px') || /radius$/i.test(k)) return 'px';   // ㊿-r 검토: 소문자 radius(노바·펄스필드 반경)도 px — 「2단 링 320px」 옆에 「반경 210 → 240」이 떴다
   if (k.endsWith('Deg') || k.endsWith('DegSec')) return '°';
   return '';
 }
@@ -718,6 +734,33 @@ function paramsAt(def, level) {
   const cur = Object.assign({}, def.base);
   for (let i = 0; i < level && i < def.levels.length; i += 1) Object.assign(cur, def.levels[i]);
   return cur;
+}
+
+/**
+ * 무기 레벨 from → to 에서 «그 칸이 실제로 바꾸는» 수치 줄(§11.1.1). 안 바뀐 값은 늘어놓지 않는다.
+ *   markArrays: 좌표 배열(배치)을 「배치 변경」으로 보일지 — 진화 카드는 줄이 귀해서 뺀다(㊿-r).
+ *   문자열 값(조준 방식)은 VALUE_KO 로 한글화한다 — 바라지 Lv8 의 randomInArena → densest 가 원문으로 뜨지 않게.
+ */
+function levelGains(def, from, to, max, markArrays) {
+  const out = [];
+  const changed = def.levels[to - 1];
+  if (!changed) return out;
+  const before = paramsAt(def, from);
+  const keys = Object.keys(changed);
+  for (let i = 0; i < keys.length && out.length < max; i += 1) {
+    const k = keys[i];
+    const ko = PARAM_KO[k] || k;
+    if (Array.isArray(changed[k])) { if (markArrays) out.push(`${ko} 변경`); continue; }
+    const u = unitOf(k);
+    out.push(`${ko} ${valueText(before[k])}${u} → ${valueText(changed[k])}${u}`);
+  }
+  return out;
+}
+
+/** ㊿-r — 진화 카드는 «진화도 레벨업»(Lv7 → Lv8)이다: 같은 순간 들어오는 그 레벨 칸의 수치. 진화 카드가 아니면 빈 배열. */
+function evolutionLevelGains(world, c) {
+  if (c.category !== 'weaponLevel' || !c.isEvolution) return [];
+  return levelGains(world.weaponDefs[c.weaponId], c.from, c.to, 3, false);
 }
 
 /**
@@ -771,18 +814,7 @@ function cardDelta(world, c) {
       }
       return out;
     }
-    const before = paramsAt(def, c.from);
-    const changed = def.levels[c.to - 1];
-    if (!changed) return out;
-    const keys = Object.keys(changed);
-    for (let i = 0; i < keys.length && out.length < 3; i += 1) {
-      const k = keys[i];
-      const ko = PARAM_KO[k] || k;
-      if (Array.isArray(changed[k])) { out.push(`${ko} 변경`); continue; }
-      const u = unitOf(k);
-      out.push(`${ko} ${num(before[k])}${u} → ${num(changed[k])}${u}`);
-    }
-    return out;
+    return levelGains(def, c.from, c.to, 3, true);
   }
   if (c.category === 'newWeapon') {
     // §11.1(v1.7) — 무기마다 다른 이름으로 다른 줄이 뜨면 세 장을 나란히 못 읽는다(플레이 피드백:
@@ -826,7 +858,11 @@ function categoryLabel(world, c) {
     return world.weaponDefs[c.weaponId].slotClass === 'utility' ? '새 무속성 무기' : '새 속성 무기';
   }
   if (cat === 'weaponLevel') {
-    return world.weaponDefs[c.weaponId].slotClass === 'utility' ? '무속성 레벨' : '속성 레벨';
+    const util = world.weaponDefs[c.weaponId].slotClass === 'utility';
+    // ㊿-r — 진화 카드는 칩부터 다르다. ㊿-q 까지는 제목·설명만 달랐고 칩(「속성 레벨」)·색이 일반 레벨업과 같아
+    //   한눈에 안 갈렸다(사용자 2026-09-11 「진화 카드는 일반 카드와 다르도록 설정된게 맞을까?」).
+    if (c.isEvolution) return util ? '무속성 진화' : '속성 진화';
+    return util ? '무속성 레벨' : '속성 레벨';
   }
   if (cat === 'elementLevel') return '속성 투자';
   if (cat === 'passive') return '패시브';
@@ -865,6 +901,14 @@ function cardBody(world, c) {
         desc: `${def.name} 진화 · Lv.${c.from}/${WEAPON_MAX_LEVEL} → ${c.to}/${WEAPON_MAX_LEVEL}` };
     }
     // ★ "벌컨 Lv.2" — 이름에 도달 레벨을 붙여 "무엇이 얼마나 세지는가"를 헤드라인에서 읽게 한다
+    // ★ ㊿-r — 진화 뒤(Lv9·10 = 진화체 강화)는 «진화 무기»의 레벨업이다: 이름·효과 줄이 진화체의 것이어야 한다
+    //   (사용자 2026-09-11 「벌컨의 진화 후 이름이 오버드라이브인데, 오버드라이브에 대한 레벨업으로 표현되는지」 — ㊿-q 까지 「벌컨 Lv.9」).
+    //   무기 슬롯 줄(drawPanels)이 이미 진화 이름 · EVO 표기를 쓰므로 카드와 슬롯이 같은 말을 하게 한다.
+    const slot = world.slots[c.slot];
+    if (slot !== undefined && slot.weaponId === c.weaponId && slot.evolved) {
+      return { glyph: null, title: `${def.evolution.name} Lv.${c.to}`, sub: def.evolution.desc,
+        desc: `Lv.${c.from}/${WEAPON_MAX_LEVEL} → ${c.to}/${WEAPON_MAX_LEVEL}` };   // ㊿-r 검토: 「벌컨 진화 · …」는 진화 카드의 줄과 같아 «두 번째 진화»로 읽혔다
+    }
     const util = def.slotClass === 'utility';
     return { glyph: null, title: `${def.name} Lv.${c.to}`, sub: def.desc,
       desc: `Lv.${c.from}/${WEAPON_MAX_LEVEL} → ${c.to}/${WEAPON_MAX_LEVEL}` };   // 계열은 칩이 말한다(중복 제거)

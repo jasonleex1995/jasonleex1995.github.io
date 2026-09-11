@@ -370,7 +370,7 @@ const FAMILY_OWN_EVO = {
   seeker:    ['evoDistinctTargets', 'evoRetargetOnKill'],
   lance:     ['evoFullHeight'],
   orbit:     ['evoGuardBodies'],
-  aura:      ['evoPullForce', 'evoSlowMul'],
+  aura:      ['evoPullForce'],
   boomerang: ['evoChainCount'],
   barrage:   ['evoRadiusMul'],
   drone:     ['evoTrailDelaySec', 'evoTrailAnchor'],
@@ -3871,7 +3871,7 @@ function S61_vocabMirrors() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  S62 — 감속은 «삭제»가 되어서는 안 된다 (§9.5 v1.10 ㊿-o)
+//  S62 — 감속은 «삭제»가 되어서는 안 되고, 레벨마다 계속 오른다 (§9.5 v1.10 ㊿-o · ㊿-r)
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * 이 결함은 **세 번** 났다. v1.4 는 펄스필드가 탄막을 «지웠고»(너무 쉬움 → v1.5 폐기), ㊿ 까지는 진화가
@@ -3883,15 +3883,25 @@ function S61_vocabMirrors() {
  *   ★ 값으로는 못 고친다(반경은 패시브로 자라고 탄속은 이미터마다 다르다) → «시간»을 고쳤다:
  *     필드 안에서는 이동도 나이도 같은 배율로 흐른다. 그래서 어떤 반경·배율에서도 탄은 결국 건너온다.
  *   이 게이트가 그 셋을 한꺼번에 막는다:
- *   ① 감속 계수는 **> 0** — 0 은 정지이고, 정지 반경이 기체 히트박스(4px)보다 크면 «반경이 얼마든 무적»이다
- *   ② 진화 계수 < base 계수 — 진화는 «더 강한 감속»이라는 계약(같거나 약하면 진화가 아니다)
+ *   ① 감속 계수는 **> 0** 이고 < 1 — base · 레벨 칸 · 진화 파라미터 전부. 0 은 정지이고, 정지 반경이 기체 히트박스(4px)보다
+ *      크면 «반경이 얼마든 무적»이다
+ *   ② ㊿-r — 감속은 레벨마다 **계속 오른다**: Lv1~10 의 실효 slowMul 이 엄격히 줄어든다(사용자 2026-09-11 「계속 상승하는 느낌」)
+ *   ②' ㊿-r — 진화 칸(Lv8)의 오름폭이 그 직전 칸보다 크다 = 진화는 «한 단계 더»(사용자 2026-09-11 「진화하면 +15%」)
+ *      ★ 진화는 Lv8 에서만 일어나고(짝 패시브가 없으면 Lv7 에서 멈춘다) Lv8~10 은 늘 진화 상태라, 진화 감속은 그 레벨 칸이 직접 갖는다.
+ *        옛 evoSlowMul(㊿-o~㊿-q)은 곡선을 «대신»해 Lv8~10 칸이 한 번도 쓰이지 않았고 카드 숫자도 실제와 달랐다 → 삭제
  *   ③ **소스 검사** — `step.js` 의 적 탄 나이 누적이 slowMul 을 탄다. 이 한 줄이 ①②를 의미 있게 만든다
  */
 function S62_slowNotDelete() {
   let n = 0;
   const ws = rowsQuiet(D.weapons && D.weapons.weapons);
+  const EVO_LV = SCHEMA.WEAPON_EVOLVE_LEVEL;
+  n += 1;
+  if (!num(EVO_LV)) V('S62', 'schema.mjs 의 WEAPON_EVOLVE_LEVEL 을 읽지 못했다 — ②\' 를 검사할 수 없다 (§9.5)');
   for (const w of ws) {
-    for (const [where, obj] of [['base', w.base], ['evolution.params', w.evolution && w.evolution.params]]) {
+    if (!isObj(w)) continue;
+    const places = [['base', w.base], ['evolution.params', isObj(w.evolution) ? w.evolution.params : undefined]];
+    rowsQuiet(w.levels).forEach((row, i) => { places.push([`levels[${i}](Lv${i + 1})`, row]); });
+    for (const [where, obj] of places) {
       if (!isObj(obj)) continue;
       for (const k of Object.keys(obj)) {
         if (!/slowMul$/i.test(k)) continue;
@@ -3903,12 +3913,25 @@ function S62_slowNotDelete() {
         if (!(obj[k] < 1)) V('S62', `weapons[${w.family}].${where}.${k} = ${obj[k]} ≥ 1 — 감속이 아니다 (§9.5 ①)`);
       }
     }
-    const b = isObj(w.base) ? w.base.slowMul : undefined;
-    const e = isObj(w.evolution) && isObj(w.evolution.params) ? w.evolution.params.evoSlowMul : undefined;
-    if (num(b) && num(e)) {
+    if (!isObj(w.base) || !num(w.base.slowMul)) continue;
+    // ② 실효 곡선 — 레벨 칸의 부분 오버라이드를 누적한 값(런타임 recomputeEff · 카드 paramsAt 과 같은 규칙)
+    const curve = [];
+    let v = w.base.slowMul;
+    for (const row of rowsQuiet(w.levels)) { if (isObj(row) && num(row.slowMul)) v = row.slowMul; curve.push(v); }
+    n += 1;
+    for (let i = 1; i < curve.length; i += 1) {
+      if (!(curve[i] < curve[i - 1])) {
+        V('S62', `weapons[${w.family}]: Lv${i + 1} 감속 ×${curve[i]} 이 Lv${i} 의 ×${curve[i - 1]} 보다 강하지 않다 — 감속은 레벨마다 계속 오른다 (§9.5 ②)`);
+      }
+    }
+    // ②' 진화 칸 — Lv(진화)에서 오르는 폭이 그 직전 칸의 오름폭보다 크다
+    if (num(EVO_LV) && EVO_LV >= 3 && curve.length >= EVO_LV) {
       n += 1;
-      if (!(e < b)) {
-        V('S62', `weapons[${w.family}]: 진화 감속 ${e} 이 base ${b} 보다 강하지 않다 — 진화는 «더 강한 감속»이다 (§9.5 ②)`);
+      const evoStep = curve[EVO_LV - 2] - curve[EVO_LV - 1];
+      const prevStep = curve[EVO_LV - 3] - curve[EVO_LV - 2];
+      if (!(evoStep > prevStep + 1e-9)) {
+        V('S62', `weapons[${w.family}]: 진화 칸 Lv${EVO_LV} 의 감속 오름폭 ${evoStep.toFixed(2)} ≤ 직전 칸 ${prevStep.toFixed(2)} — `
+          + `진화는 «한 단계 더» 오른다 (사용자 2026-09-11 「진화하면 +15%」, §9.5 ②')`);
       }
     }
   }
@@ -4452,7 +4475,7 @@ function main() {
   S59_traits();              // §11.6 v1.10 ⑲ 특성 — 회복 묶음·묶음 수·수·값 범위·구슬 색
   S60_difficulty();          // §11.3 v1.10 ㊿·㊿-q 난이도 — 셋·순서·기준선 둘·순증 4열·hpMul 계단·네 스포너·피해의 문·스턴 가드·순삭 하한
   S61_vocabMirrors();        // §9.3 v1.10 ㊿-i 어휘 사본 — check.mjs 와 schema.mjs 의 닫힌 어휘가 어긋나면 소리낸다
-  S62_slowNotDelete();       // §9.5 v1.10 ㊿-o 감속 ≠ 삭제 — 계수 > 0 · 진화 < base · 나이가 slowMul 을 탄다
+  S62_slowNotDelete();       // §9.5 v1.10 ㊿-o·㊿-r 감속 ≠ 삭제 — 계수 > 0 · 레벨마다 계속 오른다 · 진화 칸 한 단계 더 · 나이가 slowMul 을 탄다
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

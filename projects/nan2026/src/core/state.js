@@ -160,7 +160,8 @@ function makeEnemyBullet() {
   return {
     alive: false, idx: 0, gen: 0,
     bulletId: '',
-    // §13.1.1 maxArchetypeLethalityShare — 「누가 쐈는가」. 보스·중간보스는 '' (분모에서도 제외된다)
+    // §13.1.1 maxArchetypeLethalityShare — 「누가 쐈는가」. 잡몹 = 아키타입 id · 보스 = 'boss' · 중간보스 = 'mb…'(emitters.srcArchOf).
+    //   sim 은 'boss'·'mb…'·'' 를 분모에서 뺀다. ★ ㊿-r — 보스·중간보스 귀속은 '' 가 아니다(그래서 피해 곡선을 탄다). '' = 테스트·도구가 직접 만든 탄
     srcArch: '',
     x: 0, y: 0, vx: 0, vy: 0,
     dmg: 0, radius: 0, hitRadius: 0,
@@ -1044,7 +1045,8 @@ function spawnPickupAt(world, kind, value, x, y) {
  *   (무기 A2)은 적을 때린다. 피해는 **적용 1회**이며 i-frame 이 게이트한다(§8.5 「dps 는 없다」).
  */
 /**
- * §8.18(v1.7) 잡몹 사격 강도의 «피해» 배율. 보스·중간보스 탄은 srcArch 가 '' 이라 제외된다.
+ * §8.18(v1.7) 적 공격 «피해»의 스테이지 곡선. ★ ㊿-r — 보스·중간보스도 탄다: 이미터가 귀속을 'boss'·'mb…' 로 싣는다
+ *   (사용자 확정 2026-09-11 「난이도가 높을수록, 스테이지가 높아질수록 강해지는게 맞지!」). 귀속 '' 은 테스트·도구가 직접 만든 탄뿐이다.
  *   ★ 1 로 클램프한다 = «깎기만 하고 올리지 않는다». 빔/장판은 이미 저작 상한에 서 있고,
  *     §2.1 이 「hpMax 100 · 최대 단발 22 · i-frame 1.0 → 죽으려면 최소 5초」를 **산술적 보증**으로
  *     못박았다. 22 × 1.4 = 31 이면 4회 = 3.2초가 되어 그 보증이 깨진다.
@@ -1112,8 +1114,8 @@ export function spawnEnemyBullet(world, bulletId, x, y, vx, vy, srcArch) {
   b.bulletId = def.id;
   b.srcArch = srcArch === undefined ? '' : srcArch;
   b.x = x; b.y = y; b.vx = vx; b.vy = vy;
-  // §8.18(v1.7) 잡몹 탄 «피해»의 스테이지 곡선. 발사 주기(emitters.mobFireScale)와 짝이다.
-  //   보스·중간보스 탄은 srcArch 가 '' 이라 제외된다 — 그쪽은 자기 곡선을 이미 갖는다.
+  // §8.18(v1.7) 적 탄 «피해»의 스테이지 곡선. 발사 주기(emitters.mobFireScale — 잡몹만)와 짝이다.
+  //   ★ ㊿-r — 피해 곡선은 보스('boss')·중간보스('mb…') 탄에도 걸린다(사용자 확정 2026-09-11). 귀속 '' 은 테스트·도구가 직접 만든 탄뿐.
   const dmgMul = (srcArch !== '' && world.run !== undefined && world.run.stageIndex !== undefined)
     ? world.data.stages.curve.mobBulletDmgScale[world.run.stageIndex] : 1;
   b.dmg = Math.max(1, Math.round(def.dmg * dmgMul));

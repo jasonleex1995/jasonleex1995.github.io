@@ -391,3 +391,116 @@ suite('render — ㊿-q 회귀 (방패 링 · 진화 카드)', () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// ㊿-r — 진화 카드는 «진화도 레벨업»: 칩 · Lv.8 레벨업 수치 · 진화 뒤 이름 · 카드 안에 들어가는가
+// ─────────────────────────────────────────────────────────────────────────
+/** fillText(문자열·x·y·글자 크기)와 fillRect 를 기록한다. 글자 폭은 한글 = 글자 크기, 그 밖 = 0.6배로 어림한다(8px 고정 스텁보다 실제에 가깝다). */
+function layoutCtx() {
+  const state = { globalAlpha: 1, globalCompositeOperation: 'source-over', fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, font: '16px sans-serif', textAlign: 'left', textBaseline: 'alphabetic' };
+  const stack = [];
+  const rec = { texts: [], rects: [] };
+  const px = () => { const m = /(\d+(?:\.\d+)?)px/.exec(state.font); return m ? Number(m[1]) : 16; };
+  const target = {
+    canvas: { width: 1280, height: 720 },
+    save: () => { stack.push({ ...state }); },
+    restore: () => { if (stack.length) Object.assign(state, stack.pop()); },
+    measureText: (t) => ({ width: [...String(t)].reduce((s, ch) => s + (ch.charCodeAt(0) >= 0x1100 ? px() : px() * 0.6), 0) }),
+    createLinearGradient: () => ({ addColorStop() {} }),
+    createRadialGradient: () => ({ addColorStop() {} }),
+    fillText: (t, x, y) => { rec.texts.push({ t: String(t), x, y, px: px() }); },
+    fillRect: (x, y, w, h) => { rec.rects.push({ x, y, w, h }); },
+  };
+  const ctx = new Proxy(target, {
+    get(t, k) { if (k in t) return t[k]; if (k in state) return state[k]; return () => {}; },
+    set(t, k, v) { state[k] = v; return true; },
+  });
+  return { ctx, rec };
+}
+
+suite('render — ㊿-r 진화 카드', () => {
+  const mkW = () => {
+    const w = createWorld({ data: loadData(), seed: 5, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w);
+    return w;
+  };
+  const drawOne = (w, card) => {
+    const pal = resolvePalette(w.data.rules);
+    const draft = buildDraft(w);
+    draft.cards = [card];
+    const { ctx, rec } = layoutCtx();
+    drawDraft(ctx, w, pal, draft, 0);
+    return rec;
+  };
+  const levelCard = (def, si, from, isEvolution) => ({
+    category: 'weaponLevel', key: `weaponLevel:${def.id}`, slot: si, weaponId: def.id, from, to: from + 1, isEvolution, weight: 1,
+  });
+
+  test('진화 카드 = 칩 「…진화」 · 진화 이름 · 소제목 「Lv.8 레벨업」 아래 그 레벨 칸의 «이전 → 이후» — 14개 무기 전부', () => {
+    // ★ 2차 검토: «이후» 값만 보면 «이전» 을 한 칸 잘못 읽어도(연사 3 → 3), 조준 방식이 원문(randomInArena)으로 떠도 통과했다.
+    const n = (v) => (typeof v !== 'number' ? String(v) : Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100));
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let lines = 0;
+    for (const def of loadData().weapons.weapons) {
+      const w = mkW();
+      let si = w.slots.findIndex((s) => s.weaponId === def.id);
+      if (si < 0) si = giveWeapon(w, def.id);
+      const texts = drawOne(w, levelCard(def, si, 7, true)).texts.map((r) => r.t);
+      assert.ok(texts.includes(def.evolution.name), `${def.id}: 제목 = 진화 이름`);
+      assert.ok(texts.some((t) => /진화$/.test(t)), `${def.id}: 칩이 「…진화」 — 일반 레벨업 칩(「…레벨」)과 다르다`);
+      const scalar = Object.entries(def.levels[7]).filter(([, v]) => !Array.isArray(v));
+      assert.eq(texts.includes('Lv.8 레벨업'), scalar.length > 0, `${def.id}: 소제목 「Lv.8 레벨업」은 Lv8 칸에 수치가 있을 때만`);
+      const before = Object.assign({}, def.base);
+      for (let i = 0; i < 7; i += 1) Object.assign(before, def.levels[i]);
+      for (const [k, v] of scalar) {
+        if (typeof v === 'string') continue;                  // 문자열 값(조준 방식)은 아래에서 한글로 본다
+        const re = new RegExp(`${esc(n(before[k]))}\\D{0,3} → ${esc(n(v))}`);
+        assert.ok(texts.some((t) => re.test(t)), `${def.id}: Lv8 칸 ${k} 「${n(before[k])} → ${n(v)}」가 보인다`);
+        lines += 1;
+      }
+      for (const t of texts) assert.eq(/randomInArena|densest|nearest|forward|sweep/.test(t), false, `${def.id}: 조준 방식이 원문으로 뜨지 않는다 (${t})`);
+      if (def.id === 'barrage') assert.ok(texts.some((t) => t.includes('무작위 → 적이 몰린 곳')), '바라지: 「조준 무작위 → 적이 몰린 곳」');
+    }
+    assert.gt(lines, 20, `검사한 Lv8 수치 줄 ${lines} (vacuous 아님)`);
+    // 일반 레벨업 카드는 그대로 — 소제목 없음 · 좌표 배열은 「배치 변경」
+    const w = mkW();
+    const drone = loadData().weapons.weapons.find((x) => x.id === 'drone');
+    const di = giveWeapon(w, 'drone');
+    const plain = drawOne(w, levelCard(drone, di, 2, false)).texts.map((r) => r.t);
+    assert.eq(plain.includes('Lv.3 레벨업'), false, '일반 레벨업 카드에는 소제목이 없다');
+    assert.ok(plain.some((t) => t.endsWith('변경')), '일반 레벨업 카드는 좌표 배열을 「배치 변경」으로 보인다');
+  });
+
+  test('진화 뒤 레벨업(Lv9·10) 카드는 진화 이름으로 말한다 — 「오버드라이브 Lv.9」', () => {
+    const w = mkW();
+    const def = w.data.weapons.weapons.find((x) => x.id === 'forward');
+    const si = w.slots.findIndex((s) => s.weaponId === 'forward');
+    w.slots[si].level = 8; w.slots[si].evolved = true;
+    const texts = drawOne(w, levelCard(def, si, 8, false)).texts.map((r) => r.t);
+    assert.ok(texts.includes(`${def.evolution.name} Lv.9`), `제목 = 「${def.evolution.name} Lv.9」`);
+    assert.eq(texts.includes(`${def.name} Lv.9`), false, `「${def.name} Lv.9」가 아니다`);
+    assert.ok(texts.includes(def.evolution.desc), '효과 줄 = 진화체의 설명');
+    assert.ok(texts.includes('Lv.8/10 → 9/10'), '맨 아래 줄 = 「Lv.8/10 → 9/10」');
+    assert.eq(texts.some((t) => t.includes('진화 ·')), false, '맨 아래 줄에 「… 진화 ·」가 없다 — 진화 카드의 줄과 같으면 «두 번째 진화»로 읽힌다');
+  });
+
+  test('모든 무기의 진화 카드 · 진화 뒤 Lv.10 카드가 세로로 넘치지 않는다 (줄이 늘어도 상자 바닥 안)', () => {
+    let checked = 0;
+    for (const def of loadData().weapons.weapons) {
+      for (const evo of [true, false]) {
+        const w = mkW();
+        let si = w.slots.findIndex((s) => s.weaponId === def.id);
+        if (si < 0) si = giveWeapon(w, def.id);
+        if (!evo) { w.slots[si].level = 9; w.slots[si].evolved = true; }
+        const rec = drawOne(w, levelCard(def, si, evo ? 7 : 9, evo));
+        const box = rec.rects.find((r) => r.w === 300 && r.h > 100);
+        assert.ok(box !== undefined, `${def.id}: 카드 상자를 찾았다`);
+        const inside = rec.texts.filter((r) => r.x >= box.x && r.x <= box.x + box.w && r.y >= box.y);
+        const bottom = Math.max(...inside.map((r) => r.y + r.px / 2));
+        assert.lte(bottom, box.y + box.h - 6, `${def.id} ${evo ? '진화' : 'Lv.10'} 카드: 마지막 줄 바닥 ${bottom.toFixed(0)} ≤ 상자 ${box.y + box.h - 6}`);
+        checked += 1;
+      }
+    }
+    assert.gt(checked, 20, `검사한 카드 ${checked}장 (vacuous 아님)`);
+  });
+});

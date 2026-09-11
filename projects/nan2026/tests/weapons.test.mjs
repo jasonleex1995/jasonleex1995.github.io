@@ -486,7 +486,7 @@ suite('weapons/boomerang', () => {
 // aura · nova · lance (인라인 피해 3종)
 // ══════════════════════════════════════════════════════════════════════════
 suite('weapons/aura', () => {
-  // ★ v1.10 ㊿-p — 감속량이 레벨로 10등분된다(Lv1 5% → Lv10 50%). 값은 데이터가 소유하므로 테스트도 데이터를 읽는다.
+  // ★ v1.10 ㊿-p·㊿-r — 감속은 레벨마다 5%p 씩 오르고(Lv1 5% → Lv7 35%) 진화 구간 Lv8~10 은 곡선 +15%p(→ Lv10 65%). 값은 데이터가 소유하므로 테스트도 데이터를 읽는다.
   test('base(펄스필드) = 반경 안 적 «탄과 기체»를 느리게, 지우지 않음·무피해 (§9.5)', () => {
     const w = mkWorld();
     const { s, eff } = setup(w, 'aura', 1, false);
@@ -524,38 +524,40 @@ suite('weapons/aura', () => {
     assert.eq(en.fieldSlowMul, 1, '구역 밖 = 원속도');
   });
 
-  test('감속량이 레벨로 «10등분»된다 — Lv1 이 Lv10 보다 약하고 단조롭게 강해진다 (㊿-p)', () => {
+  test('감속이 레벨마다 계속 오르고, 진화 칸(Lv8)에서 한 단계 더 오른다 — Lv10 65% (㊿-p · ㊿-r)', () => {
     const d = loadData();
     const w = d.weapons.weapons.find((x) => x.family === 'aura');
     const c = []; let v = w.base.slowMul;
     for (let i = 0; i < 10; i += 1) { if (w.levels[i].slowMul !== undefined) v = w.levels[i].slowMul; c.push(v); }
     assert.eq(c.length, 10, '10 레벨');
-    for (let i = 1; i < 10; i += 1) assert.gt(c[i - 1], c[i], `Lv${i + 1} 이 Lv${i} 보다 강한 감속`);
-    assert.near(c[9], 0.5, 1e-9, 'Lv10 = ×0.5 (감속 50%)');
-    assert.lt(w.evolution.params.evoSlowMul, c[9], '진화는 Lv10 보다 더 강한 감속');
+    for (let i = 1; i < 10; i += 1) assert.gt(c[i - 1], c[i], `Lv${i + 1} 이 Lv${i} 보다 강한 감속 (계속 상승)`);
+    // 사용자(2026-09-11): 「a + 진화 + 15%로 그러면 가자!」 — 곡선은 레벨마다 5%p, 진화 구간(Lv8~10)은 그 곡선 + 15%p
+    for (let i = 0; i < 7; i += 1) assert.near(c[i], 1 - 0.05 * (i + 1), 1e-9, `Lv${i + 1} = 감속 ${5 * (i + 1)}%`);
+    for (let i = 7; i < 10; i += 1) assert.near(c[i], 1 - 0.05 * (i + 1) - 0.15, 1e-9, `Lv${i + 1}(진화) = 곡선 ${5 * (i + 1)}% + 15%p`);
+    assert.near(c[9], 0.35, 1e-9, 'Lv10 = ×0.35 (감속 65%)');
+    assert.eq(Object.prototype.hasOwnProperty.call(w.evolution.params, 'evoSlowMul'), false,
+      '★ evoSlowMul 은 없다 — 곡선을 «대신»해 Lv8~10 칸을 죽이던 키(㊿-r 삭제)');
   });
 
-  // ★ v1.10 ㊿-o — 진화는 «완전 정지»가 아니라 «더 강한 감속»(evoSlowMul)이다.
+  // ★ v1.10 ㊿-o — 진화는 «완전 정지»가 아니라 «더 강한 감속»이다. ㊿-r 부터 그 값은 레벨 칸(Lv8~10)이 직접 갖는다.
   //   정지 반경이 기체 히트박스(4px)보다 크면 탄이 도달할 수 없다 = 반경이 얼마든 무적 장치다
   //   (사용자 2026-09-08: 「펄스 필드가 진화해버리면 모든 탄이 멈춰서 게임이 너무 쉬워져」).
-  //   v1.4 의 «탄막 제거»가 「너무 쉬움」으로 폐기된 것과 같은 결함의 재발이다.
-  test('진화(싱귤래리티) = 반경 안 적 탄이 «기어간다»(evoSlowMul) — 멈추지는 않는다, 무피해', () => {
+  test('진화(싱귤래리티, Lv8) = 반경 안 적 탄이 «기어간다» — 멈추지는 않는다, 무피해, 진화 직전(Lv7)보다 강하다', () => {
     const w = mkWorld();
-    const { s, eff } = setup(w, 'aura', 1, true);            // 진화 = 강한 감속 + 끌어당김
+    const { s, eff } = setup(w, 'aura', 8, true);            // 진화 = Lv8 = 한 단계 더 오른 감속 + 끌어당김
     const p = w.player;
     const inB = spawnEnemyBullet(w, 'pelletS', p.x, p.y - eff.radius * 0.5, 0, 100);
     const en = addEnemy(w, p.x, p.y - 1);
     const h0 = en.hp;
     aura.update(w, s, eff, dt);
-    assert.near(inB.slowMul, eff.evoSlowMul, 1e-9, `진화: 반경 안 = ×${eff.evoSlowMul}`);
+    assert.near(inB.slowMul, eff.slowMul, 1e-9, `진화(Lv8): 반경 안 = ×${eff.slowMul} (레벨 칸의 값)`);
     assert.gt(inB.slowMul, 0, '★ 0 이 아니다 — 탄은 여전히 «온다»(무적 장치 금지)');
     assert.eq(en.hp, h0, '진화도 무피해(순수 제어)');
-    // base 보다는 강해야 «진화»다 — 대조
     const w2 = mkWorld();
-    const su = setup(w2, 'aura', 1, false);
+    const su = setup(w2, 'aura', 7, false);
     const b2 = spawnEnemyBullet(w2, 'pelletS', w2.player.x, w2.player.y - 1, 0, 100);
     aura.update(w2, su.s, su.eff, dt);
-    assert.lt(inB.slowMul, b2.slowMul, `진화가 base(×${b2.slowMul}) 보다 강한 감속이다`);
+    assert.lt(inB.slowMul, b2.slowMul, `진화(Lv8)가 진화 직전 Lv7(×${b2.slowMul}) 보다 강한 감속이다`);
   });
 
   test('진화 격리(싱귤래리티): evolved 만 chaff 를 끌어당긴다', () => {

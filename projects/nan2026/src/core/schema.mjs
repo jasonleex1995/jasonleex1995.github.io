@@ -85,7 +85,7 @@ const FAMILY_EVO_KEYS = {
   seeker: ['evoDistinctTargets', 'evoRetargetOnKill'],
   lance: ['evoFullHeight'],
   orbit: ['evoGuardBodies'],
-  aura: ['evoPullForce', 'evoSlowMul'],
+  aura: ['evoPullForce'],   // ㊿-r evoSlowMul 삭제 — 진화 감속은 레벨 칸(Lv8~10)이 소유
   boomerang: ['evoChainCount'],
   barrage: ['evoRadiusMul'],
   drone: ['evoTrailDelaySec', 'evoTrailAnchor'],
