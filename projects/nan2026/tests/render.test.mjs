@@ -504,3 +504,117 @@ suite('render — ㊿-r 진화 카드', () => {
     assert.gt(checked, 20, `검사한 카드 ${checked}장 (vacuous 아님)`);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// ㊿-s — 진화 카드의 보라
+// ─────────────────────────────────────────────────────────────────────────
+suite('render — ㊿-s 진화 카드 테두리', () => {
+  // 카드 한 장을 그리고 «테두리(strokeRect) · 윗줄(높이 4 fillRect) · 칩 글자(…진화 / …레벨)»의 색·굵기를 기록한다
+  const drawCard = (isEvolution, selected, palOverride) => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 5, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w);
+    const si = w.slots.findIndex((s) => s.weaponId === 'forward');
+    const draft = buildDraft(w);
+    draft.cards = [{ category: 'weaponLevel', key: 'weaponLevel:forward', slot: si, weaponId: 'forward',
+      from: isEvolution ? 7 : 2, to: isEvolution ? 8 : 3, isEvolution, weight: 1 }];
+    const state = { strokeStyle: '#000', fillStyle: '#000', lineWidth: 1, font: '16px sans-serif' };
+    const rec = { strokes: [], bars: [], texts: [] };
+    const target = {
+      canvas: { width: 1280, height: 720 },
+      measureText: (t) => ({ width: String(t).length * 16 }),
+      strokeRect: (x, y, ww, hh) => { rec.strokes.push({ style: state.strokeStyle, lw: state.lineWidth, ww, hh }); },
+      fillRect: (x, y, ww, hh) => { if (hh === 4) rec.bars.push({ style: state.fillStyle, ww }); },
+      fillText: (t) => { rec.texts.push({ t: String(t), style: state.fillStyle }); },
+      createLinearGradient: () => ({ addColorStop() {} }),
+      createRadialGradient: () => ({ addColorStop() {} }),
+    };
+    const ctx = new Proxy(target, {
+      get(t, k) { if (k in t) return t[k]; if (k in state) return state[k]; return () => {}; },
+      set(t, k, v) { state[k] = v; return true; },
+    });
+    drawDraft(ctx, w, palOverride || resolvePalette(d.rules), draft, selected ? 0 : 5);   // 커서 5 = 카드 밖(고르지 않음)
+    const border = rec.strokes.find((s) => s.hh > 300);
+    return {
+      border,
+      bar: border === undefined ? undefined : rec.bars.find((b) => b.ww === border.ww),
+      chip: rec.texts.find((x) => /^(무)?속성 (진화|레벨)$/.test(x.t)),
+    };
+  };
+
+  test('진화 카드 = 칩·윗줄·테두리가 보라(고르지 않아도) · 일반 카드엔 보라가 없다 · 굵기는 «선택»만 말한다', () => {
+    const V = resolvePalette(loadData().rules).hud.evolution;
+    const pal = resolvePalette(loadData().rules);
+    assert.eq(typeof V, 'string', '전제: 팔레트에 진화 색이 있다');
+    const cards = { evo: drawCard(true, false), evoSel: drawCard(true, true), plain: drawCard(false, false), plainSel: drawCard(false, true) };
+    for (const [name, r] of Object.entries(cards)) {
+      assert.ok(r.border !== undefined && r.bar !== undefined && r.chip !== undefined, `${name}: 테두리·윗줄·칩을 찾았다`);
+    }
+    assert.eq(cards.evo.border.style, V, '진화 카드(고르지 않음) 테두리 = 보라');
+    assert.eq(cards.evoSel.border.style, V, '진화 카드(고름) 테두리 = 보라');
+    assert.eq(cards.evo.bar.style, V, '진화 카드 윗줄 = 보라');
+    assert.eq(cards.evo.chip.style, V, '진화 카드 칩 글자 = 보라');
+    assert.ok(/진화$/.test(cards.evo.chip.t), `진화 카드 칩 = 「…진화」 (${cards.evo.chip.t})`);
+    assert.eq(cards.plain.border.style, pal.hud.panelRule, '일반 카드(고르지 않음) 테두리 = 회색');
+    for (const name of ['plain', 'plainSel']) {
+      const r = cards[name];
+      assert.ok(r.border.style !== V && r.bar.style !== V && r.chip.style !== V, `${name}: 일반 레벨업 카드엔 보라가 없다`);
+    }
+    // 굵기 = 선택만 — 진화 카드라서 더 굵거나 덜 굵지 않다(커서가 진화 카드 위에서도 똑같이 읽힌다)
+    assert.gt(cards.evoSel.border.lw, cards.evo.border.lw, '진화 카드: 고르면 더 굵다');
+    assert.eq(cards.evo.border.lw, cards.plain.border.lw, '고르지 않은 굵기는 진화·일반이 같다');
+    assert.eq(cards.evoSel.border.lw, cards.plainSel.border.lw, '고른 굵기는 진화·일반이 같다');
+  });
+
+  test('진화 색은 다른 색 채널과 같지 않고, 흑백(mono)에서는 무채색 — 그때도 칩 글자 「…진화」가 종류를 말한다', () => {
+    const d = loadData();
+    const pal = resolvePalette(d.rules);
+    const others = [pal.hud.accent, pal.status.band, pal.threat.enemyBullet, pal.threat.telegraph, pal.pickup.trait, pal.pickup.xp,
+      pal.hud.panelRule, pal.hud.textPrimary, ...Object.values(pal.element)];
+    for (const c of others) assert.ok(c.toLowerCase() !== pal.hud.evolution.toLowerCase(), `진화 색이 다른 채널(${c})과 같지 않다`);
+    const mono = resolvePalette({ ...d.rules, visual: { ...d.rules.visual, a11y: { ...d.rules.visual.a11y, cbMode: 'mono' } } });
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(mono.hud.evolution);
+    assert.ok(m !== null && m[1].toLowerCase() === m[2].toLowerCase() && m[2].toLowerCase() === m[3].toLowerCase(), `mono 에서 진화 색 = 무채색 (${mono.hud.evolution})`);
+    const evoMono = drawCard(true, false, mono);
+    assert.ok(evoMono.chip !== undefined && /진화$/.test(evoMono.chip.t), 'mono 에서도 칩 글자가 「…진화」');
+  });
+});
+
+suite('render — ㊿-s 카드 단위 · 데모 드래프트 안내', () => {
+  const mkDraftWorld = () => {
+    const w = createWorld({ data: loadData(), seed: 5, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w);
+    return w;
+  };
+  const textsOf = (w, cards, auto) => {
+    const draft = buildDraft(w);
+    draft.cards = cards;
+    if (auto !== undefined) draft.auto = auto;
+    const { ctx, rec } = layoutCtx();
+    drawDraft(ctx, w, resolvePalette(w.data.rules), draft, 0);
+    return rec.texts.map((r) => r.t);
+  };
+
+  test('각도/초 키(*DegSec)는 «°/초» — 「공전 속도 90초 → 105초」처럼 느려지는 것으로 읽히지 않는다', () => {
+    const w = mkDraftWorld();
+    const oi = giveWeapon(w, 'orbit');
+    const def = loadData().weapons.weapons.find((x) => x.id === 'orbit');
+    const after = def.levels[1].angularSpeedDegSec;
+    assert.eq(typeof after, 'number', '전제: 오빗 Lv2 칸이 공전 속도를 바꾼다');
+    const texts = textsOf(w, [{ category: 'weaponLevel', key: 'weaponLevel:orbit', slot: oi, weaponId: 'orbit', from: 1, to: 2, isEvolution: false, weight: 1 }]);
+    const want = `공전 속도 ${def.base.angularSpeedDegSec}°/초 → ${after}°/초`;
+    assert.ok(texts.includes(want), `오빗 Lv2 카드 = 「${want}」 (${texts.filter((t) => t.includes('공전')).join(' | ')})`);
+    assert.eq(texts.some((t) => t.includes('공전') && /\d초/.test(t)), false, '공전 속도 줄에 «초» 단위(각도 없이)가 붙지 않는다');
+  });
+
+  test('데모·어트랙트 드래프트(draft.auto)는 «1 / 2 / 3 선택» 대신 «봇이 고르는 중» — 사람 드래프트는 그대로', () => {
+    const w = mkDraftWorld();
+    const fi = w.slots.findIndex((s) => s.weaponId === 'forward');
+    const card = { category: 'weaponLevel', key: 'weaponLevel:forward', slot: fi, weaponId: 'forward', from: 1, to: 2, isEvolution: false, weight: 1 };
+    const human = textsOf(w, [card]);
+    const auto = textsOf(w, [card], true);
+    assert.ok(human.some((t) => t.includes('1 / 2 / 3 선택')), '사람 드래프트 = 「1 / 2 / 3 선택」 안내');
+    assert.eq(auto.some((t) => t.includes('선택') || t.includes('확정')), false, '데모 드래프트엔 «선택»·«확정» 안내가 없다 — 그 말대로 누르면 데모에서 튕겨 나간다');
+    assert.ok(auto.some((t) => t.includes('봇이 고르는 중')), '데모 드래프트 = 「데모 — 봇이 고르는 중」');
+  });
+});

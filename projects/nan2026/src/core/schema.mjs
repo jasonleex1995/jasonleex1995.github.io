@@ -294,7 +294,7 @@ function checkRules(c, r) {
     c.closed('rules.palette.threat', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline']);
     c.closed('rules.palette.status', r.palette.status, ['band']);
     c.closed('rules.palette.pickup', r.palette.pickup, ['xp', 'trait']);   // v1.10 ⑲ 특성 구슬(금색 = hud.accent 채널)
-    c.closed('rules.palette.hud', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent']);
+    c.closed('rules.palette.hud', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent', 'evolution']);
     c.closed('rules.palette.bg', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed']);
   }
@@ -393,7 +393,7 @@ function checkWeapons(c, w) {
     if (c.arr(`${p}.levels`, it.levels, WEAPON_MAX_LEVEL)) {
       for (let j = 0; j < WEAPON_MAX_LEVEL; j += 1) {
         const row = it.levels[j];
-        if (!isObj(row)) { c.fail(`${p}.levels[${j}]`, '객체가 아니다 (빈 객체 {} 허용)'); continue; }
+        if (!isObj(row)) { c.fail(`${p}.levels[${j}]`, '객체가 아니다 (빈 객체 {} 는 로드되지만 levels[0] 밖이면 S64 위반 — Lv2~10 은 카드에 보이는 값을 하나 이상 바꾼다)'); continue; }
         const rk = Object.keys(row);
         for (let k = 0; k < rk.length; k += 1) {
           // 행에 등장하는 키는 반드시 그 패밀리의 계약 안이어야 한다 (§9.3)
@@ -674,6 +674,15 @@ function checkMeta(c, m) {
       'pauseResumeCountdownSec', 'attractIdleSec', 'menuSpeed', 'deathAnimSec',
       'edgeTriggerOnStateEnter', 'pauseAllowsAbandon', 'attract', 'stagePar']);
     c.closed('meta.flow.attract', m.flow.attract, ['difficulty', 'draftDwellSec', 'endAfterMobPhase']);
+    // ㊿-s — 어트랙트 설정은 «값»까지 본다(검토 재현: 난이도 id 오타 하나가 타이틀을 매 프레임 예외 → 검은 화면으로 만들었다).
+    const posNum = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+    if (!posNum(m.flow.attractIdleSec)) c.fail('meta.flow.attractIdleSec', '유한한 양수(초)여야 한다 (§6.5 ㊿-s)');
+    if (isObj(m.flow.attract)) {
+      const tiers = isObj(m.difficulty) ? Object.keys(m.difficulty).filter((k) => isObj(m.difficulty[k])) : [];
+      if (tiers.indexOf(m.flow.attract.difficulty) < 0) c.fail('meta.flow.attract.difficulty', `난이도 id 여야 한다 (${tiers.join(' · ')}) (§6.5 ㊿-s)`);
+      if (!posNum(m.flow.attract.draftDwellSec)) c.fail('meta.flow.attract.draftDwellSec', '유한한 양수(게임초)여야 한다 (§6.5 ㊿-s)');
+      if (typeof m.flow.attract.endAfterMobPhase !== 'boolean') c.fail('meta.flow.attract.endAfterMobPhase', '불리언이어야 한다 (§6.5 ㊿-s)');
+    }
   }
   if (isObj(m.difficulty)) {
     // ★ v1.10 ㊿ — 「디재스터」 삭제 · hpMul 신설(난이도 = 적 체력, §11.3).

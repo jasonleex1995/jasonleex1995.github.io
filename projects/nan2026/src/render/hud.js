@@ -562,7 +562,10 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
   ctx.fillRect(0, 0, v.logicalW, v.logicalH);
 
   text(ctx, world, pal, 'LEVEL UP', v.logicalW / 2, 92, h.fontHeroPx, pal.hud.textPrimary, 'center', 800);
-  text(ctx, world, pal, `Lv.${world.player.level}  ·  1 / 2 / 3 선택   ←→ 커서   Space/Enter 확정`,
+  // ㊿-s 데모·어트랙트(draft.auto) — 봇이 고르는 화면에 «1 / 2 / 3 선택»을 띄우면 그 말대로 누른 사람이 데모에서 튕겨 나간다(검토)
+  text(ctx, world, pal, draft.auto === true
+    ? `Lv.${world.player.level}  ·  데모 — 봇이 고르는 중`
+    : `Lv.${world.player.level}  ·  1 / 2 / 3 선택   ←→ 커서   Space/Enter 확정`,
     v.logicalW / 2, 132, h.fontBodyPx, pal.hud.textDim, 'center');
   if (world.draftQueue > 1) {
     text(ctx, world, pal, `대기 중인 레벨업 ×${world.draftQueue - 1}`, v.logicalW / 2, 156,
@@ -584,8 +587,11 @@ export function drawDraft(ctx, world, pal, draft, cursor) {
 
     ctx.fillStyle = rgba(pal.hud.panelBg, 0.97);
     ctx.fillRect(x, y0, cw, ch);
+    // ㊿-s — 진화 카드는 고르지 않았을 때도 테두리가 자기 색(보라)이다. 굵기는 «선택»만 말한다(3px) —
+    //   진화 카드만 굵게 두면 커서가 그 카드 위에서 1px 차이로만 읽혔다(검토). 종류 = 색, 선택 = 굵기.
+    const evoCard = c.category === 'weaponLevel' && c.isEvolution;
     ctx.lineWidth = sel ? 3 : 1;
-    ctx.strokeStyle = sel ? accent : pal.hud.panelRule;
+    ctx.strokeStyle = (sel || evoCard) ? accent : pal.hud.panelRule;
     ctx.strokeRect(x, y0, cw, ch);
     ctx.fillStyle = accent;
     ctx.fillRect(x, y0, cw, 4);
@@ -708,9 +714,10 @@ function valueText(v) { return typeof v === 'string' ? (VALUE_KO[v] || v) : num(
 
 /** 키 이름이 단위를 말한다 — Sec = 초, Px/Radius = px, Deg = °. 없으면 단위 없음. */
 function unitOf(k) {
+  if (k.endsWith('DegSec')) return '°/초';   // ㊿-s 검토: «Sec» 보다 먼저 — 「공전 속도 90초 → 105초」가 느려지는 것처럼 읽혔다
   if (k.endsWith('Sec')) return '초';
   if (k.endsWith('Px') || /radius$/i.test(k)) return 'px';   // ㊿-r 검토: 소문자 radius(노바·펄스필드 반경)도 px — 「2단 링 320px」 옆에 「반경 210 → 240」이 떴다
-  if (k.endsWith('Deg') || k.endsWith('DegSec')) return '°';
+  if (k.endsWith('Deg')) return '°';
   return '';
 }
 
@@ -873,7 +880,7 @@ function categoryLabel(world, c) {
 
 function cardAccent(world, pal, c) {
   if (c.category === 'elementLevel') return pal.element[c.element];
-  if (c.category === 'weaponLevel' && c.isEvolution) return pal.element.normal;
+  if (c.category === 'weaponLevel' && c.isEvolution) return pal.hud.evolution;   // ㊿-s 진화 카드 = 보라(사용자 2026-09-11 「진화 카드 테두리 색은 좀 다르게」)
   if (c.category === 'resupply') return pal.hud.accent;
   if (c.category === 'trait') return pal.hud.accent;              // §11.6 금색 = 구슬과 같은 채널
   return pal.element.normal;

@@ -34,6 +34,17 @@ export const PHASE = {
 };
 
 /**
+ * §6.5(v1.10 ㊿-s) 어트랙트 — 타이틀에서 attractIdleSec 동안 입력이 없으면 봇이 도는 «쇼케이스 런»이 언제 끝나는가.
+ *   사망이면 끝 · flow.attract.endAfterMobPhase 면 잡몹 페이즈를 벗어나는 순간 끝(보스전 스포일러 방지 + 루프 길이).
+ *   ★ 입력으로 끝나는 것은 드라이버(main.js)의 몫이다 — core 는 입력 장치를 모른다(§9.1).
+ */
+export function attractOver(world) {
+  if (world.over) return true;
+  if (!world.data.meta.flow.attract.endAfterMobPhase) return false;
+  return world.run !== undefined && world.run.phase !== PHASE.MOB;
+}
+
+/**
  * §8.1 — 스테이지 순서를 결정적으로 뽑는다(런 시작 1회). rng.theme 만 소비(다른 스트림 불변).
  *   반환 = 6 포지션 [themed×5, finale]. 스테이지 1 은 introOk. 비복원(중복 없음).
  */

@@ -156,6 +156,7 @@ export function resolvePalette(rules) {
       panelBg: f(p.hud.panelBg), panelRule: f(p.hud.panelRule),
       textPrimary: f(p.hud.textPrimary), textDim: f(p.hud.textDim), hpFill: f(p.hud.hpFill),
       accent: f(p.hud.accent),
+      evolution: f(p.hud.evolution),   // ㊿-s 진화 카드 전용(보라) — 금(보상)·호박(상태이상)·자홍(위협)·속성색과 다른 채널. 적록 색각에선 물색과 가까워 칩 글자 「…진화」가 비색 단서다(§7.2)
     },
     bg: p.bg,
     /** §7.3 — 배경 명도 상한은 cvd/mono 에서 0.22 로 내려간다 */

@@ -239,7 +239,7 @@
       "textPrimary": "#DCE6F0",
       "textDim": "#7A8290",
       "hpFill": "#DCE6F0",
-      "accent": "#FFC93C"
+      "accent": "#FFC93C", "evolution": "#A98BFF"
     },
     "bg": {
       "maxSaturation": 0.25,

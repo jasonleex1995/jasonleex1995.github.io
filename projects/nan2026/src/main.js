@@ -30,7 +30,7 @@ import { weapons } from './core/weapons/index.js';
 import { enemies } from './core/enemies.js';
 import { emitters } from './core/emitters.js';
 import { bossHook } from './core/boss.js';
-import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, PHASE } from './core/stage.js';
+import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, PHASE, attractOver } from './core/stage.js';
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
@@ -391,6 +391,28 @@ async function boot() {
   const ctx = canvas.getContext('2d', { alpha: false });
   const pal = resolvePalette(rules);
   const kb = makeKeyboard(rules);
+  // §6.5(v1.10 ㊿-s) 어트랙트 — 타이틀의 «무입력» 시계(실시간 ms — 타이틀은 런이 없어 배속 1, §0.2.1)와 «끝» 깃발.
+  //   · 키·클릭 = 시계를 되돌리고, 어트랙트 중이면 깃발을 세운다 → 다음 프레임에 그 판이 끝난다(라벨이 약속한 그대로 — 「아무 키나 누르면」).
+  //     시각 비교가 아니라 깃발이다 — 타이머 정밀도가 낮은 브라우저에서 «시작한 그 순간»의 입력이 묻히지 않게(검토).
+  //   · 창·탭으로 돌아온 순간(focus · visibilitychange) = 타이틀의 시계만 새로 잰다(오래 비운 탭에 돌아오자마자 데모가 뜨지 않게).
+  //     데모는 끝내지 않는다 — 창 전환·화면 캡처처럼 «사람이 누르지 않은» 이벤트로 데모가 끊기지 않게.
+  //   · 게임이 쓰는 키는 조합이어도 입력이다 — 2차 검토: 조합을 전부 무시했더니 Ctrl+Esc 가 데모를 «일시정지»시켰다(키보드는 Esc 를 그대로 받는다).
+  //     게임이 안 쓰는 키는 수정 키 단독이거나 Cmd·Ctrl·Alt 와 함께면 입력이 아니다 — Cmd+Tab(창 전환) · Cmd+Shift+4(화면 캡처)가 blur 보다 먼저 데모를 끊었다(검토).
+  let attract = false;                        // 어트랙트 진행 중
+  let attractExit = false;                    // 어트랙트 중에 키·클릭이 들어왔다 = 끝
+  let lastInputAt = performance.now();
+  const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Alt', 'AltGraph', 'Shift', 'OS', 'CapsLock', 'Fn']);
+  const BOUND_CODES = new Set(Object.values(rules.input.bindings).flat());   // 게임이 쓰는 물리 키(event.code)
+  const noteInput = (e) => {
+    if (e.type === 'keydown' && !BOUND_CODES.has(e.code) && (MODIFIER_KEYS.has(e.key) || e.metaKey || e.ctrlKey || e.altKey)) return;
+    lastInputAt = performance.now();
+    if (attract) attractExit = true;
+  };
+  const noteReturn = () => { if (!attract) lastInputAt = performance.now(); };
+  window.addEventListener('keydown', noteInput, true);
+  window.addEventListener('pointerdown', noteInput, true);
+  window.addEventListener('focus', noteReturn);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) noteReturn(); });
   const edge = makeEdge(kb);
   const input = makeInput();
   // ── 셀프플레이 데모(어트랙트) — `?demo` 이면 봇이 자동 플레이(쇼케이스). 비침습: 기본 OFF ──
@@ -440,7 +462,7 @@ async function boot() {
     if (DEMO && demoFixedSeed !== null) seed = demoFixedSeed;   // 데모: 고정 시드 = 같은 쇼케이스 런 재현
     world = createWorld({ data, seed, weapons, hooks: HOOKS });
     world.difficultyId = diffId;             // §11.3 점수 배율(tally)이 읽는다
-    if (DEMO) setBotPolicy(world, { farm: 'maxFarm', draft: 'generalist' });  // 무기 다양성 + 레벨업 최대화
+    if (DEMO || attract) setBotPolicy(world, { farm: 'maxFarm', draft: 'generalist' });  // 무기 다양성 + 레벨업 최대화 (㊿-s 어트랙트도 같은 쇼케이스 정책)
     initRun(world);
     interp = makeInterp(world);
     fx = makeFx(world);
@@ -466,6 +488,34 @@ async function boot() {
     document.title = `${baseTitle} — 튜토리얼`;
     enter('PLAY');
     last = performance.now(); acc = 0;
+  }
+
+  /**
+   * §6.5(v1.10 ㊿-s) 어트랙트 — 오락실처럼 «아무도 안 건드리면» 봇이 게임을 보여준다. 사용자(2026-09-11)
+   *   「홈 화면에서 그러면 20초 동안 안돌아가면 봇이 게임을 플레이하는거로 하자!」. 설정은 meta.flow.attract 가 소유한다.
+   *   `?demo`(고정 시드 쇼케이스)와 같은 봇·같은 정책이되, 시드는 매번 새로 뽑아 루프마다 다른 판을 보여준다.
+   *   정책 실측(노멀 · 스테이지 1 잡몹 페이즈 · 시드 1~24): 사망 — 쇼케이스(maxFarm) 2 · 인증 기본(balanced) 7.
+   */
+  function startAttract() {
+    lastInputAt = performance.now();               // 시작이 실패해도 매 프레임 다시 시도하지 않는다 — 다음 시도는 다시 attractIdleSec 뒤
+    attract = true;
+    attractExit = false;
+    try {
+      startRun(data.meta.flow.attract.difficulty); // 봇 정책은 startRun 이 attract 를 보고 건다(?demo 와 같은 자리 · initRun 전)
+    } catch (err) {
+      attract = false;                             // 반쯤 만든 데모를 남기지 않는다 — 타이틀은 계속 그려진다(㊳ «멈추지 않는다»)
+      enter('TITLE');
+      document.title = baseTitle;                  // 검토: 실패한 판의 시드가 탭 제목에 남았다
+      throw err;                                   // 조용히는 아니다 — frame() 이 기록하고 «렌더 오류» 배지를 띄운다
+    }
+    document.title = baseTitle;                    // 탭 제목에 시드를 띄우지 않는다 — 사람의 판이 아니다
+  }
+  /** 어트랙트 종료 — 결과 화면 없이 타이틀로(다시 attractIdleSec 뒤에 새 판). enter('TITLE') 이 world 를 비운다. */
+  function endAttract() {
+    attract = false;
+    attractExit = false;
+    enter('TITLE');
+    document.title = baseTitle;
   }
 
   let state = 'TITLE';   // TITLE | DIFFICULTY | OPTIONS | THEME_BANNER | PLAY | DRAFT | PAUSE | RESULTS | TOO_SMALL  (v1.5: SHOP·DEATH 폐지)
@@ -496,9 +546,10 @@ async function boot() {
     //   renderFrame 의 `world === null` 메뉴 분기가 두 번 다시 잡히지 않아
     //   RESULTS→Esc 이후 타이틀·난이도 화면이 통째로 백지가 된다(죽은 런이 얼어붙은 채 남는다).
     //   OPTIONS 는 PAUSE 위에 겹쳐 그리므로 여기서 비우지 않는다.
-    if (next === 'TITLE') { world = null; interp = null; fx = null; }
+    if (next === 'TITLE') { world = null; interp = null; fx = null; lastInputAt = performance.now(); }   // ㊿-s 타이틀에 올 때마다 무입력 시계를 새로 잰다
     if (data.meta.flow.edgeTriggerOnStateEnter) kb.maskHeld();
-    if (DEMO && next === 'DRAFT') demoHoldT = 1200;         // 카드 ~1.2s 보여주고 자동 픽
+    if (attract && next === 'DRAFT') demoHoldT = data.meta.flow.attract.draftDwellSec * 1000 / data.meta.difficulty[difficultyId].speed;   // ㊿-s 카드 체류 — 게임초(§19.4-⑧)라 실시간은 ÷ 배속
+    else if (DEMO && next === 'DRAFT') demoHoldT = 1200;         // 카드 ~1.2s 보여주고 자동 픽
     else if (DEMO && next === 'RESULTS') demoHoldT = 2500;  // 결과 ~2.5s 보여주고 루프
   }
 
@@ -507,7 +558,7 @@ async function boot() {
     window.addEventListener('blur', () => {
       kb.clear();
       acc = 0;
-      if (state === 'PLAY') enter('PAUSE');
+      if (state === 'PLAY' && !attract) enter('PAUSE');   // ㊿-s 어트랙트는 멈추지 않는다 — «일시정지»가 걸린 데모는 고장처럼 보인다(사람의 입력 중 데모를 끝내는 것은 키·클릭뿐)
     });
   }
   // §7.10(㊶) — 탭이 숨겨지면 BGM 을 «끊는다». rAF 가 멈춰 스케줄은 알아서 서지만, **이미 예약된 음**은 컨텍스트가
@@ -519,11 +570,22 @@ async function boot() {
     });
   }
 
+  /**
+   * ㊿-s 데모·어트랙트의 드래프트 — 봇이 고를 카드에 커서를 먼저 둔다(보여 주는 것 = 고르는 것). draft.auto 가 안내 줄을
+   *   「봇이 고르는 중」으로 바꾼다(hud.drawDraft) — «1 / 2 / 3 선택» 안내대로 누르면 데모에서 튕겨 나갔다(검토).
+   *   ★ 게임이 멈춘 동안 한 번만 부르므로, 고르는 시각을 «열 때»로 옮겨도 ?demo 의 고정 시드 판은 그대로다.
+   */
+  function prepareDraftCursor() {
+    const auto = DEMO || attract;
+    draft.auto = auto;
+    cursor = auto ? botDraftPick(world, draft) : 0;
+  }
+
   function openDraftIfQueued() {
     if (world.draftQueue <= 0) return false;
     if (!data.meta.draft.pauseGame) return false;   // §6.4 — 드래프트는 게임 클럭을 멈춘다
     draft = buildDraft(world);
-    cursor = 0;
+    prepareDraftCursor();
     acc = 0;
     enter('DRAFT');
     return true;
@@ -534,7 +596,7 @@ async function boot() {
     const td = buildTraitDraft(world);
     if (td.cards.length === 0) { world.traitQueue = 0; return false; }
     draft = td;
-    cursor = 0;
+    prepareDraftCursor();
     acc = 0;
     enter('DRAFT');
     return true;
@@ -592,7 +654,7 @@ async function boot() {
     if (audio !== null) audio.bgmTick();          // §7.10 v1.5 — BGM look-ahead 스케줄(매 프레임)
 
     if (viewportTooSmall(view)) {
-      if (state !== 'TOO_SMALL') { tooSmallReturn = state; state = 'TOO_SMALL'; }
+      if (state !== 'TOO_SMALL') { if (attract) endAttract(); tooSmallReturn = state; state = 'TOO_SMALL'; }   // ㊿-s 어트랙트는 끝낸다 — 창이 돌아왔을 때 «일시정지»된 데모가 남지 않게
     } else if (state === 'TOO_SMALL') {
       // 창이 다시 커지면 직전 상태로 복귀(런 중이면 PAUSE, 메뉴면 그 메뉴)
       enter(tooSmallReturn === 'PLAY' ? 'PAUSE' : tooSmallReturn); last = now; acc = 0;
@@ -616,11 +678,14 @@ async function boot() {
     const upEdge = edge.pressed(rules.input.bindings.cursor[2]);
     const downEdge = edge.pressed(rules.input.bindings.cursor[3]);
     const advanceEdge = startEdge || confirmEdge;                    // ★ 통일된 «확정/진행» = Space ∨ Enter
+    // §6.5(㊿-s) 어트랙트 중 입력(키·클릭 깃발) = 즉시 타이틀. 누른 키는 enter() 가 가려(maskHeld) 타이틀에서 «시작»으로 새지 않는다.
+    if (attract && attractExit) { endAttract(); renderFrame(); return; }
 
     // ── §6.5 메뉴(런 없음) ─────────────────────────────────────────
     if (state === 'TITLE') {
       if (advanceEdge) enter('DIFFICULTY');
       else if (optionsEdge) { optionsFrom = 'TITLE'; enter('OPTIONS'); }
+      else if (!DEMO && now - lastInputAt >= data.meta.flow.attractIdleSec * 1000) startAttract();   // ㊿-s 무입력 → 봇 쇼케이스
       renderFrame();
       return;
     }
@@ -677,12 +742,14 @@ async function boot() {
       try {                                    // ㊳ ② 스텝 예외는 그 틱만 버린다 — 렌더는 계속된다(게임이 멈추지 않는다)
       while (acc >= tickDur && steps < rules.loop.maxStepsPerFrame) {
         captureInterp(interp, world);         // §10.1 — 보간용 직전 위치. 렌더가 자기 것으로 들고 있는다
-        step(world, DEMO ? botInput(world, 1 / TICK_HZ) : pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다 (데모=봇 입력)
+        step(world, (DEMO || attract) ? botInput(world, 1 / TICK_HZ) : pollInput(kb, rules.input.bindings, input), 1 / TICK_HZ);   // ★ dt 는 상수. speed 를 곱하지 않는다 (데모·어트랙트=봇 입력)
         updateFx(fx, world, 1 / TICK_HZ);
-        playHitCues(audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10)
-        playEventCues(audio, world, audioPrev); // §7.10 — 레벨업·피격·스탠스 SFX
+        playHitCues(attract ? null : audio, world);            // §7.7 — 이 스텝의 히트 tier 를 SFX 로 (시각 짝, §7.10) · ㊿-s 어트랙트는 무음
+        playEventCues(attract ? null : audio, world, audioPrev); // §7.10 — 레벨업·피격·스탠스 SFX
         acc -= tickDur;
         steps += 1;
+        // §6.5(㊿-s) 어트랙트는 사망·잡몹 페이즈 끝에서 결과 화면 없이 타이틀로(core.attractOver)
+        if (attract && attractOver(world)) { endAttract(); break; }
         // §11.4(v1.5) — 사망 = 즉시 결과. 컨티뉴 폐지 = 원데스=게임오버.
         if (world.over) { enter('RESULTS'); break; }
         // §6.5(v1.5) STAGE_CLEAR → (§11.6 특성 선택) → 회복 → 바로 다음 스테이지 배너 (상점 폐지).
@@ -702,7 +769,7 @@ async function boot() {
     } else {
       acc = 0;
       if (state === 'DRAFT') {
-        if (DEMO) { demoHoldT -= elapsed; if (demoHoldT <= 0) pick(botDraftPick(world, draft)); }  // 봇 자동 픽
+        if (DEMO || attract) { demoHoldT -= elapsed; if (demoHoldT <= 0) pick(cursor); }  // 봇 자동 픽(데모·어트랙트) — 커서는 열 때 봇이 고른 카드(prepareDraftCursor)
         else tickDraft(advanceEdge);
       }
       else if (state === 'TOO_SMALL') { /* 입력 무시 (§1.1) */ }
@@ -753,6 +820,33 @@ async function boot() {
     if (state === 'OPTIONS') drawOptionsScreen();          // PAUSE→OPTIONS 는 world 위에 겹친다
     // §11.3 — 결과 화면(죽어도 집계된다). 내역 + 총점.
     if (state === 'RESULTS') drawResults(ctx, world, pal, tally(world), `시드 ${seedHex(seed)}`);
+    if (attract) drawAttractTag();                         // ㊿-s «데모» 표시 — 맨 마지막(드래프트 오버레이에 묻히지 않게)
+  }
+
+  /**
+   * §6.5(㊿-s) 어트랙트 표시 — 사람이 조작하는 판으로 오해하지 않게, 무엇을 누르면 되는지까지 말한다.
+   *   자리 = 아레나 상단 띠 바로 아래(튜토리얼 안내 띠와 같은 자리 — 보스 코어 체력바를 안 가린다) · 드래프트 중엔 카드 상자 아래.
+   */
+  function drawAttractTag() {
+    const a = view.arena;
+    const cx = a.x + a.w / 2;
+    const y = state === 'DRAFT' ? view.logicalH - 34 : a.y + view.bandTopH + 24;
+    const label = '데모 플레이 · 아무 키나 누르면 시작 화면으로';
+    ctx.save();
+    ctx.font = `700 ${rules.hud.fontBodyPx}px ${rules.visual.text.family}`;
+    const w = ctx.measureText(label).width + 32;
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = pal.hud.panelBg;
+    ctx.fillRect(cx - w / 2, y - 16, w, 32);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = pal.hud.panelRule;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - w / 2, y - 16, w, 32);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = pal.hud.textPrimary;
+    ctx.fillText(label, cx, y);
+    ctx.restore();
   }
 
   // ── §6.5 메뉴 렌더 (world 없이도 그린다) ──────────────────────────────

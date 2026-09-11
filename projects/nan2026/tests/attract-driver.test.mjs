@@ -1,0 +1,91 @@
+/**
+ * tests/attract-driver.test.mjs — §6.5(v1.10 ㊿-s) 어트랙트 «드라이버»(src/main.js)를 실제로 부팅해서 본다.
+ *   core 판정(stage.attractOver)은 tests/attract.test.mjs, 설정값 · 키 읽힘 · 화면으로 안 보이는 배선 넷은 check.mjs S63 이 본다.
+ *   이 파일은 그 사이 — 시작 · 끝(키 · 클릭 · 게임 키 조합) · 끝 깃발 · 무입력 시계 · blur · 수정 키 · 창 크기 · 일시정지 · 난이도 화면 ·
+ *   사람 드래프트 · ?demo — 를 **화면에 그려진 것**으로 본다. 가짜 전역을 깔아야 하므로 tests/attract-driver.mjs 를 **자식 프로세스**로 돌린다.
+ */
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { suite, test, assert, loadData } from '../tools/test.mjs';
+
+const DRIVER = fileURLToPath(new URL('./attract-driver.mjs', import.meta.url));
+
+function drive(scenario, patch) {
+  const env = { ...process.env };
+  if (patch) env.PRISM_META_PATCH = JSON.stringify(patch);
+  else delete env.PRISM_META_PATCH;
+  const r = spawnSync(process.execPath, [DRIVER, scenario], { encoding: 'utf8', env, timeout: 60000, maxBuffer: 1 << 24 });
+  const line = (r.stdout || '').trim().split('\n').pop() || '';
+  let out = null;
+  try { out = JSON.parse(line); } catch { out = null; }
+  assert.ok(out !== null && r.status === 0 && out.fatal === undefined,
+    `드라이버(${scenario})가 끝까지 돌았다 — exit ${r.status} · ${line.slice(0, 300)} ${(r.stderr || '').slice(0, 300)}`);
+  assert.eq(out.errors, 0, `드라이버(${scenario}) 프레임 오류 0 — ${JSON.stringify(out.errorSamples)}`);
+  return out;
+}
+
+suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
+  test('시작 · 드래프트 · 끝 — 20초 무입력 → 데모 · 체류 = draftDwellSec ÷ 배속 · 사람이 안 누른 입력은 못 끝낸다 · 키 · 클릭 · Ctrl+Esc = 타이틀 · 다음 데모는 다시 20초 뒤 · 스스로 끝나면 결과 화면 없이 타이틀 · 난이도 화면 · 일시정지는 데모로 안 바뀐다', () => {
+    const d = loadData();
+    // 체류를 알아볼 수 있게 설정을 바꿔 돌린다: 하드(배속 1.1) · 0.5 게임초 → 실시간 454.5ms. 노멀(500) · 헬(400) · 1200 고정 · ÷배속 누락(500)과 모두 다르다
+    const o = drive('flow', { flow: { attract: { difficulty: 'hard', draftDwellSec: 0.5 } } });
+    const idleMs = d.meta.flow.attractIdleSec * 1000;
+    const wantDwell = (0.5 * 1000) / d.meta.difficulty.hard.speed;
+    const aboutIdle = (v) => v >= idleMs - 50 && v <= idleMs + o.fastMs + 50;
+    assert.ok(o.bootTitle, '부팅 = 타이틀');
+    assert.ok(o.demoStartMs >= idleMs && o.demoStartMs <= idleMs + o.fastMs + 20, `무입력 ${idleMs}ms 에 데모가 뜬다 — 그 전엔 안 뜬다 (${o.demoStartMs.toFixed(0)}ms)`);
+    assert.ok(o.demoTabTitleClean, '데모 중 탭 제목에 시드가 안 붙는다 — 사람의 판이 아니다');
+    assert.lte(Math.abs(o.dwellMs - wantDwell), 12, `데모 드래프트 체류 = draftDwellSec ÷ attract.difficulty 배속 (${o.dwellMs}ms · 기대 ${wantDwell.toFixed(1)}ms)`);
+    assert.ok(o.cursorShown, '데모 드래프트에 커서(3px 테두리)가 딱 한 장에 있다');
+    assert.ok(o.tagOverDraft, '데모 표시가 드래프트 오버레이 «위»에 그려진다');
+    assert.eq(o.humanDraftInDemo, false, '데모 드래프트에 «1 / 2 / 3 선택» 안내가 안 뜬다');
+    assert.ok(o.modifierKeepsDemo, '수정 키 단독 · 게임이 안 쓰는 키와의 조합(Cmd+Shift+4)은 데모를 끝내지도 일시정지하지도 않는다');
+    assert.ok(o.blurKeepsDemo, 'blur 는 데모를 끝내지도 일시정지하지도 않는다');
+    assert.ok(o.returnKeepsDemo, 'focus · 탭 숨김/복귀는 데모를 끝내지 않는다');
+    assert.ok(o.keyExitsToTitle, '아무 키 = 다음 프레임에 타이틀');
+    assert.ok(aboutIdle(o.nextDemoAfterMs), `끝난 뒤 다음 데모는 다시 ${idleMs}ms 뒤 — 곧바로 이어지지 않는다 (${o.nextDemoAfterMs.toFixed(0)}ms)`);
+    assert.ok(o.demoSurvives3s, '새 데모는 스스로 금방 끝나지 않는다(끝 깃발이 남아 있지 않다)');
+    assert.ok(o.clickExitsToTitle, '클릭 = 타이틀');
+    assert.ok(o.ctrlAloneKeepsDemo, 'Ctrl 단독은 입력이 아니다');
+    assert.ok(o.ctrlEscExitsToTitle, '게임 키가 섞인 조합(Ctrl+Esc)은 입력 — «일시정지»가 아니라 타이틀');
+    assert.ok(o.ctrlSpaceExitsToTitle, '게임 키는 물리 키(e.code)로 가른다 — Ctrl+Space(key « » · code Space)도 타이틀(배너 건너뛰기 · 난이도 화면이 아니다)');
+    assert.ok(o.heldSpaceStaysTitle, '데모를 끝낸 Space 를 누르고 있어도 타이틀에서 «시작»으로 새지 않는다');
+    assert.ok(o.freshSpaceOpensDifficulty, '새로 누른 Space = 난이도 화면');
+    assert.ok(o.difficultyIdleNoDemo, '난이도 화면에선 25초 무입력에도 데모가 안 뜬다 — 데모는 타이틀에서만');
+    assert.ok(o.escBackToTitle, '난이도 화면에서 Esc = 타이틀');
+    const maxEnd = (d.meta.flow.themeBannerSec + d.stages.phase.mobPhaseSec) * 1000 * 1.35;
+    assert.ok(o.naturalEndMs >= 0 && o.naturalEndMs <= maxEnd && o.naturalEndTitle,
+      `데모가 스스로 끝나면(사망 · 잡몹 페이즈 끝) 결과 화면 없이 타이틀 — 보스전까지 이어지지 않는다 (${o.naturalEndMs.toFixed(0)}ms ≤ ${maxEnd.toFixed(0)}ms)`);
+    assert.ok(aboutIdle(o.afterEndNextDemoMs), `입력 없이 끝났어도 다음 데모는 다시 ${idleMs}ms 뒤 — 타이틀에 올 때마다 무입력 시계를 새로 잰다 (${o.afterEndNextDemoMs.toFixed(0)}ms)`);
+    assert.ok(o.humanDraftSeen, '사람 판의 드래프트 = «1 / 2 / 3 선택» 안내(데모 안내가 새지 않는다)');
+    assert.ok(o.humanDraftWaits, '사람 드래프트는 입력을 기다린다(스스로 고르지 않는다)');
+    assert.ok(o.pauseShown && o.pauseHolds25s, '사람 판의 일시정지는 25초 무입력에도 데모로 바뀌지 않는다');
+  });
+
+  test('사망으로 끝난 데모도 결과 화면 없이 타이틀 — 다음 데모도 다시 20초 뒤', () => {
+    const d = loadData();
+    // 한 번 맞으면 죽게 해서 «사망» 길을 확실히 탄다(잡몹 페이즈 끝 길은 위 흐름 테스트가 탄다)
+    const o = drive('death', { flow: { attract: { difficulty: 'normal' } }, difficulty: { normal: { enemyDmgMul: 1000000 } } });
+    const idleMs = d.meta.flow.attractIdleSec * 1000;
+    assert.ok(o.endMs >= 0 && o.endMs < d.stages.phase.mobPhaseSec * 1000, `잡몹 페이즈가 끝나기 전에(= 사망으로) 끝났다 (${o.endMs.toFixed(0)}ms)`);
+    assert.ok(o.endTitle, '사망 → 결과 화면이 아니라 타이틀');
+    assert.ok(o.afterEndNextDemoMs >= idleMs - 50 && o.afterEndNextDemoMs <= idleMs + o.fastMs + 50,
+      `사망 뒤 다음 데모도 다시 ${idleMs}ms 뒤 (${o.afterEndNextDemoMs.toFixed(0)}ms)`);
+  });
+
+  test('데모 중 창이 최소 크기 밑으로 줄면 데모를 끝낸다 — 돌아오면 타이틀(일시정지 · 드래프트가 남지 않는다)', () => {
+    const o = drive('small');
+    assert.ok(o.demoRunning, '전제: 데모가 돌고 있다');
+    assert.ok(o.smallShown, '창이 작으면 «창이 너무 작습니다»');
+    assert.ok(o.restoredTitle, '창이 돌아오면 타이틀');
+    assert.ok(o.stillTitle3s, '3초 뒤에도 타이틀(일시정지 · 드래프트 아님)');
+  });
+
+  test('?demo 는 그대로 — 고정 시드 · 카드 1.2초 · 데모 표시 없음 · 드래프트는 «봇이 고르는 중»', () => {
+    const o = drive('demo');
+    assert.eq(o.tagSeen, false, '?demo 에는 어트랙트 표시가 없다');
+    assert.ok(o.autoDraftDwellMs >= 1200 && o.autoDraftDwellMs <= 1212, `?demo 드래프트 체류 1200ms (${o.autoDraftDwellMs}ms)`);
+    assert.ok(/— 00000008$/.test(o.tabTitle), `?demo = 고정 시드 00000008 — 탭 제목 (${o.tabTitle})`);
+    assert.eq(o.humanDraftSeen, false, '?demo 드래프트에 «1 / 2 / 3 선택» 안내가 없다');
+  });
+});

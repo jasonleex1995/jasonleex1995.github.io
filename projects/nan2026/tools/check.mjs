@@ -95,7 +95,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -629,7 +629,7 @@ function S2_schema() {
     closedKeys('S2', r.palette.threat, ['enemyBullet', 'telegraph', 'bulletCore', 'outline'], 'rules.palette.threat');
     closedKeys('S2', r.palette.status, ['band'], 'rules.palette.status');
     closedKeys('S2', r.palette.pickup, ['xp', 'trait'], 'rules.palette.pickup');   // v1.10 ⑲ 특성 구슬
-    closedKeys('S2', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent'], 'rules.palette.hud');
+    closedKeys('S2', r.palette.hud, ['panelBg', 'panelRule', 'textPrimary', 'textDim', 'hpFill', 'accent', 'evolution'], 'rules.palette.hud');
     closedKeys('S2', r.palette.bg, ['maxSaturation', 'maxLightness', 'cvdMaxLightness',
       'parallaxLayers', 'maxScrollSpeed'], 'rules.palette.bg');
   }
@@ -3946,6 +3946,139 @@ function S62_slowNotDelete() {
   EX('S62', n);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  S63 — 어트랙트: 설정이 «값까지» 맞고, 실제로 읽히고, 드라이버 배선이 제자리에 있다 (§6.5 v1.10 ㊿-s)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * meta.flow.attractIdleSec · meta.flow.attract.{difficulty, draftDwellSec, endAfterMobPhase} 는 v1.2 에 «채택»됐지만
+ *   ㊿-r 까지 **읽는 코드가 0** 이었다(죽은 키). 사용자(2026-09-11) 「홈 화면에서 20초 동안 안 돌아가면 봇이 게임을 플레이하는거로 하자!」로 살렸다.
+ *   ① 값 — 두 Sec 는 유한한 양수 · difficulty 는 난이도 id · endAfterMobPhase 는 불리언(로더 schema 도 같은 규칙).
+ *      검토 재현: 난이도 id 오타 하나가 타이틀을 매 프레임 예외 → 검은 화면으로 만들었다.
+ *   ② 읽힌다 — main.js 가 세 키를 읽고 attractOver(world) 를 부른다 · stage.attractOver 가 사망 · endAfterMobPhase · 잡몹 페이즈를 본다.
+ *      ★ 주석과 «문자열 속»은 걷어낸다 — `void 'data.meta.flow.attractIdleSec'` 한 줄로 통과하던 구멍(검토).
+ *   ③ 배선 — 화면으로 보기 어려운 넷만 소스로 본다: ⓐ 스텝 입력 = (DEMO || attract) ? botInput ⓑ 효과음 큐 = attract ? null : audio
+ *      ⓒ 드래프트 = 열 때 봇이 고른 카드에 커서(레벨업·특성 드래프트를 여는 두 함수 모두 — 그 안에서 커서를 다시 쓰지 않는다) · 체류 뒤 pick(cursor)
+ *      ⓓ 봇 정책 = ?demo 쇼케이스 값(maxFarm · generalist) — §6.5 실측 «사망 2 vs 7»이 이 정책의 값이다.
+ *   ★ 흐름(시작 · 끝 · 끝 깃발 · 무입력 시계 · blur · 수정 키 조합 · 클릭 · 창 크기 · 일시정지 · 난이도 화면 무입력 · 사람 드래프트 대기 · ?demo)은
+ *     tests/attract-driver.test.mjs 가 main.js 를 실제로 부팅해 화면에 그려진 글자로 본다 — 검토: 조각 검사는 endAttract 가 attract 를 안 끄거나
+ *     깃발이 안 지워져도 초록이었고, 따옴표·줄바꿈만 바뀌어도 빨갰다. «언제 끝나는가»의 core 판정은 tests/attract.test.mjs 가 본다.
+ */
+function S63_attractWiring() {
+  let n = 0;
+  const flow = isObj(D.meta) ? D.meta.flow : undefined;
+  n += 1;
+  if (!isObj(flow) || !isObj(flow.attract)) { V('S63', 'meta.flow.attract 가 없다 (§6.5)'); EX('S63', n); return; }
+  // ① 값
+  const posNum = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const tiers = isObj(D.meta.difficulty) ? Object.keys(D.meta.difficulty).filter((k) => isObj(D.meta.difficulty[k])) : [];
+  n += 4;
+  if (!posNum(flow.attractIdleSec)) V('S63', `meta.flow.attractIdleSec = ${JSON.stringify(flow.attractIdleSec)} — 유한한 양수(초)여야 한다 (§6.5 ㊿-s ①)`);
+  if (tiers.indexOf(flow.attract.difficulty) < 0) {
+    V('S63', `meta.flow.attract.difficulty = ${JSON.stringify(flow.attract.difficulty)} — 난이도 id(${tiers.join(' · ')})여야 한다. 오타 하나가 타이틀을 검은 화면으로 만든다 (§6.5 ㊿-s ①)`);
+  }
+  if (!posNum(flow.attract.draftDwellSec)) V('S63', `meta.flow.attract.draftDwellSec = ${JSON.stringify(flow.attract.draftDwellSec)} — 유한한 양수(게임초)여야 한다 (§6.5 ㊿-s ①)`);
+  if (typeof flow.attract.endAfterMobPhase !== 'boolean') V('S63', `meta.flow.attract.endAfterMobPhase = ${JSON.stringify(flow.attract.endAfterMobPhase)} — 불리언이어야 한다 (§6.5 ㊿-s ①)`);
+
+  const TOKEN = /(['"`])(?:\\[\s\S]|(?!\1)[^\\])*\1|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+  const ws = (t) => t.replace(/\s+/g, ' ');
+  const noStrings = (t) => ws(t.replace(TOKEN, (m, q) => (q ? q + q : ' ')));
+  const readRaw = (...parts) => { const fp = join(ROOT, ...parts); return existsSync(fp) ? readFileSync(fp, 'utf8') : null; };
+  const mainRaw = readRaw('src', 'main.js');
+  const stageRaw = readRaw('src', 'core', 'stage.js');
+  n += 1;
+  if (mainRaw === null || stageRaw === null) { V('S63', 'src/main.js 또는 src/core/stage.js 가 없다 (§6.5)'); EX('S63', n); return; }
+  const mainS = noStrings(mainRaw);    // 코드 조각 검사용 — 문자열 속 흉내는 통과하지 못한다
+  const stageS = noStrings(stageRaw);
+
+  // ② 읽힌다
+  for (const [label, re] of [
+    ['flow.attractIdleSec', /\.flow\.attractIdleSec\b/],
+    ['flow.attract.difficulty', /\.flow\.attract\.difficulty\b/],
+    ['flow.attract.draftDwellSec', /\.flow\.attract\.draftDwellSec\b/],
+    ['attractOver(world)', /\battractOver\( ?world ?\)/],
+  ]) {
+    n += 1;
+    if (!re.test(mainS)) V('S63', `src/main.js 가 ${label} 를 쓰지 않는다 — 어트랙트 설정이 다시 죽은 키가 된다 (§6.5 ㊿-s ②)`);
+  }
+  const bodyFrom = (t, head) => {
+    const i = t.indexOf(head);
+    if (i < 0) return null;
+    let depth = 0;
+    for (let j = t.indexOf('{', i); j >= 0 && j < t.length; j += 1) {
+      if (t[j] === '{') depth += 1;
+      else if (t[j] === '}') { depth -= 1; if (depth === 0) return t.slice(i, j + 1); }
+    }
+    return null;
+  };
+  const over = bodyFrom(stageS, 'export function attractOver(world) {');
+  n += 1;
+  if (over === null || !/\.endAfterMobPhase\b/.test(over) || !over.includes('world.over') || !over.includes('PHASE.MOB')) {
+    V('S63', 'stage.js 의 attractOver 가 없거나 사망(world.over) · flow.attract.endAfterMobPhase · 잡몹 페이즈(PHASE.MOB)를 안 본다 (§6.5 ㊿-s ②)');
+  }
+
+  // ③ 배선 — 화면으로 보기 어려운 넷만(흐름은 tests/attract-driver.test.mjs)
+  const mainK = ws(mainRaw.replace(TOKEN, (m, q) => (q ? m : ' ')));   // 주석만 걷은 원문 — 정책 값처럼 문자열이 필요한 검사용
+  const need = (ok, msg) => { n += 1; if (!ok) V('S63', `src/main.js — ${msg} (§6.5 ㊿-s ③)`); };
+  need(mainS.includes('(DEMO || attract) ? botInput(world'), 'ⓐ 스텝 입력이 (DEMO || attract) ? botInput(world, …) 가 아니다 — 데모가 사람 입력을 기다린다');
+  need(mainS.includes('playHitCues(attract ? null : audio, world)') && mainS.includes('playEventCues(attract ? null : audio, world, audioPrev)'),
+    'ⓑ 효과음 큐가 어트랙트에서 꺼지지 않는다');
+  const opens = ['function openDraftIfQueued() {', 'function openTraitDraft() {'].map((head) => bodyFrom(mainS, head));
+  need(mainS.includes('const auto = DEMO || attract;') && mainS.includes('cursor = auto ? botDraftPick(world, draft) : 0;')
+    && opens.every((b) => b !== null && /\bdraft = [^;]*; prepareDraftCursor\(\);/.test(b) && !/\bcursor\s*(?:\*\*|[-+*/%])?=(?!=)/.test(b))
+    && mainS.includes('if (DEMO || attract) { demoHoldT -= elapsed; if (demoHoldT <= 0) pick(cursor); }'),
+    'ⓒ 드래프트 자동 픽 배선(열 때 봇이 고른 카드에 커서 · 레벨업·특성 드래프트를 여는 두 함수 모두 draft = 바로 다음에 prepareDraftCursor 를 부르고 그 안에서 커서를 다시 쓰지 않는다(+= 포함) · 체류 뒤 pick(cursor))이 없다');
+  need(mainS.includes('if (DEMO || attract) setBotPolicy(world, {') && mainK.includes("if (DEMO || attract) setBotPolicy(world, { farm: 'maxFarm', draft: 'generalist' });"),
+    'ⓓ 데모·어트랙트 봇 정책이 ?demo 쇼케이스 값(maxFarm · generalist)이 아니다 — §6.5 의 실측(사망 2 vs 7)은 이 정책의 값이다');
+  EX('S63', n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  S64 — 레벨업 칸은 카드에 보이는 값을 하나 이상 바꾼다 (§9.5 v1.10 ㊿-s)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * ㊿-r 검토에서 발견 — 리턴·바라지·미사일의 Lv9, 벌컨의 Lv4, 오빗의 Lv2 칸이 `{}` 였다. 그 카드를 골라도 아무것도 안 오르고
+ *   카드에도 수치 줄이 하나도 없었다(사용자 2026-09-11 「그러면 이걸 당연히 뭐라도 채워야될 것 같은데?」).
+ *   ① 칸의 값은 base 와 같은 형(수·문자열·불리언·배열)이다 — null · "34" 는 로더도 이 게이트도 통과하던 구멍(검토)
+ *   ② 카드에 보이는 값으로 비교한다 — 수는 카드처럼 소수 둘째 자리로(32.004 = 「32 → 32」) · 좌표 배열은 순서를 무시한다(자리만 바꾼 배치 = 같은 배치)
+ *   ③ 누적값을 하나 이상 «바꾼다» — 빈 칸 `{}` 도, 이미 가진 값만 다시 적는 칸도 위반. levels[0](= Lv1 = base)만 예외 · 진화 칸(Lv8)도 예외가 아니다
+ *      (진화 카드가 그 칸의 수치를 «Lv.8 레벨업»으로 보인다, ㊿-r).
+ *   ★ «더 세다»는 이 게이트가 아니라 S44 대용치와 tests/levelcurve.test.mjs(S44 가 못 보는 칸의 실측)가 본다.
+ */
+function S64_noEmptyLevel() {
+  let n = 0;
+  const kind = (v) => (Array.isArray(v) ? 'array' : v === null ? 'null' : typeof v);
+  const shown = (v) => {
+    if (typeof v === 'number') return Math.round(v * 100) / 100;
+    if (Array.isArray(v)) { const a = v.map(shown); return a.length > 0 && a.every(Array.isArray) ? a.map((x) => JSON.stringify(x)).sort() : a; }
+    return v;
+  };
+  const same = (a, b) => JSON.stringify(shown(a)) === JSON.stringify(shown(b));
+  for (const w of rowsQuiet(D.weapons && D.weapons.weapons)) {
+    if (!isObj(w) || !isObj(w.base) || !Array.isArray(w.levels)) continue;
+    const cur = Object.assign({}, w.base);
+    for (let i = 0; i < w.levels.length; i += 1) {
+      const row = isObj(w.levels[i]) ? w.levels[i] : {};
+      const keys = Object.keys(row);
+      for (const k of keys) {
+        n += 1;
+        if (Object.prototype.hasOwnProperty.call(w.base, k) && kind(row[k]) !== kind(w.base[k])) {
+          V('S64', `weapons[${w.id}] Lv${i + 1}.${k} = ${JSON.stringify(row[k])} — base 는 ${kind(w.base[k])} 인데 ${kind(row[k])} 다 (§9.5 ㊿-s ①)`);
+        }
+      }
+      if (i >= 1) {
+        n += 1;
+        if (keys.length === 0) {
+          V('S64', `weapons[${w.id}] Lv${i + 1} 칸이 비어 있다 — 그 레벨업 카드를 골라도 아무것도 안 오른다. 앞뒤 칸 사이의 한 걸음을 채워라 (§9.5 ㊿-s ③)`);
+        } else if (keys.every((k) => same(cur[k], row[k]))) {
+          V('S64', `weapons[${w.id}] Lv${i + 1} 칸이 카드에 보이는 값을 하나도 안 바꾼다(${keys.map((k) => `${k} ${JSON.stringify(row[k])}`).join(' · ')}) — 빈 칸과 같다 (§9.5 ㊿-s ②③)`);
+        }
+      }
+      Object.assign(cur, row);
+    }
+  }
+  EX('S64', n);
+}
+
 function S45_draftParamLabels() {
   const hudPath = join(ROOT, 'src', 'render', 'hud.js');
   if (!existsSync(hudPath)) { V('S45', 'src/render/hud.js 가 없다'); return; }
@@ -3987,9 +4120,10 @@ function S44_weaponCurveMonotonic() {
       // ★ «질적» 변화가 낀 스텝은 대용치가 볼 수 없다 — 조준 방식이 바뀌면 같은 수치라도
       //   실제 명중이 달라진다(바라지 Lv8 randomInArena → densest 는 실측 DPS 가 오히려 5배다).
       //   대용치로 판정할 수 없는 구간은 «통과»가 아니라 «측정 불가»로 두고 비교를 끊는다.
-      const qualitative = isObj(w.levels[i]) && w.levels[i].targetMode !== undefined;
+      // ㊿-s 검토: 값이 «실제로 바뀔 때만» 질적 변화다 — 같은 조준을 다시 적은 칸({dmg:20, targetMode:"forward"})이 비교를 끊어 역행을 숨겼다
+      const qualitative = isObj(w.levels[i]) && w.levels[i].targetMode !== undefined && w.levels[i].targetMode !== cur.targetMode;
       Object.assign(cur, w.levels[i]);                              // 부분 오버라이드 누적
-      if (qualitative) { prev = null; continue; }
+      if (qualitative) { prev = null; continue; }   // ★ ㊿-s 그 «직후» 칸도 비교하지 않는다 — 개수 키 없는 무기(바라지 포격 수)의 «포격 +1 · 피해 −»를 역행으로 오판한다. 그 칸은 tests/levelcurve.test.mjs 가 실측으로 본다
       const rate = cur[h.rateKey];
       const dmg = cur.dmg;
       if (typeof rate !== 'number' || rate <= 0 || typeof dmg !== 'number') { prev = null; continue; }
@@ -4406,7 +4540,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S62 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S64 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4476,6 +4610,8 @@ function main() {
   S60_difficulty();          // §11.3 v1.10 ㊿·㊿-q 난이도 — 셋·순서·기준선 둘·순증 4열·hpMul 계단·네 스포너·피해의 문·스턴 가드·순삭 하한
   S61_vocabMirrors();        // §9.3 v1.10 ㊿-i 어휘 사본 — check.mjs 와 schema.mjs 의 닫힌 어휘가 어긋나면 소리낸다
   S62_slowNotDelete();       // §9.5 v1.10 ㊿-o·㊿-r 감속 ≠ 삭제 — 계수 > 0 · 레벨마다 계속 오른다 · 진화 칸 한 단계 더 · 나이가 slowMul 을 탄다
+  S63_attractWiring();       // §6.5 v1.10 ㊿-s 어트랙트 — 설정값 · 읽힘(죽은 키 금지) · main.js 드라이버 배선
+  S64_noEmptyLevel();        // §9.5 v1.10 ㊿-s 레벨업 칸은 카드에 보이는 값을 바꾼다 — 빈 칸 · 제자리 칸 · 형 불일치 금지
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
