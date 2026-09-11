@@ -87,6 +87,8 @@ function ensureBot(world) {
     bvx: new Float64Array(CAP_BUL), bvy: new Float64Array(CAP_BUL), br: new Float64Array(CAP_BUL),
     // §10.4(v1.7) 이 탄이 벽 반사하는가(1/0). 롤아웃이 삼각파 접기로 외삽할지 정한다.
     bbounce: new Uint8Array(CAP_BUL),
+    // §10.4(v1.10 ㊿-t) 반사 벽의 여백 = 탄의 반경(가장자리가 벽에 닿을 때 튄다 — step.bounceOffWalls). 피격 반경(br)이 아니다.
+    bwr: new Float64Array(CAP_BUL),
     nCon: 0, cx: new Float64Array(CAP_CON), cy: new Float64Array(CAP_CON),
     cvx: new Float64Array(CAP_CON), cvy: new Float64Array(CAP_CON), cr: new Float64Array(CAP_CON),
     nLas: 0, lx: new Float64Array(CAP_LAS), ly: new Float64Array(CAP_LAS),
@@ -291,6 +293,7 @@ function snapshotThreats(world, b) {
     if (rx * rx + ry * ry > percept2) continue;
     b.bx[n] = bu.x; b.by[n] = bu.y; b.bvx[n] = bu.vx; b.bvy[n] = bu.vy;
     b.bbounce[n] = bu.bounceLeft !== 0 ? 1 : 0;   // §10.4(v1.7) 반사탄은 직선 외삽이 틀린다
+    b.bwr[n] = bu.radius;                          // §10.4(㊿-t) 벽 여백 = 그리는 반경(피격 반경 hitRadius 가 아니다)
     b.br[n] = rp.hitboxRadius + bu.hitRadius + PAD_BUL;
     n += 1;
   }
@@ -380,13 +383,26 @@ function foldSpan(v, lo, hi) {
 }
 
 /**
+ * §10.4(v1.10 ㊿-t) 반사탄 한 축의 위치 — step.bounceOffWalls 와 같은 규칙: 벽 «안»에서 난 탄은 삼각파 접기,
+ *   벽 밖(HP·XP 띠 · 화면 위)에서 나서 아직 안 들어온 탄은 직선(step 은 «안에서 넘을 때만» 되튄다). v0 = 스냅샷 위치.
+ *   [lo, hi] = 반사 벽을 탄 반경만큼 줄인 구간(가장자리가 닿을 때 튄다). 들어온 뒤로는 접기와 같다 — 접기는 벽에서 연속이다.
+ *   tests/hazards.test.mjs · tests/escape.test.mjs(계측도 이 함수를 쓴다)가 실제 궤적과 오차 0 을 본다.
+ */
+export function foldWall(v, v0, lo, hi) {
+  if ((v0 < lo && v < lo) || (v0 > hi && v > hi)) return v;
+  return foldSpan(v, lo, hi);
+}
+
+/**
  * ★ 롤아웃 세그 — (sx,sy)에서 dir 로 startK 틱 뒤부터 n 틱 등속 이동. 외삽 위협과 처음 맞는
  *   «전역» 틱(startK+로컬)을 반환한다. 무피격이면 0(완주)을 반환하고 끝 위치를 _rollEnd 에 쓴다.
  *   위협은 스냅샷 시점 + (snapElapsed + 전역틱·dt)로 외삽. 벽 클램프 포함(실제 궤적).
+ *   ★ export 는 테스트용이다 — tests/bot.test.mjs 가 «봇이 찍은 스냅샷 → 이 롤아웃의 첫 피격 틱 = 실제 탄의 첫 피격 틱»을 본다
+ *     (v1.10 ㊿-t 3차 검토: 외삽만 따로 재면 롤아웃이 그 결과를 안 써도 초록이었다 — 그래서 롤아웃의 «답»을 잰다).
  */
-function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
+export function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
   const bounds = world.bounds;
-  const arena = world.data.rules.view.arena;      // §10.4(v1.7) 반사탄 접기의 구간
+  const walls = world.walls;                      // §10.4(v1.7 · ㊿-t) 반사탄 접기의 구간 = step.bounceOffWalls 와 같은 벽
   const rp = world.data.rules.player;
   const dt = TICK_DT;
   const vx = dirx * rp.moveSpeed * dt;
@@ -399,12 +415,15 @@ function rollSeg(world, b, sx, sy, startK, dirx, diry, n) {
     const gk = startK + k;
     const tk = b.snapElapsed + gk * dt;
     for (let i = 0; i < b.nBul; i += 1) {
-      // §10.4(v1.7) 반사탄은 벽에서 되튄다 — 직선 외삽하면 봇이 «탄 속으로» 피한다.
+      // §10.4(v1.7 · ㊿-t) 반사탄은 벽에서 되튄다 — 직선 외삽하면 봇이 «탄 속으로» 피한다. 벽 = world.walls, 여백 = 스냅샷 반경 bwr
+      //   (step.bounceOffWalls 와 같은 선). 핫패스라 인라인이다 — 함수 + 모듈 스크래치 객체로 뺐더니 botInput 이 7% 느려졌다(3차 검토 실측).
+      //   동작은 tests/bot.test.mjs 가 «스냅샷 → 롤아웃의 첫 피격 틱 = 실제»로 본다.
       let bxk = b.bx[i] + b.bvx[i] * tk;
       let byk = b.by[i] + b.bvy[i] * tk;
       if (b.bbounce[i] === 1) {
-        bxk = foldSpan(bxk, arena.x, arena.x + arena.w);
-        byk = foldSpan(byk, arena.y, arena.y + arena.h);
+        const wr = b.bwr[i];
+        bxk = foldWall(bxk, b.bx[i], walls.x + wr, walls.x + walls.w - wr);
+        byk = foldWall(byk, b.by[i], walls.y + wr, walls.y + walls.h - wr);
       }
       const ex = px - bxk;
       const ey = py - byk;

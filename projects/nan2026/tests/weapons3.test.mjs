@@ -171,6 +171,31 @@ suite('weapons3 · 핀볼', () => {
     let flips = 0; let prev = 0;
     for (let i = 0; i < Math.round(eff.lifetimeSec / dt) - 2; i += 1) { tick(w, 1); const b = live(w, 'pinball')[0]; if (!b) continue; const sg = b.vx >= 0 ? 1 : -1; if (prev !== 0 && sg !== prev) flips += 1; prev = sg; }
     assert.gt(flips, 0, `벽 반사 ${flips}회`);
+    // ㊿-t 반사 벽 — 공의 가장자리는 HP·XP 띠(바닥선)를 안 넘고, 상단 띠(반투명 오버레이 = 경기장)에는 들어간다
+    //   (사용자(2026-09-12) 「핀볼이 벽에 튕길때, 밑에 있는 HP, 경험치바를 통과?해서 반사되던데?」)
+    //   ★ 짝 패시브(장기 배터리 ×3)로 수명을 늘린다 — 맨몸 Lv10(6초)은 천장을 찍고 바닥에 닿기 전에 사라져서 «바닥에서 튀는가»를
+    //     못 본다(망가뜨리기 실측: 벽을 아레나로 되돌려도 이 테스트가 초록이었다 — 최대 y 는 발사 높이였을 뿐).
+    const wv = mkWorld(); for (let k = 0; k < 3; k += 1) givePassive(wv, 'battery'); setup(wv, 'pinball', 10, false);
+    let loY = Infinity; let hiY = -Infinity; let rad = 0; let floorBounces = 0; const prevVy = new Map();
+    for (let i = 0; i < Math.round(8 / dt); i += 1) {
+      tick(wv, 1);
+      for (const b of wv.playerBullets.items) {
+        if (!b.alive || b.family !== 'pinball') { prevVy.delete(b); continue; }
+        loY = Math.min(loY, b.y); hiY = Math.max(hiY, b.y); rad = Math.max(rad, b.radius);
+        const pv = prevVy.get(b);
+        if (pv !== undefined && b.age > pv.age && pv.vy > 0 && b.vy < 0) floorBounces += 1;   // 같은 공이 이어서 뒤집혔다 — 풀 재사용을 반사로 세지 않는다
+        prevVy.set(b, { vy: b.vy, age: b.age });
+      }
+    }
+    assert.gt(rad, 0, '전제: 공에 반경이 있다');
+    assert.gt(floorBounces, 0, `전제: 공이 바닥에서 실제로 되튀었다 (${floorBounces}회)`);
+    // ★ world.walls 가 아니라 화면 배치(view)에서 띠 경계를 직접 잰다 — 벽 파생이 틀어지면(띠를 빼먹으면) 이 테스트도 같이 틀어지지 않게
+    const vw = wv.data.rules.view;
+    const bandTop = vw.arena.y + vw.bandTopH;
+    const floorLine = vw.arena.y + vw.arena.h - vw.bandHpH - vw.bandXpH;
+    assert.lte(hiY + rad, floorLine, `공의 가장자리가 HP·XP 띠로 안 들어간다 — 바를 덮지 않는다 (최대 y ${hiY.toFixed(1)} + 반경 ${rad} ≤ ${floorLine})`);
+    assert.gte(loY - rad, vw.arena.y, `공의 가장자리가 화면 위를 안 넘는다 (최소 y ${loY.toFixed(1)})`);
+    assert.lt(loY, bandTop, `공이 상단 띠까지 올라간다 — 상단 띠의 적에게도 닿는다 (최소 y ${loY.toFixed(1)} < ${bandTop})`);
     const w2 = mkWorld(); const [s2, eff2] = setup(w2, 'pinball', 8, true);
     let maxLive = 0;
     for (let i = 0; i < Math.round(eff2.lifetimeSec / dt); i += 1) { tick(w2, 1); const n = live(w2, 'pinball').length; if (n > maxLive) maxLive = n; }

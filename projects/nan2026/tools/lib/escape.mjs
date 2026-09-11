@@ -16,7 +16,12 @@
  *      「길이 0」이라 보고했다. 실측 「길0」 표본의 68%가 무적 중이었다.
  *      ★ ①②③ 과 «반대 방향» 오차라 총계에서 서로를 가린다 — 사후 보정이 불가능한 이유다.
  *   ⑥ 적 감속(e.slowSec)을 무시했다 — 내 바라지가 늦춘 적을 45% 더 멀리 보냈다(무기 A/B 오염).
+ *   ⑦ 반사탄을 아레나 끝(720)으로 접었다 — step 은 v1.10 ㊿-t 부터 반사 벽(world.walls = 아레나 − HP·XP 띠)에서, 탄 반경만큼
+ *      안쪽에서 튄다. 바닥선 근처에서 되튀어 오는 탄을 못 보고 맞는 길을 «안전»으로 셌다(검토 실측: 하단 300 표본 중 55 불일치 —
+ *      강제 피격이 «실수»로 잡힌다). → bulletAt 이 봇과 같은 접기(bot.foldWall)를 같은 벽 · 같은 여백으로 쓴다(S65 ④).
  */
+
+import { foldWall } from '../../src/core/bot.js';
 
 export const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0],
   [0.7071, -0.7071], [-0.7071, -0.7071], [0.7071, 0.7071], [-0.7071, 0.7071]];
@@ -64,7 +69,7 @@ export function trackMotion(w, ctx, dt) {
   }
 }
 
-/** 삼각파 접기 — bot.js:373 과 «같은 규칙»이어야 한다(반사체의 닫힌 형태 외삽). */
+/** 삼각파 접기 — 적 기체 bounce 이동의 닫힌 형태(enemies.js — 아레나 좌우를 반경만큼 안쪽에서 튄다). 탄은 bulletAt(bot.foldWall)이 접는다. */
 function foldSpan(v, lo, hi) {
   const span = hi - lo;
   if (span <= 0) return lo;
@@ -125,6 +130,24 @@ function enemyAt(e, ctx, at, m, arena, out) {
 
 const _p0 = { x: 0, y: 0 };
 const _p1 = { x: 0, y: 0 };
+
+/**
+ * 적 탄의 at 초 뒤 위치 → out. 반사탄(bounceLeft ≠ 0)은 step.bounceOffWalls 와 «같은 벽 · 같은 여백 · 같은 규칙»으로 접는다(⑦ · v1.10 ㊿-t):
+ *   구간 = w.walls 를 탄 반경만큼 줄인 것, 접기 = bot.foldWall(벽 밖에서 난 탄은 들어올 때까지 직선).
+ *   tests/escape.test.mjs 가 실제 궤적 · 실제 피격과 같은지 본다.
+ */
+export function bulletAt(w, bu, at, out) {
+  let x = bu.x + bu.vx * at;
+  let y = bu.y + bu.vy * at;
+  if (bu.bounceLeft !== 0) {
+    const wl = w.walls;
+    const r = bu.radius;
+    x = foldWall(x, bu.x, wl.x + r, wl.x + wl.w - r);
+    y = foldWall(y, bu.y, wl.y + r, wl.y + wl.h - r);
+  }
+  out.x = x;
+  out.y = y;
+}
 
 /**
  * 8방향 중 «경로 전체»가 horizon 초 동안 안전한 방향의 수 (0..8).
@@ -201,14 +224,9 @@ export function escapeDirs(w, d, horizon, ctx, blame, ox, oy, bodies) {
       for (let i = 0; i < eb.length && tag[k] === null; i += 1) {
         const bu = eb[i];
         if (!bu.alive) continue;
-        let b0x = bu.x + bu.vx * at0; let b0y = bu.y + bu.vy * at0;
-        let b1x = bu.x + bu.vx * at1; let b1y = bu.y + bu.vy * at1;
-        if (bu.bounceLeft !== 0) {
-          b0x = foldSpan(b0x, arena.x, arena.x + arena.w); b0y = foldSpan(b0y, arena.y, arena.y + arena.h);
-          b1x = foldSpan(b1x, arena.x, arena.x + arena.w); b1y = foldSpan(b1y, arena.y, arena.y + arena.h);
-        }
+        bulletAt(w, bu, at0, _p0); bulletAt(w, bu, at1, _p1);   // ⑦ 반사탄 = step 과 같은 벽 · 같은 여백(v1.10 ㊿-t)
         const r = hitR + bu.hitRadius;
-        if (sweptHit(b0x - x0, b0y - y0, (b1x - b0x) / dt - pvx, (b1y - b0y) / dt - pvy, r, s0, dt)) {
+        if (sweptHit(_p0.x - x0, _p0.y - y0, (_p1.x - _p0.x) / dt - pvx, (_p1.y - _p0.y) / dt - pvy, r, s0, dt)) {
           tag[k] = `탄:${bu.bulletId}${bu.srcArch === '' ? '' : `←${bu.srcArch}`}`;
         }
       }

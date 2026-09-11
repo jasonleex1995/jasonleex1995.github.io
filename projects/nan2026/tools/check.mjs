@@ -95,7 +95,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -3958,7 +3958,7 @@ function S62_slowNotDelete() {
  *      ★ 주석과 «문자열 속»은 걷어낸다 — `void 'data.meta.flow.attractIdleSec'` 한 줄로 통과하던 구멍(검토).
  *   ③ 배선 — 화면으로 보기 어려운 넷만 소스로 본다: ⓐ 스텝 입력 = (DEMO || attract) ? botInput ⓑ 효과음 큐 = attract ? null : audio
  *      ⓒ 드래프트 = 열 때 봇이 고른 카드에 커서(레벨업·특성 드래프트를 여는 두 함수 모두 — 그 안에서 커서를 다시 쓰지 않는다) · 체류 뒤 pick(cursor)
- *      ⓓ 봇 정책 = ?demo 쇼케이스 값(maxFarm · generalist) — §6.5 실측 «사망 2 vs 7»이 이 정책의 값이다.
+ *      ⓓ 봇 정책 = ?demo 쇼케이스 값(maxFarm · generalist) — §6.5 실측 «사망 1 vs 7»이 이 정책의 값이다.
  *   ★ 흐름(시작 · 끝 · 끝 깃발 · 무입력 시계 · blur · 수정 키 조합 · 클릭 · 창 크기 · 일시정지 · 난이도 화면 무입력 · 사람 드래프트 대기 · ?demo)은
  *     tests/attract-driver.test.mjs 가 main.js 를 실제로 부팅해 화면에 그려진 글자로 본다 — 검토: 조각 검사는 endAttract 가 attract 를 안 끄거나
  *     깃발이 안 지워져도 초록이었고, 따옴표·줄바꿈만 바뀌어도 빨갰다. «언제 끝나는가»의 core 판정은 tests/attract.test.mjs 가 본다.
@@ -4028,7 +4028,7 @@ function S63_attractWiring() {
     && mainS.includes('if (DEMO || attract) { demoHoldT -= elapsed; if (demoHoldT <= 0) pick(cursor); }'),
     'ⓒ 드래프트 자동 픽 배선(열 때 봇이 고른 카드에 커서 · 레벨업·특성 드래프트를 여는 두 함수 모두 draft = 바로 다음에 prepareDraftCursor 를 부르고 그 안에서 커서를 다시 쓰지 않는다(+= 포함) · 체류 뒤 pick(cursor))이 없다');
   need(mainS.includes('if (DEMO || attract) setBotPolicy(world, {') && mainK.includes("if (DEMO || attract) setBotPolicy(world, { farm: 'maxFarm', draft: 'generalist' });"),
-    'ⓓ 데모·어트랙트 봇 정책이 ?demo 쇼케이스 값(maxFarm · generalist)이 아니다 — §6.5 의 실측(사망 2 vs 7)은 이 정책의 값이다');
+    'ⓓ 데모·어트랙트 봇 정책이 ?demo 쇼케이스 값(maxFarm · generalist)이 아니다 — §6.5 의 실측(사망 1 vs 7)은 이 정책의 값이다');
   EX('S63', n);
 }
 
@@ -4077,6 +4077,109 @@ function S64_noEmptyLevel() {
     }
   }
   EX('S64', n);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  S65 — 반사 벽은 한 곳에서 파생되고 step · 봇 · 계측이 같은 벽을 쓴다 (§1.1 v1.10 ㊿-t)
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * 사용자(2026-09-12) 「핀볼이 벽에 튕길때, 밑에 있는 HP, 경험치바를 통과?해서 반사되던데?」 — step.bounceOffWalls 가 아레나 끝(y 720)에서 튀어,
+ *   탄보다 먼저 그려지는 HP·XP 띠 위로 공이 바를 가로질렀다. 벽 = 아레나 − HP·XP 띠(state.createWorld 의 world.walls, 파생) · 탄은 제 반경만큼 안쪽에서 튄다.
+ *   ★ 이 게이트는 «배선»만 본다 — 주석 · 문자열을 걷은 코드에서 누가 어느 벽을 읽는가. 글자 그대로의 형태 몇 가지(함수 선언 «function 이름(» ·
+ *     world.walls · .radius · bwr[ · foldWall()는 보므로, 별칭(const wl = world.walls) · 구조 분해 · 화살표 함수로 바꾸면 이 게이트도 함께 고친다
+ *     (조용히 통과하지 않고 시끄럽게 빨개진다). 지역 변수 · 매개변수 이름 · 줄 순서 · import 뒤 주석은 안 본다(2~4차 검토 — 무해한 정리에
+ *     빨개지는 조각 게이트는 S63 에서 버렸다). 걷기가 어긋나면(중괄호 짝 불일치) 그렇다고 먼저 말한다 — 필요조건일 뿐이다(정규식 리터럴 속
+ *     따옴표는 못 잡을 수 있다). «동작»(벽 위치 · 반경 여백 · 안에서 넘을 때만 — 네 벽의 여백에서 난 탄까지 · 봇 스냅샷 → 롤아웃 첫 피격 틱 = 실제 ·
+ *     반사 안 하는 탄은 접지 않는다 · 계측 bulletAt = 실제 궤적 · 이동 영역 ⊂ 벽 − 최대 반경)은 tests/hazards.test.mjs · weapons3 · bot · escape 가 본다.
+ *   ① state.js 의 walls 가 bandHpH · bandXpH 로 파생되고(bandTopH 는 안 쓴다 — 상단 띠는 경기장) world 에 실린다
+ *   ② step.js 의 bounceOffWalls 호출(플레이어 탄 · 적 탄, 2곳 이상 — 인자는 괄호 짝으로 끝까지 읽는다)이 전부 world.walls 를 넘기고, 함수가 탄의 radius 를 읽는다
+ *   ③ bot.js 의 rollSeg 가 world.walls · foldWall · 스냅샷 반경(bwr)으로 접고 arena 를 읽지 않는다
+ *   ④ tools/lib/escape.mjs 가 bot.js 의 foldWall 을 import 하고, bulletAt 이 반사 벽(.walls)을 foldWall 로 접으며, escapeDirs 는 bulletAt 을 쓰고 직접 접지 않는다(foldWall · foldSpan 없음)
+ */
+function S65_bounceWalls() {
+  let n = 0;
+  const TOKEN = /(['"`])(?:\\[\s\S]|(?!\1)[^\\])*\1|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+  const raw = (...parts) => {
+    const fp = join(ROOT, ...parts);
+    return existsSync(fp) ? readFileSync(fp, 'utf8') : null;
+  };
+  const code = (s) => (s === null ? null : s.replace(TOKEN, (m, q) => (q ? q + q : ' ')).replace(/\s+/g, ' '));
+  // 걷기가 어긋나면(정규식 리터럴 · 중첩 템플릿) 아래 검사가 엉뚱한 것을 본다 — 중괄호 짝으로 먼저 확인한다(3차 검토 · 필요조건)
+  const balanced = (s) => {
+    let d = 0;
+    for (const ch of s) {
+      if (ch === '{') d += 1;
+      else if (ch === '}') { d -= 1; if (d < 0) return false; }
+    }
+    return d === 0;
+  };
+  // 여는 괄호 바로 뒤 위치 k 에서 짝이 맞는 닫는 괄호 다음 위치
+  const closeParen = (src, k) => {
+    let par = 1;
+    for (; k < src.length && par > 0; k += 1) {
+      if (src[k] === '(') par += 1;
+      else if (src[k] === ')') par -= 1;
+    }
+    return k;
+  };
+  // 함수 본문 — «function 이름(» 의 매개변수 괄호를 닫은 뒤 첫 «{» 부터 짝이 맞는 «}» 까지(구조 분해 매개변수의 «{» 를 본문으로 착각하지 않는다)
+  const body = (src, name) => {
+    const m = new RegExp(`(?<![\\w$])function ${name}\\(`).exec(src);
+    if (m === null) return null;
+    const open = src.indexOf('{', closeParen(src, m.index + m[0].length));
+    if (open < 0) return null;
+    for (let j = open, depth = 0; j < src.length; j += 1) {
+      if (src[j] === '{') depth += 1;
+      else if (src[j] === '}') { depth -= 1; if (depth === 0) return src.slice(open, j + 1); }
+    }
+    return null;
+  };
+  const PATHS = { state: 'src/core/state.js', step: 'src/core/step.js', bot: 'src/core/bot.js', escape: 'tools/lib/escape.mjs' };
+  const rawOf = {};
+  const codeOf = {};
+  for (const [k, p] of Object.entries(PATHS)) { rawOf[k] = raw(...p.split('/')); codeOf[k] = code(rawOf[k]); }
+  n += 1;
+  const missing = Object.keys(PATHS).filter((k) => codeOf[k] === null);
+  if (missing.length > 0) { V('S65', `없는 파일: ${missing.map((k) => PATHS[k]).join(' · ')} (§1.1)`); EX('S65', n); return; }
+  n += 1;
+  const desync = Object.keys(PATHS).filter((k) => !balanced(codeOf[k]));
+  if (desync.length > 0) { V('S65', `주석 · 문자열 걷기가 어긋났다(중괄호 짝 불일치): ${desync.map((k) => PATHS[k]).join(' · ')} — 배선 검사를 믿을 수 없다 (§1.1 ㊿-t)`); EX('S65', n); return; }
+  const st = codeOf.state;
+  const sp = codeOf.step;
+  const bt = codeOf.bot;
+  const es = codeOf.escape;
+  n += 1;
+  const wallsDecl = (st.match(/const walls = \{[^}]*\}/) || [''])[0];
+  if (!/\bbandHpH\b/.test(wallsDecl) || !/\bbandXpH\b/.test(wallsDecl) || /\bbandTopH\b/.test(wallsDecl) || !/\bwalls,/.test(st)) {
+    V('S65', 'state.js 가 world.walls 를 HP·XP 띠(bandHpH · bandXpH)로 파생해 world 에 싣지 않거나, 상단 띠(bandTopH)를 벽으로 뺀다 (§1.1 ㊿-t ①)');
+  }
+  // 호출 인자는 괄호 짝으로 끝까지 — 고정 깊이 정규식은 인자 안의 두 겹 괄호에서 호출을 통째로 놓쳤다(4차 검토)
+  const calls = [];
+  for (const m of sp.matchAll(/(?<![\w$.])(?<!function )bounceOffWalls\(/g)) calls.push(sp.slice(m.index, closeParen(sp, m.index + m[0].length)));
+  n += 1;
+  if (calls.length < 2 || !calls.every((c) => /\bworld\.walls\b/.test(c))) {
+    V('S65', `step.js 의 bounceOffWalls 호출 ${calls.length}곳 — world.walls 를 안 넘기는 호출이 있거나 2곳 미만이다: ${calls.filter((c) => !/\bworld\.walls\b/.test(c)).join(' · ')} (§1.1 ㊿-t ②)`);
+  }
+  const bow = body(sp, 'bounceOffWalls');
+  n += 1;
+  if (bow === null || !/\.radius\b/.test(bow)) {
+    V('S65', 'step.bounceOffWalls 가 탄의 radius 를 읽지 않는다 — 가장자리가 아니라 중심에서 튀면 공의 절반이 HP 바를 덮는다 (§1.1 ㊿-t ②)');
+  }
+  const roll = body(bt, 'rollSeg');
+  n += 1;
+  if (roll === null || !/\bworld\.walls\b/.test(roll) || !/\bfoldWall\(/.test(roll) || !/\bbwr\[/.test(roll) || /\barena\b/.test(roll)) {
+    V('S65', 'bot.js 의 rollSeg 가 반사탄을 world.walls · foldWall · 스냅샷 반경(bwr)으로 접지 않거나 arena 를 읽는다 — 봇이 step 과 다른 벽으로 외삽한다 (§1.1 ㊿-t ③ · §10.4)');
+  }
+  const escK = rawOf.escape.replace(TOKEN, (m, q) => (q ? m : ' '));   // 주석만 걷은 원문 — import 경로(문자열)를 본다
+  const bat = body(es, 'bulletAt');
+  const edirs = body(es, 'escapeDirs');
+  n += 1;
+  if (!/\bimport\s*\{[^}]*\bfoldWall\b[^}]*\}\s*from\s*(['"])\.\.\/\.\.\/src\/core\/bot\.js\1/.test(escK)
+      || bat === null || !/\.walls\b/.test(bat) || !/\bfoldWall\(/.test(bat)
+      || edirs === null || !/\bbulletAt\(/.test(edirs) || /\bfold(?:Span|Wall)\(/.test(edirs)) {
+    V('S65', 'tools/lib/escape.mjs 의 탄 외삽이 step 과 같은 반사 벽이 아니다 — bot.js 의 foldWall 로 반사 벽(.walls)을 접는 bulletAt 을 escapeDirs 가 써야 한다(escapeDirs 안에서 직접 접지 않는다) (§1.1 ㊿-t ④)');
+  }
+  EX('S65', n);
 }
 
 function S45_draftParamLabels() {
@@ -4540,7 +4643,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S64 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S65 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4612,6 +4715,7 @@ function main() {
   S62_slowNotDelete();       // §9.5 v1.10 ㊿-o·㊿-r 감속 ≠ 삭제 — 계수 > 0 · 레벨마다 계속 오른다 · 진화 칸 한 단계 더 · 나이가 slowMul 을 탄다
   S63_attractWiring();       // §6.5 v1.10 ㊿-s 어트랙트 — 설정값 · 읽힘(죽은 키 금지) · main.js 드라이버 배선
   S64_noEmptyLevel();        // §9.5 v1.10 ㊿-s 레벨업 칸은 카드에 보이는 값을 바꾼다 — 빈 칸 · 제자리 칸 · 형 불일치 금지
+  S65_bounceWalls();         // §1.1 v1.10 ㊿-t 반사 벽 = 아레나 − HP·XP 띠 · 탄 반경만큼 안쪽 — step · 봇 · 계측이 같은 world.walls
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것

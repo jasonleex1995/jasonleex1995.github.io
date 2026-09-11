@@ -11,13 +11,13 @@
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnEnemy, spawnEnemyBullet } from '../src/core/state.js';
-import { TICK_DT } from '../src/core/step.js';
+import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { bossHook } from '../src/core/boss.js';
 import { initRun, tickRun } from '../src/core/stage.js';
-import { botInput, botDraftPick, setBotPolicy } from '../src/core/bot.js';
+import { botInput, botDraftPick, setBotPolicy, rollSeg } from '../src/core/bot.js';
 
 function mkWorld(seed = 1, difficulty) {
   const w = createWorld({
@@ -142,5 +142,90 @@ suite('bot/회피', () => {
       return w.bot.decideT;
     }
     assert.gt(reactWindowSec(hi), reactWindowSec(lo), `${hi} 의 눈 감는 창이 ${lo} 보다 길다`);
+  });
+});
+
+// §10.4(v1.10 ㊿-t) 반사탄 예측 — 봇이 «실제로 찍은» 스냅샷으로 «실제로 쓰는» 롤아웃(rollSeg)을 돌려 첫 피격 틱이 실제 탄과 같은지 본다.
+//   2차 검토: 테스트가 foldWall 을 제 인자로만 불러, 스냅샷 필드(bbounce · bwr)가 틀려도 초록이었다.
+//   3차 검토: 외삽을 함수로 빼 그 함수만 재면, 롤아웃이 결과를 안 써도 초록이었다 — 그래서 롤아웃의 «답»을 잰다.
+suite('bot/반사탄 예측 — 스냅샷 → 롤아웃 (§10.4 · ㊿-t 반사 벽)', () => {
+  test('★ 롤아웃의 첫 피격 틱 = 실제 탄의 첫 피격 틱 — 바닥선 · 벽 반사 · 네 벽의 반경 여백 · HP·XP 띠 안에서 난 탄', () => {
+    const data = loadData();
+    const r = data.bullets.bullets.find((x) => x.id === 'ricochet').radius;
+    const bare = () => createWorld({ data, seed: 1, weapons, hooks: {}, startWeaponId: 'forward' });   // 스테이지 훅 없는 맨 월드
+    const probe = bare();
+    const wl = probe.walls; const bd = probe.bounds;
+    const floorLine = wl.y + wl.h; const right = wl.x + wl.w;
+    const N = 120;                                   // 2초 — 맨 월드라 적 · 적 탄 · 장판이 생기지 않는다(시작 무기 forward 는 적 탄을 늦추거나 지우지 않는다)
+    // [이름, 탄 x, y, vx, vy, 가상 기체 x, y, 실제로 닿는가]
+    // ★ «여백 → 바깥» 표본이 벽마다 있어야 한다 — «여백 → 안» 표본만으로는 틀린 규칙(이전 위치를 벽선과 비교)이 두 번 되접혀
+    //   제 궤적으로 돌아와서 첫 피격 틱이 같다(4차 망가뜨리기 실측: 위 벽에서 초록이었다).
+    const cases = [
+      ['바닥선에서 되튀어 돌아온다', 640, floorLine - 22, 0, 130, 640, floorLine - 72, true],
+      ['비스듬히 바닥선 반사', 560, floorLine - 40, 80, 110, 624, floorLine - 60, true],
+      ['오른쪽 벽에서 되튀어 돌아온다', right - 50, 300, 120, 0, right - 90, 300, true],
+      ['왼쪽 여백 → 안으로 들어와 닿는다', wl.x + r / 2, 400, 60, 0, wl.x + 50, 400, true],
+      ['왼쪽 여백 → 바깥(돌아오지 않는다)', wl.x + r / 2, 400, -60, 0, wl.x + 50, 400, false],
+      ['위 여백 → 안으로 들어와 닿는다', 640, wl.y + r / 2, 0, 60, 640, bd.minY + 4, true],
+      ['위 여백 → 바깥(돌아오지 않는다)', 600, wl.y + r / 2, 0, -60, 600, bd.minY + 4, false],
+      ['HP·XP 띠 안 → 위로 들어와 닿는다', 640, floorLine + 28, 0, -140, 640, floorLine - 110, true],
+      ['바닥 여백 → 바깥(돌아오지 않는다)', 640, floorLine - r / 2, 0, 60, 640, floorLine - 55, false],
+      ['오른쪽 여백 → 바깥(돌아오지 않는다)', right - r / 2, 300, 60, 0, right - 50, 300, false],
+    ];
+    for (const [label, x, y, vx, vy, qx, qy, hits] of cases) {
+      const w = bare();
+      w.player.x = Math.min(Math.max(x, bd.minX), bd.maxX);   // 지각 반경 안에 두려고 실제 기체를 탄 가까이(이동 영역 안)
+      w.player.y = Math.min(Math.max(y, bd.minY), bd.maxY);
+      w.player.iframeSec = 1e9;                     // 탄이 기체에 먹혀 사라지지 않게
+      const blt = spawnEnemyBullet(w, 'ricochet', x, y, vx, vy, '');
+      botInput(w, TICK_DT);                          // 첫 입력 = 위협 스냅샷
+      const b = w.bot;
+      assert.eq(b.nBul, 1, `${label}: 전제 — 봇이 이 탄 1발을 찍었다`);
+      assert.ok(b.nCon === 0 && b.nLas === 0, `${label}: 전제 — 탄 말고 다른 위협(몸통 · 장판 · 빔)이 없다`);
+      // 스냅샷 필드를 직접 본다 — 데이터(피격 반경 비율)에 기대지 않는다(3차 검토)
+      assert.ok(b.bx[0] === blt.x && b.by[0] === blt.y && b.bvx[0] === blt.vx && b.bvy[0] === blt.vy, `${label}: 스냅샷 위치 · 속도 = 탄`);
+      assert.eq(b.bbounce[0], 1, `${label}: 무제한 반사탄(bounceLeft ${blt.bounceLeft})은 접기 대상`);
+      assert.eq(b.bwr[0], blt.radius, `${label}: 벽 여백 = 탄의 그리는 반경(피격 반경 ${blt.hitRadius} 이 아니다)`);
+      b.snapElapsed = 0;                             // 스냅샷 직후로 — 롤아웃 전역 틱 k = 실제 k틱 뒤
+      const px = Math.min(Math.max(qx, bd.minX), bd.maxX);
+      const py = Math.min(Math.max(qy, bd.minY), bd.maxY);
+      const rr = b.br[0];
+      let real = 0;
+      for (let t = 1; t <= N && real === 0; t += 1) {
+        step(w, makeInput(), TICK_DT);
+        if (!blt.alive) break;
+        const dx = px - blt.x; const dy = py - blt.y;
+        if (dx * dx + dy * dy < rr * rr) real = t;
+      }
+      assert.eq(real > 0, hits, `${label}: 전제 — 실제 탄이 가상 기체에 ${hits ? '닿는다' : '안 닿는다'} (첫 피격 틱 ${real})`);
+      assert.eq(rollSeg(w, b, px, py, 0, 0, 0, N), real, `${label}: 롤아웃의 첫 피격 틱 = 실제 (${real})`);
+      // 전역 틱(startK) · 스냅샷 경과(snapElapsed)도 같은 시계다 — 10틱 뒤에서 이어 굴려도, 5틱이 이미 흘렀어도 같은 순간을 가리킨다(4차 검토)
+      assert.ok(real === 0 || real > 10, `${label}: 전제 — 첫 피격이 10틱보다 뒤다 (${real})`);
+      assert.eq(rollSeg(w, b, px, py, 10, 0, 0, N - 10), real, `${label}: startK 10 에서 이어 굴려도 같은 전역 틱`);
+      b.snapElapsed = 5 * TICK_DT;
+      assert.eq(rollSeg(w, b, px, py, 0, 0, 0, N - 5), real === 0 ? 0 : real - 5, `${label}: 스냅샷 뒤 5틱이 흘렀으면 5틱 먼저 닿는다`);
+    }
+    // ★ 반사하지 않는 탄은 접지 않는다 — 표본이 전부 반사탄이면 «모든 탄을 접는» 롤아웃 · «모든 탄을 반사탄으로 찍는» 스냅샷이 초록이었다(4차 검토)
+    {
+      const w = bare();
+      w.player.iframeSec = 1e9;
+      const blt = spawnEnemyBullet(w, 'pelletS', 640, floorLine - 22, 0, 130, '');
+      botInput(w, TICK_DT);
+      const b = w.bot;
+      assert.eq(b.nBul, 1, '반사 안 하는 탄: 전제 — 봇이 이 탄 1발을 찍었다');
+      assert.eq(b.bbounce[0], 0, `반사 안 하는 탄(bounceLeft ${blt.bounceLeft})은 접기 대상이 아니다`);
+      b.snapElapsed = 0;
+      const px = 640; const py = floorLine - 72;
+      const rr = b.br[0];
+      let real = 0;
+      for (let t = 1; t <= N && real === 0; t += 1) {
+        step(w, makeInput(), TICK_DT);
+        if (!blt.alive) break;
+        const dx = px - blt.x; const dy = py - blt.y;
+        if (dx * dx + dy * dy < rr * rr) real = t;
+      }
+      assert.eq(real, 0, '반사 안 하는 탄: 전제 — 바닥선에서 튀지 않고 나가 가상 기체에 안 닿는다');
+      assert.eq(rollSeg(w, b, px, py, 0, 0, 0, N), 0, '반사 안 하는 탄: 롤아웃도 안 닿는다고 본다(바닥선에서 접지 않는다)');
+    }
   });
 });

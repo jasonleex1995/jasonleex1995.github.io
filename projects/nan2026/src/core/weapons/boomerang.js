@@ -6,9 +6,8 @@
  *                     hitCooldownSec targetMode outRangePx returnSpeed canRehit bounceLeft spacingDeg
  *   evolution.params: evoChainCount
  *
- * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다:
- *   rateKey "cooldownSec" · countKey "count" · pierceApplies **false** (pierce -1 손대지 않음)
- *   areaKeys ["outRangePx", "projRadius"]
+ * §9.6.1 훅은 state.recomputeEff 가 이미 적용했다 — 값(rateKey · countKey · pierceApplies · 배율 목록)은 rules.passiveHooks.boomerang 이
+ *   소유한다. 여기 옮겨 적지 않는다(옮겨 적은 areaKeys 목록이 낡아 있었다).
  *
  * ★ 데미지·재히트는 이 파일이 하지 않는다. pierce=-1(무제한 관통)·hitCooldownSec=0.5 를 실은
  *   탄을 spawnPlayerBullet 로 내보내면, step.collide 가 (hitStamp/hitAt/hitGen) 로 **같은 적을

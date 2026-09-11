@@ -12,7 +12,7 @@
  *
  * 벽 반사는 step.bounceOffWalls 가 한다(§9.6 v1.7 — 리턴과 같은 규칙). 갈라짐 검출: 탄의 s0 에 직전 vx 부호를 두고
  *   부호가 뒤집힌 틱에 갈라진다(반사 이벤트를 따로 두지 않는다 — 부호 뒤집힘 = 좌우 벽 반사).
- * 훅: rateKey cooldownSec · countKey count · pierceApplies false · areaKeys [] · speedKeys [projSpeed] · durationKeys [lifetimeSec]
+ * 훅: 값(rateKey · countKey · pierceApplies · 배율 목록)은 rules.passiveHooks.pinball 이 소유한다 — 여기 옮겨 적지 않는다(옮겨 적은 speedKeys [projSpeed] 가 낡아 있었다, ㊵)
  * 스크래치: cooldownT · a0 = 좌우 교대 부호. 탄: s0 = 직전 vx 부호 · s1 = 갈라진 공 표식(1)
  * 레퍼런스: 알카노이드 멀티볼 · 뱀서 룬트레이서(벽 반사 관통)
  */

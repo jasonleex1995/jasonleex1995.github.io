@@ -543,6 +543,16 @@ export function createWorld(opts) {
     minX: a.x + ins.left, maxX: a.x + a.w - ins.right,
     minY: a.y + ins.top, maxY: a.y + a.h - ins.bottom,
   };
+  // §1.1(v1.10 ㊿-t) 반사 벽 (파생: 580 × 672 @ (350, 0)) = 아레나 − HP·XP 띠 — 아래는 바닥선(672), 위 · 좌우는 아레나 끝.
+  //   사용자(2026-09-12) 「핀볼이 벽에 튕길때, 밑에 있는 HP, 경험치바를 통과?해서 반사되던데?」 — 아레나 끝(y 720)에서 튀었고,
+  //   띠는 모든 탄보다 먼저 그려지므로(§1.2 «띠는 레이어 1») 공이 HP·XP 바 «위로» 바를 가로질렀다.
+  //   ★ 벽은 화면이 이미 말하는 경계를 따른다 — 하단 띠 = 불투명 판 + 바닥선 = «경기장 밖»(hud.drawArenaBands).
+  //     상단 띠는 벽이 아니다: 반투명 판 아래로 적이 날아들고 표적이 되는 «경기장 위의 오버레이»다(막으면 그 적에게 핀볼이 못 닿는다).
+  //   탄은 제 반경만큼 안쪽에서 튄다(step.bounceOffWalls). step · 봇의 반사탄 접기 · 계측(tools/lib/escape.mjs)이 이 하나를 쓴다(S65).
+  const walls = {
+    x: a.x, y: a.y,
+    w: a.w, h: a.h - rules.view.bandHpH - rules.view.bandXpH,
+  };
 
   // §4.2 — 투자축은 elements.investable 이 소유한다. 이 파일에 "fire" 를 박지 않는다
   const invest = {};
@@ -571,6 +581,7 @@ export function createWorld(opts) {
     },
     weaponDefs,
     bounds,
+    walls,            // §1.1 ㊿-t 반사 벽(파생) — step.bounceOffWalls · bot 접기 · 계측(escape)이 같은 것을 쓴다
 
     tick: 0,
     time: 0,          // §0.2 — 게임초. 배속은 core 밖(main.js 의 tickDur)에만 있다

@@ -11,6 +11,7 @@
 import { suite, test, assert, loadData } from '../tools/test.mjs';
 import { createWorld, spawnZone, spawnBeam, giveWeapon, spawnEnemyBullet } from '../src/core/state.js';
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
+import { foldWall } from '../src/core/bot.js';
 import { weapons } from '../src/core/weapons/index.js';
 
 function mkWorld(seed = 1) { return createWorld({ data: loadData(), seed, weapons, hooks: {} }); }
@@ -76,13 +77,7 @@ suite('hazards/zone 장판 (§8.5)', () => {
 //   «봇의 닫힌 형태 외삽이 실제 궤적과 일치한다»이다. 어긋나면 봇이 탄 속으로 피하고,
 //   그 위에서 잰 시뮬 수치 전체가 밸런스 판단의 근거로 썩는다.
 suite('bounce/벽 반사 (§8.5 v1.7)', () => {
-  const fold = (v, lo, hi) => {
-    const span = hi - lo; const P = span * 2;
-    let u = (v - lo) % P; if (u < 0) u += P;
-    return lo + (u <= span ? u : P - u);
-  };
-
-  test('적 탄이 아레나 벽에서 되튄다 — 컬링 경계가 아니라 «벽»에서', () => {
+  test('적 탄이 반사 벽에서 되튄다 — 컬링 경계가 아니라 «벽»에서', () => {
     const w = mkWorld();
     const a = w.data.rules.view.arena;
     const b = spawnEnemyBullet(w, 'ricochet', a.x + 20, a.y + 200, -300, 0, '');
@@ -91,7 +86,7 @@ suite('bounce/벽 반사 (§8.5 v1.7)', () => {
     for (let t = 0; t < 30; t += 1) step(w, makeInput(), TICK_DT);
     assert.ok(b.alive, '벽에서 사라지지 않는다');
     assert.gt(b.vx, 0, '★ 왼쪽 벽에서 되튀어 속도 부호가 뒤집혔다');
-    assert.gte(b.x, a.x, '벽 안으로 되접혔다 — 파고든 채 들러붙지 않는다');
+    assert.gte(b.x, w.walls.x + b.radius, '벽 안으로 되접혔다 — 가장자리가 벽 안이고, 파고든 채 들러붙지 않는다');
   });
 
   test('반사 예산 0 인 탄은 안 튀고 그대로 나간다 (기본값 = 현행 동작)', () => {
@@ -103,21 +98,132 @@ suite('bounce/벽 반사 (§8.5 v1.7)', () => {
     assert.ok(!b.alive || b.vx < 0, '되튀지 않는다(그대로 나가 컬링)');
   });
 
-  test('★ 봇의 삼각파 접기 외삽이 실제 궤적과 일치한다 (§10.4)', () => {
-    const w = mkWorld();
-    const a = w.data.rules.view.arena;
-    const b = spawnEnemyBullet(w, 'ricochet', a.x + 100, a.y + 100, 260, 170, '');
-    const x0 = b.x; const y0 = b.y; const vx = b.vx; const vy = b.vy;
-    let worst = 0;
-    for (let t = 1; t <= 300; t += 1) {
-      step(w, makeInput(), TICK_DT);
-      if (!b.alive) break;
-      const T = t * TICK_DT;
-      worst = Math.max(worst,
-        Math.abs(fold(x0 + vx * T, a.x, a.x + a.w) - b.x),
-        Math.abs(fold(y0 + vy * T, a.y, a.y + a.h) - b.y));
+  test('★ 봇의 반사탄 예측(bot.foldWall)이 실제 궤적과 일치한다 (§10.4) — 벽 안에서 난 탄 · 벽 밖(화면 위 · HP·XP 띠)에서 나 들어오는 탄 모두', () => {
+    for (const [label, sx, sy, svx, svy] of [['경기장 안', 100, 150, 260, 170], ['상단 띠 안(경기장)에서 위로', 480, 20, 150, -230],
+      ['화면 위(벽 밖)에서 아래로', 220, -20, -210, 240], ['HP·XP 띠 안(벽 밖)에서 위로', 330, 700, 180, -260]]) {
+      const w = mkWorld();
+      w.player.iframeSec = 1e9;                     // 탄이 기체에 먹혀 사라지지 않게 — 궤적만 본다
+      const a = w.data.rules.view.arena;
+      const wl = w.walls;
+      const b = spawnEnemyBullet(w, 'ricochet', a.x + sx, a.y + sy, svx, svy, '');
+      const r = b.radius;                           // ㊿-t 탄은 제 반경만큼 안쪽에서 튄다 — 봇은 스냅샷 bwr(= 탄 반경)로 같은 여백을 쓴다
+      const x0 = b.x; const y0 = b.y; const vx = b.vx; const vy = b.vy;
+      let worst = 0; let ticks = 0;
+      for (let t = 1; t <= 300; t += 1) {
+        step(w, makeInput(), TICK_DT);
+        if (!b.alive) break;
+        const T = t * TICK_DT;
+        ticks = t;
+        worst = Math.max(worst,
+          Math.abs(foldWall(x0 + vx * T, x0, wl.x + r, wl.x + wl.w - r) - b.x),
+          Math.abs(foldWall(y0 + vy * T, y0, wl.y + r, wl.y + wl.h - r) - b.y));
+      }
+      assert.gt(ticks, 60, `${label}: 1초 넘게 따라갔다 (${ticks}틱)`);
+      assert.lt(worst, 1e-6, `${label}: 봇의 예측과 실제 궤적의 오차가 0 이다 — 봇이 반사탄을 정확히 피한다`);
     }
-    assert.lt(worst, 1e-6, '접기 예측과 실제 궤적의 오차가 0 이다 — 봇이 반사탄을 정확히 피한다');
+  });
+
+  test('★ 반사 벽(㊿-t) — 아래는 HP·XP 띠 위 바닥선 · 위와 좌우는 아레나 끝(상단 띠는 경기장) · 탄은 가장자리가 벽에 닿는 순간 되튄다', () => {
+    const w = mkWorld();
+    w.player.iframeSec = 1e9;
+    const a = w.data.rules.view.arena;
+    const v = w.data.rules.view;
+    const wl = w.walls;
+    const floorLine = a.y + a.h - v.bandHpH - v.bandXpH;
+    assert.eq(wl.y + wl.h, floorLine, '아래 벽 = HP 띠 위(바닥선)');
+    assert.eq(wl.y, a.y, '위 벽 = 아레나 끝 — 상단 띠는 반투명 오버레이(적이 날아들고 표적이 된다)라 벽이 아니다');
+    assert.eq(wl.x, a.x, '왼쪽 벽 = 아레나 끝(패널 경계)');
+    assert.eq(wl.x + wl.w, a.x + a.w, '오른쪽 벽 = 아레나 끝(패널 경계)');
+    const SPEED = 120;
+    const down = spawnEnemyBullet(w, 'ricochet', a.x + 150, floorLine - 40, 0, SPEED, '');
+    const up = spawnEnemyBullet(w, 'ricochet', a.x + 450, a.y + 90, 0, -SPEED, '');
+    const r = down.radius;
+    assert.gt(r, 0, '전제: 반경이 있는 탄');
+    let maxY = -Infinity; let minY = Infinity; let flippedDown = false; let flippedUp = false;
+    for (let t = 0; t < 60; t += 1) {
+      step(w, makeInput(), TICK_DT);
+      if (down.alive) { maxY = Math.max(maxY, down.y); if (down.vy < 0) flippedDown = true; }
+      if (up.alive) { minY = Math.min(minY, up.y); if (up.vy > 0) flippedUp = true; }
+    }
+    assert.ok(flippedDown && flippedUp, '둘 다 되튀었다');
+    const oneTick = SPEED * TICK_DT;               // 넘은 틱에 되접으므로 가장자리는 벽에서 한 틱 이동 이내까지 온다
+    assert.lte(maxY + r, floorLine, `아래로 가던 탄의 가장자리가 바닥선을 안 넘었다 — HP 바를 덮지 않는다 (최대 y ${maxY.toFixed(1)} + 반경 ${r} ≤ ${floorLine})`);
+    assert.gt(maxY + r, floorLine - oneTick - 1e-9, `가장자리가 바닥선에 닿을 때 튀었다 — 더 앞에서 미리 튀지 않는다 (최대 y ${maxY.toFixed(1)} + 반경 ${r})`);
+    assert.gte(minY - r, a.y, `위로 가던 탄의 가장자리가 화면 위를 안 넘었다 (최소 y ${minY.toFixed(1)})`);
+    assert.lt(minY, a.y + v.bandTopH, `위로 가던 탄은 상단 띠 안까지 들어갔다 — 상단 띠는 경기장이다 (최소 y ${minY.toFixed(1)} < ${a.y + v.bandTopH})`);
+  });
+
+  test('★ 반경 여백(벽선과 튀는 선 사이)에서 난 반사탄 — 네 벽 모두: 바깥으로 가면 튀지 않고 나가고, 안으로 가면 여백을 지나 들어온다 (봇의 접기 = 실제 궤적)', () => {
+    // 2차 검토: «안에서 넘을 때만»의 비교를 튀는 선이 아니라 벽선에 대도 초록이었다 — 기존 표본은 여백을 한 틱 안에 건넜다.
+    //   느린 탄을 여백 한가운데(벽선에서 반경/2)에 두어 여러 틱을 여백 안에서 보내게 한다.
+    const r = loadData().bullets.bullets.find((x) => x.id === 'ricochet').radius;
+    const wl = mkWorld().walls;
+    const cx = wl.x + wl.w / 2; const cy = wl.y + wl.h / 2;
+    const S = 60; const ALONG = 23;                 // 벽 쪽 속도 · 벽을 따라가는 속도(px/s)
+    const cases = [];
+    for (const [side, x, y, nx, ny] of [['왼쪽', wl.x + r / 2, cy, -1, 0], ['오른쪽', wl.x + wl.w - r / 2, cy, 1, 0],
+      ['위', cx, wl.y + r / 2, 0, -1], ['바닥', cx, wl.y + wl.h - r / 2, 0, 1]]) {
+      cases.push([`${side} 여백 → 바깥`, x, y, nx * S + ny * ALONG, ny * S + nx * ALONG]);
+      cases.push([`${side} 여백 → 안`, x, y, -nx * S + ny * ALONG, -ny * S + nx * ALONG]);
+    }
+    for (const [label, x, y, svx, svy] of cases) {
+      const w = mkWorld();
+      w.player.iframeSec = 1e9;                     // 탄이 기체에 먹혀 사라지지 않게 — 궤적만 본다
+      const b = spawnEnemyBullet(w, 'ricochet', x, y, svx, svy, '');
+      const x0 = b.x; const y0 = b.y; const vx = b.vx; const vy = b.vy; const rr = b.radius;
+      let worst = 0; let ticks = 0;
+      for (let t = 1; t <= 240; t += 1) {
+        step(w, makeInput(), TICK_DT);
+        if (!b.alive) break;
+        const T = t * TICK_DT;
+        ticks = t;
+        worst = Math.max(worst,
+          Math.abs(foldWall(x0 + vx * T, x0, wl.x + rr, wl.x + wl.w - rr) - b.x),
+          Math.abs(foldWall(y0 + vy * T, y0, wl.y + rr, wl.y + wl.h - rr) - b.y));
+      }
+      assert.gt(ticks, 10, `${label}: 여백을 지날 만큼 따라갔다 (${ticks}틱)`);
+      assert.lt(worst, 1e-6, `${label}: 봇의 접기 = 실제 궤적 (최대 오차 ${worst.toExponential(2)})`);
+    }
+  });
+
+  test('기체 이동 영역 ⊂ 반사 벽 − 반사 무기 탄이 가질 수 있는 최대 반경 — 가장자리에서 바깥으로 던진 공도 반드시 튄다 (2 · 3차 검토)', () => {
+    const w = mkWorld();
+    const hooks = w.data.rules.passiveHooks;
+    const cap = w.data.rules.render.playerBulletMaxRadiusPx;   // H3 — 패시브로 커진 반경의 상한(판정 · 렌더 공통, state.recomputeEff)
+    let maxR = 0;
+    for (const wp of w.data.weapons.weapons) {
+      const rows = [wp.base];
+      if (Array.isArray(wp.levels)) rows.push(...wp.levels);
+      else if (wp.levels && typeof wp.levels === 'object') rows.push(...Object.values(wp.levels));
+      if (wp.evolution) { rows.push(wp.evolution); if (wp.evolution.params) rows.push(wp.evolution.params); }
+      if (!rows.some((row) => row && typeof row.bounceLeft === 'number' && row.bounceLeft !== 0)) continue;
+      for (const row of rows) if (row && typeof row.projRadius === 'number') maxR = Math.max(maxR, row.projRadius);
+      // ★ 저작 반경만 보면 안 된다 — 이 무기의 패시브 훅 목록에 projRadius 가 들면 반경이 H3 상한까지 자란다(3차 검토:
+      //   리턴 주석의 옛 목록 ["outRangePx", "projRadius"] 대로 데이터를 «고치면» 튀는 선이 기체 아래 한계 위로 올라간다)
+      const h = hooks[wp.family] || {};
+      if (Object.values(h).some((v) => v === 'projRadius' || (Array.isArray(v) && v.includes('projRadius')))) maxR = Math.max(maxR, cap);
+    }
+    assert.gt(maxR, 0, '전제: 반사하는 무기(핀볼 · 리턴)의 탄 반경을 찾았다');
+    const bd = w.bounds; const wl = w.walls;
+    const inner = { minX: wl.x + maxR, maxX: wl.x + wl.w - maxR, minY: wl.y + maxR, maxY: wl.y + wl.h - maxR };
+    assert.ok(bd.minX >= inner.minX && bd.maxX <= inner.maxX && bd.minY >= inner.minY && bd.maxY <= inner.maxY,
+      `이동 영역 x ${bd.minX}..${bd.maxX} · y ${bd.minY}..${bd.maxY} ⊂ 튀는 선 x ${inner.minX}..${inner.maxX} · y ${inner.minY}..${inner.maxY} (반경 ${maxR}) — 아니면 가장자리에서 바깥으로 던진 공이 튀지 않고 나간다`);
+  });
+
+  test('벽 밖(HP·XP 띠 · 화면 위)에서 생긴 반사탄은 순간이동하지 않는다 — 들어올 때까지는 직선, 바깥으로 가면 그대로 나간다', () => {
+    const w = mkWorld();
+    w.player.iframeSec = 1e9;
+    const a = w.data.rules.view.arena;
+    const wl = w.walls;
+    const floorLine = wl.y + wl.h;
+    const inward = spawnEnemyBullet(w, 'ricochet', a.x + 200, floorLine + 20, 0, -300, '');   // HP·XP 띠 안 → 위로(들어온다)
+    const outward = spawnEnemyBullet(w, 'ricochet', a.x + 400, floorLine + 20, 0, 300, '');   // HP·XP 띠 안 → 아래로(나간다)
+    const above = spawnEnemyBullet(w, 'ricochet', a.x + 300, a.y - 20, 0, 300, '');          // 화면 위 → 아래로(들어온다)
+    const y0in = inward.y; const vin = inward.vy; const y0out = outward.y; const y0ab = above.y; const vab = above.vy;
+    step(w, makeInput(), TICK_DT);
+    assert.ok(inward.vy < 0 && Math.abs(inward.y - (y0in + vin * TICK_DT)) < 1e-9, 'HP·XP 띠 안에서 안쪽으로 가는 탄 = 직선 그대로(벽 안으로 되접히지 않는다)');
+    assert.ok(outward.vy > 0 && outward.y > y0out, 'HP·XP 띠 안에서 바깥으로 가는 탄 = 튀지 않고 나간다');
+    assert.ok(above.vy > 0 && Math.abs(above.y - (y0ab + vab * TICK_DT)) < 1e-9, '화면 위에서 안쪽으로 가는 탄 = 직선 그대로');
   });
 });
 
