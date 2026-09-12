@@ -452,12 +452,15 @@ async function boot() {
   let fx = null;
   let difficultyId = 'normal';
   let tickDur = 1000 / TICK_HZ;
+  //  §6.1 — ★ 배속이 코드에 존재하는 정확히 1곳. 정본이 그렇게 못박았는데 ㊿-ze3 전까지 두 곳이었다
+  //  (startRun · startTutorial 이 같은 식을 따로 적었다). 게이트 S69 가 이 한 줄만 남아 있는지 본다.
+  const tickDurFor = (diffId) => 1000 / (TICK_HZ * data.meta.difficulty[diffId].speed);
   let bannerT = 0;                            // THEME_BANNER 잔여(실시간 ms)
 
   /** §6.5 RUN_START — 고른 난이도로 새 런을 조립한다(시드·world·보간·FX 전부 신규). */
   function startRun(diffId) {
     difficultyId = diffId;
-    tickDur = 1000 / (TICK_HZ * data.meta.difficulty[diffId].speed);
+    tickDur = tickDurFor(diffId);
     // §10.2 — 마스터 시드 = uint32. **비결정성이 들어오는 유일한 지점**. core 밖에서 만들어 주입.
     seed = (Date.now() ^ Math.floor(performance.now() * 1000)) >>> 0;
     if (DEMO && demoFixedSeed !== null) seed = demoFixedSeed;   // 데모: 고정 시드 = 같은 쇼케이스 런 재현
@@ -477,7 +480,7 @@ async function boot() {
    */
   function startTutorial() {
     difficultyId = DIFFS[0];
-    tickDur = 1000 / (TICK_HZ * data.meta.difficulty[difficultyId].speed);
+    tickDur = tickDurFor(difficultyId);
     seed = 1;                                   // 튜토리얼은 매번 같아야 «배울» 수 있다 (§10.2 결정성)
     world = createWorld({ data, seed, weapons, hooks: { enemies: null, emitters, run: tickTutorial, boss: null },
       startWeaponId: data.tutorial.startWeaponId });    // 튜토리얼의 시작 무기는 «가장 단순한 것»으로 고정(데이터 소유)

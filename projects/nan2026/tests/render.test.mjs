@@ -19,6 +19,8 @@ import { weapons } from '../src/core/weapons/index.js';
 import { enemies } from '../src/core/enemies.js';
 import { emitters } from '../src/core/emitters.js';
 import { tickRun, initRun } from '../src/core/stage.js';
+import { makeTutorialState, tickTutorial } from '../src/core/tutorial.js';
+import { spawnEnemy } from '../src/core/state.js';
 import { bossHook } from '../src/core/boss.js';
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, bulletDensityAlpha } from '../src/render/draw.js';
 import { drawPanels, drawResults, drawDraft, wrapLines, passiveWeaponLine, weaponRowLayout, clockText } from '../src/render/hud.js';
@@ -653,5 +655,70 @@ suite('render — ㊿-u 결과 화면의 클리어 시간', () => {
     assert.eq(clockText(605), '10:05', '초는 두 자리');
     assert.eq(clockText(3725), '1:02:05', '1시간 넘으면 h:mm:ss');
     assert.eq(clockText(-3), '0:00', '음수 = 0');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// ㊿-ze3 — 개체 위 HP 바는 «한 규격 · 한 자리»다.
+//   튜토리얼 바를 hud.js 가 따로 그렸고 거기엔 보간이 없어(drawTutorial 이 interp·alpha 를 안 받는다)
+//   바가 스프라이트보다 한 틱 늦게 따라붙었다. 그리고 한쪽만 0~1 클램프가 있었다.
+//   ★ 테스트가 «그려진 사각형»을 직접 읽는다 — 규격이 다시 두 자리로 흩어지면 여기서 걸린다.
+// ─────────────────────────────────────────────────────────────────────────
+suite('render — ㊿-ze3 개체 HP 바', () => {
+  const mkTut = () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 1, weapons, hooks: { enemies: null, emitters, run: tickTutorial, boss: null }, startWeaponId: 'forward' });
+    w.tut = makeTutorialState(w);
+    return w;
+  };
+
+  test('튜토리얼에서는 평범한 적도 바를 단다 — 그리고 바는 «보간된» 자리에 선다(스프라이트와 같은 x)', () => {
+    const w = mkTut();
+    const d = w.data;
+    const hb = d.rules.visual.hpBar;
+    const e = spawnEnemy(w, 'drifter', 'fire', 500, 220, 100, false);
+    assert.ok(e !== null, '적이 섰다(전제)');
+    e.hp = e.hpMax * 0.5;                                  // 반쯤 깎아 «채움»이 궤도의 절반이 되게
+    const pal = resolvePalette(d.rules); const fx = makeFx(w); const interp = makeInterp(w);
+    captureInterp(interp, w);                              // 직전 틱 위치 = 지금 위치
+    e.x += 40;                                             // 한 틱 사이에 40px 움직였다 치고
+    const { ctx, rec } = layoutCtx();
+    drawWorld(ctx, w, pal, fx, interp, 0.5);               // alpha 0.5 → 보간 x = 500 + 20 = 520
+    const track = rec.rects.filter((r) => r.w === hb.wPx && r.h === hb.hPx);
+    assert.gt(track.length, 0, '★ 궤도 사각형(wPx×hPx)이 그려졌다 — 없으면 튜토리얼 적이 바를 잃은 것이다');
+    const bx = 520 - hb.wPx / 2;
+    const mine = track.filter((r) => Math.abs(r.x - bx) < 0.5);
+    assert.gt(mine.length, 0, `★ 바가 «보간된» x(${bx})에 선다 — 생 e.x(${e.x - hb.wPx / 2})면 스프라이트보다 한 틱 늦는다`);
+    const fill = rec.rects.find((r) => r.h === hb.hPx && Math.abs(r.x - bx) < 0.5 && Math.abs(r.w - hb.wPx * 0.5) < 0.5);
+    assert.ok(fill !== undefined, 'HP 50% → 채움 폭도 궤도의 절반');
+  });
+
+  test('회복으로 hp 가 hpMax 를 넘어도 채움은 궤도를 안 넘는다 (0~1 클램프)', () => {
+    const w = mkTut();
+    const hb = w.data.rules.visual.hpBar;
+    const e = spawnEnemy(w, 'drifter', 'fire', 500, 220, 100, false);
+    e.hp = e.hpMax * 3;                                    // 있을 수 없는 값이 아니다 — 바를 그리는 쪽이 막아야 한다
+    const pal = resolvePalette(w.data.rules); const fx = makeFx(w); const interp = makeInterp(w);
+    captureInterp(interp, w);
+    const { ctx, rec } = layoutCtx();
+    drawWorld(ctx, w, pal, fx, interp, 0);
+    const over = rec.rects.filter((r) => r.h === hb.hPx && r.w > hb.wPx + 0.5);
+    assert.eq(over.length, 0, `★ 궤도(${hb.wPx}px)보다 넓은 채움이 ${over.length}개 — 클램프가 빠졌다`);
+  });
+
+  test('평시(튜토리얼 아님)에는 평범한 적이 바를 달지 않는다 — ㊷ 는 튜토리얼 한정이다', () => {
+    const d = loadData();
+    const w = createWorld({ data: d, seed: 1, weapons, hooks: { enemies, emitters, run: tickRun, boss: bossHook }, startWeaponId: 'forward' });
+    initRun(w);
+    const hb = d.rules.visual.hpBar;
+    const e = spawnEnemy(w, 'drifter', 'fire', 500, 220, 100, false);
+    e.hp = e.hpMax * 0.5;
+    const pal = resolvePalette(d.rules); const fx = makeFx(w); const interp = makeInterp(w);
+    captureInterp(interp, w);
+    const { ctx, rec } = layoutCtx();
+    drawWorld(ctx, w, pal, fx, interp, 0);
+    const bx = 500 - hb.wPx / 2;
+    const mine = rec.rects.filter((r) => r.w === hb.wPx && r.h === hb.hPx && Math.abs(r.x - bx) < 0.5);
+    assert.eq(mine.length, 0, '평범한 적에 바가 붙었다 — §7.7 밀도 논거가 깨진다');
   });
 });

@@ -1122,23 +1122,9 @@ export function drawTutorial(ctx, world, pal, step) {
   const tu = world.tut;
   const n = world.data.tutorial.steps.length;
 
-  // ★ ㊷ — 튜토리얼에서는 **적의 체력바를 보여준다**. 「잘하고 있는지 모르겠다」(사용자)에 대한 답이고,
-  //   ×2 와 ×½ 의 차이가 «바가 줄어드는 속도»로 눈에 들어온다. 적이 몇 기뿐이라 §7.7 의 밀도 논거와 충돌하지 않는다.
-  //   자기 바가 있는 개체(엘리트·중간보스·보스 부위)와 **코어(상단 바)** 는 건드리지 않는다.
-  const hb = world.data.rules.visual.hpBar;
-  const items = world.enemies.items;
-  for (let i = 0; i < items.length; i += 1) {
-    const e = items[i];
-    if (!e.alive || e.hpMax <= 0) continue;
-    if (e.elite || e.midBossId !== '' || e.isBoss) continue;
-    const bw = hb.wPx;
-    const bx = e.x - bw / 2;
-    const by = e.y - e.radius - hb.gapPx - hb.hPx;
-    ctx.fillStyle = rgba(pal.threat.outline, hb.trackAlpha);
-    ctx.fillRect(bx, by, bw, hb.hPx);
-    ctx.fillStyle = pal.element[e.element];
-    ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, e.hp / e.hpMax)), hb.hPx);
-  }
+  // ★ ㊷ 튜토리얼의 적 체력바는 **여기서 안 그린다** — ㊿-ze3 에서 draw.js 의 개체 바로 합쳤다.
+  //   이 함수는 보간(interp·alpha)을 안 받아서 바가 스프라이트보다 한 틱 늦게 따라붙었고,
+  //   같은 규격이 두 파일에 흩어져 하나는 클램프가 있고 하나는 없었다(엘리트 바가 3종 두께를 낳았던 것과 같은 기전).
 
   // 안내 띠 — ★ 아레나 «상단 띠 아래»에 놓는다(위에 겹치면 보스 코어 체력바를 가린다).
   //   ★ ㊻ 높이는 **줄바꿈한 모든 줄**에서 파생한다 — 고정 높이는 문장이 길어지면 글자가 상자 밖으로 넘친다(사용자 스크린샷).

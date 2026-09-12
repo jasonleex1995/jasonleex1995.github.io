@@ -136,6 +136,17 @@ export function spawnBoss(world) {
  *   sway: x = cx + ampPx·sin(w·moveT), w = speedPxSec/ampPx → 최대 측속 = speedPxSec.
  *   orbitArc 는 B1b 에서 sway 로 근사(B2 에서 정식 구현).
  */
+/** §8.11 — 부위는 코어에 매달린 «고정 오프셋»이다. 코어를 옮긴 쪽이 반드시 이걸 부른다(등장 연출 · 평시 이동 둘 다). */
+function followCore(world, core) {
+  const en = world.enemies.items;
+  for (let i = 0; i < en.length; i += 1) {
+    const e = en[i];
+    if (!e.alive || !e.isBoss || e.isCore) continue;
+    e.x = core.x + e.anchorX;
+    e.y = core.y + e.anchorY;
+  }
+}
+
 function moveBoss(world) {
   const core = findCore(world);
   if (core === null) return;
@@ -154,13 +165,7 @@ function moveBoss(world) {
     const sy = world.data.rules.view.spawnLineY;
     core.x = cx;
     core.y = sy + (mp.yHoldPx - sy) * eased;
-    const en = world.enemies.items;
-    for (let i = 0; i < en.length; i += 1) {
-      const e = en[i];
-      if (!e.alive || !e.isBoss || e.isCore) continue;
-      e.x = core.x + e.anchorX;
-      e.y = core.y + e.anchorY;
-    }
+    followCore(world, core);
     return;
   }
 
@@ -178,14 +183,9 @@ function moveBoss(world) {
     core.y = mp.yHoldPx;
   }
 
-  const en = world.enemies.items;
-  for (let i = 0; i < en.length; i += 1) {
-    const e = en[i];
-    if (!e.alive || !e.isBoss || e.isCore) continue;
-    e.x = core.x + e.anchorX;
-    e.y = core.y + e.anchorY;
-  }
+  followCore(world, core);
 
+  const en = world.enemies.items;
   // §8.11(v1.5) 레이어 봉인 — 살아있는 파트 중 «최소 sealLayer»보다 높은 파트는 무적(sealedNow).
   //   낮은 레이어(앞)를 다 부숴야 높은 레이어(뒤·키스톤)가 열린다. 항상 최소 레이어 파트는 열려 있어
   //   보스가 봉인으로 불사가 되는 일은 없다. 코어는 자체 armor 게이트라 제외.

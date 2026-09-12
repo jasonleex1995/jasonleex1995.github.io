@@ -96,7 +96,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'S68', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'S68', 'S69', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -3926,6 +3926,26 @@ function S61_vocabMirrors() {
   same('BODY_STATS', BODY_STATS, SCHEMA.BODY_STATS);
   same('TERRAIN_KINDS', TERRAIN_KINDS, SCHEMA.TERRAIN_KINDS);
   same('TRAIT_EFFECT_KINDS', TRAIT_EFFECT_KINDS, SCHEMA.TRAIT_EFFECT_KINDS);
+  //  ★ ㊿-ze3 — 여기까지가 v1.10 ㊿ 의 대조였고, **두 파일이 나란히 든 나머지 넷은 사각지대**였다.
+  //    두 벌을 일부러 독립으로 두는 이유(§9.3: 같은 스키마를 두 사람이 따로 쓴다)는 «전부 대조할 때만» 성립한다 —
+  //    반만 대조하면 나머지 반은 그냥 중복이다. 배열이 아닌 것도 여기서 본다.
+  same('SECTIONS', SECTIONS, SCHEMA.SECTIONS);
+  n += 1;
+  if (SCHEMA_VERSION !== SCHEMA.SCHEMA_VERSION) {
+    V('S61', `SCHEMA_VERSION: check.mjs ${SCHEMA_VERSION} vs schema.mjs ${SCHEMA.SCHEMA_VERSION} — 로더와 게이트가 다른 판을 본다 (§9.3)`);
+  }
+  n += 1;
+  if (TERRAIN_MIXED !== SCHEMA.TERRAIN_MIXED) {
+    V('S61', `TERRAIN_MIXED: check.mjs "${TERRAIN_MIXED}" vs schema.mjs "${SCHEMA.TERRAIN_MIXED}" (§8.21 ③)`);
+  }
+  n += 1;
+  {
+    const mine = TERRAIN_KIND_ELEMENT; const theirs = SCHEMA.TERRAIN_KIND_ELEMENT;
+    const mk = Object.keys(mine).sort(); const tk = Object.keys(theirs).sort();
+    if (mk.length !== tk.length || mk.some((k, i) => k !== tk[i]) || mk.some((k) => mine[k] !== theirs[k])) {
+      V('S61', `TERRAIN_KIND_ELEMENT: 두 사본이 어긋났다 — check.mjs ${JSON.stringify(mine)} vs schema.mjs ${JSON.stringify(theirs)} (§8.21 ②)`);
+    }
+  }
   // FAMILIES 의 짝은 데이터다 — 무기가 늘거나 줄면 이 목록이 «먼저» 거짓이 된다(㊵ 스파이럴 삭제 때 실제로 그랬다)
   n += 1;
   const fromData = rowsQuiet(D.weapons && D.weapons.weapons).map((w) => w.family);
@@ -4271,6 +4291,36 @@ function S67_canonPrints() {
 //  판을 그대로 들고 있었고, 여섯 칸이 전부 실제와 달랐다(총 싱크 67 ↔ 데이터 130 — 두 배 차이).
 //  ★ 표의 픽 수를 데이터에서 «다시 계산»해 맞춘다. 슬롯·레벨 상한이 바뀌면 여기서 걸린다.
 // ===========================================================================
+// ===========================================================================
+//  S69 — 배속의 «문» (§6.1 · v1.10 ㊿-ze3)
+//  정본 §6.1 은 「tickDur = 1000 / (TICK_HZ × speed) — 배속이 코드에 존재하는 정확히 1곳」이라 못박는다.
+//  실제로는 startRun 과 startTutorial 이 같은 식을 따로 적어 **두 곳**이었다. 한 곳(tickDurFor)으로 합쳤고
+//  여기서 그 「정확히 1곳」을 강제한다 — 난이도 speed 가 tickDur 로 들어가는 자리는 하나여야 한다.
+// ===========================================================================
+function S69_speedDoor() {
+  const mp = join(ROOT, 'src', 'main.js');
+  if (!existsSync(mp)) { V('S69', 'src/main.js 가 없다 (§6.1)'); EX('S69', 1); return; }
+  const lines = readFileSync(mp, 'utf8').split('\n');
+  let n = 0;
+  const sites = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const L = lines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(L)) continue;                    // 주석 줄은 세지 않는다
+    n += 1;
+    if (/TICK_HZ\s*\*/.test(L)) sites.push(`${i + 1}행: ${L.trim().slice(0, 80)}`);
+  }
+  if (sites.length !== 1) {
+    V('S69', `main.js 에서 「TICK_HZ × speed」가 ${sites.length}곳 — §6.1 은 «정확히 1곳»이다: ${sites.join(' | ')}`);
+  } else if (!/tickDurFor/.test(sites[0])) {
+    V('S69', `배속의 문이 tickDurFor 가 아니다 — ${sites[0]} (§6.1)`);
+  }
+  //  그 한 곳을 실제로 두 시작 경로가 «부르는가» — 문만 있고 아무도 안 지나면 문이 아니다.
+  const body = lines.join('\n');
+  const calls = (body.match(/tickDur = tickDurFor\(/g) || []).length;
+  if (calls < 2) V('S69', `tickDurFor 를 지나는 시작 경로가 ${calls}곳 — 런과 튜토리얼 둘 다 지나야 한다 (§6.1)`);
+  EX('S69', n);
+}
+
 function S68_growthBudget() {
   const cp = join(ROOT, 'design', 'CANON.md');
   if (!existsSync(cp)) { V('S68', 'design/CANON.md 가 없다 (§11.1)'); EX('S68', 1); return; }
@@ -5023,7 +5073,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S68 · S20·S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S69 · S20·S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -5098,6 +5148,7 @@ function main() {
   S65_bounceWalls();         // §1.1 v1.10 ㊿-t 반사 벽 = 아레나 − HP·XP 띠 · 탄 반경만큼 안쪽 — step · 봇 · 계측이 같은 world.walls
   S67_canonPrints();         // §9.4 v1.10 ㊿-z9 정본의 인쇄 블록 ↔ data/*.json — 값까지 대조한다(S2 는 키만 본다)
   S68_growthBudget();        // §11.1 v1.10 ㊿-ze 성장 예산 «산문 표» ↔ data — S67 의 정의역 밖이라 12년 묵은 수치가 살아 있었다
+  S69_speedDoor();           // §6.1 v1.10 ㊿-ze3 배속이 코드에 존재하는 «정확히 1곳»
   S66_dotFont();             // §7.9.1 v1.10 ㊿-z 도트 폰트 — 글자판이 격자를 지키고 · 제목판이 제목과 정확히 맞고 · 가장 작은 글자도 minPx 이상
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 

@@ -232,6 +232,22 @@ function poly(ctx, x, y, r, pts) {
   ctx.closePath();
 }
 
+/**
+ * §7.12.4-② ✳ — 스턴/과열 정지의 «단 하나의» 글리프. 3선이 60° 간격으로 교차하는 별.
+ *   ★ ㊿-ze3 — 세 곳(지형 장판 · 상태 배지 · 정지 예고)이 같은 고리를 따로 적고 있었다. 별의 «모양»이
+ *   한 곳에서만 바뀌면 「예고와 실제가 같은 글리프」(§7.12.4)라는 약속이 소리 없이 깨진다.
+ *   색·굵기는 부르는 쪽이 정한다(경고는 깜빡이고 배지는 안 깜빡인다).
+ */
+function strokeStar(ctx, cx, cy, r) {
+  for (let i = 0; i < 3; i += 1) {
+    const a = (i * Math.PI) / 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(a) * r, cy - Math.sin(a) * r);
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.stroke();
+  }
+}
+
 /** 정다각형을 «현재 경로에 이어 붙인다»(배치용, ㉛). */
 function regularSub(ctx, x, y, r, n, rot) {
   for (let i = 0; i < n; i += 1) {
@@ -536,13 +552,7 @@ function terrainIcon(ctx, kind, x, y, px, t) {
       ctx.stroke();
     }
   } else {                                              // ✳ 과열 정지 — 스턴 배지와 같은 별
-    for (let i = 0; i < 3; i += 1) {
-      const a = (i * Math.PI) / 3;
-      ctx.beginPath();
-      ctx.moveTo(x - Math.cos(a) * h * 0.8, y - Math.sin(a) * h * 0.8);
-      ctx.lineTo(x + Math.cos(a) * h * 0.8, y + Math.sin(a) * h * 0.8);
-      ctx.stroke();
-    }
+    strokeStar(ctx, x, y, h * 0.8);
   }
 }
 
@@ -874,8 +884,13 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
     //   코어는 「이 판을 끝내는 것」이라 화면 어디를 보고 있든 알아야 하는 유일한 값이다.
     //   ★ armor 부위는 §8.13 소프트게이트를 쥐고 있다(부수면 코어가 열린다). 바를 두껍게 +
     //     밑줄을 그어 「이건 그냥 부위가 아니다」를 말한다 — 상단 세그먼트 없이도 게이트가 읽힌다.
+    //   ★ ㊷ 튜토리얼에서는 **모든 적**이 바를 단다 — 「잘하고 있는지 모르겠다」(사용자)에 대한 답이고,
+    //     ×2 와 ×½ 의 차이가 «바가 줄어드는 속도»로 눈에 들어온다. 적이 몇 기뿐이라 §7.7 밀도 논거와 안 부딪는다.
+    //   ★ ㊿-ze3 — 이 규격은 **여기 한 곳**이다. 튜토리얼 바는 hud.js 가 따로 그렸고, 거기엔 보간이 없어
+    //     (drawTutorial 은 interp·alpha 를 안 받는다) 바가 스프라이트보다 한 틱 늦게 따라붙었다.
+    //     여기로 옮기면 x·y 가 이미 보간된 값이라 지터가 사라지고 규격도 다시 하나가 된다.
     const ownBar = e.elite || e.midBossId !== '' || (e.isBoss && !e.isCore);
-    if (ownBar) {
+    if ((ownBar || (world.tut !== undefined && !e.isBoss)) && e.hpMax > 0) {
       const hb = world.data.rules.visual.hpBar;
       const bw = hb.wPx;                                     // ★ 폭은 radius 에서 파생되지 않는다
       const bx = x - bw / 2;
@@ -883,7 +898,9 @@ function drawEnemies(ctx, world, pal, fx, interp, alpha) {
       ctx.fillStyle = rgba(pal.threat.outline, hb.trackAlpha);
       ctx.fillRect(bx, byy, bw, hb.hPx);
       ctx.fillStyle = color;
-      ctx.fillRect(bx, byy, bw * (e.hp / e.hpMax), hb.hPx);
+      //   ★ 0~1 로 자른다 — 회복(흡혈·리젠)으로 hp 가 hpMax 를 넘으면 바가 궤도를 넘어 그려진다.
+      const frac = Math.max(0, Math.min(1, e.hp / e.hpMax));
+      ctx.fillRect(bx, byy, bw * frac, hb.hPx);
       // §8.13(v1.8) 소프트게이트 = 두께가 아니라 «형태». 좌우 은색 기둥.
       if (e.partType === 'armor') {
         ctx.fillStyle = pal.element.normal;
@@ -991,13 +1008,7 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
       }
       ctx.stroke();
     } else {
-      for (let i = 0; i < 3; i += 1) {
-        const a = (i * Math.PI) / 3;
-        ctx.beginPath();
-        ctx.moveTo(x - Math.cos(a) * 6, by - Math.sin(a) * 6);
-        ctx.lineTo(x + Math.cos(a) * 6, by + Math.sin(a) * 6);
-        ctx.stroke();
-      }
+      strokeStar(ctx, x, by, 6);
     }
     const dur = st === 'stun' ? p.stunSec : p.slowSec;
     ctx.fillStyle = pal.status.band;
@@ -1020,14 +1031,7 @@ function drawPlayer(ctx, world, pal, fx, interp, alpha) {
     if (warn && st === null) {                             // 정지 예고 ✳ — 실제 스턴 배지와 같은 글리프, 깜빡임
       ctx.strokeStyle = rgba(pal.status.band, blink);
       ctx.lineWidth = 2;
-      const by = y - 16;
-      for (let i = 0; i < 3; i += 1) {
-        const a = (i * Math.PI) / 3;
-        ctx.beginPath();
-        ctx.moveTo(x - Math.cos(a) * 6, by - Math.sin(a) * 6);
-        ctx.lineTo(x + Math.cos(a) * 6, by + Math.sin(a) * 6);
-        ctx.stroke();
-      }
+      strokeStar(ctx, x, y - 16, 6);
     }
   }
   ctx.restore();
