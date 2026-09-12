@@ -31,9 +31,9 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     // ㊿-u 검토: 적 공격 배율과 점수 배율이 세 난이도 모두 같아서(1 · 1.2 · 1.5) «점수 배율을 적 공격이라 쓴» 메뉴가 초록이었다 —
     //   점수 배율만 달리 덮어써 둘을 구별한다(점수 배율은 이 판의 흐름에 영향이 없다).
     const DIFF_PATCH = { hard: { scoreMul: 1.3 }, hell: { scoreMul: 1.7 } };
-    const o = drive('flow', { flow: { attract: { difficulty: 'hard', draftDwellSec: 0.5 } }, difficulty: DIFF_PATCH });
+    const o = drive('flow', { flow: { attract: { difficulty: 'hard', draftDwellSec: 1.2 } }, difficulty: DIFF_PATCH });
     const idleMs = d.meta.flow.attractIdleSec * 1000;
-    const wantDwell = (0.5 * 1000) / d.meta.difficulty.hard.speed;
+    const wantDwell = (1.2 * 1000) / d.meta.difficulty.hard.speed;   // ㊿-x: 깜빡임 주기(1초)보다 긴 창이라 위상과 무관하게 양쪽이 잡힌다
     const aboutIdle = (v) => v >= idleMs - 50 && v <= idleMs + o.fastMs + 50;
     assert.ok(o.bootTitle, '부팅 = 타이틀');
     assert.ok(o.demoStartMs >= idleMs && o.demoStartMs <= idleMs + o.fastMs + 20, `무입력 ${idleMs}ms 에 데모가 뜬다 — 그 전엔 안 뜬다 (${o.demoStartMs.toFixed(0)}ms)`);
@@ -41,6 +41,8 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     assert.lte(Math.abs(o.dwellMs - wantDwell), 12, `데모 드래프트 체류 = draftDwellSec ÷ attract.difficulty 배속 (${o.dwellMs}ms · 기대 ${wantDwell.toFixed(1)}ms)`);
     assert.ok(o.cursorShown, '데모 드래프트에 커서(3px 테두리)가 딱 한 장에 있다');
     assert.ok(o.tagOverDraft, '데모 표시가 드래프트 오버레이 «위»에 그려진다');
+    // ㊿-x 「PRESS ANY KEY」는 실시간으로 깜빡인다 — 월드 시계가 멈추는 드래프트 체류 중에도(양쪽 상태가 다 나온다)
+    assert.ok(o.blinkOn > 0 && o.blinkOff > 0, `PRESS ANY KEY 가 깜빡인다 (보인 프레임 ${o.blinkOn} · 안 보인 프레임 ${o.blinkOff})`);
     assert.eq(o.humanDraftInDemo, false, '데모 드래프트에 «1 / 2 / 3 선택» 안내가 안 뜬다');
     assert.ok(o.modifierKeepsDemo, '수정 키 단독 · 게임이 안 쓰는 키와의 조합(Cmd+Shift+4)은 데모를 끝내지도 일시정지하지도 않는다');
     assert.ok(o.blurKeepsDemo, 'blur 는 데모를 끝내지도 일시정지하지도 않는다');

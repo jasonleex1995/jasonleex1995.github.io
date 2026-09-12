@@ -824,28 +824,31 @@ async function boot() {
   }
 
   /**
-   * §6.5(㊿-s) 어트랙트 표시 — 사람이 조작하는 판으로 오해하지 않게, 무엇을 누르면 되는지까지 말한다.
-   *   자리 = 아레나 상단 띠 바로 아래(튜토리얼 안내 띠와 같은 자리 — 보스 코어 체력바를 안 가린다) · 드래프트 중엔 카드 상자 아래.
+   * §6.5(v1.10 ㊿-x) 어트랙트 표시 — 오락실 어트랙트 화면의 표기를 그대로 쓴다(사용자(2026-09-12) 「데모 플레이라고 하기에는 좀 어색한 것 같아 · 글자가 좀 더 커져야 할 것 같고 · 오락실 감성이 더 들어갔으면」).
+   *   두 줄: 큰 「AUTO PLAY」(항상) + 「PRESS ANY KEY」(1초에 한 번 깜빡). 상자를 두르지 않고 화면에 바로 얹되,
+   *   외곽선으로 읽히게 한다 — 밝은 탄 위에서도 글자가 뭉개지지 않는다. 외곽선 색의 거처는 palette.threat.outline 하나다(§7.12.7)
+   *   이고 두께는 visual.text.outlinePx 의 배수다 · lineJoin 을 직접 세운다(안 세우면 앞 그리기가 남긴 값에 기대게 된다 — 2차 검토).
+   *   자리 = 아레나 상단 띠 바로 아래(보스 코어 체력바를 안 가린다) · 드래프트 중엔 카드 아래(오버레이 위에 그린다).
+   *   ★ 깜빡임은 **실시간**(performance.now)이다 — 드래프트 체류 중에는 월드 시계가 멈춘다(§0.2.1). 화면이 멈춘 것처럼 보이면 안 된다.
    */
   function drawAttractTag() {
     const a = view.arena;
     const cx = a.x + a.w / 2;
-    const y = state === 'DRAFT' ? view.logicalH - 34 : a.y + view.bandTopH + 24;
-    const label = '데모 플레이 · 아무 키나 누르면 시작 화면으로';
+    const y = state === 'DRAFT' ? view.logicalH - 52 : a.y + view.bandTopH + 30;
+    const line = (text, dy, px, weight, fill) => {
+      ctx.font = `${weight} ${px}px ${rules.visual.text.family}`;
+      ctx.lineJoin = 'round';                            // 안 세우면 4px 미터 스파이크(A·W·V) — 앞 그리기가 남긴 값에 기대지 않는다
+      ctx.lineWidth = rules.visual.text.outlinePx * 2;
+      ctx.strokeStyle = pal.threat.outline;              // §7.12.7 — 캔버스 텍스트 외곽선 색의 거처는 여기 하나
+      ctx.strokeText(text, cx, y + dy);
+      ctx.fillStyle = fill;
+      ctx.fillText(text, cx, y + dy);
+    };
     ctx.save();
-    ctx.font = `700 ${rules.hud.fontBodyPx}px ${rules.visual.text.family}`;
-    const w = ctx.measureText(label).width + 32;
-    ctx.globalAlpha = 0.92;
-    ctx.fillStyle = pal.hud.panelBg;
-    ctx.fillRect(cx - w / 2, y - 16, w, 32);
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = pal.hud.panelRule;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(cx - w / 2, y - 16, w, 32);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = pal.hud.textPrimary;
-    ctx.fillText(label, cx, y);
+    line('AUTO PLAY', 0, rules.hud.fontLargePx, 800, pal.hud.textPrimary);
+    if (performance.now() % 1000 < 600) line('PRESS ANY KEY', rules.hud.fontLargePx + 6, rules.hud.fontMediumPx, 700, pal.hud.accent);
     ctx.restore();
   }
 

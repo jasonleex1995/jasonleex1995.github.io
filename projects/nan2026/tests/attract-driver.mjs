@@ -84,7 +84,8 @@ const BOUND = new Set(Object.values(B).flat());
 const UNBOUND_DIGIT = ['Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].find((c) => !BOUND.has(c));
 function frame(dt = FAST) { clock += dt; texts = []; strokes = []; raf(clock); }
 const has = (s) => texts.some((t) => t.includes(s));
-const TAG = '데모 플레이 · 아무 키나 누르면 시작 화면으로';
+const TAG = 'AUTO PLAY';                       // ㊿-x 어트랙트 표시(항상) — 아래 줄 PRESS ANY KEY 는 깜빡인다
+const BLINK = 'PRESS ANY KEY';
 const isTitle = () => has('PRISM WING') && has('[Space/Enter] 시작');
 const isDemo = () => has(TAG);
 const isAutoDraft = () => has('LEVEL UP') && has('데모 — 봇이 고르는 중');
@@ -132,7 +133,8 @@ async function main() {
       out.tagOverDraft = texts.lastIndexOf(TAG) > texts.indexOf('LEVEL UP');
       out.cursorShown = cursorBorders() === 1;
       const t0 = clock;
-      while (isAutoDraft() && clock - t0 < 5000) frame(8);
+      out.blinkOn = 0; out.blinkOff = 0;        // ㊿-x 드래프트(월드 시계 정지) 중에도 실시간으로 깜빡이는가
+      while (isAutoDraft() && clock - t0 < 5000) { frame(8); if (has(BLINK)) out.blinkOn += 1; else out.blinkOff += 1; }
       out.dwellMs = clock - t0;
     }
     out.humanDraftInDemo = humanDraftInDemo;
