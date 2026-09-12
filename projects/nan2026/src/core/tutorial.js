@@ -37,7 +37,8 @@ export function makeTutorialState() {
     lastX: 0, lastY: 0,
     superEls: [],         // superHit 목표 — ×2 를 «맞은 적의 속성» 집합(불·물·풀 셋을 다 치려면 스탠스를 돌려야 한다)
     superFlag: [],        // 개체마다 «이미 셌는가» 래치(죽어도 셈이 되돌아가지 않는다)
-    kinds: [],            // terrain 목표 — 밟아 본 지형 종
+    kinds: [],            // terrain 목표 — **머물러 본** 지형 종(㊿-z5: 밟기 → 머물기)
+    dwellT: [],           // 지형 종마다 누적으로 머문 게임초 — terrainDwellSec 를 넘겨야 kinds 에 든다
     ids: [],              // 이 스텝이 놓은 개체(idx, gen)
     refillT: 0,
     doneT: 0,             // 마지막 스텝을 끝낸 뒤의 «완료» 표시 시간
@@ -134,6 +135,8 @@ function enterStep(world) {
   tu.entered = true;
   tu.t = 0; tu.refillT = 0;
   tu.ids.length = 0; tu.superFlag.length = 0; tu.kinds.length = 0; tu.superEls.length = 0;
+  tu.dwellT.length = 0;
+  for (let k = 0; k < TERRAIN_KINDS.length; k += 1) tu.dwellT.push(0);
   tu.movedPx = 0; tu.lastX = world.player.x; tu.lastY = world.player.y;
   if (st === null) return;
 
@@ -243,8 +246,14 @@ export function tickTutorial(world, dt) {
       }
     }
   }
+  // ㊿-z5 사용자(2026-09-12) 「지형 효과를 다 체험하기도 전에 다음 단계로 끝나」 —
+  //   스쳐 지나가기만 해도 세던 것을 **머문 시간**으로 바꾼다. 감속 · 관성 · 열은 «들어간 순간»이 아니라
+  //   «있는 동안»에 드러나므로, terrainDwellSec 을 채운 종만 목표로 센다.
   const kind = terrainUnder(world, p.x, p.y);
-  if (kind !== null && tu.kinds.indexOf(kind) < 0) tu.kinds.push(kind);
+  if (kind !== null) {
+    tu.dwellT[kind] += dt;
+    if (tu.dwellT[kind] >= cfg.terrainDwellSec && tu.kinds.indexOf(kind) < 0) tu.kinds.push(kind);
+  }
 
   // 코어 봉인 — §8.13 하드 게이트와 같은 규칙(모듈이 하나라도 살아 있으면 코어 무적) + §8.11 층 봉인(낮은 층이 살아 있으면 위층은 무적)
   const core = coreOfStep(world);
@@ -283,7 +292,9 @@ export function tickTutorial(world, dt) {
     }
   } else tu.refillT = 0;
 
-  if (goalMet(world, st)) {
+  // ㊿-z5 사용자 「경험치 관련 설명을 읽기도 전에 끝난달까나?」 —
+  //   목표를 일찍 채워도 minSec 만큼은 머문다. 안내가 읽히지 않으면 안내가 아니다.
+  if (goalMet(world, st) && tu.t >= st.minSec) {
     tu.i += 1;
     tu.entered = false;
   }

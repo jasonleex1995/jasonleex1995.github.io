@@ -145,18 +145,47 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
     assert.eq(w.data.tutorial.steps[stepIndex(w, 'stance')].goal.value, 3, '세 속성 전부에 ×2 를 내야 넘어간다 — 그래야 «바꿔서» 공격하게 된다');
   });
 
-  test('⑤ 지형 — 세 종이 한 번에 놓이고, 세 종을 다 밟아야 넘어간다', () => {
+  test('⑤ 지형 — 세 종이 한 번에 놓이고, 세 종에 «머물러야» 넘어간다 (㊿-z5: 스쳐 가면 안 센다)', () => {
     const w = mk();
     at(w, 'terrain');
     const kinds = new Set(w.terrain.items.filter((t) => t.alive).map((t) => t.kind));
     assert.eq(kinds.size, 3, '둔화·미끄러움·과열이 다 있다');
     const idx = stepIndex(w, 'terrain');
     const list = w.terrain.items.filter((t) => t.alive);
+    const dwell = w.data.tutorial.terrainDwellSec;
+    const secs = (n) => Math.ceil(n / TICK_DT);
+    // ① 세 종을 다 «스쳐 가도» 안 넘어간다 — 효과는 있는 동안에 드러난다
+    for (const t of list) { w.player.x = t.x; w.player.y = t.y; tick(w, secs(dwell * 0.4)); }
+    assert.eq(w.tut.i, idx, `세 종을 스쳐 가기만 하면(각 ${(dwell * 0.4).toFixed(1)}초) 안 넘어간다`);
+    assert.eq(w.tut.kinds.length, 0, '머문 시간이 모자란 종은 세지 않는다');
+    // ② 한 종에만 오래 머물러도 안 넘어간다
     w.player.x = list[0].x; w.player.y = list[0].y;
-    tick(w, 2);
-    assert.eq(w.tut.i, idx, '한 종만 밟아서는 안 넘어간다');
-    for (const t of list) { w.player.x = t.x; w.player.y = t.y; tick(w, 2); }
-    assert.gt(w.tut.i, idx, '세 종을 다 밟으면 넘어간다');
+    tick(w, secs(dwell + 0.2));
+    assert.eq(w.tut.kinds.length, 1, '머문 종 하나가 세어진다');
+    assert.eq(w.tut.i, idx, '한 종만으로는 안 넘어간다');
+    // ③ 나머지 종에도 머물면 넘어간다(최소 체류는 ①②에서 이미 지났다 — 넘어가는 순간 kinds 는 다음 스텝 것으로 비워진다)
+    for (const t of list) { w.player.x = t.x; w.player.y = t.y; tick(w, secs(dwell + 0.2)); }
+    assert.gt(w.tut.i, idx, '세 종에 머물고 최소 체류도 지나면 넘어간다');
+  });
+
+  test('㊿-z5 최소 체류 — 목표를 일찍 채워도 minSec 전에는 안 넘어간다 (안내를 읽을 시간)', () => {
+    const d = loadData();
+    for (const st of d.tutorial.steps) {
+      assert.gte(st.minSec, 0, `${st.id}.minSec 은 0 이상`);
+    }
+    assert.gt(d.tutorial.steps.find((s) => s.id === 'levelup').minSec, 0,
+      '레벨업 스텝엔 최소 체류가 있다 — 경험치가 저절로 빨려 들어와 설명을 읽기 전에 끝났다(사용자)');
+    // 이동 스텝 — 목표(움직인 거리)를 «직접» 채워 두고 시간만 본다.
+    //   실제로 걸어서 채우면 아레나 벽에 막혀 거리가 안 나온다 — 여기서 재려는 것은 이동이 아니라 «시간»이다.
+    const idx = stepIndex(mk(), 'move');
+    const minSec = d.tutorial.steps[idx].minSec;
+    const w = mk();
+    at(w, 'move');
+    w.tut.movedPx = d.tutorial.steps[idx].goal.value + 1;   // 목표는 이미 채웠다
+    tick(w, Math.floor(minSec / TICK_DT) - 4);
+    assert.eq(w.tut.i, idx, `목표를 채웠어도 minSec(${minSec}초) 전에는 안 넘어간다`);
+    tick(w, 8);
+    assert.gt(w.tut.i, idx, '최소 체류가 지나면 넘어간다');
   });
 
   test('⑥ 보호막 — 열린 모듈 → 보호막 모듈 → 코어의 «층»이다', () => {
