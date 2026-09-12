@@ -122,6 +122,12 @@ function resetLoadout(world) {
     s.cooldownT = 0; s.a0 = 0; s.a1 = 0; s.a2 = 0; s.a3 = 0; s.effDirty = true;
   }
   for (let i = 0; i < world.passives.length; i += 1) { world.passives[i].id = null; world.passives[i].level = 0; }
+  //   ★ ㊿-z7 — 슬롯을 비우면 «그 슬롯이 낳은 것»이 주인을 잃는다. 날아가던 탄은 맞는 순간 b.slot 으로 자기 무기를
+  //   되묻고(step.applyHit 의 familyDmgMul), 비운 슬롯의 family 는 null 이라 passiveHooks[null] 에서 통째로 죽는다 —
+  //   사용자 제보(2026-09-12) 「튜토리얼을 실행하는데 에러가 떴어 — Cannot read properties of undefined (reading 'dmgStat')」.
+  //   드론도 family 로 계속 쏜다: 남겨 두면 «없는 무기»가 일한다. 그래서 초기화는 낳은 것까지 거둔다.
+  for (const b of world.playerBullets.items) if (b.alive) world.playerBullets.release(b);
+  for (const dr of world.drones.items) if (dr.alive) world.drones.release(dr);
   recomputeStats(world);
   const i = giveWeapon(world, world.data.tutorial.startWeaponId);
   // §11.1 ㉚ — 시작 무기의 짝 패시브 Lv1 은 «새 판»의 일부다(createWorld 와 같은 규칙). 초기화가 그 규칙까지 지운다면 초기화가 아니다.

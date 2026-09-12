@@ -331,8 +331,13 @@ function makeStats() {
  *   옛 전무기 공통 dmgMul(탄두 증량)은 폐지됐다.
  */
 export function familyDmgMul(world, family) {
-  const st = world.data.rules.passiveHooks[family].dmgStat;
-  return st === null ? 0 : world.stats[st];
+  //   ★ ㊿-z7 — 이름 있는 오류로 던진다. 주인 잃은 탄(family === null)이 여기로 들어오면 예전엔
+  //   「Cannot read properties of undefined」라는 말만 남아서, 화면이 죽은 «이유»를 화면이 안 알려줬다.
+  const h = world.data.rules.passiveHooks[family];
+  if (h === undefined) {
+    throw new Error(`state: 미지의 무기 패밀리 "${family}" — 슬롯을 비우면서 그 슬롯이 낳은 탄·드론을 안 거뒀다 (§3.1-2항 · §6.7)`);
+  }
+  return h.dmgStat === null ? 0 : world.stats[h.dmgStat];
 }
 
 /**

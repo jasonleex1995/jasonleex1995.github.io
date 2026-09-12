@@ -145,6 +145,23 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
     assert.eq(w.data.tutorial.steps[stepIndex(w, 'stance')].goal.value, 3, '세 속성 전부에 ×2 를 내야 넘어간다 — 그래야 «바꿔서» 공격하게 된다');
   });
 
+  test('㊿-z7 빌드 초기화는 «낳은 것»까지 거둔다 — 날아가던 탄이 주인 잃은 슬롯을 되묻지 않는다', () => {
+    // 재현: ④(속성 바꾸기)는 빌드를 초기화한다. 그 순간 살아 있던 플레이어 탄은 b.slot 으로 자기 무기를 되묻는데,
+    //   비운 슬롯의 family 가 null 이라 passiveHooks[null].dmgStat 에서 렌더가 통째로 죽었다(사용자 제보).
+    const w = mk();
+    at(w, 'autofire');
+    tick(w, 120);                                   // 2초 — 자동 발사로 탄이 난다
+    assert.gt(w.playerBullets.live, 0, '전제: 살아 있는 플레이어 탄이 있다');
+    const slotOfLive = w.playerBullets.items.filter((b) => b.alive).map((b) => b.slot);
+    assert.gt(slotOfLive.length, 0, '전제: 그 탄들은 슬롯을 가리킨다');
+    at(w, 'stance');                                // 여기서 resetLoadout 이 슬롯을 비운다
+    assert.eq(w.playerBullets.live, 0, '초기화가 날아가던 탄을 거둔다 — 주인 없는 탄이 남지 않는다');
+    assert.eq(w.drones.live, 0, '드론도 거둔다 — 남으면 «없는 무기»가 계속 쏜다');
+    // 적을 세워 두고 한참 돌려도 안 터진다(맞는 순간이 그 죽던 자리였다)
+    tick(w, 240);
+    assert.ok(true, '초기화 뒤 계속 돌려도 예외가 없다');
+  });
+
   test('⑤ 지형 — 세 종이 한 번에 놓이고, 세 종에 «머물러야» 넘어간다 (㊿-z5: 스쳐 가면 안 센다)', () => {
     const w = mk();
     at(w, 'terrain');
