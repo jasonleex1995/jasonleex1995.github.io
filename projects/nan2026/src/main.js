@@ -873,16 +873,18 @@ async function boot() {
     const h = rules.hud;
     const d = rules.visual.dot;
     //   ㊿-z2 사용자(2026-09-12) 「제목 크기를 좀 큼직하게 키웠으면 해 — PRISM WING도, alien invasion도, 밑에 있는 start도」
-    //   → ㊿-z3 사용자 「조금 너무 큰 것 같아. 이전이랑 지금의 중간 정도로」.
+    //   → ㊿-z3 「조금 너무 큰 것 같아. 이전이랑 지금의 중간 정도로」 → ㊿-z4 「이전으로 다시 롤백해줘. 그게 가장 나은것 같네」
+    //   = 키우기 전(㊿-z)의 크기로 되돌린다. 배율 키 셋은 남긴다 — 사다리가 성긴 것이 문제였지 배율이 갈린 것은 문제가 아니었고,
+    //   되돌린 값(5 · 4 · 2)은 토큰에서 파생하던 옛 값과 정확히 같다.
     //   ★ 타이틀 세 줄은 **자기 배율을 갖는다**(§7.9.1 의 예외) — 글자 크기 토큰에서 파생하면 ×4 와 ×6 사이가 없어
     //   «중간»을 잡을 수 없다. 간판은 본문이 아니므로 본문의 크기 사다리를 따라갈 이유도 없다.
-    dotLogo(ctx, 'PRISM WING', view.logicalW / 2, view.logicalH / 2 - 88, d.logoScale, {
+    dotLogo(ctx, 'PRISM WING', view.logicalW / 2, view.logicalH / 2 - 76, d.logoScale, {
       slant: d.logoSlant, colors: logoColors(), outline: pal.threat.outline,
       topTint: d.logoTopTint, bottomShade: d.logoBottomShade,
     });
-    dotText(ctx, 'ALIEN INVASION', view.logicalW / 2, view.logicalH / 2 + 1,
+    dotText(ctx, 'ALIEN INVASION', view.logicalW / 2, view.logicalH / 2 - 18,
       d.titleSubScale, pal.hud.textPrimary);
-    dotText(ctx, '[SPACE/ENTER] START    [O] OPTIONS', view.logicalW / 2, view.logicalH / 2 + 71,
+    dotText(ctx, '[SPACE/ENTER] START    [O] OPTIONS', view.logicalW / 2, view.logicalH / 2 + 46,
       d.titlePromptScale, pal.hud.textDim);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }

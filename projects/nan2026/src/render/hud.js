@@ -298,10 +298,10 @@ function drawLeftPanel(ctx, world, pal) {
   const matrix = world.data.elements.matrix;
   let y = pad + 10;
 
+  //   ㊿-z4 사용자(2026-09-12) 「부수적인 설명들을 모두 제거해줘 — 세로 = 내 스탠스 · 적 속성 키의 오른쪽... · 보스를 잡으면 금색 구슬...」.
+  //   상성 니모닉(§5.6)은 설계 근거로 그대로 남고, 온보딩은 튜토리얼 4단계가 맡는다(§6.7). 패널은 «지금 상태»만 말한다.
   text(ctx, world, pal, '상성표', pad, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
-  y += 24;
-  text(ctx, world, pal, '세로 = 내 스탠스 / 가로 = 적', pad, y, h.fontSmallPx, pal.hud.textDim, 'left');
-  y += 22;
+  y += 30;
 
   if (!h.elementMatrixInPanel) return;
 
@@ -343,23 +343,15 @@ function drawLeftPanel(ctx, world, pal) {
     ctx.beginPath(); ctx.moveTo(x0 + i * cell, y0); ctx.lineTo(x0 + i * cell, y0 + cell * 4); ctx.stroke();
   }
 
-  // §5.6 — 상성 니모닉. 정본이 LOCKED 로 확정한 것을 화면이 말한다 (온보딩 비용 0)
-  text(ctx, world, pal, '적 속성 키의 오른쪽 이웃이 정답 키',
-    pad, y0 + cell * 4 + 24, h.fontSmallPx, pal.hud.textDim, 'left');
-  text(ctx, world, pal, 'W(불) → E · E(물) → R · R(풀) → W',
-    pad, y0 + cell * 4 + 44, h.fontSmallPx, pal.hud.textDim, 'left');
-
   // ---- §11.6(v1.10 ⑲) 보스 특성 — 상성표 아래. 없으면 제목만(빈 칸 = «보스를 잡으면 여기가 찬다»)
-  let ty = y0 + cell * 4 + 76;
+  let ty = y0 + cell * 4 + 44;
   text(ctx, world, pal, '보스 특성', pad, ty, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   ty += 24;
   const tdefs = world.data.traits.traits;
-  let any = false;
   for (let i = 0; i < tdefs.length; i += 1) {
     const def = tdefs[i];
     const lv = world.traits[def.id];
     if (lv <= 0) continue;
-    any = true;
     // §11.6 ㉒ — 이름 · Lv · 지금 값(효과 kind 의 표기법). 쉴드는 충전 상태도(«지금 막을 수 있는가»가 곧 조작 정보)
     const val = fmtTrait(def.effect.kind, def.effect.values[lv - 1]);
     const state = def.effect.kind === 'shieldEverySec' ? (world.traitState.shieldReady ? ' · 준비됨' : ' · 충전 중') : '';
@@ -369,7 +361,6 @@ function drawLeftPanel(ctx, world, pal) {
     text(ctx, world, pal, `${val}${state}`, pad + 16, ty + 14, h.fontSmallPx, rgba(pal.hud.textDim, 0.85), 'left');
     ty += 34;
   }
-  if (!any) text(ctx, world, pal, '보스를 잡으면 금색 구슬이 나온다', pad, ty, h.fontSmallPx, rgba(pal.hud.textDim, 0.6), 'left');
 }
 
 /** 우 패널 — 스탠스 키캡 · 속성 투자 pip · 무기 4슬롯 + 부여 상태 */
@@ -440,7 +431,10 @@ function drawRightPanel(ctx, world, pal) {
       h.fontSmallPx, lv > 0 ? pal.hud.textDim : rgba(pal.hud.textDim, 0.4), 'left');
     y += 22;
   }
-  y += 14;
+  //   ㊿-z4 사용자 「무기 슬롯과 그 위 속성간의 여백이 너무 좁아」 — 14 → 20.
+  //   ★ 이 패널은 이미 꽉 차 있다: 패시브 6번 칸의 바닥이 720 − panelPadPx(16) = 704 다.
+  //   여기와 패시브 사이에 더할 수 있는 총량이 12px 이라 6px 씩 나눴다. 더 벌리려면 다른 리듬을 줄여야 한다.
+  y += 20;
 
   // ---- 무기 슬롯 (§4.3 — 위→아래 = 슬롯 1..N = 부여 우선순위) ---------------
   //   §11.1(v1.6) 슬롯은 계열로 갈린다: 앞 elementSlots 칸 = 속성칸(각인 대상),
@@ -523,7 +517,7 @@ function drawRightPanel(ctx, world, pal) {
 
   // ---- 패시브 슬롯 (§4.2 상한 = rules.player.passiveSlots · 위→아래 = 획득 순) ---------------------
   //   ★ 무기 슬롯과 같은 어휘 — 먹을 수 있는 패시브 수가 화면에서 읽힌다
-  y += 18;                   // 섹션 사이 — 구역 사이(16)보다 넓어야 «다른 것»으로 읽힌다
+  y += 24;                   // 섹션 사이 — 구역 사이(16)보다 넓어야 «다른 것»으로 읽힌다. ㊿-z4 사용자 「패시브 슬롯과 6번 무기 칸의 여백이 너무 좁아」 — 18 → 24(위 주석의 12px 예산 중 6)
   text(ctx, world, pal, '패시브 슬롯', x, y, h.fontMediumPx, pal.hud.textPrimary, 'left', 700);
   y += 24;
   const pdefs = world.data.passives.passives;

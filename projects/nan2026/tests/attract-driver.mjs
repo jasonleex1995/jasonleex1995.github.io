@@ -131,6 +131,9 @@ async function main() {
     const t1 = until(isDemo, 60000);
     out.demoStartMs = t1 < 0 ? -1 : clock - 1000;
     out.demoTabTitleClean = globalThis.document.title === baseTitle;
+    //   ㊿-z4 — 플레이 중 한 프레임의 글자 전부. 좌 패널이 «설명»을 다시 달지 않는지 본다(§5.6).
+    for (let q = 0; q < 30; q += 1) frame(16);
+    out.playTexts = texts.slice();
     // ② 데모 드래프트 — 사람 안내가 안 뜨고 · 커서가 한 장에 있고 · 데모 표시가 오버레이 위에 · 체류 = draftDwellSec ÷ 배속
     //    (대기 중인 레벨업이 없는 마지막 드래프트를 8ms 프레임으로 잰다)
     let humanDraftInDemo = false;

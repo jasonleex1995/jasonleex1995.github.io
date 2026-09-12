@@ -42,6 +42,14 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     assert.lte(Math.abs(o.dwellMs - wantDwell), 12, `데모 드래프트 체류 = draftDwellSec ÷ attract.difficulty 배속 (${o.dwellMs}ms · 기대 ${wantDwell.toFixed(1)}ms)`);
     assert.ok(o.cursorShown, '데모 드래프트에 커서(3px 테두리)가 딱 한 장에 있다');
     assert.ok(o.tagOverDraft, '데모 표시가 드래프트 오버레이 «위»에 그려진다');
+    // ㊿-z4 사용자 「부수적인 설명들을 모두 제거해줘」 — 좌 패널은 «지금 상태»만 말한다(§5.6).
+    //   표와 보스 특성 칸은 남아야 하므로, 사라진 것과 남은 것을 같이 못 박는다(둘 다 없으면 패널이 통째로 빈 것이다).
+    assert.ok(o.playTexts.length > 0, '전제: 플레이 중 한 프레임의 글자를 받았다');
+    assert.ok(o.playTexts.includes('상성표') && o.playTexts.includes('보스 특성'), '좌 패널의 표와 보스 특성 칸은 남는다');
+    for (const gone of ['세로 = 내 스탠스 / 가로 = 적', '적 속성 키의 오른쪽 이웃이 정답 키',
+      'W(불) → E · E(물) → R · R(풀) → W', '보스를 잡으면 금색 구슬이 나온다']) {
+      assert.eq(o.playTexts.includes(gone), false, `좌 패널이 「${gone}」를 설명하지 않는다`);
+    }
     // ㊿-x 「PRESS ANY KEY」는 실시간으로 깜빡인다 — 월드 시계가 멈추는 드래프트 체류 중에도(양쪽 상태가 다 나온다)
     assert.ok(o.blinkOn > 0 && o.blinkOff > 0, `PRESS ANY KEY 가 깜빡인다 (보인 프레임 ${o.blinkOn} · 안 보인 프레임 ${o.blinkOff})`);
     assert.eq(o.humanDraftInDemo, false, '데모 드래프트에 «1 / 2 / 3 선택» 안내가 안 뜬다');
