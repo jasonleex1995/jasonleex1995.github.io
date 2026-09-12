@@ -19,7 +19,7 @@
  * ★ tools/sim.mjs 는 이 파일을 그대로 import 한다 — 렌더·오디오·DOM 은 애초에 없다 (§10.4).
  */
 
-import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen } from './damage.js';
+import { playerToEnemy, enemyToPlayer, noteDamage, noteDamageTaken, onScreen, lifesteal } from './damage.js';
 import { terrainUnder, T_SLOW, T_INERTIA, T_HEAT } from './terrain.js';   // §8.21(v1.10 ⑦)
 import { hitTier } from './elements.js';
 import { addKill, noteHit, addMidBossClear } from './score.js';
@@ -479,6 +479,7 @@ function collide(world, dt) {
       const tier = hitTier(ctx.matrix, stamp, e.element);
       ctx.dmgMulSum = familyDmgMul(world, world.slots[b.slot].family);   // §3.1-2항(㊲) — 미사일 = areaDmgMul, 그 외 탄 = 0
       const dealt = playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
+      lifesteal(world, dealt, e);                    // ㊿-z8 — 탄 경로도 흡혈의 문을 지난다(e.hp 를 깎기 «전»에)
       e.hp -= dealt;
       noteDamage(world, b.family, dealt);           // §13.1.1 무기 지배도(시뮬 전용, 게임엔 무영향)
       // §11.3 attribution "damageShare" — 초효과 처치 보너스의 근거는 막타가 아니라 누적 지분이다
@@ -731,7 +732,10 @@ function killBossEntity(world, e) {
     for (let i = 0; i < en.length; i += 1) if (en[i].alive && en[i].isBoss) world.enemies.release(en[i]);
     // §11.6(v1.10 ⑲) 특성 구슬 — 스테이지 보스(최종 제외)의 코어 자리에서 금색 구슬이 나와 «자석»으로 날아온다.
     //   먹으면 traitQueue 가 1 오르고, stage.tickRun 은 구슬이 무대에 있는 동안 STAGE_CLEAR 로 넘어가지 않는다.
-    if (world.run !== undefined && !world.run.won && !isFinaleStage(world)) {
+    //   ★ ㊿-z8 — 튜토리얼에서는 떨구지 않는다. 특성 3택은 PHASE.STAGE_CLEAR 에서만 열리는데(main.js)
+    //   튜토리얼의 run.phase 는 끝까지 MOB 이라, 구슬이 나오고 자석으로 빨려 들어오고 **아무 일도 안 일어난다**.
+    //   보상처럼 보이는 것이 보상이 아니면 가르치는 화면에서 가장 나쁘다(검토 재현: traitQueue 1 인 채로 종료).
+    if (world.run !== undefined && world.tut === undefined && !world.run.won && !isFinaleStage(world)) {
       const q = spawnPickup(world, 'trait', 1, e.x, e.y);
       if (q !== null) q.magnet = true;
     }

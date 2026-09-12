@@ -12,7 +12,7 @@
  */
 
 import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
-import { createWorld, spawnEnemy, applyTrait } from '../src/core/state.js';
+import { createWorld, spawnEnemy, applyTrait, giveWeapon } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy, applyHit } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { bossHook } from '../src/core/boss.js';
@@ -137,6 +137,34 @@ suite('traits — 효과 (§11.6 ㉒)', () => {
     }
     w.player.hp = 99.9; tick(w, 60);
     assert.eq(w.player.hp, 100, '상한');
+  });
+
+  test('㊿-z8 흡혈은 «탄이 닿는 경로»에서도 든다 — 이 파일이 hitEnemy 를 직접 불러서 결함을 가렸다', () => {
+    // 기존 흡혈 테스트는 damage.hitEnemy 를 «직접» 부른다. 실제 플레이의 탄→적 경로는 step.collide 이고
+    //   그쪽은 hitEnemy 를 안 지난다 — 그래서 포워드·시커·부메랑·드론·오빗·핀볼은 흡혈이 한 방울도 안 들었다.
+    //   여기서는 **진짜 step() 을 돌려** 탄이 맞게 한다.
+    const w = mkRun(1, 'sea', 0);
+    applyTrait(w, 'lifesteal');
+    const d = def(w, 'lifesteal');
+    giveWeapon(w, 'forward');                                   // 탄 무기 — 이 경로가 step.collide 다
+    assert.ok(w.slots.some((sl) => sl.family === 'forward'), '전제: 탄 무기를 쥐었다');
+    const e = spawnEnemy(w, 'drifter', 'normal', w.player.x, w.player.y - 160, 1e6, false);
+    let healed = 0;
+    for (let t = 0; t < 240; t += 1) {
+      e.x = w.player.x; e.y = w.player.y - 160; e.hp = 1e6;     // 표적을 세워 둔다
+      w.player.hp = w.player.hpMax * d.effect.hpRatio;          // 매 틱 게이트 «안쪽»으로 되돌린다
+      const before = w.player.hp;
+      w.over = false;
+      step(w, makeInput(), TICK_DT);
+      if (w.player.hp > before) healed += w.player.hp - before;
+    }
+    assert.gt(e.dmgTotal, 0, `전제: 탄이 실제로 맞았다 (누적 피해 ${e.dmgTotal.toFixed(1)})`);
+    assert.gt(healed, 0, `탄 경로에서도 회복이 든다 (피해 ${e.dmgTotal.toFixed(1)} → 회복 ${healed.toFixed(3)})`);
+    //   회복 = 실제로 깎은 HP × pct. 여유 10% — 매 틱 HP 를 게이트 안쪽으로 «되돌리는» 측정이라
+    //   마지막 창의 한 발이 셈 밖에 남을 수 있다.
+    const want = e.dmgTotal * d.effect.values[0];
+    assert.near(healed, want, want * 0.1,
+      `회복 ≈ 피해 × ${d.effect.values[0]} (피해 ${e.dmgTotal.toFixed(1)} · 회복 ${healed.toFixed(3)} · 기대 ${want.toFixed(3)})`);
   });
 
   test('흡혈 — HP ≤ hpMax × hpRatio 일 때만 · 실제로 깎은 HP × pct 만큼 회복 · 오버킬은 안 센다 · 보스에도 · 레벨마다 pct ↑', () => {

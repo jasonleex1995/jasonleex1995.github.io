@@ -10,8 +10,9 @@
  */
 
 import { suite, test, assert, loadData } from '../tools/test.mjs';
-import { createWorld } from '../src/core/state.js';
+import { createWorld, giveWeapon } from '../src/core/state.js';
 import { step, makeInput, TICK_DT, killEnemy } from '../src/core/step.js';
+import { buildDraft, applyCard } from '../src/core/draft.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { emitters } from '../src/core/emitters.js';
 import { initRun } from '../src/core/stage.js';
@@ -69,7 +70,10 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
         for (const e of w.enemies.items) if (e.alive) killEnemy(w, e);
         tick(w, 1);
       } else if (k === 'level') {
-        w.player.level = Math.max(w.player.level, s.goal.value);
+        //   ★ ㊿-z8 — 예전에는 여기서 w.player.level 을 «대입»해 넘겼다. 그러면 레벨업이 큐를 안 쌓아
+        //   **드래프트가 한 번도 안 열리고**, 슬롯 1 이상이 영영 비어 있었다. 실제 플레이는 카드를 뽑아
+        //   여러 슬롯을 채운 채 ④(초기화)로 들어간다 — 그 차이가 «주인 잃은 탄» 결함을 테스트에서 가렸다.
+        //   그냥 돌리면 앞 스텝의 처치가 남긴 구슬이 자석에 빨려 들어와 레벨이 «진짜로» 오른다.
         tick(w, 1);
       } else if (k === 'superHit') {
         // «속성을 바꿔서» — 아직 ×2 를 못 낸 속성을 골라, 그 속성을 이기는 스탠스로 바꾸고 그 적 아래에 선다
@@ -90,6 +94,16 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
         for (const e of w.enemies.items) if (e.alive && !e.sealedNow) killEnemy(w, e);
         tick(w, 1);
       } else throw new Error(`테스트가 모르는 목표: ${k}`);
+      //   레벨업 큐가 쌓이면 사람처럼 카드를 뽑는다 — 슬롯이 여럿 차야 ④ 의 초기화가 «여러 슬롯»을 비운다
+      let guard2 = 0;
+      while (w.draftQueue > 0 && guard2 < 20) { const dr = buildDraft(w); applyCard(w, dr.cards[0]); guard2 += 1; }
+      //   ㊿-z8 불변식 — 살아 있는 플레이어 탄은 언제나 «무기가 든» 슬롯을 가리킨다.
+      //   비운 슬롯을 가리키는 탄은 맞는 순간 familyDmgMul 에서 렌더를 죽인다(사용자 제보).
+      for (const b of w.playerBullets.items) {
+        if (!b.alive) continue;
+        assert.ok(w.slots[b.slot] !== undefined && w.slots[b.slot].family !== null,
+          `t=${t}: 살아 있는 탄이 빈 슬롯 ${b.slot} 을 가리킨다 — 맞는 순간 familyDmgMul 이 죽는다`);
+      }
       t += 1;
     }
     assert.eq(w.tut.done, true, `전 스텝 통과 (스텝 ${w.tut.i}/6, ${(t / 60).toFixed(0)}초)`);
@@ -154,9 +168,16 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
     assert.gt(w.playerBullets.live, 0, '전제: 살아 있는 플레이어 탄이 있다');
     const slotOfLive = w.playerBullets.items.filter((b) => b.alive).map((b) => b.slot);
     assert.gt(slotOfLive.length, 0, '전제: 그 탄들은 슬롯을 가리킨다');
+    // ㊿-z8 — 예고도 무기가 낳는다. 바라지를 쥐여 예고를 하나 띄워 둔 채 초기화에 들어간다.
+    giveWeapon(w, 'barrage');
+    for (let g = 0; g < 400 && w.telegraphs.live === 0; g += 1) tick(w, 1);
+    assert.gt(w.telegraphs.live, 0, '전제: 바라지 예고가 떠 있다');
     at(w, 'stance');                                // 여기서 resetLoadout 이 슬롯을 비운다
     assert.eq(w.playerBullets.live, 0, '초기화가 날아가던 탄을 거둔다 — 주인 없는 탄이 남지 않는다');
     assert.eq(w.drones.live, 0, '드론도 거둔다 — 남으면 «없는 무기»가 계속 쏜다');
+    // step.hazards 는 'laser'(적 빔)만 소유한다 — 나머지 kind 는 만든 무기가 소유하므로 같이 거둬야 한다.
+    assert.eq(w.telegraphs.items.filter((t) => t.alive && t.kind !== 'laser').length, 0,
+      '무기가 낳은 예고도 거둔다 — 주인 없는 예고가 남지 않는다');
     // 적을 세워 두고 한참 돌려도 안 터진다(맞는 순간이 그 죽던 자리였다)
     tick(w, 240);
     assert.ok(true, '초기화 뒤 계속 돌려도 예외가 없다');
@@ -206,6 +227,20 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
     assert.eq(w.tut.i, idx, `목표를 채웠어도 minSec(${minSec}초) 전에는 안 넘어간다`);
     tick(w, 8);
     assert.gt(w.tut.i, idx, '최소 체류가 지나면 넘어간다');
+  });
+
+  test('㊿-z8 튜토리얼 보스는 특성 구슬을 안 떨군다 — 쓸 수 없는 보상은 보상이 아니다', () => {
+    const w = mk();
+    at(w, 'boss');
+    const c = w.enemies.items.find((e) => e.alive && e.isCore);
+    assert.ok(c !== undefined, '전제: 코어가 있다');
+    for (const m of w.enemies.items) if (m.alive && m.isBoss && !m.isCore) killEnemy(w, m);
+    tick(w, 2);
+    killEnemy(w, c);
+    tick(w, 60);
+    // 특성 3택은 PHASE.STAGE_CLEAR 에서만 열린다 — 튜토리얼의 run.phase 는 끝까지 MOB 이라 먹어도 아무 일이 없다
+    assert.eq(w.pickups.items.filter((q) => q.alive && q.kind === 'trait').length, 0, '금색 구슬이 안 나온다');
+    assert.eq(w.traitQueue, 0, '먹을 것이 없으니 큐도 안 쌓인다');
   });
 
   test('⑥ 보호막 — 열린 모듈 → 보호막 모듈 → 코어의 «층»이다', () => {

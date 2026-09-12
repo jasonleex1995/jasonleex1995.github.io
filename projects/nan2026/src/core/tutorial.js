@@ -128,6 +128,11 @@ function resetLoadout(world) {
   //   드론도 family 로 계속 쏜다: 남겨 두면 «없는 무기»가 일한다. 그래서 초기화는 낳은 것까지 거둔다.
   for (const b of world.playerBullets.items) if (b.alive) world.playerBullets.release(b);
   for (const dr of world.drones.items) if (dr.alive) world.drones.release(dr);
+  //   ★ ㊿-z8 — 예고(telegraph)도 무기가 낳는다. step.hazards 는 **'laser'(적 빔)만** 소유하고
+  //   나머지 kind 는 «만든 무기»가 수명·반납을 쥔다. 바라지의 'strike'·'barrageHit' 가 그것이라,
+  //   슬롯을 비우면 거둘 사람이 사라져 화면에 점선 원이 영구히 박히고 캡 한 칸을 영영 먹는다.
+  //   더 나쁜 것: 나중에 바라지를 다시 집으면 그 낡은 예고가 예고 시간을 한 번도 안 타고 «즉발»한다(검토 재현).
+  for (const tg of world.telegraphs.items) if (tg.alive && tg.kind !== 'laser') world.telegraphs.release(tg);
   recomputeStats(world);
   const i = giveWeapon(world, world.data.tutorial.startWeaponId);
   // §11.1 ㉚ — 시작 무기의 짝 패시브 Lv1 은 «새 판»의 일부다(createWorld 와 같은 규칙). 초기화가 그 규칙까지 지운다면 초기화가 아니다.
@@ -255,8 +260,10 @@ export function tickTutorial(world, dt) {
   // ㊿-z5 사용자(2026-09-12) 「지형 효과를 다 체험하기도 전에 다음 단계로 끝나」 —
   //   스쳐 지나가기만 해도 세던 것을 **머문 시간**으로 바꾼다. 감속 · 관성 · 열은 «들어간 순간»이 아니라
   //   «있는 동안»에 드러나므로, terrainDwellSec 을 채운 종만 목표로 센다.
+  //   ★ 「없음」의 센티널은 -1 이다(terrain.terrainUnder · step.js 도 -1 로 읽는다) — null 로 비교하면
+  //   지형 «밖»에서도 매 틱 이 가지가 통과해 dwellT[-1] 이 NaN 이 된다(㊿-z8 검토에서 잡혔다).
   const kind = terrainUnder(world, p.x, p.y);
-  if (kind !== null) {
+  if (kind >= 0) {
     tu.dwellT[kind] += dt;
     if (tu.dwellT[kind] >= cfg.terrainDwellSec && tu.kinds.indexOf(kind) < 0) tu.kinds.push(kind);
   }

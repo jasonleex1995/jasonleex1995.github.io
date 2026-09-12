@@ -90,6 +90,24 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
  *   ③ §13.1.1 텔레메트리 noteDamage.
  *   반환 = 실제로 적용한 피해(무적이면 0). 호출자는 e.hp<=0 이면 killEnemy 를 부른다.
  */
+/**
+ * §11.6(v1.10 ㉒·㉗ · ㊿-z8) 흡혈 — «실제로 깎은 HP»의 lifestealPct 만큼 회복(오버킬은 안 센다).
+ *   회복은 hpMax 상한. ★ ㉗ 페널티: 내 HP 가 hpMax × lifestealHpRatio(0.5) «이하»일 때만 듣는다 —
+ *   위험할 때의 안전망이지 상시 회복이 아니다(사용자 2026-09-05 「흡혈에 페널티를 줘서 3택이 선택지가 되게」).
+ *
+ * ★ ㊿-z8 — 이 블록이 hitEnemy «안»에만 있었고, **탄이 적에 닿는 경로(step.collide)는 hitEnemy 를 안 지난다**.
+ *   그래서 포워드·팬·시커·부메랑·드론·오빗·핀볼은 흡혈이 **한 방울도 안 들었다**(검토 실측: 피해 170 → 회복 0).
+ *   즉발·범위 무기(랜스·노바·바라지·체인·빔)만 들었고, 「흡혈이 사기」라는 체감은 그 절반에서 나온 것이다.
+ *   → 피해를 입히는 **두 자리**가 이 문을 지난다. 반드시 e.hp 를 깎기 **앞**에서 불러야 한다(남은 HP 로 오버킬을 자른다).
+ */
+export function lifesteal(world, dealt, e) {
+  const fx = world.traitFx;
+  const p = world.player;
+  if (!(fx.lifestealPct > 0) || !(p.hp > 0) || p.hp > p.hpMax * fx.lifestealHpRatio) return;
+  const removed = e.hp > 0 ? (dealt < e.hp ? dealt : e.hp) : 0;
+  if (removed > 0) { p.hp += removed * fx.lifestealPct; if (p.hp > p.hpMax) p.hp = p.hpMax; }
+}
+
 export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex) {
   // §9.5 D3 — slotIndex 는 §8.12 장갑 게이트의 «키»다. 조용히 undefined 를 색인하면
   //   floorAt[undefined] 가 NaN 비교로 항상 통과해 게이트가 죽는다. 죽은 게이트는 통과가 아니므로 던진다.
@@ -109,17 +127,7 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     e.floorAt[slotIndex] = world.time;
   }
   const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
-  // §11.6(v1.10 ㉒·㉗) 흡혈 — «실제로 깎은 HP»의 lifestealPct 만큼 회복(오버킬은 안 센다: 잡몹 hp 6 에 피해 17 이면 6 만). 입구 하나.
-  //   ★ ㉗ 페널티: 내 HP 가 hpMax × lifestealHpRatio(0.5) «이하»일 때만 듣는다 — 위험할 때의 안전망이지 상시 회복이 아니다
-  //     (사용자 2026-09-05 「흡혈에 페널티를 줘서 3택이 선택지가 되게」). 한 타로 50% 를 살짝 넘길 수는 있고, 그다음부터 안 듣는다.
-  {
-    const fx = world.traitFx;
-    const p = world.player;
-    if (fx.lifestealPct > 0 && p.hp > 0 && p.hp <= p.hpMax * fx.lifestealHpRatio) {
-      const removed = e.hp > 0 ? (dealt < e.hp ? dealt : e.hp) : 0;
-      if (removed > 0) { p.hp += removed * fx.lifestealPct; if (p.hp > p.hpMax) p.hp = p.hpMax; }
-    }
-  }
+  lifesteal(world, dealt, e);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②
   if (hitTier(ctx.matrix, stamp, e.element) === 'super') e.dmgSuper += dealt;

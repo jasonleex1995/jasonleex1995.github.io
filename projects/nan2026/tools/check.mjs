@@ -3044,7 +3044,12 @@ function S51_visibleDamage() {
       const p = join(dir, f);
       if (statSync(p).isDirectory()) { walk(p); continue; }
       if (!f.endsWith('.js') && !f.endsWith('.mjs')) continue;
-      const lines = readFileSync(p, 'utf8').split('\n');
+      //   ★ ㊿-z8 — 주석을 걷고 본다. 설명이 «e.hp 감산»을 인용했다고 «피해원이 하나 늘었다»로 읽으면 안 된다
+      //   (S63·S65·S60 ⑫ 에서 이미 두 번 겪은 실패 모드다). 줄 번호를 보고하는 게이트라 «줄 수를 보존하며» 걷는다.
+      const bare = readFileSync(p, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      const lines = bare.split('\n');
       for (let i = 0; i < lines.length; i += 1) {
         const L = lines[i];
         if (/\.hp\s*-=/.test(L) || /\.hp\s*=[^;]*\.hp\s*-/.test(L)) {
