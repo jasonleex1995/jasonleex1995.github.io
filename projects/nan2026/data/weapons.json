@@ -187,8 +187,8 @@
                 "bounceLeft":-1, "launchDeg":35 },
       "levels": [ {}, {"dmg":16}, {"lifetimeSec":5},
                   {"dmg":18,"cooldownSec":1.45}, {"count":2,"dmg":17}, {"dmg":25,"hitCooldownSec":0.11},
-                  {"dmg":37}, {"dmg":57,"lifetimeSec":6}, {"dmg":93,"cooldownSec":1.3},
-                  {"dmg":152,"count":3} ],
+                  {"dmg":37}, {"dmg":54,"lifetimeSec":6}, {"dmg":88,"cooldownSec":1.3},
+                  {"dmg":144,"count":3} ],
       "evolution": { "name":"멀티볼", "desc":"벽에 튕길 때마다 공이 하나 더 갈라진다",
                      "params": { "evoSplitOnBounce":true, "evoMaxBalls":8 },
                      "requiresPassive": { "id": "battery", "level":3 } }
