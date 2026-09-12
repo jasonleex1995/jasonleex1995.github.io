@@ -173,5 +173,3 @@ export function clearTerrain(world) {
   world.run.terrainBagN = 0;                                    // finale 가방은 스테이지마다 새로 섞는다
   world.player.heat = 0;
 }
-
-export default { terrainTick, terrainUnder, clearTerrain, terrainBurst, fadeTerrain, sectionOf };

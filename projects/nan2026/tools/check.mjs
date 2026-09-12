@@ -1608,13 +1608,6 @@ function S7_concurrentTelegraphs() {
 //  + mix 가 counter/prey 규칙(70/10/10/10)을 따르는지
 //  ★ 정의역 = 31셀 (pool 6테마 × 스테이지 1~5 + finale × 스테이지 6). 실측 전 셀 0.0000%p
 // ===========================================================================
-const MIX_TOL_PP = 3.0;   // §8.2.1 "허용 오차 ±3%p (저작 리스트 대비)"
-
-function counterOf(el) {   // matrix[c][el] == 2.0 인 c
-  const m = (D.elements && D.elements.matrix) || {};
-  for (const c of Object.keys(m)) if (m[c] && m[c][el] === 2.0) return c;
-  return null;
-}
 function preyOf(el) {      // matrix[el][p] == 2.0 인 p
   const m = (D.elements && D.elements.matrix) || {};
   const row = m[el] || {};

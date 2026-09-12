@@ -259,5 +259,3 @@ export function bossHook(world, dt) {
     }
   }
 }
-
-export default { bossHook };

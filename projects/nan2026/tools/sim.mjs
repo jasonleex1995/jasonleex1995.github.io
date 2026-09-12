@@ -87,12 +87,6 @@ function median(a) {
   const m = b.length >> 1;
   return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2;
 }
-function quantile(a, q) {
-  if (a.length === 0) return null;
-  const b = a.slice().sort((x, y) => x - y);
-  const i = Math.min(b.length - 1, Math.max(0, Math.round((b.length - 1) * q)));
-  return b[i];
-}
 function stddev(a) {
   if (a.length < 2) return 0;
   const mu = a.reduce((s, v) => s + v, 0) / a.length;

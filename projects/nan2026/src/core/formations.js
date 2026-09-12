@@ -142,5 +142,3 @@ export function formationPos(world, formationId, i, count, originX, originY, out
   out.y = y;
   return out;
 }
-
-export default { formationPos };

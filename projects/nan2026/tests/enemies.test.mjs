@@ -466,18 +466,73 @@ suite('enemies/§7.6 공격 기호 · §8.6 엘리트 곡선 (v1.7)', () => {
 
   // ★ v1.6 까지 베이크된 eliteIndex 가 곡선을 무시했다 — 스테이지 1 은 곡선 0.0 인데도
   //   웨이브의 34% 가 엘리트를 낳았고, 엘리트는 hpMult 4.0 이라 초반에 10~20초짜리 벽이었다.
-  test('엘리트는 스테이지 곡선이 «유일한 권위»다 — 곡선 0 이면 한 마리도 없다', () => {
+  //  ★ ㊿-zc — 이 테스트는 v1.7~㊿ 사이 «데이터만 읽고» 통과했다: 곡선표와 웨이브표를 대조할 뿐
+  //    한 마리도 낳지 않아서, 엘리트 기능을 src 에서 통째로 지워도 초록이었다(실측 확인).
+  //    이제 **실제로 웨이브를 돌려 개체를 센다.**
+  //
+  //  ★ 측정하면서 알게 된 것 — 「곡선 0 이면 0마리」는 포지션 1 에서 **곡선이 정하는 게 아니다.**
+  //    §8.19 도입 침묵이 shooterRatio[0] = 0.0 으로 공격형을 아예 안 내보내고, 엘리트는 공격형에만
+  //    붙으므로(`shoot && elite`) 곡선이 무엇이든 0이다. 그래서 「곡선이 유일한 권위다」를 증명하려면
+  //    **공격형이 실제로 나오는 자리**를 봐야 한다 → 곡선이 1.0 인 포지션에서 «자격 개체 중 몇 %가
+  //    엘리트인가»를 센다. 정본 §8.6 이 확정한 「최종 1.0 = 자격 전원」이 바로 그 수치다.
+  test('엘리트는 스테이지 곡선이 «유일한 권위»다 — 곡선 0 이면 0마리 · 곡선 1.0 이면 자격 전원', () => {
     const d = loadData();
     assert.eq(d.stages.curve.elitePerWaveChance[0], 0, '스테이지 1 곡선 = 0 (전제)');
-    // 곡선이 0 인 스테이지에서, eliteIndex 가 박힌 웨이브가 실제로 존재하는지 먼저 확인한다.
-    //   (없으면 이 테스트가 «통과»해도 아무것도 증명하지 못한다)
-    let baked = 0;
-    for (const st of d.stages.stages) {
-      for (const wv of st.waves) if (wv.unlockStageMin <= 1 && wv.eliteIndex !== null) baked += 1;
-    }
-    assert.gt(baked, 0, '스테이지 1 에 eliteIndex 가 박힌 웨이브가 있다(전제) — 없으면 무의미한 통과');
+    assert.eq(d.stages.curve.elitePerWaveChance[5], 1, '최종 포지션 곡선 = 1.0 (전제)');
     assert.lt(d.stages.curve.elitePerWaveChance[0], d.stages.curve.elitePerWaveChance[5],
       '★ 곡선은 스테이지가 갈수록 오른다 — 초반 평범한 몹 → 후반 엘리트');
+
+    //  ── 실측. ★ 같은 스테이지를 두 포지션에 박는다 — 내용물이 같으니 남는 변수는 포지션(곡선)뿐이다.
+    //    스테이지는 introOk 인 것으로 고른다: 실제 추첨이 포지션 1 에 세울 수 있는 테마여야 한다(§8.1).
+    //    아닌 것을 박으면 스테이지번호 1 로스터에 공격형이 없어 터진다(desert 로 해 보고 터뜨렸다 —
+    //    게임 버그가 아니라 이 테스트가 게임에 없는 판을 만든 것이었다).
+    const FINAL = d.stages.themeDraw.finalStageId;
+    const stage = d.stages.stages.find((st) => st.id !== FINAL && st.introOk);
+    assert.ok(stage !== undefined, '포지션 1 에 설 수 있는 테마가 있다(전제)');
+    const el = d.rules.elite;
+    const census = (pos) => {
+      const w = createWorld({ data: d, seed: 3, weapons, hooks: { run: tickRun, enemies, emitters, boss: bossHook } });
+      initRun(w);
+      w.run.order[pos] = stage.id;
+      w.run.stageIndex = pos; w.run.phase = PHASE.MOB; w.run.phaseT = 0;
+      const seen = new Set(); let total = 0; let elite = 0; let eligible = 0;
+      for (let t = 0; t < 30 * 60; t += 1) {
+        w.player.hp = w.player.hpMax;                       // 죽어서 웨이브가 끊기지 않게
+        step(w, makeInput(), TICK_DT);
+        const items = w.enemies.items;
+        for (let i = 0; i < items.length; i += 1) {
+          const e = items[i];
+          if (!e.alive || e.isBoss) continue;
+          const key = `${i}:${e.gen}`;                      // 풀 재사용을 세대로 가른다 = «서로 다른 몸»
+          if (seen.has(key)) continue;
+          seen.add(key); total += 1;
+          if (e.elite) elite += 1;
+          //  자격(§8.6) = 밴드 ∈ bandAllowed ∧ 속성 ∈ elementAllowed. 도입 몸은 공격형이 아니라 애초에 밖이다.
+          if (!e.introBody && el.bandAllowed.indexOf(e.band) >= 0 && el.elementAllowed.indexOf(e.element) >= 0) eligible += 1;
+        }
+        if (w.run.phase !== PHASE.MOB) break;
+      }
+      return { total, elite, eligible };
+    };
+
+    const s1 = census(0);
+    assert.gt(s1.total, 100, '포지션 1 이 몸을 실제로 낳았다(전제) — 0마리를 세고 통과하면 공허하다');
+    assert.eq(s1.elite, 0, `★ 곡선 0 = 엘리트 0 (실측 ${s1.elite}/${s1.total})`);
+    //  ★ 그리고 «왜» 0인지까지 적어 둔다 — 포지션 1 은 자격 개체가 아예 안 선다(도입 침묵).
+    //    이 줄이 깨지면 「초반에 엘리트 벽이 없다」를 지키는 것이 곡선이 아니라 §8.19 였음을 다시 읽어야 한다.
+    assert.eq(s1.eligible, 0, `포지션 1 은 엘리트 자격 개체 자체가 0 (§8.19 도입 침묵, shooterRatio[0]=0) — 실측 ${s1.eligible}`);
+
+    //  중간 포지션 — 곡선이 «실제로 판정에 쓰이는» 자리. 여기서 곡선이 낮으면 자격 개체 중 일부만 엘리트다.
+    //    이 주장이 없으면 곡선을 최종값(1.0)으로 고정하는 변이를 못 잡는다(실측: 포지션 1 만으로는 못 잡았다).
+    const mid = census(1);
+    assert.gt(mid.eligible, 10, `중간 포지션에 자격 개체가 섰다(전제 — 실측 ${mid.eligible})`);
+    assert.lt(mid.elite, mid.eligible,
+      `★ 곡선 ${d.stages.curve.elitePerWaveChance[1]} = 자격 «일부»만 엘리트 (실측 ${mid.elite}/${mid.eligible}) — 전원이면 곡선이 안 읽힌 것이다`);
+
+    const s6 = census(5);
+    assert.gt(s6.eligible, 20, `최종 포지션에 자격 개체가 실제로 섰다(전제 — 실측 ${s6.eligible}) · 0이면 아래 주장이 공허하다`);
+    assert.eq(s6.elite, s6.eligible,
+      `★ 곡선 1.0 = 자격 전원이 엘리트 (실측 엘리트 ${s6.elite} · 자격 ${s6.eligible} / 총 ${s6.total})`);
   });
 });
 

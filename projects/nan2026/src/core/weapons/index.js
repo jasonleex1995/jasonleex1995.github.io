@@ -34,5 +34,3 @@ import pinball from './pinball.js';
 
 /** 키 = §9.5 의 family (id == family, 15종 1:1 — ㉟) */
 export const weapons = { forward, fan, seeker, boomerang, aura, nova, lance, orbit, barrage, drone, missile, chain, beam, pinball };
-
-export default weapons;

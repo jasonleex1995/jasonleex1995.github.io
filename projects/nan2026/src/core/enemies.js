@@ -43,7 +43,6 @@ const SLICE_STAGE_NUMBER = 1;
 
 /** ★ 슬라이스가 구현한 이동(§8.4)·플레이 가능한 밴드(§8.6). 로스터 필터의 근거이며 하드코딩 id 가 아니다. */
 const IMPLEMENTED_MOVES = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'bounce'];      // step.moveBullets + enemies.applyMovement 가 실제로 미는 2종
-const PLAYABLE_BANDS = ['chaff', 'line', 'turret', 'bruiser'];          // turret/bruiser 는 effHP 가 슬라이스 무기엔 과하다(스폰지)
 
 /**
  * §8.19 도입 침묵 — 도입종이 쓸 수 있는 이동 동사.
@@ -726,5 +725,3 @@ export function enemies(world, dt) {
 
   applyMovement(world);
 }
-
-export default { enemies };

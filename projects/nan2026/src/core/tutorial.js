@@ -312,5 +312,3 @@ export function tickTutorial(world, dt) {
     tu.entered = false;
   }
 }
-
-export default { makeTutorialState, tickTutorial, tutorialStep, GOALS };

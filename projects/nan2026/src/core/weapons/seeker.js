@@ -34,7 +34,6 @@ function nearestEnemy(world, x, y, radius, exclude) {
   const en = world.enemies.items;
   let best = -1;
   let bestD = radius * radius;      // 반경 밖은 애초에 후보가 아니다
-  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     // §8.20 — 조준은 «보이는 적»만 고른다(피해 게이트는 「0 을 준다」까지만 한다).

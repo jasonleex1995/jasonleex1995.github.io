@@ -42,7 +42,6 @@ function nearest(world, x, y, exclude) {
   const en = world.enemies.items;
   let best = -1;
   let bestD = 0;
-  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     if (i === exclude) continue;                 // 직전 경유 적 제외 (체인이 다음 적으로 진행)
     const e = en[i];

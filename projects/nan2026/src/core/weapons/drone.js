@@ -27,7 +27,6 @@ function nearestEnemy(world, x, y, radius) {
   const en = world.enemies.items;
   let best = null;
   let bestD = radius * radius;
-  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (!targetable(world, e)) continue;               // ㊽

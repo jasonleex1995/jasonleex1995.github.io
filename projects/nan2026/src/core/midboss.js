@@ -350,5 +350,3 @@ export function clearMidBoss(world) {
   const it = world.enemies.items;
   for (let i = 0; i < it.length; i += 1) if (it[i].alive && it[i].midBossId !== '') leave(world, it[i]);
 }
-
-export default { midBoss, clearMidBoss, midBossSectionCleared };

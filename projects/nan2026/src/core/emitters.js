@@ -367,5 +367,3 @@ export function emitters(world, dt) {
     }
   }
 }
-
-export default { emitters };

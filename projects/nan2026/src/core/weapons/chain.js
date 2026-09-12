@@ -30,7 +30,6 @@ function nearest(world, x, y, radius, epoch) {
   const en = world.enemies.items;
   let best = -1;
   let bestD = radius * radius;
-  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (!targetable(world, e)) continue;               // ㊽

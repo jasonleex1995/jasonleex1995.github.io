@@ -32,7 +32,6 @@ function nearest(world, x, y, radius, epoch) {
   const en = world.enemies.items;
   let best = NONE;
   let bestD = radius * radius;
-  const arena = world.data.rules.view.arena;
   for (let i = 0; i < en.length; i += 1) {
     const e = en[i];
     if (!targetable(world, e)) continue;               // ㊽ 봉인·전환 무적 = «맞힐 수 없는 것»은 조준하지 않는다
@@ -48,7 +47,6 @@ function nearest(world, x, y, radius, epoch) {
 /** 관통 — (px,py)→(tx,ty) 직선을 표적 너머로 연장해 폭 안·사거리 안의 적을 «가까운 순»으로 pierce 마리 때린다 */
 function pierceRay(world, slot, eff, stamp, px, py, tx, ty, epoch) {
   const en = world.enemies.items;
-  const arena = world.data.rules.view.arena;
   let dx = tx - px; let dy = ty - py;
   const len = Math.sqrt(dx * dx + dy * dy);
   if (len <= 0) return;
