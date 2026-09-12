@@ -1496,7 +1496,7 @@ v1.3까지 이 목록은 「엘리트 · 중간보스 · 새떼 · 보스」였�
 | 6 (최종) | 9.8 | 9.72 | 3.6 | **1.25** | **1.4** | 5 | **1.0** | **1.15** | true | ★v1.10: xpScale ×0.60(성장 예산 88 → 60 이내, 7668082 가 데이터만 바꾸고 이 표를 안 고쳤다 — 여기서 정정) · midBossCount 하한 2(v1.10 ③). ★v1.5 난이도 오버홀 — xpScale 는 실데이터(후반 starve, XP −10% 반영)·enemyHp·density·midBoss 후반 급증. **`elitePerWaveChance` = 이제 라이브 «엘리트 재롤»(§8.6, rng.elite): 초반 0(자유)→최종 1.0(자격 개체 전원 엘리트).** bossBulletScale 별표(§8.3 추가): [1.00,1.20,1.45,1.75,2.10,2.10]
 
 - **적 HP 스테이지 스케일은 이 테이블이 유일한 소유자다.** 초안 F의 개체별 `hpScalePerStage: 0.18`(선형, 스테이지 6 = 1.9배)은 **폐기** — 15 아키타입 × 개별 계수는 곡선을 튜닝 불가능하게 만든다.
-- `xpScale`은 **초안 D의 미결(XP 곡선이 후반에 마르는 문제)을 닫는다.** `enemyHpScale`과 짝지어 레벨업 횟수를 50~60으로 유지하는 축.
+- `xpScale`은 **초안 D의 미결(XP 곡선이 후반에 마르는 문제)을 닫는다.** `enemyHpScale`과 짝지어 레벨업 횟수를 «목표치 부근»으로 유지하는 축(`levelUpsPerRunTarget` 46 · 상한 `maxLevelUps` 60 — ㊿-ze 정정, 옛 문면은 50~60 이었다).
 - ★ **`swarmTotalScale`은 여기서 정의된다.** 초안 D §5.2가 참조만 하고 값이 없던 열 + 초안 E의 `stage1CrisisScale: 0.5`는 **같은 개념의 두 이름**이었다 → **하나로 통합.**
 - **후반 = 스펀지 방지**: HP만 올리면 후반이 무르다 → **아키타입 해금**(`unlockStageMin`)이 함께 올라 *다른 적*이 나온다. 스테이지 로스터 교체는 **없음**(콘텐츠 물량 5배 방지).
 
@@ -4406,18 +4406,21 @@ weight(item) = categoryWeights[item.category] × modifier(item)
 | `passive` | 이름 · 훅 1줄 · `Lv2 → Lv3` 수치 before → after |
 | `resupply` | `+ 코인 40` |
 
-**성장 예산 (레벨업 50~60회와의 대차대조표)**
+**성장 예산 (런 레벨업과의 대차대조표)**
+
+> ★ **v1.10 ㊿-ze — 이 표는 v1.3 당시의 4슬롯·Lv8·패시브Lv5 판을 그대로 들고 있었다.** 그 사이 슬롯 6칸(`weaponSlots`),
+> 무기·패시브 10레벨, `elementCapTotal` 12 로 바뀌어 **모든 칸이 실제와 달랐다**(총 싱크 67 ↔ 데이터 130). 데이터로 다시 계산했다.
 
 | 투자처 | 픽 수 | 계산 |
 |---|---|---|
-| 새 무기 | **3** | 시작 무기 1 지급 → 4칸 중 3칸 (★ ㉚ 짝 패시브 Lv1 도 공짜 — 패시브 싱크에서 1 을 뺀다) |
-| 무기 레벨 | **28** | 4무기 × Lv1→8 = 7픽 × 4 (**Lv8픽 = 진화**) |
-| 속성 레벨 | **6** | `elementCapTotal` |
-| 패시브 | **30** | 6칸 × Lv5 (획득 픽 포함: 6 + 24) |
-| **총 싱크** | **67** | |
-| **런 레벨업** | **~54** (`levelUpsPerRunTarget: 54`, 범위 50~60) | **충족률 ≈ 81%** |
+| 새 무기 | **5** | 시작 무기 1 지급 → `weaponSlots` 6칸 중 5칸 (★ ㉚ 짝 패시브 Lv1 도 공짜 — 패시브 싱크에서 1 을 뺀다) |
+| 무기 레벨 | **54** | 6무기 × Lv1→10 = 9픽 × 6 (**Lv8픽 = 진화**) |
+| 속성 레벨 | **12** | `elementCapTotal` |
+| 패시브 | **60** | `passiveSlots` 6칸 × `maxLevel` 10 (획득 픽 포함: 6 + 54) |
+| **총 싱크** | **130** | 5 + 54 + 12 + 60 − 1(짝 패시브) = **`certify.static.growthBudget.minTotalSink` 와 정확히 일치** |
+| **런 레벨업** | **~46** (`levelUpsPerRunTarget: 46`, 상한 `maxLevelUps` 60) | **충족률 ≈ 35%** |
 
-→ **전부 못 찍는다**가 산술적으로 성립(54 < 67). 동시에 후반 풀이 마르지 않는다. 정적 검사: **`certify.static.growthBudget.maxLevelUps`(60) < `certify.static.growthBudget.minTotalSink`(67)** ✔ (v1.3 경로 정정 — `totalSink`는 인쇄된 필드명이 아니다)
+→ **전부 못 찍는다**가 산술적으로 성립(46 < 130). 동시에 후반 풀이 마르지 않는다. 정적 검사: **`certify.static.growthBudget.maxLevelUps`(60) < `certify.static.growthBudget.minTotalSink`(130)** ✔ (v1.3 경로 정정 — `totalSink`는 인쇄된 필드명이 아니다)
 
 ### 11.2 상점 (`meta.json > shop`) — ★ **v1.5 폐지 (스코프아웃, §0 v1.5 개정로그)**
 

@@ -96,7 +96,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'S68', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -4265,6 +4265,72 @@ function S67_canonPrints() {
   EX('S67', n);
 }
 
+// ===========================================================================
+//  S68 — 정본 §11.1 «성장 예산» 표 ↔ data (§11.1 · v1.10 ㊿-ze)
+//  이 표는 인쇄 블록이 아니라 «산문 표»라 S67 의 정의역 밖이었다. 그래서 v1.3 의 4슬롯·Lv8·패시브Lv5
+//  판을 그대로 들고 있었고, 여섯 칸이 전부 실제와 달랐다(총 싱크 67 ↔ 데이터 130 — 두 배 차이).
+//  ★ 표의 픽 수를 데이터에서 «다시 계산»해 맞춘다. 슬롯·레벨 상한이 바뀌면 여기서 걸린다.
+// ===========================================================================
+function S68_growthBudget() {
+  const cp = join(ROOT, 'design', 'CANON.md');
+  if (!existsSync(cp)) { V('S68', 'design/CANON.md 가 없다 (§11.1)'); EX('S68', 1); return; }
+  const text = readFileSync(cp, 'utf8');
+  const p = D.rules.player;
+  const wlv = D.weapons.weapons[0].levels.length;          // 무기 최대 레벨 = levels 길이
+  const plv = D.passives.maxLevel;
+  const g = D.meta.certify.static.growthBudget;
+
+  //  데이터가 정하는 픽 수 — 정본의 계산란과 같은 식이다.
+  const want = {
+    '새 무기': p.weaponSlots - 1,                          // 시작 무기 1 지급
+    '무기 레벨': p.weaponSlots * (wlv - 1),
+    '속성 레벨': p.elementCapTotal,
+    '패시브': p.passiveSlots * plv,                        // 획득 픽 + 레벨 픽
+  };
+  const sink = want['새 무기'] + want['무기 레벨'] + want['속성 레벨'] + want['패시브'] - 1;  // ㉚ 짝 패시브 Lv1 공짜
+  let n = 0;
+
+  //  ① 표의 네 칸 + 총 싱크 — 「| 이름 | **수** |」에서 굵은 수를 읽는다
+  for (const [name, v] of Object.entries(want)) {
+    n += 1;
+    const m = new RegExp(`\\| ${name} \\| \\*\\*(\\d+)\\*\\*`).exec(text);
+    if (m === null) { V('S68', `정본 §11.1 성장 예산 표에서 「${name}」 행을 못 찾았다 (§11.1)`); continue; }
+    if (Number(m[1]) !== v) {
+      V('S68', `성장 예산 「${name}」 = ${m[1]} · 데이터로는 ${v} — 데이터가 옳다, 정본을 고쳐라 (§11.1 · ㊿-ze)`);
+    }
+  }
+  n += 1;
+  const ms = /\| \*\*총 싱크\*\* \| \*\*(\d+)\*\*/.exec(text);
+  if (ms === null) V('S68', '정본 §11.1 성장 예산 표에서 「총 싱크」 행을 못 찾았다 (§11.1)');
+  else if (Number(ms[1]) !== sink) V('S68', `성장 예산 총 싱크 = ${ms[1]} · 데이터로는 ${sink} (§11.1 · ㊿-ze)`);
+
+  //  ② ★ 총 싱크는 minTotalSink 와 같아야 한다 — 다르면 «표의 산술»과 «게이트가 인증하는 수»가 갈라진다.
+  n += 1;
+  if (sink !== g.minTotalSink) {
+    V('S68', `성장 예산 산술 ${sink} ≠ certify.static.growthBudget.minTotalSink ${g.minTotalSink} — 표와 인증값이 갈라진다 (§11.1)`);
+  }
+
+  //  ③ 런 레벨업 칸 — levelUpsPerRunTarget 과 충족률
+  n += 1;
+  const mr = /\| \*\*런 레벨업\*\* \| \*\*~(\d+)\*\*/.exec(text);
+  if (mr === null) V('S68', '정본 §11.1 성장 예산 표에서 「런 레벨업」 행을 못 찾았다 (§11.1)');
+  else if (Number(mr[1]) !== D.meta.xp.levelUpsPerRunTarget) {
+    V('S68', `성장 예산 런 레벨업 = ${mr[1]} · 데이터 levelUpsPerRunTarget = ${D.meta.xp.levelUpsPerRunTarget} (§11.1 · ㊿-ze)`);
+  }
+  n += 1;
+  const mp = /\*\*충족률 ≈ (\d+)%\*\*/.exec(text);
+  const pct = Math.round((D.meta.xp.levelUpsPerRunTarget / sink) * 100);
+  if (mp === null) V('S68', '정본 §11.1 성장 예산 표에서 「충족률」을 못 찾았다 (§11.1)');
+  else if (Number(mp[1]) !== pct) V('S68', `성장 예산 충족률 = ${mp[1]}% · 계산은 ${pct}% (${D.meta.xp.levelUpsPerRunTarget}/${sink}) (§11.1 · ㊿-ze)`);
+
+  //  ④ 「전부 못 찍는다」의 산술 — 상한 < 싱크
+  n += 1;
+  if (!(g.maxLevelUps < g.minTotalSink)) {
+    V('S68', `maxLevelUps ${g.maxLevelUps} ≥ minTotalSink ${g.minTotalSink} — 「전부 못 찍는다」가 깨진다 (§11.1)`);
+  }
+  EX('S68', n);
+}
+
 function S66_dotFont() {
   const r = D.rules;
   let n = 0;
@@ -4957,7 +5023,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S67 · S20·S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S68 · S20·S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -5031,6 +5097,7 @@ function main() {
   S64_noEmptyLevel();        // §9.5 v1.10 ㊿-s 레벨업 칸은 카드에 보이는 값을 바꾼다 — 빈 칸 · 제자리 칸 · 형 불일치 금지
   S65_bounceWalls();         // §1.1 v1.10 ㊿-t 반사 벽 = 아레나 − HP·XP 띠 · 탄 반경만큼 안쪽 — step · 봇 · 계측이 같은 world.walls
   S67_canonPrints();         // §9.4 v1.10 ㊿-z9 정본의 인쇄 블록 ↔ data/*.json — 값까지 대조한다(S2 는 키만 본다)
+  S68_growthBudget();        // §11.1 v1.10 ㊿-ze 성장 예산 «산문 표» ↔ data — S67 의 정의역 밖이라 12년 묵은 수치가 살아 있었다
   S66_dotFont();             // §7.9.1 v1.10 ㊿-z 도트 폰트 — 글자판이 격자를 지키고 · 제목판이 제목과 정확히 맞고 · 가장 작은 글자도 minPx 이상
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
