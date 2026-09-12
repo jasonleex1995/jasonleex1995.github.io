@@ -275,6 +275,26 @@ suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳·
     assert.eq(w.player.slowSec, 0, '둔화 타이머가 안 선다 — HUD 배지의 근거가 곧 이 값이다');
   });
 
+  //  ★ ㊿-ze4 — 판별식의 «경계 한 틱». 탄 둔화는 매 틱 dt 씩 줄어들다 마지막 한 틱에 dt 아래로 내려가는데,
+  //    그 틱에 둔화 장판 위에 있으면 「지형에서 온 둔화」와 값이 똑같아진다. 면역(저항 100%)이면 그 한 틱이
+  //    통째로 «저항»을 먹어 탄 둔화가 사라졌다. 지형은 면역일 때 타이머를 아예 안 세우므로(step.js 150행),
+  //    tmul > 0 을 함께 보면 그 틱의 둔화는 «탄에서 온 것»이라고 정확히 말할 수 있다.
+  test('㊿-ze4 면역이어도 «탄» 둔화의 마지막 한 틱은 살아 있다 — 장판 위라고 사라지지 않는다', () => {
+    const w = mkRun(3, 'bog');
+    const rp = w.data.rules.player; const mul = w.data.rules.status.slowMoveSpeedMul;
+    raise(w, w.data.passives.maxLevel);                 // 지형 면역
+    const t = standInFirst(w);
+    const inp = makeInput(); inp.right = true;
+    w.player.x = t.x; w.player.y = t.y;
+    //  탄 둔화를 «감쇠 뒤에 한 틱 이하»가 되게 남긴다 — step 이 먼저 dt 를 깎으므로(step.js 122행)
+    //  dt 아래로 넣으면 그 틱에 둔화가 통째로 사라져 경계를 못 본다. dt < slowSec ≤ 2dt 가 그 구간이다.
+    w.player.slowSec = dt * 1.5;
+    step(w, inp, dt);
+    assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '전제: 둔화 장판 «안»이다');
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6,
+      '★ 탄 둔화가 그대로 걸린다 — 면역은 «지형» 면역이지 탄 면역이 아니다');
+  });
+
   test('inertia — τ 가 (1 − Σ) 배로 짧아진다 · 면역이면 즉시 뒤집힌다', () => {
     const w = mkRun(4, 'glacier');
     const tr = w.data.rules.terrain;
