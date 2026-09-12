@@ -1477,6 +1477,14 @@ function S6_fairness() {
         && bul.statusDurationSec > f.maxStunSec) {
       V('S6', `${tag} → bullets[${bul.id}].statusDurationSec = ${bul.statusDurationSec} > fairness.maxStunSec(${f.maxStunSec}) (§12.4)`);
     }
+
+    //  (5') ★ ㊿-ze5 상태 지속시간의 «하한» — 고정 틱(1/60)보다 짧으면 step 의 감쇠가 첫 틱에 통째로 먹어
+    //  **한 프레임도 효과가 없고**, 그러면서 지형/탄 둔화 판별(step.movePlayer)의 경계만 흐린다.
+    //  0 은 「상태 없음」의 표기라 허용한다. schema.mjs 에도 같은 규칙이 있다(두 벌은 일부러 독립이다, S61).
+    if (bul && bul.status && num(bul.statusDurationSec)
+        && bul.statusDurationSec > 0 && bul.statusDurationSec < 1 / 60) {
+      V('S6', `${tag} → bullets[${bul.id}].statusDurationSec = ${bul.statusDurationSec} < 한 틱(${(1 / 60).toFixed(5)}) — 첫 감쇠에 통째로 먹혀 아무 효과도 없다 (§2.7 · §12.4)`);
+    }
   }
   EX('S6', n);
 

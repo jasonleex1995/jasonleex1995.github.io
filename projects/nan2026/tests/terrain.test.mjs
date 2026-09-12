@@ -275,24 +275,34 @@ suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳·
     assert.eq(w.player.slowSec, 0, '둔화 타이머가 안 선다 — HUD 배지의 근거가 곧 이 값이다');
   });
 
-  //  ★ ㊿-ze4 — 판별식의 «경계 한 틱». 탄 둔화는 매 틱 dt 씩 줄어들다 마지막 한 틱에 dt 아래로 내려가는데,
-  //    그 틱에 둔화 장판 위에 있으면 「지형에서 온 둔화」와 값이 똑같아진다. 면역(저항 100%)이면 그 한 틱이
-  //    통째로 «저항»을 먹어 탄 둔화가 사라졌다. 지형은 면역일 때 타이머를 아예 안 세우므로(step.js 150행),
-  //    tmul > 0 을 함께 보면 그 틱의 둔화는 «탄에서 온 것»이라고 정확히 말할 수 있다.
-  test('㊿-ze4 면역이어도 «탄» 둔화의 마지막 한 틱은 살아 있다 — 장판 위라고 사라지지 않는다', () => {
-    const w = mkRun(3, 'bog');
-    const rp = w.data.rules.player; const mul = w.data.rules.status.slowMoveSpeedMul;
-    raise(w, w.data.passives.maxLevel);                 // 지형 면역
-    const t = standInFirst(w);
-    const inp = makeInput(); inp.right = true;
-    w.player.x = t.x; w.player.y = t.y;
-    //  탄 둔화를 «감쇠 뒤에 한 틱 이하»가 되게 남긴다 — step 이 먼저 dt 를 깎으므로(step.js 122행)
-    //  dt 아래로 넣으면 그 틱에 둔화가 통째로 사라져 경계를 못 본다. dt < slowSec ≤ 2dt 가 그 구간이다.
-    w.player.slowSec = dt * 1.5;
-    step(w, inp, dt);
-    assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '전제: 둔화 장판 «안»이다');
-    assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6,
-      '★ 탄 둔화가 그대로 걸린다 — 면역은 «지형» 면역이지 탄 면역이 아니다');
+  //  ★ ㊿-ze5 — 판별식의 «경계». ㊿-zc 는 「지형은 한 틱(dt)만 채운다」는 성질을 **값 비교**로 썼는데,
+  //    탄 둔화도 감쇠하다 dt 아래로 내려오면서 같은 값을 지나간다 — 그 두 틱 동안 저항이 탄 둔화를 깎았다.
+  //    ㊿-ze4 가 tmul > 0 을 더해 «면역»만 막았고 저항 Lv1~9 는 그대로였다(검토 실측: 2.5초 둔화가 148틱).
+  //    이제 값이 아니라 **순서**로 가른다 — 지형 보충 «직전»에 남아 있던 시간이 곧 탄이 건 몫이다.
+  test('㊿-ze5 «탄» 둔화는 장판 위에서도 끝까지 온전하다 — 저항 레벨과 무관하게 지속시간이 그대로다', () => {
+    const w0 = mkRun(3, 'bog');
+    const rp = w0.data.rules.player; const mul = w0.data.rules.status.slowMoveSpeedMul;
+    const SLOWED = rp.moveSpeed * mul;
+    const DUR = 2.5;
+    const WANT = Math.round(DUR / dt);                      // 탄 둔화가 온전히 걸려야 하는 틱 수
+    //  저항 전 레벨 + 면역까지 — 「경계」는 레벨을 가리지 않는다
+    for (const lv of [1, 5, w0.data.passives.maxLevel - 1, w0.data.passives.maxLevel]) {
+      const w = mkRun(3, 'bog');
+      raise(w, lv);
+      const t = standInFirst(w);
+      const inp = makeInput(); inp.right = true;
+      w.player.slowSec = DUR;
+      let full = 0; let onTile = 0;
+      for (let k = 0; k < WANT + 20; k += 1) {
+        w.player.x = t.x; w.player.y = t.y;                 // ★ 장판은 스크롤한다 — 매 틱 따라붙는다
+        if (terrainUnder(w, w.player.x, w.player.y) === T_SLOW) onTile += 1;
+        step(w, inp, dt);
+        if (Math.abs(Math.abs(w.player.vx) - SLOWED) < 1e-6) full += 1;
+      }
+      assert.gt(onTile, WANT, `Lv${lv}: 내내 둔화 장판 «위»였다(전제 — ${onTile}틱)`);
+      assert.eq(full, WANT,
+        `★ Lv${lv}: 탄 둔화 ${DUR}초 = ${WANT}틱이 장판 위에서도 온전하다 (실측 ${full}틱) — 저항은 «지형» 저항이다`);
+    }
   });
 
   test('inertia — τ 가 (1 − Σ) 배로 짧아진다 · 면역이면 즉시 뒤집힌다', () => {

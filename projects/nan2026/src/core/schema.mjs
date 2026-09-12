@@ -840,6 +840,13 @@ function checkFairness(c, d) {
       c.fail(`${p} → bullets[${b.id}].statusDurationSec`,
         `${b.statusDurationSec} > fairness.maxStunSec(${f.maxStunSec}) (§12.4)`);
     }
+    //  ★ ㊿-ze5 — 상태 지속시간의 «하한». 고정 틱(1/60)보다 짧으면 step 의 감쇠(step.js 122행)가 첫 틱에
+    //  통째로 먹어 **한 프레임도 효과가 없고**, 그러면서 지형/탄 판별(movePlayer)의 경계만 흐린다.
+    //  값이 0 인 것은 「상태 없음」의 표기이므로 허용한다 — 0 초과인데 한 틱보다 짧은 것만 막는다.
+    if (b !== null && b.status !== null && b.statusDurationSec > 0 && b.statusDurationSec < 1 / 60) {
+      c.fail(`${p} → bullets[${b.id}].statusDurationSec`,
+        `${b.statusDurationSec} < 한 틱(${(1 / 60).toFixed(5)}) — 고정 틱이 첫 감쇠에 통째로 먹어 아무 효과도 없다 (§2.7 · §12.4)`);
+    }
     // (6) §7.4 v1.5 — mortar 의 퓨즈(착탄→폭발)가 곧 회피 창 → 절대 하한 강제(이미터 로컬 축)
     if (e.type === 'mortar' && typeof e.fuseSec === 'number' && e.fuseSec < f.minTelegraphSec - 1e-9) {
       c.fail(`${p}.fuseSec`, `${e.fuseSec} < fairness.minTelegraphSec(${f.minTelegraphSec}) — 착탄 후 폭발까지가 회피 창 (§7.4)`);

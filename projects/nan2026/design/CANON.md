@@ -3642,6 +3642,10 @@ v1.1은 `drone`의 `countKey`를 **`droneCount`로 동결**했는데 `anchorOffs
 ```
 - ★ **`element` 키가 존재하지 않는다** — **스키마가 "적 공격에는 속성이 없다"를 강제한다.** 색은 `palette.threat.enemyBullet` 단일.
 - `status ∈ {null, "slow", "stun"}`. `stun`은 `fairness.minStunTelegraphSec`(1.5) + `maxStunSec`(1.0) 강제 + `difficulty.stunMinDifficulty = "hard"`.
+  - ★ **`statusDurationSec` 의 하한 = 한 틱(1/60) (v1.10 ㊿-ze5 신설).** 0 은 「상태 없음」의 표기라 허용하되,
+    **0 초과인데 한 틱보다 짧은 값은 금지**한다 — 고정 틱이라 `step` 의 첫 감쇠(§2.7 타이머)가 통째로 먹어
+    **한 프레임도 효과가 없고**, 그러면서 §8.21 ⑥ 의 「이 둔화가 지형에서 왔나 탄에서 왔나」 판별만 흐린다.
+    로더(`schema.mjs`)와 게이트(`check.mjs` S6)가 **각자** 강제한다(두 벌은 일부러 독립이다, S61).
 - `turnRateDegSec > 0` = **유도탄** (이미터 타입이 아니라 탄 속성, §8.5).
 
 **★★ `bullets[].speed` 삭제 — 탄의 속도는 이미터가 소유한다 (v1.3, 전사 감사 blocker · 신규)**

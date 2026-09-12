@@ -665,10 +665,14 @@ suite('render — ㊿-u 결과 화면의 클리어 시간', () => {
 //   ★ 테스트가 «그려진 사각형»을 직접 읽는다 — 규격이 다시 두 자리로 흩어지면 여기서 걸린다.
 // ─────────────────────────────────────────────────────────────────────────
 suite('render — ㊿-ze3 개체 HP 바', () => {
+  //  ★ main.js startTutorial(488행)과 «같은 순서»로 조립한다 — initRun 을 빼면 world.run 이 없어
+  //    지형도 구간 질의도 없는, 실제로는 존재하지 않는 판을 검사하게 된다(검토가 지적한 충실도 구멍).
   const mkTut = () => {
     const d = loadData();
-    const w = createWorld({ data: d, seed: 1, weapons, hooks: { enemies: null, emitters, run: tickTutorial, boss: null }, startWeaponId: 'forward' });
-    w.tut = makeTutorialState(w);
+    const w = createWorld({ data: d, seed: 1, weapons, hooks: { enemies: null, emitters, run: tickTutorial, boss: null },
+      startWeaponId: d.tutorial.startWeaponId });
+    initRun(w);
+    w.tut = makeTutorialState();
     return w;
   };
 
