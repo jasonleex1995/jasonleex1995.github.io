@@ -183,6 +183,23 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
     assert.ok(true, '초기화 뒤 계속 돌려도 예외가 없다');
   });
 
+  test('㊿-z8 지형 «없음»의 센티널은 -1 이다 — null 로 비교하면 지형 밖에서 dwellT 가 NaN 이 된다', () => {
+    // terrain.terrainUnder 는 «없음»을 -1 로 돌려준다(step.js 도 -1 로 읽는다). null 로 비교하면
+    //   지형 «밖»에서도 매 틱 가지가 통과해 dwellT[-1] 이 NaN 이 되고, 배열에 "-1" 프로퍼티가 눌러앉는다.
+    //   지금은 NaN 이 비교를 삼켜 결과가 우연히 맞지만, -1 이 유효 인덱스가 되는 날 바로 오작동한다.
+    const w = mk();
+    at(w, 'terrain');
+    const far = w.data.rules.view.arena;
+    for (let t = 0; t < 180; t += 1) {                 // 3초 — 어떤 장판에도 안 닿는 자리에서
+      w.player.x = far.x + 8; w.player.y = far.y + far.h - 8;
+      tick(w, 1);
+    }
+    assert.eq(w.tut.dwellT.length, 3, '지형 종 수만큼만 있다');
+    assert.eq(w.tut.dwellT.some(Number.isNaN), false, `NaN 이 없다 (${JSON.stringify(w.tut.dwellT)})`);
+    assert.eq(Object.keys(w.tut.dwellT).join(','), '0,1,2', '음수 인덱스 프로퍼티가 안 생긴다');
+    assert.eq(w.tut.kinds.length, 0, '지형 밖에서는 아무 종도 안 세어진다');
+  });
+
   test('⑤ 지형 — 세 종이 한 번에 놓이고, 세 종에 «머물러야» 넘어간다 (㊿-z5: 스쳐 가면 안 센다)', () => {
     const w = mk();
     at(w, 'terrain');
