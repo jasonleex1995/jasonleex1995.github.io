@@ -328,7 +328,7 @@ function checkRules(c, r) {
     c.closed('rules.visual.a11y', r.visual.a11y, ['cbMode', 'reduceFlash', 'screenShake',
       'shakeMaxPx', 'fullscreenFlashMaxPerSec', 'fullscreenFlashMaxAlpha']);
     c.closed('rules.visual.text', r.visual.text, ['family', 'minPx', 'outlinePx']);
-    c.closed('rules.visual.dot', r.visual.dot, ['logoScale', 'logoSlant', 'logoTopTint', 'logoBottomShade']);   // §7.9.1(v1.10 ㊿-z)
+    c.closed('rules.visual.dot', r.visual.dot, ['logoScale', 'titleSubScale', 'titlePromptScale', 'logoSlant', 'logoTopTint', 'logoBottomShade']);   // §7.9.1(v1.10 ㊿-z · ㊿-z3)
   }
 
   c.closed('rules.render', r.render, ['playerFxCompositeAlpha', 'killFxCompositeAlpha',

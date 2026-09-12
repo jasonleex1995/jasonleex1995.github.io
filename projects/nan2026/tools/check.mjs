@@ -667,7 +667,7 @@ function S2_schema() {
       'fullscreenFlashMaxPerSec', 'fullscreenFlashMaxAlpha'], 'rules.visual.a11y');
     // ★ v1.3: visual.text.outlineColor 삭제 — 색의 유일한 거처는 palette (§9.4.3)
     closedKeys('S2', r.visual.text, ['family', 'minPx', 'outlinePx'], 'rules.visual.text');
-    closedKeys('S2', r.visual.dot, ['logoScale', 'logoSlant', 'logoTopTint', 'logoBottomShade'], 'rules.visual.dot');   // §7.9.1(v1.10 ㊿-z)
+    closedKeys('S2', r.visual.dot, ['logoScale', 'titleSubScale', 'titlePromptScale', 'logoSlant', 'logoTopTint', 'logoBottomShade'], 'rules.visual.dot');   // §7.9.1(v1.10 ㊿-z · ㊿-z3)
     if (has(r.visual.text, 'outlineColor')) {
       V('S2', 'rules.visual.text.outlineColor: 삭제된 키 (§9.4.3/§23.3) — 캔버스 텍스트 아웃라인 색 = palette.threat.outline');
     }
@@ -4190,9 +4190,16 @@ function S66_dotFont() {
   //  ④ 값의 범위 — 배율은 1 이상 정수 · 기울기는 0 이상 1 미만(한 줄에 한 칸 넘게 밀면 글자가 무너진다) · 베벨은 0~1
   const d = r.visual.dot;
   if (!isObj(d)) { V('S66', 'rules.visual.dot 이 없다 (§7.9.1)'); EX('S66', n); return; }
+  for (const k of ['logoScale', 'titleSubScale', 'titlePromptScale']) {
+    n += 1;
+    if (!Number.isInteger(d[k]) || d[k] < 1) {
+      V('S66', `visual.dot.${k} = ${d[k]} — 1 이상 정수여야 한다(칸을 소수로 그리면 픽셀이 어긋난다) (§7.9.1)`);
+    }
+  }
+  //   제목 ≥ 부제 ≥ 안내 — 뒤집히면 안내줄이 제목보다 커진다. 배율이 셋으로 갈라진 뒤로는 숫자만 바꿔도 벌어질 수 있다.
   n += 1;
-  if (!Number.isInteger(d.logoScale) || d.logoScale < 1) {
-    V('S66', `visual.dot.logoScale = ${d.logoScale} — 1 이상 정수여야 한다(칸을 소수로 그리면 픽셀이 어긋난다) (§7.9.1)`);
+  if (!(d.logoScale >= d.titleSubScale && d.titleSubScale >= d.titlePromptScale)) {
+    V('S66', `타이틀 배율이 내림차순이 아니다 — 제목 ${d.logoScale} · 부제 ${d.titleSubScale} · 안내 ${d.titlePromptScale} (§7.9.1)`);
   }
   n += 1;
   if (!(d.logoSlant >= 0 && d.logoSlant < 1)) {

@@ -1096,7 +1096,13 @@ v1.2는 이 행을 **「보스 대형 패턴」**이라 썼는데 ★ **「대�
   위 «웹폰트 금지»와 부딪히지 않는다(금지의 이유는 오프라인·저용량인데, 도트 폰트는 둘 다 지킨다).
   - **두 벌.** `BODY` 5×7(획 1칸, 메뉴 본문) · `LOGO` 8×10(획 2칸, 제목 전용 — P R I S M W N G + 빈칸만 있다).
   - **크기는 새 값을 만들지 않는다.** 도트 배율 = `round(hud.font*Px / 7)` — 16px→×2 · 20px→×3 · 26px→×4 · 40px→×6.
-    글자 크기의 거처는 계속 `hud.font*Px` 하나다. 제목만 예외로 `visual.dot.logoScale` 을 따로 갖는다(로고는 10칸 높이다).
+    글자 크기의 거처는 계속 `hud.font*Px` 하나다 — 난이도 · 옵션 · 어트랙트가 전부 그렇다.
+  - ★ **타이틀 화면 세 줄만 예외 — 자기 배율을 갖는다** (v1.10 ㊿-z3): `logoScale` · `titleSubScale` · `titlePromptScale`.
+    **왜 예외인가**: ① 타이틀은 본문이 아니라 **간판**이라 본문의 크기 사다리를 따라갈 이유가 없다.
+    ② 토큰에서 파생하면 **사다리 칸이 성기다** — 부제를 ×4(26px)와 ×6(40px) 사이로 잡을 방법이 없어
+    사용자(2026-09-12) 「이전이랑 지금의 중간 정도로」를 이행할 수 없었다(중간 ×5 에 해당하는 토큰이 없다).
+    ③ 로고는 8×10 칸이라 애초에 본문(5×7)과 같은 자로 잴 수 없었다.
+    세 배율은 **내림차순이어야 한다**(제목 ≥ 부제 ≥ 안내) — 뒤집히면 안내줄이 제목보다 커진다(S66 ④).
   - **제목의 꼴**: 글자마다 4속성 색이 돌아가고(「프리즘 = 4속성의 색」 — 색약 모드면 `palette.elementCvd` 를 따라간다),
     윗줄은 `logoTopTint` 만큼 밝게 · 아랫줄 둘은 `logoBottomShade` 만큼 어둡게, 전체를 한 칸 두께 검은 외곽선이 두른다.
     기울임은 **줄마다 정수 칸**만큼 민다(소수로 밀면 칸이 격자를 벗어나 외곽선을 정확히 셀 수 없다).
@@ -3092,8 +3098,8 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
               "fullscreenFlashMaxPerSec":3, "fullscreenFlashMaxAlpha":0.35 },       // §7.9 — 공장 기본값
   "text":   { "family":"system-ui, -apple-system, 'Malgun Gothic', sans-serif",
               "minPx":14, "outlinePx":2 },                                          // §7.9
-  "dot":    { "logoScale":8, "logoSlant":0.42,
-              "logoTopTint":0.55, "logoBottomShade":0.5 }                           // §7.9.1(v1.10 ㊿-z) — 제목 로고 전용
+  "dot":    { "logoScale":7, "titleSubScale":5, "titlePromptScale":3,
+              "logoSlant":0.42, "logoTopTint":0.55, "logoBottomShade":0.5 }         // §7.9.1(v1.10 ㊿-z · ㊿-z3) — 타이틀 화면 전용
 }
 ```
 

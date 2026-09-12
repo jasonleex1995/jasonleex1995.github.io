@@ -354,7 +354,9 @@
       "outlinePx": 2
     },
     "dot": {
-      "logoScale": 8,
+      "logoScale": 7,
+      "titleSubScale": 5,
+      "titlePromptScale": 3,
       "logoSlant": 0.42,
       "logoTopTint": 0.55,
       "logoBottomShade": 0.5
