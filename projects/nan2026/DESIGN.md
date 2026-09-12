@@ -24,9 +24,9 @@
 |---|---|
 | 설계 (`design/CANON.md` v1.7) | ✅ 확정 — 충돌하면 **언제나 정본이 옳다** |
 | 데이터 (`data/*.json` 11종) | ✅ 완료 — 빈칸 0 |
-| 게임 코드 (`src/` 37파일) | ✅ 완료 — 브라우저 플레이 가능 |
+| 게임 코드 (`src/` 38파일) | ✅ 완료 — 브라우저 플레이 가능 |
 | 정적 검증 (`tools/check.mjs`) | ✅ exit 0 — VIOLATION 0 · CANON 0 · AMBIGUOUS 0 · STUB 20 · SKIP 0 |
-| 단위 테스트 (`tools/test.mjs`) | ✅ 532 / 532 |
+| 단위 테스트 (`tools/test.mjs`) | ✅ 541 / 541 |
 | 밸런싱 시뮬 (`tools/sim.mjs`) | ✅ 동작 — 헤드리스 셀프플레이(`src/core/bot.js`) |
 
 ## 폴더 지도
@@ -37,8 +37,8 @@
 | [`src/`](src/) | 게임 코드 — `core/`(순수 로직 · 무기 14종) · `render/`(draw · hud) · `main.js`(루프·입력·오디오) |
 | [`data/`](data/) | ★ **값의 유일한 거처** — rules · elements · weapons · passives · bullets · enemies · bosses · stages · meta · traits · tutorial |
 | [`design/`](design/) | [`CANON.md`](design/CANON.md) **정본 (v1.7, ~6,700행)** — 값·규칙·공식·스키마·검증 게이트의 **단일 소유자**. 설계 문서는 이것 하나뿐이다 |
-| [`tests/`](tests/) | 모듈 단위 테스트 32파일 |
-| [`tools/`](tools/) | `check.mjs`(정적 게이트 전수(S1~S65 · S33·S40·S46·S48·S52·S53 은 삭제)) · `test.mjs`(테스트 러너) · `sim.mjs`(헤드리스 밸런싱 시뮬) |
+| [`tests/`](tests/) | 모듈 단위 테스트 33파일 |
+| [`tools/`](tools/) | `check.mjs`(정적 게이트 전수(S1~S66 · S33·S40·S46·S48·S52·S53 은 삭제)) · `test.mjs`(테스트 러너) · `sim.mjs`(헤드리스 밸런싱 시뮬) |
 
 ## 로컬에서 돌리기
 
@@ -62,6 +62,6 @@ python3 -m http.server 8000   # http://localhost:8000/
 
 ```bash
 cd projects/nan2026
-node tools/check.mjs   # 정적 게이트 전수(S1~S65) — 데이터가 정본을 지키는지
-node tools/test.mjs    # 단위 테스트 532개 — 코드가 계약을 지키는지
+node tools/check.mjs   # 정적 게이트 전수(S1~S66) — 데이터가 정본을 지키는지
+node tools/test.mjs    # 단위 테스트 541개 — 코드가 계약을 지키는지
 ```

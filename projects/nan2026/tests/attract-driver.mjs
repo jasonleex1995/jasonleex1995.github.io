@@ -30,7 +30,15 @@ const winListeners = {};
 const docListeners = {};
 let clock = 1000;
 let raf = null;
-let texts = [];
+const texts = [];
+// ㊿-z 도트 글자는 fillRect 로 찍히므로 화면을 «글자»로 읽을 창이 ctx.dotTrace 하나다(§7.9.1).
+//   Array 를 상속해야 dotfont 의 Array.isArray 검사를 통과한다. push 를 가로채 두 곳에 나눠 담는다:
+//   texts(프레임 안의 그린 순서 — 겹침 판정용) · allDot(판 전체에서 한 번이라도 그린 문자열 전수).
+const allDot = new Set();
+class DotSink extends Array {
+  push(...a) { for (const x of a) { allDot.add(String(x)); texts.push(String(x)); } return 0; }
+}
+const dotSink = new DotSink();
 let strokes = [];
 let errors = 0;
 const errorSamples = [];
@@ -46,6 +54,7 @@ const ctx = new Proxy({
   canvas,
   measureText: (t) => ({ width: String(t).length * 8 }),
   fillText: (t) => { texts.push(String(t)); },
+  dotTrace: dotSink,      // ㊿-z 도트 글자가 남기는 기록장 — texts 로 흘려보내 «그린 순서»를 보존하고, 따로 전수도 모은다
   strokeRect: (x, y, w, h) => { strokes.push({ w, h, lw: state2d.lineWidth }); },
   createLinearGradient: () => ({ addColorStop() {} }),
   createRadialGradient: () => ({ addColorStop() {} }),
@@ -82,16 +91,16 @@ const FAST = Math.min(rules.loop.maxFrameGapMs, rules.loop.maxStepsPerFrame * (1
 const B = rules.input.bindings;
 const BOUND = new Set(Object.values(B).flat());
 const UNBOUND_DIGIT = ['Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].find((c) => !BOUND.has(c));
-function frame(dt = FAST) { clock += dt; texts = []; strokes = []; raf(clock); }
+function frame(dt = FAST) { clock += dt; texts.length = 0; strokes.length = 0; raf(clock); }   // ㊿-z 배열을 갈아끼우지 않는다(ctx.dotTrace 가 이 배열을 쥐고 있다)
 const has = (s) => texts.some((t) => t.includes(s));
 const TAG = 'AUTO PLAY';                       // ㊿-x 어트랙트 표시(항상) — 아래 줄 PRESS ANY KEY 는 깜빡인다
 const BLINK = 'PRESS ANY KEY';
-const isTitle = () => has('PRISM WING') && has('[Space/Enter] 시작');
+const isTitle = () => has('PRISM WING') && has('[SPACE/ENTER] START');      // ㊿-z 메뉴 문구는 영어다(§7.9.1) · Enter 도 확정 키다
 const isDemo = () => has(TAG);
 const isAutoDraft = () => has('LEVEL UP') && has('데모 — 봇이 고르는 중');
 const isHumanDraft = () => has('LEVEL UP') && has('1 / 2 / 3 선택');
 const isPause = () => has('일시정지');
-const isDifficulty = () => has('튜토리얼');
+const isDifficulty = () => has('TUTORIAL');
 const isSmall = () => has('창이 너무 작습니다');
 const cursorBorders = () => strokes.filter((s) => s.h > 300 && s.lw === 3).length;   // 드래프트 카드 테두리 중 «고른» 굵기
 function fire(map, type, extra = {}) {
@@ -183,11 +192,16 @@ async function main() {
     keyUp(B.grab); frame(16);
     press(B.grab);
     out.freshSpaceOpensDifficulty = isDifficulty();
-    out.difficultyLines = texts.filter((t) => t.includes('속도'));   // ㊿-u 난이도 메뉴 줄(속도 · 적 공격 · 점수)
+    out.difficultyLines = texts.filter((t) => t.includes('SPEED'));   // ㊿-u 난이도 메뉴 줄(속도 · 적 공격 · 점수) · ㊿-z 영어
     out.difficultyTexts = texts.slice();                             // ㊿-u 난이도 화면의 글자 전부(체력 배율이 어디에도 없어야 한다)
     out.difficultyIdleNoDemo = until(() => isDemo() || !isDifficulty(), 25000, 100) < 0 && isDifficulty();
     press(B.pause);
     out.escBackToTitle = isTitle();
+    // ㊿-z 옵션 화면도 도트·영어다 — 여기서 한 번 들렀다 나와야 그 화면의 글자들이 dotStrings 전수에 들어온다
+    press('KeyO'); frame(16);
+    out.optionsShown = has('OPTIONS');
+    press(B.pause); frame(16);
+    out.optionsEscBackToTitle = isTitle();
     // ⑧ 데모가 스스로 끝나면(사망 · 잡몹 페이즈 끝) 결과 화면 없이 타이틀 — 입력 없이 끝났어도 다음 데모는 다시 attractIdleSec 뒤
     until(isDemo, 60000);
     const t8 = until(() => !isDemo(), 400000);
@@ -239,6 +253,7 @@ async function main() {
   } else {
     return { fatal: `미지의 시나리오 ${SCEN}` };
   }
+  out.dotStrings = [...allDot];   // ㊿-z 이 판에서 도트로 찍은 문자열 전수 — 「?」로 새는 글자가 없어야 한다(§7.9.1)
   out.errors = errors;
   out.errorSamples = errorSamples;
   return out;

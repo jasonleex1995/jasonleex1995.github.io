@@ -33,6 +33,7 @@ import { bossHook } from './core/boss.js';
 import { initRun, tickRun, advanceStage, applyStageClearHeal, stageEntry, PHASE, attractOver } from './core/stage.js';
 import { tally } from './core/score.js';
 import { seedHex } from './core/rng.js';
+import { dotText, dotLogo, dotScale } from './render/dotfont.js';   // §7.9.1(v1.10 ㊿-z) 도트 폰트
 import { resolvePalette, drawWorld, makeInterp, captureInterp, makeFx, updateFx, rgba } from './render/draw.js';
 import { drawPanels, drawDraft, drawResults, drawTutorial } from './render/hud.js';
 import { makeTutorialState, tickTutorial, tutorialStep } from './core/tutorial.js';   // §6.7 ㊴·㊻
@@ -826,8 +827,9 @@ async function boot() {
   /**
    * §6.5(v1.10 ㊿-x) 어트랙트 표시 — 오락실 어트랙트 화면의 표기를 그대로 쓴다(사용자(2026-09-12) 「데모 플레이라고 하기에는 좀 어색한 것 같아 · 글자가 좀 더 커져야 할 것 같고 · 오락실 감성이 더 들어갔으면」).
    *   두 줄: 큰 「AUTO PLAY」(항상) + 「PRESS ANY KEY」(1초에 한 번 깜빡). 상자를 두르지 않고 화면에 바로 얹되,
-   *   외곽선으로 읽히게 한다 — 밝은 탄 위에서도 글자가 뭉개지지 않는다. 외곽선 색의 거처는 palette.threat.outline 하나다(§7.12.7)
-   *   이고 두께는 visual.text.outlinePx 의 배수다 · lineJoin 을 직접 세운다(안 세우면 앞 그리기가 남긴 값에 기대게 된다 — 2차 검토).
+   *   외곽선으로 읽히게 한다 — 밝은 탄 위에서도 글자가 뭉개지지 않는다. 외곽선 색의 거처는 palette.threat.outline 하나다(§7.12.7).
+   *   ★ ㊿-z 부터 이 두 줄은 도트 글자다 — 외곽선도 strokeText 가 아니라 «칸 한 겹»이다(도트에는 획이 없다, §7.9.1).
+   *   메뉴 화면의 도트 글자에는 외곽선이 없다(뒤가 단색 판이라 할 일이 없다). 여기만 두른다 — 플레이 화면 위에 얹히기 때문이다.
    *   자리 = 아레나 상단 띠 바로 아래(보스 코어 체력바를 안 가린다) · 드래프트 중엔 카드 아래(오버레이 위에 그린다).
    *   ★ 깜빡임은 **실시간**(performance.now)이다 — 드래프트 체류 중에는 월드 시계가 멈춘다(§0.2.1). 화면이 멈춘 것처럼 보이면 안 된다.
    */
@@ -835,20 +837,13 @@ async function boot() {
     const a = view.arena;
     const cx = a.x + a.w / 2;
     const y = state === 'DRAFT' ? view.logicalH - 52 : a.y + view.bandTopH + 30;
-    const line = (text, dy, px, weight, fill) => {
-      ctx.font = `${weight} ${px}px ${rules.visual.text.family}`;
-      ctx.lineJoin = 'round';                            // 안 세우면 4px 미터 스파이크(A·W·V) — 앞 그리기가 남긴 값에 기대지 않는다
-      ctx.lineWidth = rules.visual.text.outlinePx * 2;
-      ctx.strokeStyle = pal.threat.outline;              // §7.12.7 — 캔버스 텍스트 외곽선 색의 거처는 여기 하나
-      ctx.strokeText(text, cx, y + dy);
-      ctx.fillStyle = fill;
-      ctx.fillText(text, cx, y + dy);
-    };
+    // ㊿-z — 메뉴와 같은 도트 폰트로 찍는다(한 벌로 보여야 한다). 외곽선 색의 거처는 palette.threat.outline 하나다(§7.12.7).
+    const out = pal.threat.outline;
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    line('AUTO PLAY', 0, rules.hud.fontLargePx, 800, pal.hud.textPrimary);
-    if (performance.now() % 1000 < 600) line('PRESS ANY KEY', rules.hud.fontLargePx + 6, rules.hud.fontMediumPx, 700, pal.hud.accent);
+    dotText(ctx, 'AUTO PLAY', cx, y, dotScale(rules.hud.fontLargePx), pal.hud.textPrimary, { outline: out });
+    if (performance.now() % 1000 < 600) {
+      dotText(ctx, 'PRESS ANY KEY', cx, y + rules.hud.fontLargePx + 6, dotScale(rules.hud.fontMediumPx), pal.hud.accent, { outline: out });
+    }
     ctx.restore();
   }
 
@@ -869,22 +864,40 @@ async function boot() {
     mText(title, view.logicalH / 2 - 16, h.fontHeroPx, pal.hud.textPrimary, 800);
     mText(sub, view.logicalH / 2 + 24, h.fontBodyPx, pal.hud.textDim, 400);
   }
+  /** ㊿-z — 제목은 굵은 도트 로고(글자마다 4속성 색 = 「프리즘」), 나머지는 5×7 도트 폰트. 문구는 영어다(§7.9.1). */
+  function logoColors() {
+    const e = pal.element;
+    return [e.normal, e.fire, e.water, e.grass];
+  }
   function drawTitleScreen() {
     const h = rules.hud;
-    mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
-    mText('종스크롤 비행 슈팅 게임', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
-    mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
+    const d = rules.visual.dot;
+    dotLogo(ctx, 'PRISM WING', view.logicalW / 2, view.logicalH / 2 - 76, d.logoScale, {
+      slant: d.logoSlant, colors: logoColors(), outline: pal.threat.outline,
+      topTint: d.logoTopTint, bottomShade: d.logoBottomShade,
+    });
+    dotText(ctx, 'ALIEN INVASION', view.logicalW / 2, view.logicalH / 2 - 18,
+      dotScale(h.fontLargePx), pal.hud.textPrimary);
+    dotText(ctx, '[SPACE/ENTER] START    [O] OPTIONS', view.logicalW / 2, view.logicalH / 2 + 46,
+      dotScale(h.fontBodyPx), pal.hud.textDim);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
   // ㊿ 사용자(2026-09-06): 「튜토리얼, 노멀, 하드, 헬 이렇게 구분」 — 디재스터 삭제.
-  const DIFF_LABEL = { normal: '노멀', hard: '하드', hell: '헬' };
+  const DIFF_LABEL = { normal: 'NORMAL', hard: 'HARD', hell: 'HELL' };   // ㊿-z 도트 폰트는 영문만 찍는다(§7.9.1)
+  //   ㊿-z 난이도 두 열의 x. 가장 긴 설명줄(헬 = ×1.25 SPEED · ×1.5 ENEMY ATK · ×1.5 SCORE · 도트 ×2 = 490px)이
+  //   496 에서 시작해 986 에서 끝나므로, 블록 [294, 986] 의 가운데가 **정확히 640 = 화면 가운데**다.
+  //   커서 → 이름 → 설명 순으로 28 · 174 씩 띄운다. 가장 긴 이름(TUTORIAL = 141px)도 설명 열을 안 넘는다(322+141 = 463 < 496).
+  const MENU_CURSOR_X = 294;
+  const MENU_NAME_X = 322;
+  const MENU_STAT_X = 496;
   function drawDifficultyScreen() {
     const h = rules.hud;
-    mText('시작', view.logicalH / 2 - 130, h.fontLargePx, pal.hud.textPrimary, 800);
+    dotText(ctx, 'SELECT MODE', view.logicalW / 2, view.logicalH / 2 - 130,
+      dotScale(h.fontLargePx), pal.hud.textPrimary);
     for (let i = 0; i < MENU.length; i += 1) {
       const id = MENU[i];
       const sel = i === diffCursor;
-      const y = view.logicalH / 2 - 70 + i * 40;
+      const y = view.logicalH / 2 - 70 + i * 46;
       const tut = id === MENU_TUTORIAL;
       const d = tut ? null : data.meta.difficulty[id];
       // ㊻ 사용자(2026-09-06): 「튜토리얼 이렇게만 하자」 — 부제·설명 줄 없이 이름만.
@@ -893,28 +906,36 @@ async function boot() {
       //   ★ 체력 배율(hpMul)은 «있지만 안 보인다» — 난이도의 뜻은 이름이 말하고, 수치는 고르는 사람을 겁준다.
       // ㊿-u 사용자(2026-09-12) 「지금 모드에 따라 공격력이 바뀌었잖아? 그 정보가 각 모드 (난이도) 선택화면에 반영이 되어야할 것 같은데」
       //   → 적 공격력(enemyDmgMul)은 보인다 — 맞는 순간 체감하는 차이라 고를 때 알려 준다. 체력 배율은 계속 숨긴다(노멀 ×0.81 같은 «할인 값»은 헷갈린다).
-      const label = tut
-        ? `${sel ? '▶ ' : '   '}튜토리얼`
-        : `${sel ? '▶ ' : '   '}${DIFF_LABEL[id] || id}   ×${d.speed} 속도 · ×${d.enemyDmgMul} 적 공격 · ×${d.scoreMul} 점수`;
-      mText(label, y, h.fontBodyPx, sel ? pal.hud.textPrimary : pal.hud.textDim, sel ? 700 : 400);
+      //   ㊿-z — 한 줄로 붙어 있던 것을 두 열로 나눈다. 고른 줄에는 네모 커서가 붙는다(「▶」 한 글자는 긴 줄에 묻혔다).
+      const tone = sel ? pal.hud.textPrimary : pal.hud.textDim;
+      if (sel) {
+        ctx.fillStyle = pal.hud.textPrimary;
+        ctx.fillRect(MENU_CURSOR_X, y - 10, 10, 20);
+      }
+      dotText(ctx, tut ? 'TUTORIAL' : (DIFF_LABEL[id] || id), 0, y, dotScale(h.fontMediumPx), tone, { left: MENU_NAME_X });
+      if (!tut) {
+        dotText(ctx, `×${d.speed} SPEED · ×${d.enemyDmgMul} ENEMY ATK · ×${d.scoreMul} SCORE`,
+          0, y, dotScale(h.fontBodyPx), tone, { left: MENU_STAT_X });
+      }
     }
-    mText('[↑↓] 선택   [Space/Enter] 시작   [Esc] 뒤로',
-      view.logicalH / 2 + 150, h.fontSmallPx, pal.hud.textDim, 400);
+    dotText(ctx, '[UP/DOWN] SELECT   [SPACE/ENTER] START   [ESC] BACK',
+      view.logicalW / 2, view.logicalH / 2 + 150, dotScale(h.fontSmallPx), pal.hud.textDim);
   }
   function drawOptionsScreen() {
     const h = rules.hud;
     if (world !== null) { ctx.save(); ctx.fillStyle = rgba(pal.threat.outline, 0.72); ctx.fillRect(view.arena.x, 0, view.arena.w, view.logicalH); ctx.restore(); }
-    mText('옵션', view.logicalH / 2 - 70, h.fontLargePx, pal.hud.textPrimary, 800);
+    const cx = view.logicalW / 2;
+    dotText(ctx, 'OPTIONS', cx, view.logicalH / 2 - 70, dotScale(h.fontLargePx), pal.hud.textPrimary);
     if (audio === null) {
-      mText('오디오 인프라 없음 (시각 전용)', view.logicalH / 2 - 12, h.fontBodyPx, pal.hud.textDim, 400);
+      dotText(ctx, 'NO AUDIO (VISUAL ONLY)', cx, view.logicalH / 2 - 12, dotScale(h.fontBodyPx), pal.hud.textDim);
     } else {
       const muted = audio.isMuted();
       const vol = Math.round(audio.getVolume() * 100);
-      mText(`효과음   ${muted ? '음소거' : `${vol}%`}`, view.logicalH / 2 - 12,
-        h.fontBodyPx, muted ? pal.hud.textDim : pal.hud.textPrimary, 700);
-      mText('[M] 음소거   [↑↓] 볼륨', view.logicalH / 2 + 28, h.fontSmallPx, pal.hud.textDim, 400);
+      dotText(ctx, `SOUND   ${muted ? 'MUTED' : `${vol}%`}`, cx, view.logicalH / 2 - 12,
+        dotScale(h.fontBodyPx), muted ? pal.hud.textDim : pal.hud.textPrimary);
+      dotText(ctx, '[M] MUTE   [UP/DOWN] VOLUME', cx, view.logicalH / 2 + 28, dotScale(h.fontSmallPx), pal.hud.textDim);
     }
-    mText('[Esc] 뒤로', view.logicalH / 2 + 60, h.fontSmallPx, pal.hud.textDim, 400);
+    dotText(ctx, '[ESC] BACK', cx, view.logicalH / 2 + 60, dotScale(h.fontSmallPx), pal.hud.textDim);
   }
   function drawThemeBanner() {
     const h = rules.hud;

@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { suite, test, assert, loadData } from '../tools/test.mjs';
+import { unknownChars } from '../src/render/dotfont.js';   // ㊿-z 화면에 찍힌 글자가 「?」로 새지 않는지
 
 const DRIVER = fileURLToPath(new URL('./attract-driver.mjs', import.meta.url));
 
@@ -57,19 +58,28 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     assert.ok(o.heldSpaceStaysTitle, '데모를 끝낸 Space 를 누르고 있어도 타이틀에서 «시작»으로 새지 않는다');
     assert.ok(o.freshSpaceOpensDifficulty, '새로 누른 Space = 난이도 화면');
     // ㊿-u 난이도 메뉴 = ×속도 · ×적 공격 · ×점수 — 값은 meta.difficulty 가 소유한다(체력 배율은 안 보인다)
-    for (const [id, name] of [['normal', '노멀'], ['hard', '하드'], ['hell', '헬']]) {
+    for (const [id, name] of [['normal', 'NORMAL'], ['hard', 'HARD'], ['hell', 'HELL']]) {   // ㊿-z 영어 표기
       const t = { ...d.meta.difficulty[id], ...(DIFF_PATCH[id] || {}) };
       if (id !== 'normal') assert.ok(t.enemyDmgMul !== t.scoreMul, `전제: ${name} 의 적 공격 ×${t.enemyDmgMul} ≠ 점수 ×${t.scoreMul}`);
-      const want = `${name}   ×${t.speed} 속도 · ×${t.enemyDmgMul} 적 공격 · ×${t.scoreMul} 점수`;
-      assert.ok(o.difficultyLines.some((line) => line.endsWith(want)), `난이도 메뉴에 「${want}」 (${o.difficultyLines.join(' | ')})`);
+      //   ㊿-z — 이름과 배율이 두 열로 갈라졌다. 둘 다 화면에 있어야 한다(이름만 있고 배율이 빠지면 ㊿-u 가 무너진다).
+      const want = `×${t.speed} SPEED · ×${t.enemyDmgMul} ENEMY ATK · ×${t.scoreMul} SCORE`;
+      assert.ok(o.difficultyTexts.includes(name), `난이도 메뉴에 「${name}」 (${o.difficultyTexts.join(' | ')})`);
+      assert.ok(o.difficultyLines.includes(want), `난이도 메뉴에 「${want}」 (${o.difficultyLines.join(' | ')})`);
     }
     // 체력 배율은 난이도 화면 «어디에도» 없다 — 메뉴 줄만 보면 따로 그린 줄(예: 「체력 ×0.81」)을 놓친다(검토)
-    assert.eq(o.difficultyTexts.some((s) => s.includes('체력')), false, '체력 배율은 난이도 화면 어디에도 안 보인다');
+    assert.eq(o.difficultyTexts.some((s) => s.includes('HP')), false, '체력 배율은 난이도 화면 어디에도 안 보인다(㊿-z 영어 표기에서도)');
     for (const id of ['normal', 'hard']) {
       const hp = d.meta.difficulty[id].hpMul;
       assert.eq(o.difficultyTexts.some((s) => s.includes(`×${hp}`)), false, `${id} 체력 배율 ×${hp} 가 화면에 안 보인다`);
     }
     assert.ok(o.difficultyIdleNoDemo, '난이도 화면에선 25초 무입력에도 데모가 안 뜬다 — 데모는 타이틀에서만');
+    // ㊿-z 도트로 찍은 문구 전수 — 글자판에 없는 글자는 「?」로 나가고 화면을 봐야만 알게 된다(§7.9.1).
+    //   타이틀 · 어트랙트 · 난이도 · 옵션을 다 거친 뒤라 이 판에 나오는 문구가 여기 다 모여 있다.
+    assert.ok(o.optionsShown && o.optionsEscBackToTitle, '전제: 옵션 화면까지 들렀다 왔다(그 화면 문구도 전수에 든다)');
+    assert.gte(o.dotStrings.length, 15, `도트로 찍은 문구가 모였다 (${o.dotStrings.length}개)`);
+    for (const line of o.dotStrings) {
+      assert.deepEq(unknownChars(line), [], `「${line}」 — 도트 글자판에 없는 글자가 없다`);
+    }
     assert.ok(o.escBackToTitle, '난이도 화면에서 Esc = 타이틀');
     const maxEnd = (d.meta.flow.themeBannerSec + d.stages.phase.mobPhaseSec) * 1000 * 1.35;
     assert.ok(o.naturalEndMs >= 0 && o.naturalEndMs <= maxEnd && o.naturalEndTitle,

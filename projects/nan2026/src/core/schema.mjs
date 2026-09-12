@@ -300,7 +300,7 @@ function checkRules(c, r) {
   }
 
   c.closed('rules.visual', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet', 'glyph',
-    'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text']);
+    'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text', 'dot']);   // v1.10 ㊿-z dot
   if (isObj(r.visual)) {
     c.closed('rules.visual.terrain', r.visual.terrain, ['fillAlpha', 'patternAlpha', 'iconAlpha', 'iconPx', 'heatPulseHz', 'heatWarnAt']);   // §7.13(v1.10 ⑦)
     c.closed('rules.visual.wipe', r.visual.wipe, ['bandPx', 'flashAlpha']);                                          // §8.22(v1.10 ⑧)
@@ -328,6 +328,7 @@ function checkRules(c, r) {
     c.closed('rules.visual.a11y', r.visual.a11y, ['cbMode', 'reduceFlash', 'screenShake',
       'shakeMaxPx', 'fullscreenFlashMaxPerSec', 'fullscreenFlashMaxAlpha']);
     c.closed('rules.visual.text', r.visual.text, ['family', 'minPx', 'outlinePx']);
+    c.closed('rules.visual.dot', r.visual.dot, ['logoScale', 'logoSlant', 'logoTopTint', 'logoBottomShade']);   // §7.9.1(v1.10 ㊿-z)
   }
 
   c.closed('rules.render', r.render, ['playerFxCompositeAlpha', 'killFxCompositeAlpha',

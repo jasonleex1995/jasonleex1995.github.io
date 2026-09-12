@@ -352,6 +352,12 @@
       "family": "system-ui, -apple-system, 'Malgun Gothic', sans-serif",
       "minPx": 14,
       "outlinePx": 2
+    },
+    "dot": {
+      "logoScale": 5,
+      "logoSlant": 0.42,
+      "logoTopTint": 0.55,
+      "logoBottomShade": 0.5
     }
   },
 

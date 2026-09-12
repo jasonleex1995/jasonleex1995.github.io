@@ -58,6 +58,7 @@ import { fileURLToPath } from 'node:url';
 // ★ v1.10 ㊿-i — «비교 전용» import. 게이트는 자기 어휘 사본을 계속 들고 있고(적대적 독립: 검사기가 피검사자를
 //   그대로 믿으면 아무것도 인증하지 않는다), S61 이 «두 사본이 같은가»만 본다. 조용한 드리프트를 소리나게 만드는 자리다.
 import * as SCHEMA from '../src/core/schema.mjs';
+import { BODY, LOGO, dotScale, unknownChars } from '../src/render/dotfont.js';   // §7.9.1(v1.10 ㊿-z) 도트 폰트 — DOM 을 안 건드리는 순수 모듈이라 여기서 바로 읽는다
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -95,7 +96,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -636,7 +637,7 @@ function S2_schema() {
 
   // §9.4.3 — visual 전 키 인쇄. ★ v1.3: statusBulletSpeedMul 이 빠졌다(→ fairness)
   closedKeys('S2', r.visual, ['iframeBlinkHz', 'hpBar', 'stance', 'playerBullet',
-    'glyph', 'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text'], 'rules.visual');
+    'glyph', 'telegraph', 'band', 'zone', 'terrain', 'wipe', 'timer', 'trail', 'hitFx', 'a11y', 'text', 'dot'], 'rules.visual');   // v1.10 ㊿-z dot
   if (isObj(r.visual)) closedKeys('S2', r.visual.terrain, ['fillAlpha', 'patternAlpha', 'iconAlpha', 'iconPx', 'heatPulseHz', 'heatWarnAt'], 'rules.visual.terrain');   // §7.13(v1.10 ⑦)
   if (isObj(r.visual)) closedKeys('S2', r.visual.wipe, ['bandPx', 'flashAlpha'], 'rules.visual.wipe');                                        // §8.22(v1.10 ⑧)
   if (has(r.visual, 'statusBulletSpeedMul')) {
@@ -666,6 +667,7 @@ function S2_schema() {
       'fullscreenFlashMaxPerSec', 'fullscreenFlashMaxAlpha'], 'rules.visual.a11y');
     // ★ v1.3: visual.text.outlineColor 삭제 — 색의 유일한 거처는 palette (§9.4.3)
     closedKeys('S2', r.visual.text, ['family', 'minPx', 'outlinePx'], 'rules.visual.text');
+    closedKeys('S2', r.visual.dot, ['logoScale', 'logoSlant', 'logoTopTint', 'logoBottomShade'], 'rules.visual.dot');   // §7.9.1(v1.10 ㊿-z)
     if (has(r.visual.text, 'outlineColor')) {
       V('S2', 'rules.visual.text.outlineColor: 삭제된 키 (§9.4.3/§23.3) — 캔버스 텍스트 아웃라인 색 = palette.threat.outline');
     }
@@ -4139,6 +4141,144 @@ function S64_noEmptyLevel() {
  *   ③ bot.js 의 rollSeg 가 world.walls · foldWall · 스냅샷 반경(bwr)으로 접고 arena 를 읽지 않는다
  *   ④ tools/lib/escape.mjs 가 bot.js 의 foldWall 을 import 하고, bulletAt 이 반사 벽(.walls)을 foldWall 로 접으며, escapeDirs 는 bulletAt 을 쓰고 직접 접지 않는다(foldWall · foldSpan 없음)
  */
+// ===========================================================================
+//  S66 — 도트 폰트 (§7.9.1 · v1.10 ㊿-z)
+//  글자판이 격자를 지키는가 · 제목판이 제목과 정확히 맞는가 · 찍힌 글자가 minPx 아래로 안 내려가는가 ·
+//  숫자를 끼워 넣는 줄이 「?」로 새지 않는가. 글자 하나가 한 칸이라도 어긋나면 그 글자만 찌그러진 채로
+//  조용히 나간다 — 사람이 화면을 봐야만 알게 되는 종류라서 여기서 센다.
+// ===========================================================================
+function S66_dotFont() {
+  const r = D.rules;
+  let n = 0;
+
+  //  ① 두 글자판 모두 «정확한 격자» — 줄 수 · 칸 수 · 칸의 글자(. 과 # 뿐)
+  for (const [name, font] of [['BODY', BODY], ['LOGO', LOGO]]) {
+    const keys = Object.keys(font.glyphs);
+    if (keys.length === 0) { V('S66', `${name} 글자판이 비었다 (§7.9.1)`); continue; }
+    for (const ch of keys) {
+      n += 1;
+      const rows = String(font.glyphs[ch]).split('|');
+      if (rows.length !== font.h) {
+        V('S66', `${name} 글자 「${ch}」 = ${rows.length}줄 (격자는 ${font.h}줄) — 그 글자만 찌그러진다 (§7.9.1)`);
+        continue;
+      }
+      const bad = rows.findIndex((line) => line.length !== font.w || /[^.#]/.test(line));
+      if (bad >= 0) {
+        V('S66', `${name} 글자 「${ch}」 ${bad + 1}번째 줄 = "${rows[bad]}" — ${font.w}칸의 . 과 # 이어야 한다 (§7.9.1)`);
+      }
+    }
+  }
+
+  //  ② 제목판은 «제목이 쓰는 글자»와 정확히 같다 — 빠지면 「?」로 나가고, 남으면 죽은 글자다
+  const TITLE = 'PRISM WING';
+  //   대체 글자 「?」는 제목에 없어도 있어야 한다 — 없으면 제목에 글자 하나만 더해도 매 프레임 예외 → 검은 화면(§6.5)
+  const want = [...new Set([...Array.from(TITLE.toUpperCase()), '?'])].sort();
+  const have = Object.keys(LOGO.glyphs).sort();
+  n += 1;
+  if (want.join('') !== have.join('')) {
+    V('S66', `제목판(LOGO)이 제목 「${TITLE}」 + 대체 글자 「?」와 안 맞는다 — 판 [${have.join('')}] ≠ 있어야 할 것 [${want.join('')}] (§7.9.1)`);
+  }
+
+  //  ③ 숫자를 끼워 넣는 줄(난이도 배율 · 볼륨 %)이 「?」로 새지 않게 — 쓰이는 기호가 판에 다 있어야 한다
+  const NEEDED = '0123456789.%×·[]/ ';
+  n += 1;
+  const miss = unknownChars(NEEDED);
+  if (miss.length > 0) {
+    V('S66', `본문판(BODY)에 없는 글자: ${miss.map((c) => `「${c}」`).join(' ')} — 배율 · 볼륨을 끼워 넣는 줄이 「?」로 샌다 (§7.9.1)`);
+  }
+
+  //  ④ 값의 범위 — 배율은 1 이상 정수 · 기울기는 0 이상 1 미만(한 줄에 한 칸 넘게 밀면 글자가 무너진다) · 베벨은 0~1
+  const d = r.visual.dot;
+  if (!isObj(d)) { V('S66', 'rules.visual.dot 이 없다 (§7.9.1)'); EX('S66', n); return; }
+  n += 1;
+  if (!Number.isInteger(d.logoScale) || d.logoScale < 1) {
+    V('S66', `visual.dot.logoScale = ${d.logoScale} — 1 이상 정수여야 한다(칸을 소수로 그리면 픽셀이 어긋난다) (§7.9.1)`);
+  }
+  n += 1;
+  if (!(d.logoSlant >= 0 && d.logoSlant < 1)) {
+    V('S66', `visual.dot.logoSlant = ${d.logoSlant} — [0, 1) 이어야 한다(줄마다 한 칸 넘게 밀면 획이 끊긴다) (§7.9.1)`);
+  }
+  for (const k of ['logoTopTint', 'logoBottomShade']) {
+    n += 1;
+    if (!(d[k] > 0 && d[k] <= 1)) V('S66', `visual.dot.${k} = ${d[k]} — (0, 1] 이어야 한다 (§7.9.1)`);
+  }
+
+  //  ⑤ 파생 규칙의 바닥 — 어떤 글자 크기 토큰으로 찍어도 «찍힌 높이»가 visual.text.minPx 밑으로 안 내려간다
+  const minPx = r.visual.text.minPx;
+  for (const [k, px] of Object.entries(r.hud)) {
+    if (!/^font.*Px$/.test(k)) continue;
+    n += 1;
+    const drawn = dotScale(px) * BODY.h;
+    if (drawn < minPx) {
+      V('S66', `hud.${k} = ${px} → 도트 배율 ${dotScale(px)} → 찍힌 높이 ${drawn}px < visual.text.minPx(${minPx}) (§7.9 · §7.9.1)`);
+    }
+  }
+
+  //  ⑥ main.js 가 도트로 찍는 문구 전수 — 판에 없는 글자는 「?」로 나가고, 사람이 화면을 봐야만 알게 된다.
+  //     드라이버(tests/attract-driver.test.mjs)는 «실제로 들른 화면»만 본다 — 오디오가 있는 옵션 줄처럼 안 들르는 가지가 있어서
+  //     소스도 같이 훑는다. 문자열 안의 괄호(「NO AUDIO (VISUAL ONLY)」)에 속지 않게 따옴표 상태를 들고 센다.
+  const mainPath = join(SRC_DIR, 'main.js');
+  const mainSrc = existsSync(mainPath) ? readFileSync(mainPath, 'utf8') : null;
+  n += 1;
+  if (mainSrc === null) {
+    V('S66', 'src/main.js 를 읽을 수 없다 — 메뉴 문구를 훑지 못했다 (§7.9.1)');
+  } else {
+    const lits = [];          // { text, font }
+    const readString = (src, k, out) => {       // src[k] = 따옴표. 템플릿의 ${…} 안 문자열도 화면에 나오므로 같이 줍는다
+      const q = src[k];
+      let buf = '';
+      k += 1;
+      while (k < src.length) {
+        const c = src[k];
+        if (c === '\\') { buf += src[k + 1] === undefined ? '' : src[k + 1]; k += 2; continue; }
+        if (c === q) { k += 1; break; }
+        if (q === '`' && c === '$' && src[k + 1] === '{') { k = readInterp(src, k + 2, out); continue; }
+        buf += c; k += 1;
+      }
+      out.push(buf);
+      return k;
+    };
+    function readInterp(src, k, out) {           // ${ 다음부터 짝 맞는 } 까지 — 값은 건너뛰되 그 안의 문자열은 줍는다
+      let depth = 1;
+      while (k < src.length && depth > 0) {
+        const c = src[k];
+        if (c === "'" || c === '"' || c === '`') { k = readString(src, k, out); continue; }
+        if (c === '{') depth += 1;
+        else if (c === '}') depth -= 1;
+        k += 1;
+      }
+      return k;
+    }
+    for (const m of mainSrc.matchAll(/(?<![\w$.])(dotText|dotLogo)\(/g)) {
+      const lineStart = mainSrc.lastIndexOf('\n', m.index) + 1;
+      if (mainSrc.slice(lineStart, m.index).includes('//')) continue;   // 주석에 적힌 호출 예시는 세지 않는다
+      const out = [];
+      let k = m.index + m[0].length;
+      let par = 1;
+      while (k < mainSrc.length && par > 0) {
+        const c = mainSrc[k];
+        if (c === "'" || c === '"' || c === '`') { k = readString(mainSrc, k, out); continue; }
+        if (c === '(') par += 1;
+        else if (c === ')') par -= 1;
+        k += 1;
+      }
+      for (const t of out) lits.push({ text: t, font: m[1] === 'dotLogo' ? LOGO : BODY, call: m[1] });
+    }
+    n += lits.length;
+    if (lits.length < 10) {
+      V('S66', `src/main.js 에서 도트 문구를 ${lits.length}개밖에 못 찾았다 — 훑기가 깨졌다(메뉴는 그보다 많다) (§7.9.1)`);
+    }
+    for (const l of lits) {
+      const miss = unknownChars(l.text, l.font);
+      if (miss.length > 0) {
+        V('S66', `${l.call} 로 찍는 「${l.text}」 — 판에 없는 글자 ${miss.map((c) => `「${c}」`).join(' ')} 가 「?」로 나간다 (§7.9.1)`);
+      }
+    }
+  }
+
+  EX('S66', n);
+}
+
 function S65_bounceWalls() {
   let n = 0;
   const TOKEN = /(['"`])(?:\\[\s\S]|(?!\1)[^\\])*\1|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
@@ -4686,7 +4826,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S65 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S66 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4759,6 +4899,7 @@ function main() {
   S63_attractWiring();       // §6.5 v1.10 ㊿-s 어트랙트 — 설정값 · 읽힘(죽은 키 금지) · main.js 드라이버 배선
   S64_noEmptyLevel();        // §9.5 v1.10 ㊿-s 레벨업 칸은 카드에 보이는 값을 바꾼다 — 빈 칸 · 제자리 칸 · 형 불일치 금지
   S65_bounceWalls();         // §1.1 v1.10 ㊿-t 반사 벽 = 아레나 − HP·XP 띠 · 탄 반경만큼 안쪽 — step · 봇 · 계측이 같은 world.walls
+  S66_dotFont();             // §7.9.1 v1.10 ㊿-z 도트 폰트 — 글자판이 격자를 지키고 · 제목판이 제목과 정확히 맞고 · 가장 작은 글자도 minPx 이상
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 
   certifyStatic();      // §13.1 중 정적으로 검사 가능한 것
