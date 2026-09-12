@@ -890,12 +890,13 @@ async function boot() {
   }
   // ㊿ 사용자(2026-09-06): 「튜토리얼, 노멀, 하드, 헬 이렇게 구분」 — 디재스터 삭제.
   const DIFF_LABEL = { normal: 'NORMAL', hard: 'HARD', hell: 'HELL' };   // ㊿-z 도트 폰트는 영문만 찍는다(§7.9.1)
-  //   ㊿-z 난이도 두 열의 x. 가장 긴 설명줄(헬 = ×1.25 SPEED · ×1.5 ENEMY ATK · ×1.5 SCORE · 도트 ×2 = 490px)이
-  //   496 에서 시작해 986 에서 끝나므로, 블록 [294, 986] 의 가운데가 **정확히 640 = 화면 가운데**다.
-  //   커서 → 이름 → 설명 순으로 28 · 174 씩 띄운다. 가장 긴 이름(TUTORIAL = 141px)도 설명 열을 안 넘는다(322+141 = 463 < 496).
-  const MENU_CURSOR_X = 294;
-  const MENU_NAME_X = 322;
-  const MENU_STAT_X = 496;
+  //   ㊿-z 난이도 두 열의 x · ㊿-z6 에서 설명줄이 짧아져 다시 잡았다.
+  //   가장 긴 설명줄(헬 = ×1.5 SPEED · ×1.5 SCORE · 도트 ×2 = 274px)이 604 에서 시작해 878 에서 끝나므로,
+  //   블록 [402, 878] 의 가운데가 **정확히 640 = 화면 가운데**다.
+  //   커서 → 이름 → 설명 순으로 28 · 174 씩 띄운다. 가장 긴 이름(TUTORIAL = 141px)도 설명 열을 안 넘는다(430+141 = 571 < 604).
+  const MENU_CURSOR_X = 402;
+  const MENU_NAME_X = 430;
+  const MENU_STAT_X = 604;
   function drawDifficultyScreen() {
     const h = rules.hud;
     dotText(ctx, 'SELECT MODE', view.logicalW / 2, view.logicalH / 2 - 130,
@@ -920,7 +921,10 @@ async function boot() {
       }
       dotText(ctx, tut ? 'TUTORIAL' : (DIFF_LABEL[id] || id), 0, y, dotScale(h.fontMediumPx), tone, { left: MENU_NAME_X });
       if (!tut) {
-        dotText(ctx, `×${d.speed} SPEED · ×${d.enemyDmgMul} ENEMY ATK · ×${d.scoreMul} SCORE`,
+        //   ㊿-z6 사용자(2026-09-12) 「select mode 에서는 그냥 속도랑 score 만 보여지면 좋을것 같아」 —
+        //   ㊿-u 가 넣었던 적 공격 배율을 도로 뺀다. 적의 «세기»는 이제 공격력·발사 주기 두 축이라
+        //   한 줄에 다 적으면 고르는 사람이 읽을 수 없고, 하나만 적으면 거짓이 된다. 그래서 둘 다 숨긴다(hpMul 과 같은 처지).
+        dotText(ctx, `×${d.speed} SPEED · ×${d.scoreMul} SCORE`,
           0, y, dotScale(h.fontBodyPx), tone, { left: MENU_STAT_X });
       }
     }

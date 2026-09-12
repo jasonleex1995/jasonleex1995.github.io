@@ -978,7 +978,7 @@ function S2_files() {
     closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty'], 'meta.difficulty');
     for (const k of ['normal', 'hard', 'hell']) {
       if (has(D.meta.difficulty, k)) {
-        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen'], `meta.difficulty.${k}`);
+        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'enemyFireRateMul', 'terrainMaxOnScreen'], `meta.difficulty.${k}`);   // v1.10 ㊿-z6
       }
     }
     if (has(D.meta.difficulty, 'disaster')) {
@@ -3673,16 +3673,29 @@ function S60_difficulty() {
     V('S60', `meta.difficulty.${low}.enemyDmgMul = ${md[low].enemyDmgMul} ≠ 1 — 저작 피해는 «가장 쉬운 난이도»의 값이다: `
       + `§2.1 「최대 단발 22 → 죽으려면 최소 5초」 보증이 서는 자리가 노멀이다 (§11.3 ②')`);
   }
-  for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']) {
+  //   ★ ㊿-z6 — 열이 여섯이 되면서 규칙이 둘로 갈린다.
+  //     «순증» 다섯: 난이도가 오르면 반드시 오른다. 하나라도 평평하면 그 난이도는 «다른 난이도»가 아니다.
+  //     «줄지 않음» 하나(enemyFireRateMul): 사용자가 하드·헬을 **같은 ×1.2** 로 정했다(2026-09-12) —
+  //       발사 주기는 회피 가능성의 바닥을 정하므로, 헬에서 더 당기면 «빽빽함»이 아니라 «불가능»이 된다.
+  //       그래서 이 열만 같아도 된다. 대신 줄어드는 것은 막는다.
+  for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen', 'enemyFireRateMul']) {
     n += 1;
+    const strict = col !== 'enemyFireRateMul';
     for (let i = 1; i < TIERS.length; i += 1) {
       const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
       if (!isObj(a) || !isObj(b)) continue;
       if (!num(a[col]) || !num(b[col])) { V('S60', `meta.difficulty.*.${col}: 수가 아니다 (§11.3 ③)`); continue; }
-      if (!(b[col] > a[col])) {
-        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 다섯 열 모두 순증해야 한다 (§11.3 ③)`);
+      if (strict ? !(b[col] > a[col]) : !(b[col] >= a[col])) {
+        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ${strict ? '≤' : '<'} ${TIERS[i - 1]} 의 ${a[col]} — `
+          + `${strict ? '순증해야 하는 다섯 열' : 'enemyFireRateMul 은 같아도 되지만 줄면 안 된다'} (§11.3 ③)`);
       }
     }
+  }
+  //   ②'' ㊿-z6 — 발사 주기의 기준선은 «가장 쉬운 난이도»다(enemyDmgMul 과 같은 쪽 끝). 노멀이 1 이 아니면
+  //     저작한 everySec 이 노멀에서 이미 왜곡돼 있다는 뜻이라, 데이터를 읽어도 실제 주기를 알 수 없다.
+  n += 1;
+  if (isObj(md.normal) && md.normal.enemyFireRateMul !== 1) {
+    V('S60', `meta.difficulty.normal.enemyFireRateMul = ${md.normal.enemyFireRateMul} ≠ 1 — 발사 주기의 기준선은 노멀이다 (§11.3 ②'')`);
   }
   // ⑪ ㊿-w — 지형 장판 무대 상한은 «개수»다(배율 아님): 정수 · 1 이상 · 풀 상한(caps.terrain) 이하
   const capMax = D.rules && D.rules.caps && D.rules.caps.terrain;
@@ -3798,6 +3811,47 @@ function S60_difficulty() {
     V('S60', `지형 무대 상한의 문이 하나가 아니다 — difficultyTerrainCap( 출현 [${capUses.join(', ')}] ≠ [${wantCap.join(', ')}] · `
       + `terrainMaxOnScreen 을 «읽는» 파일 [${keyReaders.join(', ')}] ≠ [src/core/state.js] (어휘 파일 schema.mjs 는 제외) (§11.3 ⑫ · §8.21 ④)`);
   }
+  // ⑬ ㊿-z6 소스 — 발사 주기의 문도 하나다(⑧ · ⑫ 와 같은 규약): state.difficultyFireRateMul 이 enemyFireRateMul 을 읽고,
+  //   src/ 안에서 그 키를 읽는 파일은 그 문 하나 · 함수를 부르는 곳은 emitters 하나뿐이어야 한다.
+  //   ★ 이미터 시계는 세 곳에서 전진한다(중간보스 A · B · 나머지). 배율을 «한 번 열어 세 곳에 곱하는» 모양을 못박지 않으면
+  //     한 곳만 곱하고 나머지가 새는 일이 조용히 벌어진다 — 그래서 곱해진 자리 수까지 센다.
+  n += 1;
+  const fireDoor = bodyOf(src, 'difficultyFireRateMul');
+  if (fireDoor === null || !/\.enemyFireRateMul\b/.test(fireDoor)) {
+    V('S60', 'state.js 에 difficultyFireRateMul 이 없거나 enemyFireRateMul 을 안 읽는다 — 발사 주기의 유일한 문 (§11.3 ⑬)');
+  }
+  n += 1;
+  const fireUses = [];
+  const fireKeyFiles = [];
+  const scanFire = (dir) => {
+    for (const f of readdirSync(dir, { withFileTypes: true })) {
+      const fp = join(dir, f.name);
+      if (f.isDirectory()) { scanFire(fp); continue; }
+      if (!/\.m?js$/.test(f.name)) continue;
+      const bare = code(readFileSync(fp, 'utf8'));
+      const rel = fp.slice(ROOT.length + 1).split('\\').join('/');
+      const hit = bare.match(/\bdifficultyFireRateMul\s*\(/g);
+      if (hit !== null) fireUses.push(`${rel}×${hit.length}`);
+      if (/\benemyFireRateMul\b/.test(bare)) fireKeyFiles.push(rel);
+    }
+  };
+  scanFire(join(ROOT, 'src'));
+  const wantFire = ['src/core/state.js×1', 'src/core/emitters.js×1'].sort();   // 정의 1 · emitters 호출 1
+  const fireReaders = fireKeyFiles.filter((f) => f !== 'src/core/schema.mjs').sort();
+  if (fireUses.sort().join(' ') !== wantFire.join(' ') || fireReaders.join(' ') !== 'src/core/state.js') {
+    V('S60', `발사 주기의 문이 하나가 아니다 — difficultyFireRateMul( 출현 [${fireUses.join(', ')}] ≠ [${wantFire.join(', ')}] · `
+      + `enemyFireRateMul 을 «읽는» 파일 [${fireReaders.join(', ')}] ≠ [src/core/state.js] (어휘 파일 schema.mjs 는 제외) (§11.3 ⑬)`);
+  }
+  //   시계를 전진시키는 세 곳이 모두 그 배율을 곱하는가 — 한 곳이라도 빠지면 그 적만 난이도를 안 탄다
+  n += 1;
+  const emitSrc = code(readFileSync(join(ROOT, 'src', 'core', 'emitters.js'), 'utf8'));
+  const clocks = emitSrc.match(/\be\.emitT2?\s*\+=[^;]*;/g) || [];
+  const missed = clocks.filter((c) => !/\bfireMul\b/.test(c));
+  if (clocks.length !== 3 || missed.length > 0) {
+    V('S60', `이미터 시계를 전진시키는 곳 ${clocks.length}개(3이어야) 중 배율을 안 곱한 곳 ${missed.length}개 — `
+      + `${missed.map((c) => c.trim().slice(0, 60)).join(' · ')} (§11.3 ⑬)`);
+  }
+
   // ⑨ ㊿-q 소스 — stunMinDifficulty 는 «값»(⑥)만으로 집행되지 않는다. ~㊿-p 에는 읽는 코드가 0 인데도 ⑥ 이 통과했고 노멀에서 스턴 탄이 나갔다.
   //   state.difficultyAllowsStun 이 그 키를 읽고, emitters.fireVolley(모든 볼리가 지나는 한 곳)의 «첫 문장»이 그 가드인지 본다.
   //   ★ 지키는 것은 가드의 «자리»까지다. «논리»(항상 허용 · 값을 읽고 버림)는 tests/difficulty.test.mjs 가 이미터를 실제로 돌려서 잡는다.

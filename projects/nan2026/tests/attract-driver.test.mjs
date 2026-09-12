@@ -65,14 +65,19 @@ suite('attract/드라이버(main.js 부팅) §6.5 ㊿-s', () => {
     assert.ok(o.ctrlSpaceExitsToTitle, '게임 키는 물리 키(e.code)로 가른다 — Ctrl+Space(key « » · code Space)도 타이틀(배너 건너뛰기 · 난이도 화면이 아니다)');
     assert.ok(o.heldSpaceStaysTitle, '데모를 끝낸 Space 를 누르고 있어도 타이틀에서 «시작»으로 새지 않는다');
     assert.ok(o.freshSpaceOpensDifficulty, '새로 누른 Space = 난이도 화면');
-    // ㊿-u 난이도 메뉴 = ×속도 · ×적 공격 · ×점수 — 값은 meta.difficulty 가 소유한다(체력 배율은 안 보인다)
+    // ㊿-z6 난이도 메뉴 = ×속도 · ×점수 «둘뿐» (사용자 「그냥 속도랑 score 만 보여지면 좋을것 같아」).
+    //   값은 meta.difficulty 가 소유한다. 적의 세기(체력·공격력·발사 주기)는 셋 다 화면에 없다.
     for (const [id, name] of [['normal', 'NORMAL'], ['hard', 'HARD'], ['hell', 'HELL']]) {   // ㊿-z 영어 표기
       const t = { ...d.meta.difficulty[id], ...(DIFF_PATCH[id] || {}) };
-      if (id !== 'normal') assert.ok(t.enemyDmgMul !== t.scoreMul, `전제: ${name} 의 적 공격 ×${t.enemyDmgMul} ≠ 점수 ×${t.scoreMul}`);
-      //   ㊿-z — 이름과 배율이 두 열로 갈라졌다. 둘 다 화면에 있어야 한다(이름만 있고 배율이 빠지면 ㊿-u 가 무너진다).
-      const want = `×${t.speed} SPEED · ×${t.enemyDmgMul} ENEMY ATK · ×${t.scoreMul} SCORE`;
+      if (id !== 'normal') assert.ok(t.speed !== t.scoreMul, `전제: ${name} 의 속도 ×${t.speed} ≠ 점수 ×${t.scoreMul} (두 칸이 서로를 가장할 수 없다)`);
+      //   ㊿-z — 이름과 배율이 두 열로 갈라졌다. 둘 다 화면에 있어야 한다(이름만 있고 배율이 빠지면 메뉴가 아무 말도 안 한다).
+      const want = `×${t.speed} SPEED · ×${t.scoreMul} SCORE`;
       assert.ok(o.difficultyTexts.includes(name), `난이도 메뉴에 「${name}」 (${o.difficultyTexts.join(' | ')})`);
       assert.ok(o.difficultyLines.includes(want), `난이도 메뉴에 「${want}」 (${o.difficultyLines.join(' | ')})`);
+    }
+    // ㊿-z6 — 적의 «세기»는 셋 다 숨긴다. 하나만 적으면 거짓이 되기 때문이다(공격력만 적고 발사 주기를 빼면 헬이 하드와 같아 보인다).
+    for (const gone of ['ENEMY ATK', 'FIRE', 'HP']) {
+      assert.eq(o.difficultyTexts.some((s) => s.includes(gone)), false, `난이도 화면에 「${gone}」 이 없다`);
     }
     // 체력 배율은 난이도 화면 «어디에도» 없다 — 메뉴 줄만 보면 따로 그린 줄(예: 「체력 ×0.81」)을 놓친다(검토)
     assert.eq(o.difficultyTexts.some((s) => s.includes('HP')), false, '체력 배율은 난이도 화면 어디에도 안 보인다(㊿-z 영어 표기에서도)');

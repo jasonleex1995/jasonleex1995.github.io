@@ -825,6 +825,20 @@ export function difficultyHpMul(world) {
 }
 
 /**
+ * §8.5 · §11.3(v1.10 ㊿-z6) — 난이도 «적 발사 주기» 배율. 적이 쏘는 시계가 이만큼 빨리 간다.
+ *   사용자(2026-09-12) 「흡혈이 조금 사기인것 같아서, 차라리 다음 전략은 어떨까 — 하드·헬 적 공격속도 ×1.2」:
+ *   흡혈을 깎는 대신 **맞는 빈도**를 올린다. 회복이 초당 값이라, 세게 한 번보다 자주 여러 번이 흡혈을 더 잘 이긴다.
+ *   ★ 거는 자리는 §8.12 의 보스 격화(run.bossFireRateMul)와 **같은 자리 = 이미터 시계**다. 데이터의 everySec 을
+ *     건드리지 않으므로 악절의 «모양»(repeat·restSec·offsetSec 의 비율)은 그대로고 빠르기만 바뀐다.
+ *   ★ 기준선은 가장 쉬운 난이도다(normal == 1, S60 ②'' — enemyDmgMul 과 같은 쪽 끝).
+ */
+export function difficultyFireRateMul(world) {
+  const d = world.data.meta.difficulty[world.difficultyId];
+  if (d === undefined) throw new Error(`state: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
+  return d.enemyFireRateMul;
+}
+
+/**
  * §3.2 · §11.3(v1.10 ㊿-q) — 난이도 공격력 배율. **적이 플레이어에게 주는 피해는 전부 이 문을 지난다** —
  *   탄·몸통·장판·빔 네 피해원이 step.applyHit 한 곳으로 모이고, 거기서 raw 에 이 배율이 곱해진다(S60 ⑧).
  *   ★ 기준선은 hpMul 과 «반대쪽» 끝 = 가장 쉬운 난이도다(normal.enemyDmgMul == 1, S60 ②').

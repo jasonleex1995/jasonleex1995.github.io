@@ -47,7 +47,7 @@ function tierIds() {
 }
 
 suite('difficulty/표 §11.3', () => {
-  test('난이도는 셋이고 네 열이 모두 순증한다', () => {
+  test('난이도는 셋이고 다섯 열이 순증 · 발사 주기는 줄지 않는다', () => {
     const d = loadData().meta.difficulty;
     const ids = tierIds();
     assert.eq(ids.length, 3, '난이도 셋 (튜토리얼은 난이도가 아니다)');
@@ -56,18 +56,53 @@ suite('difficulty/표 §11.3', () => {
     for (let i = 0; i < ids.length - 1; i += 1) assert.gt(1, d[ids[i]].hpMul, `${ids[i]}: hpMul < 1`);
     // ㊿-q — 피해는 반대쪽 끝이 기준선이다. 저작 피해 = 노멀 피해(§2.1 산술의 자리).
     assert.eq(d[ids[0]].enemyDmgMul, 1, '가장 쉬운 난이도가 공격력 기준선 — enemyDmgMul 1');
+    // ㊿-z6 — 발사 주기도 반대쪽 끝이 기준선이다(저작한 everySec = 노멀의 주기).
+    assert.eq(d[ids[0]].enemyFireRateMul, 1, '가장 쉬운 난이도가 발사 주기 기준선 — enemyFireRateMul 1');
     for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']) {
       for (let i = 1; i < ids.length; i += 1) {
         assert.gt(d[ids[i]][col], d[ids[i - 1]][col], `${col}: ${ids[i]} > ${ids[i - 1]}`);
       }
     }
+    // ㊿-z6 — 이 열만 «같아도 된다». 사용자가 하드·헬을 같은 ×1.2 로 정했다(발사 주기는 회피 가능성의 바닥이다).
+    //   대신 줄어들면 «더 어려운 난이도가 더 느리게 쏜다»가 되므로 막는다.
+    for (let i = 1; i < ids.length; i += 1) {
+      assert.gte(d[ids[i]].enemyFireRateMul, d[ids[i - 1]].enemyFireRateMul,
+        `enemyFireRateMul: ${ids[i]} >= ${ids[i - 1]} (같아도 되지만 줄면 안 된다)`);
+    }
+    assert.gt(d[ids[1]].enemyFireRateMul, d[ids[0]].enemyFireRateMul, '노멀보다는 빨라진다 — 안 그러면 열이 죽는다');
   });
 
-  test('난이도 항목의 열은 다섯뿐이다 — 죽은 키가 없다 (㊿-c · ㊿-q · ㊿-w)', () => {
+  test('㊿-z6 발사 주기 — 같은 적이 하드에서 더 자주 쏜다 (흡혈을 깎는 대신 맞는 «빈도»를 올린다)', () => {
+    // 같은 적 · 같은 시간 · 같은 씨앗. 다른 것은 난이도뿐이다.
+    //   센 것은 «볼리 수»(e.emitPhase)다 — 탄 수는 캡·화면 밖 소멸이 섞여 주기를 흐린다.
+    //   적은 제자리에 묶는다(아레나 밖으로 나가 사라지면 세다 말게 된다).
+    const volleys = (difficulty) => {
+      //   mkBare 는 훅이 비어 있다(스테이지 곡선을 빼려고) — 발사만 돌게 이미터 훅 하나를 단다
+      const w = createWorld({ data: loadData(), seed: 1, weapons, hooks: { emitters }, startWeaponId: 'forward', difficulty });
+      for (const sl of w.slots) sl.weaponId = null;
+      const e = spawnEnemy(w, 'spitter', 'fire', w.data.rules.view.arena.x + 100, 140);
+      for (let t = 0; t < 60 * 10; t += 1) {          // 10초
+        step(w, makeInput(), TICK_DT);
+        e.x = w.data.rules.view.arena.x + 100; e.y = 140; e.hp = e.hpMax;
+      }
+      return e.emitPhase;
+    };
+    const nNormal = volleys('normal');
+    const nHard = volleys('hard');
+    const mul = loadData().meta.difficulty.hard.enemyFireRateMul;
+    assert.gt(nNormal, 3, `전제: 노멀에서도 여러 번 쏜다 (${nNormal}발)`);
+    // 시계를 배속하는 방식이라 볼리 수가 배율만큼 는다(첫 발의 유예·텔레그래프가 섞여 경계에서 ±1)
+    assert.gte(nHard, Math.floor(nNormal * mul) - 1, `하드가 노멀의 ×${mul} 만큼 쏜다 (노멀 ${nNormal} · 하드 ${nHard})`);
+    assert.lte(nHard, Math.ceil(nNormal * mul) + 1, `배율보다 더 쏘지는 않는다 (노멀 ${nNormal} · 하드 ${nHard})`);
+    // 헬은 하드와 «같은» 배율이므로 볼리 수도 같아야 한다 — 사용자가 정한 그대로다
+    assert.eq(volleys('hell'), nHard, '헬은 하드와 같은 발사 주기(사용자 결정) — 달라지면 표와 화면이 어긋난다');
+  });
+
+  test('난이도 항목의 열은 여섯뿐이다 — 죽은 키가 없다 (㊿-c · ㊿-q · ㊿-w)', () => {
     // 화면에서 「진화 무기 N개 이상」을 빼자 evolutionsExpected 는 읽는 곳이 0 이 됐다 → 삭제했다.
     const d = loadData().meta.difficulty;
     for (const id of tierIds()) {
-      assert.eq(Object.keys(d[id]).sort().join(','), 'enemyDmgMul,hpMul,scoreMul,speed,terrainMaxOnScreen', `${id}: 열 다섯`);
+      assert.eq(Object.keys(d[id]).sort().join(','), 'enemyDmgMul,enemyFireRateMul,hpMul,scoreMul,speed,terrainMaxOnScreen', `${id}: 열 다섯`);
     }
   });
 

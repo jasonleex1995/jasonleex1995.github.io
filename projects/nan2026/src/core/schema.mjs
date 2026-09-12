@@ -697,7 +697,7 @@ function checkMeta(c, m) {
     const ds = ['normal', 'hard', 'hell'];
     for (let i = 0; i < ds.length; i += 1) {
       if (own(m.difficulty, ds[i])) {
-        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']);
+        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'enemyFireRateMul', 'terrainMaxOnScreen']);   // v1.10 ㊿-z6 enemyFireRateMul
       }
     }
   }

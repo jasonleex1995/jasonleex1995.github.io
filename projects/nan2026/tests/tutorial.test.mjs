@@ -170,8 +170,11 @@ suite('tutorial — 진행 (§6.7 ㊻)', () => {
 
   test('㊿-z5 최소 체류 — 목표를 일찍 채워도 minSec 전에는 안 넘어간다 (안내를 읽을 시간)', () => {
     const d = loadData();
+    // 모든 스텝에 «읽을 시간»이 있어야 한다 — 0 이면 그 스텝은 목표만 채우면 글이 스쳐 지나간다.
+    //   기능이 데이터에서 조용히 꺼지는 것을 막는다(값을 0 으로 눕히면 ㊿-z5 는 없던 일이 된다).
     for (const st of d.tutorial.steps) {
-      assert.gte(st.minSec, 0, `${st.id}.minSec 은 0 이상`);
+      assert.gt(st.minSec, 0, `${st.id}.minSec > 0 — 안내가 있는 스텝에는 읽을 시간이 있다`);
+      assert.gte(st.minSec, st.lines.length, `${st.id}.minSec 은 최소 줄 수(${st.lines.length})만큼 — 한 줄에 1초는 준다`);
     }
     assert.gt(d.tutorial.steps.find((s) => s.id === 'levelup').minSec, 0,
       '레벨업 스텝엔 최소 체류가 있다 — 경험치가 저절로 빨려 들어와 설명을 읽기 전에 끝났다(사용자)');

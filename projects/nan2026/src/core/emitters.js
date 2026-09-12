@@ -27,7 +27,7 @@
  *   makeEnemy()가 자리를 예약했고 spawnEnemy()가 스폰마다 0 으로 리셋한다(슬롯 재사용 안전).
  */
 
-import { spawnEnemyBullet, spawnZone, spawnBeam, difficultyAllowsStun } from './state.js';
+import { spawnEnemyBullet, spawnZone, spawnBeam, difficultyAllowsStun, difficultyFireRateMul } from './state.js';
 import { DEG2RAD, TAU } from './angle.js';
 
 /**
@@ -274,6 +274,9 @@ function fireVolley(world, e, em, volleyIdx, p, look) {
  *   탄을 쏜다. 이동·충돌·i-frame·상태이상은 step 소관 — 이 훅은 **발사만** 한다.
  */
 export function emitters(world, dt) {
+  //   §11.3(v1.10 ㊿-z6) 난이도가 적의 «발사 주기»를 당긴다 — 문은 하나이고 여기서 한 번만 연다.
+  //   보스 격화(run.bossFireRateMul)와 같은 자리(이미터 시계)에 곱한다: 악절의 모양은 그대로, 빠르기만 바뀐다.
+  const fireMul = difficultyFireRateMul(world);
   const look = ensureLookup(world);
   const items = world.enemies.items;
   const p = world.player;
@@ -302,7 +305,7 @@ export function emitters(world, dt) {
       const ids = mb.patternSet[0].emitterIds;              // 중간보스 phases = 1개
       const emA = look.emitById[ids[0]];
       if (emA === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[0]}" (§8.9)`);
-      e.emitT += dt * actMul;
+      e.emitT += dt * actMul * fireMul;
       e.attackType = emA.type;                 // §7.6(v1.7) 중간보스도 같은 어휘
       const wantA = scheduledVolleys(e.emitT, emA, 0);
       while (e.emitPhase < wantA) {
@@ -312,7 +315,7 @@ export function emitters(world, dt) {
       if (ids.length > 1) {
         const emB = look.emitById[ids[1]];
         if (emB === undefined) throw new Error(`emitters: 미지의 중간보스 이미터 "${ids[1]}" (§8.9)`);
-        e.emitT2 += dt * actMul;
+        e.emitT2 += dt * actMul * fireMul;
         const wantB = scheduledVolleys(e.emitT2, emB, 0);
         while (e.emitPhase2 < wantB) {
           fireVolley(world, e, emB, e.emitPhase2, p, look); e.emitPhase2 += 1;
@@ -356,7 +359,7 @@ export function emitters(world, dt) {
     //   여기가 «항상 현재»인 유일한 자리다: 보스 부위는 페이즈마다 이미터가 바뀐다(§9.8.1).
     e.attackType = em.type;
     const edt = ((e.isBoss && world.run !== undefined) ? dt * world.run.bossFireRateMul : dt) * actMul * stageMul;
-    e.emitT += edt;
+    e.emitT += edt * fireMul;   // ㊿-z6 — 배율은 «시계를 전진시키는 줄»에 둔다(세 곳이 같은 모양이어야 게이트가 샌 곳을 본다)
     const want = scheduledVolleys(e.emitT, em, firstDelay);
     while (e.emitPhase < want) {                     // 결정적 캐치업(보통 0~1회)
       fireVolley(world, e, em, e.emitPhase, p, look);

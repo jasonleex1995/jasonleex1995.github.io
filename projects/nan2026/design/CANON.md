@@ -638,7 +638,7 @@ TICK_DT = 1/60 게임초  // 잠금. 배속과 무관한 상수
 | **Hell** | **1.25** ~~2.0~~ | 75 | 1/60 | 2:24 | ~24분 | **1.5** ~~2.5~~ |
 | ~~**Disaster**~~ | ~~3.0~~ | ~~180~~ | — | ~~1:00~~ | ~~약 10분~~ | ~~4.0~~ (★ ㊿ 삭제) |
 
-> ★ **v1.10 ㊿·㊿-c·㊿-q 개정 — 이 표의 현행 값은 §11.3(`meta.difficulty`)이 소유한다.** 배속 1.0/1.1/1.25 · 점수 1.0/1.2/1.5 로 눕혔고(㊿-c), 난이도는 이제 배속만이 아니라 **적 체력(`hpMul`, ㊿)·적 공격력(`enemyDmgMul`, ㊿-q)·스턴 유무(§2.7)**도 정한다. 아래 «dt 스케일 없음»의 물리 논거는 그대로 참이다.
+> ★ **v1.10 ㊿·㊿-c·㊿-q·㊿-z6 개정 — 이 표의 현행 값은 §11.3(`meta.difficulty`)이 소유한다.** 배속은 ㊿-c 가 1.0/1.1/1.25 로 눕혔다가 **㊿-z6 이 1.0/1.2/1.5 로 올렸고**(점수 1.0/1.2/1.5), 난이도는 이제 배속만이 아니라 **적 체력(`hpMul`, ㊿)·적 공격력(`enemyDmgMul`, ㊿-q)·적 발사 주기(`enemyFireRateMul`, ㊿-z6)·지형 장판 수(㊿-w)·스턴 유무(§2.7)**도 정한다. ★ 이 줄에 수를 다시 적지 않는다 — 수의 거처는 §11.3 하나다(여기 적힌 값이 낡아 있던 것을 ㊿-z6 이 고쳤다). 아래 «dt 스케일 없음»의 물리 논거는 그대로 참이다.
 
 > ★ **`difficultyMul`은 존재하지 않는다 (v1.3 정정 — 유령 키)**: v1.2는 이 열의 제목을 `difficultyMul`로 인쇄했으나 **그 키는 전 코퍼스에 이 한 줄뿐**이고 §9.9의 인쇄 블록에는 **`difficulty.<id>.scoreMul`**(1.0/1.6/2.5/4.0 — ★ 현행은 ㊿-c 의 1.0/1.2/1.5)이 산다 — **같은 값에 두 이름**이다. 값 불변 · 새 키 0 · 이름 하나 삭제. ★ **이 결함이 §21과 라운드 4의 좌조인을 둘 다 통과한 이유가 방법론적으로 중요하다**: 두 감사 모두 **점 표기 리프**(`a.b.c`)만 백틱 스팬에서 추출했는데 `difficultyMul`은 **점이 없어서** 어느 축에도 안 걸렸다. 05는 점수 정수화 공식 전체를 **존재하지 않는 이 키 위에** 세웠다 → §21의 감사 축에 「**점이 없는 백틱 스팬 중 값의 이름으로 쓰인 것**」을 추가한다(§21.5-D2).
 
@@ -4040,9 +4040,9 @@ crisisSubWaveIntervalSec = crisisCycleSec / crisisSubWaves = 9 / 6 = 1.5 게임�
              "attract":{ "difficulty":"normal", "draftDwellSec":1.2, "endAfterMobPhase":true },
              "stagePar":[0,0,0,0,0,0] },
   "onboarding": { "autoEquipFirstElement":true, "stanceHintPulse":true, "stanceHintPulseStageMax":1 },
-  "difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"terrainMaxOnScreen":4},
-                  "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"terrainMaxOnScreen":5},
-                  "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"terrainMaxOnScreen":8},
+  "difficulty": { "normal":{"speed":1.0,"scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"enemyFireRateMul":1.0,"terrainMaxOnScreen":4},
+                  "hard":  {"speed":1.2,"scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"enemyFireRateMul":1.2,"terrainMaxOnScreen":5},
+                  "hell":  {"speed":1.5,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"enemyFireRateMul":1.2,"terrainMaxOnScreen":8},
                   "stunMinDifficulty":"hard" },
   "bot":     { "...§10.4..." },
   "certify": { "...§13.1..." } }
@@ -4557,9 +4557,9 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
 ★★ **v1.10 ㊿ — 난이도의 «뜻» (`meta.json > difficulty`)**
 
 ```json
-"difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"terrainMaxOnScreen":4},
-                "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"terrainMaxOnScreen":5},
-                "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"terrainMaxOnScreen":8},
+"difficulty": { "normal":{"speed":1.0,"scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"enemyFireRateMul":1.0,"terrainMaxOnScreen":4},
+                "hard":  {"speed":1.2,"scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"enemyFireRateMul":1.2,"terrainMaxOnScreen":5},
+                "hell":  {"speed":1.5,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"enemyFireRateMul":1.2,"terrainMaxOnScreen":8},
                 "stunMinDifficulty":"hard" }
 ```
 
@@ -4636,6 +4636,27 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
   노멀 113 · 하드 108 · 헬 108, 속성 투자는 셋 다 4/4/4(만렙). `hpMul` 은 «적이 더 단단하다»만 하고 **성장 예산은 건드리지 않는다** —
   그래서 XP 보정(`xpMul`) 같은 짝 키가 **없다**(있으면 죽은 키다).
 - **게이트 S60** 이 이 설계를 지킨다(§13.4).
+
+★★ **v1.10 ㊿-z6 — 난이도는 «적이 얼마나 자주 쏘는가»이기도 하다 (`enemyFireRateMul`, 사용자 2026-09-12)**:
+「지금 흡혈이 조금 사기인것 같아서, 차라리 다음 전략은 어떨까 싶어 — 하드: 속도 ×1.2 · 적 공격력 ×1.2 · **적 공격속도 ×1.2** · score ×1.2 /
+헬: 속도 ×1.5 · 적 공격력 ×1.5 · **적 공격속도 ×1.2** · score ×1.5」.
+- **왜 흡혈을 안 깎고 난이도를 올리는가**: 흡혈은 **맞은 피해에 비례해 회복**한다. 세게 한 대보다 **자주 여러 대**가 흡혈을 더 잘 이긴다 —
+  공격력만 올리면 회복량도 같이 오르지만, **발사 주기**를 당기면 회복이 따라잡지 못하는 구간이 생긴다. 축을 하나 더 여는 쪽이
+  무기 하나를 깎는 것보다 되돌리기 쉽다(값 하나다).
+- **거는 자리 = 이미터 시계** (§8.5 · §8.12 의 보스 격화 `run.bossFireRateMul` 과 같은 자리). 데이터의 `everySec` 을 건드리지 않으므로
+  악절의 «모양»(repeat·restSec·offsetSec 의 비율)은 그대로고 빠르기만 바뀐다. 시계를 전진시키는 세 곳(중간보스 A·B·나머지)이
+  **모두** 이 배율을 곱해야 한다 — 한 곳만 빠지면 그 적만 난이도를 안 탄다(S60 ⑬ 이 센다).
+- ★ **기준선은 `enemyDmgMul` 과 같은 쪽 끝 = 노멀이다(`normal.enemyFireRateMul == 1`, S60 ②'').** 저작한 `everySec` 이 곧 노멀의 주기여야
+  데이터를 읽고 실제 주기를 알 수 있다.
+- ★ **이 열만 «같아도 된다» (S60 ③ 의 예외).** 하드·헬 둘 다 ×1.2 다 — 사용자가 그렇게 정했다. 발사 주기는 **회피 가능성의 바닥**을
+  정하므로, 헬에서 더 당기면 «빽빽함»이 아니라 «불가능»이 된다. 대신 줄어드는 것은 막는다(더 어려운 난이도가 더 느리게 쏠 수는 없다).
+- **같이 바뀐 값**: `speed` 하드 1.1 → **1.2** · 헬 1.25 → **1.5**. `hpMul` 은 그대로다 — 사용자의 네 축에 체력이 없었고,
+  노멀의 0.81 은 «쉬운 난이도의 할인»이라 기준선 규약(§11.3 ②)이 그대로 선다.
+- ★ **난이도 화면은 «속도·점수»만 보여준다** (사용자 「select mode 에서는 그냥 속도랑 score 만 보여지면 좋을것 같아」) —
+  **㊿-u 가 넣었던 `enemyDmgMul` 표시를 도로 뺀다.** 이유가 바뀌어서가 아니라 **축이 늘어서**다: 적의 세기가 이제
+  체력·공격력·발사 주기 셋이라, 한 줄에 다 적으면 고르는 사람이 못 읽고 **하나만 적으면 거짓이 된다**
+  (공격력만 적으면 헬이 하드와 같아 보인다 — 실제로는 속도가 다르다). 그래서 셋 다 숨기고, 고르는 사람이 읽을 것은
+  **«얼마나 빨라지는가»와 «얼마나 더 받는가»** 둘로 둔다.
 
 ★★ **v1.10 ㊿-q — 난이도는 «적 공격력»이기도 하다 (`enemyDmgMul`, 사용자 2026-09-11)**: 「각 스테이지마다 공격력 배율도 하나 추가해두면 좋을것 같아.
 노말이 x1.0이라면 하드는 x1.2, 헬은 x1.5로 가보자!」
