@@ -872,14 +872,17 @@ async function boot() {
   function drawTitleScreen() {
     const h = rules.hud;
     const d = rules.visual.dot;
-    dotLogo(ctx, 'PRISM WING', view.logicalW / 2, view.logicalH / 2 - 76, d.logoScale, {
+    //   ㊿-z2 사용자(2026-09-12) 「제목 크기를 좀 큼직하게 키웠으면 해 — PRISM WING도, alien invasion도, 밑에 있는 start도」.
+    //   세 줄 다 «더 큰 토큰»으로 올린다(새 크기 값을 만들지 않는다, §7.9.1): 부제 = fontHeroPx(×6) · 안내 = fontMediumPx(×3).
+    //   안내를 fontLargePx(×4)까지 올리면 812px 가 되어 로고(744px)보다 넓어진다 — 가장 작은 줄이 제일 넓으면 위계가 뒤집힌다.
+    dotLogo(ctx, 'PRISM WING', view.logicalW / 2, view.logicalH / 2 - 96, d.logoScale, {
       slant: d.logoSlant, colors: logoColors(), outline: pal.threat.outline,
       topTint: d.logoTopTint, bottomShade: d.logoBottomShade,
     });
-    dotText(ctx, 'ALIEN INVASION', view.logicalW / 2, view.logicalH / 2 - 18,
-      dotScale(h.fontLargePx), pal.hud.textPrimary);
-    dotText(ctx, '[SPACE/ENTER] START    [O] OPTIONS', view.logicalW / 2, view.logicalH / 2 + 46,
-      dotScale(h.fontBodyPx), pal.hud.textDim);
+    dotText(ctx, 'ALIEN INVASION', view.logicalW / 2, view.logicalH / 2 + 4,
+      dotScale(h.fontHeroPx), pal.hud.textPrimary);
+    dotText(ctx, '[SPACE/ENTER] START    [O] OPTIONS', view.logicalW / 2, view.logicalH / 2 + 84,
+      dotScale(h.fontMediumPx), pal.hud.textDim);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
   // ㊿ 사용자(2026-09-06): 「튜토리얼, 노멀, 하드, 헬 이렇게 구분」 — 디재스터 삭제.

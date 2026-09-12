@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 // ★ v1.10 ㊿-i — «비교 전용» import. 게이트는 자기 어휘 사본을 계속 들고 있고(적대적 독립: 검사기가 피검사자를
 //   그대로 믿으면 아무것도 인증하지 않는다), S61 이 «두 사본이 같은가»만 본다. 조용한 드리프트를 소리나게 만드는 자리다.
 import * as SCHEMA from '../src/core/schema.mjs';
-import { BODY, LOGO, dotScale, unknownChars } from '../src/render/dotfont.js';   // §7.9.1(v1.10 ㊿-z) 도트 폰트 — DOM 을 안 건드리는 순수 모듈이라 여기서 바로 읽는다
+import { BODY, LOGO, dotScale, dotWidth, unknownChars } from '../src/render/dotfont.js';   // §7.9.1(v1.10 ㊿-z) 도트 폰트 — DOM 을 안 건드리는 순수 모듈이라 여기서 바로 읽는다
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -4201,6 +4201,12 @@ function S66_dotFont() {
   for (const k of ['logoTopTint', 'logoBottomShade']) {
     n += 1;
     if (!(d[k] > 0 && d[k] <= 1)) V('S66', `visual.dot.${k} = ${d[k]} — (0, 1] 이어야 한다 (§7.9.1)`);
+  }
+  //   배율을 키우면 로고가 화면을 넘는다 — 가운데 맞춤이라 «양쪽이 동시에» 잘린다. 숫자 하나로 조용히 벌어지는 일이라 여기서 막는다.
+  n += 1;
+  const logoW = dotWidth('PRISM WING', d.logoScale, LOGO, d.logoSlant);
+  if (logoW > r.view.logicalW) {
+    V('S66', `제목 「PRISM WING」이 배율 ${d.logoScale} 에서 ${logoW}px — 논리 폭 ${r.view.logicalW} 를 넘어 양쪽이 잘린다 (§7.9.1 · §1.1)`);
   }
 
   //  ⑤ 파생 규칙의 바닥 — 어떤 글자 크기 토큰으로 찍어도 «찍힌 높이»가 visual.text.minPx 밑으로 안 내려간다

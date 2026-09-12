@@ -3092,7 +3092,7 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
               "fullscreenFlashMaxPerSec":3, "fullscreenFlashMaxAlpha":0.35 },       // §7.9 — 공장 기본값
   "text":   { "family":"system-ui, -apple-system, 'Malgun Gothic', sans-serif",
               "minPx":14, "outlinePx":2 },                                          // §7.9
-  "dot":    { "logoScale":5, "logoSlant":0.42,
+  "dot":    { "logoScale":8, "logoSlant":0.42,
               "logoTopTint":0.55, "logoBottomShade":0.5 }                           // §7.9.1(v1.10 ㊿-z) — 제목 로고 전용
 }
 ```
