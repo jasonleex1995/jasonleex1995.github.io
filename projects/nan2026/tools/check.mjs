@@ -96,7 +96,7 @@ const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
   'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
-  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'REF',
+  'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'REF',
 ];
 // ★ S38(중간보스 이탈)은 v1.3 콘텐츠 게이트(S27~S40) 중 유일하게 VACUOUS_WATCH 에서
 //   빠져 있어, 중간보스 0행이면 EX('S38',0)이 공허 통과했다. §8.9/curve.midBossCount 가
@@ -4206,6 +4206,102 @@ function S64_noEmptyLevel() {
 //  숫자를 끼워 넣는 줄이 「?」로 새지 않는가. 글자 하나가 한 칸이라도 어긋나면 그 글자만 찌그러진 채로
 //  조용히 나간다 — 사람이 화면을 봐야만 알게 되는 종류라서 여기서 센다.
 // ===========================================================================
+// ===========================================================================
+//  S67 — 정본의 인쇄 블록 ↔ data/*.json 기계 대조 (§9.3 · §9.4 · v1.10 ㊿-z9)
+//  정본은 «값의 소유자»라고 스스로 선언하는데, S2 는 «키가 인쇄돼 있는가»만 봤다.
+//  그래서 값이 어긋나도 초록이었고, 6,800줄짜리 설계 권위가 조용히 썩었다 —
+//  한 번의 검토에서 값 39곳·삭제된 기능의 잔재 31곳이 나왔다(㊿-z9 가 전부 고쳤다).
+//  이 게이트는 그 대조를 매번 한다. 데이터가 옳다(사용자 2026-09-12) → 어긋나면 «정본»을 고친다.
+//
+//  읽는 법: ``` 펜스 안의 JSON 꼴 블록만 본다.
+//   · ~~취소선~~ = 폐기 기록이므로 걷는다(비교 대상 아님)
+//   · // 줄 주석 · ** 강조 · ★ 는 걷는다
+//   · 「예시 — 배열 원소 1개의 형태만」 로 시작하는 블록은 «형태»만 인쇄한다 → 통째로 건너뛴다
+//   · "…" · "..." 자리표시자는 값이 아니다 → 건너뛴다
+//   · 최상위 키가 어느 데이터 파일에 사는지는 «그 블록의 키를 가장 많이 가진 파일»로 정한다
+// ===========================================================================
+function S67_canonPrints() {
+  const cp = join(ROOT, 'design', 'CANON.md');
+  let n = 0;
+  if (!existsSync(cp)) { V('S67', 'design/CANON.md 가 없다 (§9.4)'); EX('S67', 1); return; }
+  const lines = readFileSync(cp, 'utf8').split('\n');
+
+  const blocks = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!lines[i].startsWith('```')) continue;
+    let j = i + 1;
+    while (j < lines.length && !lines[j].startsWith('```')) j += 1;
+    blocks.push({ at: i + 2, body: lines.slice(i + 1, j) });
+    i = j;
+  }
+
+  const PLACE = /\.\.\.|…/;
+  const parse = (body) => {
+    let txt = body
+      .map((L) => L.replace(/~~[\s\S]*?~~/g, '').split('**').join('').split('★').join(' ').replace(/\/\/.*$/, ''))
+      .join('\n').trim();
+    if (txt === '') return null;
+    if (!txt.startsWith('{')) txt = `{${txt}}`;
+    txt = txt.replace(/,\s*([}\]])/g, '$1');
+    txt = txt.replace(/\{\s*"[^"]*(?:\.\.\.|…)[^"]*"\s*\}/g, '{}');
+    try { return JSON.parse(txt); } catch { return null; }
+  };
+
+  const bad = [];
+  const walk = (printed, actual, path, where) => {
+    if (printed !== null && typeof printed === 'object' && !Array.isArray(printed)) {
+      if (actual === null || typeof actual !== 'object' || Array.isArray(actual)) return;
+      for (const k of Object.keys(printed)) {
+        if (!(k in actual)) { bad.push(`${where} ${[...path, k].join('.')}: 정본이 인쇄하는데 데이터에 없다`); continue; }
+        walk(printed[k], actual[k], [...path, k], where);
+      }
+      return;
+    }
+    if (Array.isArray(printed)) {
+      if (!Array.isArray(actual)) return;
+      //  자리표시자가 섞인 배열 = «형태» 인쇄
+      if (printed.some((x) => x !== null && typeof x === 'object'
+        && Object.entries(x).some(([k, v]) => PLACE.test(String(k)) || PLACE.test(String(v))))) return;
+      if (printed.length !== actual.length) {
+        bad.push(`${where} ${path.join('.')}: 길이 ${printed.length} ≠ 데이터 ${actual.length}`);
+        return;
+      }
+      for (let i = 0; i < printed.length; i += 1) walk(printed[i], actual[i], [...path, `[${i}]`], where);
+      return;
+    }
+    if (typeof printed === 'string' && PLACE.test(printed)) return;
+    if (typeof printed === 'number' && typeof actual === 'number') {
+      if (Math.abs(printed - actual) > 1e-9) bad.push(`${where} ${path.join('.')}: 정본 ${printed} ≠ 데이터 ${actual}`);
+    } else if (printed !== actual) {
+      bad.push(`${where} ${path.join('.')}: 정본 ${JSON.stringify(printed)} ≠ 데이터 ${JSON.stringify(actual)}`);
+    }
+  };
+
+  for (const b of blocks) {
+    if (b.body.slice(0, 3).some((L) => L.includes('예시'))) continue;
+    const obj = parse(b.body);
+    if (obj === null || typeof obj !== 'object' || Array.isArray(obj) || Object.keys(obj).length === 0) continue;
+    const score = {};
+    for (const k of Object.keys(obj)) {
+      for (const fn of Object.keys(D)) {
+        if (D[fn] !== null && typeof D[fn] === 'object' && k in D[fn]) score[fn] = (score[fn] || 0) + 1;
+      }
+    }
+    if (Object.keys(score).length === 0) continue;
+    for (const k of Object.keys(obj)) {
+      const cands = Object.keys(D).filter((fn) => D[fn] !== null && typeof D[fn] === 'object' && k in D[fn]);
+      if (cands.length === 0) continue;
+      cands.sort((a, c) => ((score[c] || 0) - (score[a] || 0)) || (a < c ? -1 : 1));
+      const fn = cands[0];
+      n += 1;
+      walk(obj[k], D[fn][k], [k], `${fn}.json(정본 ${b.at}행)`);
+    }
+  }
+  for (const msg of bad) V('S67', `${msg} — 데이터가 옳다. 정본의 인쇄를 고쳐라 (§9.4 · ㊿-z9)`);
+  if (n === 0) V('S67', '정본에서 대조할 인쇄 블록을 하나도 못 찾았다 — 훑기가 깨졌다 (§9.4)');
+  EX('S67', n);
+}
+
 function S66_dotFont() {
   const r = D.rules;
   let n = 0;
@@ -4898,7 +4994,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S66 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S67 · S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -4971,6 +5067,7 @@ function main() {
   S63_attractWiring();       // §6.5 v1.10 ㊿-s 어트랙트 — 설정값 · 읽힘(죽은 키 금지) · main.js 드라이버 배선
   S64_noEmptyLevel();        // §9.5 v1.10 ㊿-s 레벨업 칸은 카드에 보이는 값을 바꾼다 — 빈 칸 · 제자리 칸 · 형 불일치 금지
   S65_bounceWalls();         // §1.1 v1.10 ㊿-t 반사 벽 = 아레나 − HP·XP 띠 · 탄 반경만큼 안쪽 — step · 봇 · 계측이 같은 world.walls
+  S67_canonPrints();         // §9.4 v1.10 ㊿-z9 정본의 인쇄 블록 ↔ data/*.json — 값까지 대조한다(S2 는 키만 본다)
   S66_dotFont();             // §7.9.1 v1.10 ㊿-z 도트 폰트 — 글자판이 격자를 지키고 · 제목판이 제목과 정확히 맞고 · 가장 작은 글자도 minPx 이상
   S51_visibleDamage();       // §8.20 v1.8 가시 피해
 

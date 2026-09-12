@@ -2910,8 +2910,8 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
                "playerBoundsInset":{"top":56,"bottom":56,"left":20,"right":20},
                "spawnLineY":-40, "minViewportW":1024, "minViewportH":576, "maxDpr":2 },
   "collide": { "gridCellPx": 64 },
-  "caps":    { "playerBullets":512, "enemyBullets":768, "enemies":96, "pickups":256,   // ㉖ playerBullets 512 · ㉛ enemyBullets 768
-               "zones":64, "drones":8, "particles":400, "telegraphs":96,
+  "caps":    { "playerBullets":512, "enemyBullets":768, "enemies":576, "pickups":384,   // ㉖ playerBullets 512 · ㉛ enemyBullets 768
+               "zones":64, "drones":8, "particles":400, "telegraphs":128,
                "terrain":16,
                "overflow": { "playerBullet":"rejectSpawn", "enemyBullet":"rejectSpawn",
                              "enemy":"defer", "pickup":"merge", "zone":"rejectSpawn",
@@ -2929,23 +2929,23 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
   "bomb":    { "stockStart":1, "stockMax":3, "iframeSec":1.5,
                "mobDmg":9999, "clearsEnemyBullets":true, "clearsDuringBoss":true,
                "bossDmgRatio":0.04, "bossDmgCap":220 },
-  "elite":   { "perWaveMax":1, "hpMult":4.0, "sizeMult":1.4, "contactDmgMul":1.5,
-               "xpMult":6.0, "healDropChance":0.12,   // ㊿-s coin 삭제 — v1.5 경제 폐지로 rules.json 에 없다
+  "elite":   { "perWaveMax":1, "hpMult":2.5, "sizeMult":1.4, "contactDmgMul":1.5,
+               "xpMult":3, ~~"healDropChance":0.12,~~   // ㊿-s coin 삭제 — v1.5 경제 폐지로 rules.json 에 없다
                "bandAllowed":["line","turret","bruiser"],
                "elementAllowed":["fire","water","grass"] },
-  "boss":    { "partCount":7, "partRegen":false, "summonsAllowed":false,
+  "boss":    { "partCount":4, "partRegen":false, ~~"summonsAllowed":false,~~
                "partHitPriority":"outermostFirst", "phaseThresholds":[0.6,0.3],
                "phaseTransitionSec":1.5, "timerPausesOnPhaseTransition":true,
                "introSec":3.0, "entryWipeSec":0.7, "timerStartsAfterIntro":true, "timerExpire":"kill",
                "mobilityPenalty":1.5,   // ㉘ coreGateMul 삭제(하드 게이트)
-               "escalateFireRateMul":1.25, "escalateFireRateMax":1.60, "coreElement":"normal",
+               "escalateFireRateMul":1.55, "escalateFireRateMax":2.6, "coreElement":"normal",
                "coreEmitterId":"bossCore",
                "partNormalForbidden":true, "partElementDistinctMin":2,
-               "partThemeElementMax":2, "armorElementNotTheme":false,
+               "partThemeElementMax":4, "armorElementNotTheme":false,
                "armorPartCountRange":[2,2], "armorCoreRatioMax":15,   // ㊿-s coin · partCoin 삭제 — v1.5 경제 폐지
                "optionalPartArmorRatio":0.20, "partReachMinPx":32,
                "midBossSummonsAllowed":["mbNest"],
-               "finale":{ "partCount":8, "armorPartCount":3,
+               "finale":{ "partCount":5, "armorPartCount":3,
                           "exemptRules":["R4","R6"], "allowNormalPeripheral":true } },
   // ★v1.5(#20/#26) — partCount 4→7(테마)·finale 5→8: «발사 파트» base 3 + extra armament 3(테마=base 4+3).
   //   런 포지션별 동적 스폰 = stages.curve.firingPartsPerStage[3,4,4,5,6,6](§8.9.1, v1.10 ⑩) — base 항상,
@@ -2962,9 +2962,9 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
                "maxBulletSpeed":260, "maxAimedBulletSpeed":200, "statusBulletSpeedMul":0.6,
                "minBulletRadiusPx":4, "minGapWidthPx":46, "minSpawnRadiusPx":140,
                "maxSimultaneousEnemyBullets":320,
-               "enemyConcurrentMax":40, "swarmConcurrentMax":200,
+               "enemyConcurrentMax":42, "swarmConcurrentMax":200,
                "telegraphConcurrentMaxPerEntity":2,
-               "telegraphConcurrentMaxGlobal":80,
+               "telegraphConcurrentMaxGlobal":84,
                "playerWeaponsExempt":true },
   "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":2.2,                                                    // ㉙ 더 자주(3.2→2.2) · ㊿-w 상한은 난이도 표
                "spawnIn":["early","midboss","boss"], "bossEntryCount":4, "fadeSec":0.8,                          // §8.21 ④ · §8.22 (v1.10 ⑧)
@@ -2974,8 +2974,8 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
   "input":   { "layout":"code", "socd":"lastInput", "pauseOnBlur":true,
                "bindings": { "move":["ArrowLeft","ArrowUp","ArrowRight","ArrowDown"],
                  "stanceNormal":"KeyQ","stanceFire":"KeyW","stanceWater":"KeyE","stanceGrass":"KeyR",
-                 "bomb":"Space","timeToken":"ShiftLeft","pause":"Escape","options":"KeyO",
-                 "draftPick":["Digit1","Digit2","Digit3"], "reroll":"KeyF",
+                 ~~"bomb":"Space",~~~~"timeToken":"ShiftLeft",~~"pause":"Escape","options":"KeyO",
+                 "draftPick":["Digit1","Digit2","Digit3"], ~~"reroll":"KeyF",~~
                  "reorderToggle":"Tab","grab":"Space","confirm":"Enter","cursor":["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"] } },
   "palette": { "element":{"normal":"#DCE6F0","fire":"#FF6B2C","water":"#31C0FF","grass":"#5FD13B"},
                "elementCvd":{"normal":"#F2F6FA","fire":"#FFA83A","water":"#2E86E0","grass":"#1F6B3A"},
@@ -3036,17 +3036,15 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
   "fontHeroPx": 40, "fontLargePx": 26, "fontMediumPx": 20,
   "fontBodyPx": 16, "fontSmallPx": 14,  // 전부 ≥ visual.text.minPx(14)
   "panelPadPx": 16, "keycapBoxPx": 28,
-  "bossHpBarH": 8, "hpBarSegGapPx": 5, "xpBarH": 6, "hpBarSegCount": 5,
+  "bossHpBarH": 12, "hpBarSegGapPx": 5, "xpBarH": 6, "hpBarSegCount": 5,
   "panelCacheDirtyOnly": true,
   "parGhostEnabled": true,
   "elementMatrixInPanel": true,         // 02-B12
-  "coinShowsScoreValue": true,          // 02-B10
+  ~~"coinShowsScoreValue": true,~~          // 02-B10
   "noHitIndicator": true,               // 02-B11 → §7.12.5
-  "tokenKeycapGatedDisplay": true,      // 02 §7.2
+  ~~"tokenKeycapGatedDisplay": true,~~      // 02 §7.2
   "stanceHintTargetsMajorityElement": true,   // 02-B8 → §9.9.1
-  "icons": ["coinDisc","xpDiamond","bombRound","shieldHex","tokenClock",
-            "rerollArrows","statusSlow","statusStun","resistShield",
-            "potionFlask","defenseChevron","hpCross","bootWing","magnetHorseshoe"]
+  "icons": ["xpDiamond","statusSlow","statusStun"]   // ㊿-z9 — v1.5 가 14종 → 3종으로 줄였다(경제·상점 폐지). 인쇄가 14종에 머물러 있었다
 }
 ```
 
@@ -3109,7 +3107,7 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
                  "emphasisBySpeed":{"1.0":1.0,"1.5":1.15,"2.0":1.30,"3.0":1.50} },  // §7.4 · 02-B3
   "band":   { "plateAlpha":0.30, "contentOpaque":true },          // §1.2 · §12.3
   "zone":   { "fillAlpha":0.30, "pulseHz":1.0 },                  // §12.3
-  "terrain":{ "fillAlpha":0.14, "edgeAlpha":0.35, "patternAlpha":0.30, "heatPulseHz":0.8 },   // §8.21 v1.10 ⑦
+  "terrain":{ "fillAlpha":0.22, ~~"edgeAlpha":0.35,~~ "patternAlpha":0.16, "heatPulseHz":0.8 },   // §8.21 v1.10 ⑦
   "wipe":   { "bandPx":28, "flashAlpha":0.35 },                     // §8.22 v1.10 ⑧
   "timer":  { "warnScale":1.15, "warnPulseHz":0.5,
               "alertScale":1.30, "alertPulseHz":1.0 },            // §7.12.1
@@ -3435,11 +3433,11 @@ v1.5 표는 `autoload` 3무기 · `coil` 3무기에 몰려 있어 `warhead`·`re
     { "id":"coating",    "name":"관통 코팅",    "desc":"[탄] 탄 무기의 관통 +N (리턴·미사일·핀볼 무효)",           "stat":"pierceAdd",       "values":[1,1,2,2,3,3,4,4,5,5] },
     { "id":"booster",    "name":"추진기",       "desc":"[탄] 탄이 더 빠르게 날아간다 (리턴은 돌아오는 속도도)",                          "stat":"projSpeedMul",    "values":[0.06,0.11,0.16,0.20,0.24,0.28,0.32,0.35,0.38,0.40] },
     { "id":"battery",    "name":"장기 배터리",  "desc":"[탄] 탄이 사라지기까지 +N% — 더 멀리 날아간다 (핀볼은 더 오래 튄다)",                                          "stat":"durationMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
-    { "id":"highvolt",   "name":"고압",         "desc":"[빔] 빔 무기의 피해 +N%",                                "stat":"beamDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
+    { "id":"highvolt",   "name":"고압",         "desc":"[빔] 빔 무기의 피해 +N%",                                "stat":"beamDmgMul",      "values":[0.15,0.28,0.4,0.51,0.61,0.7,0.78,0.86,0.93,1] },
     { "id":"lens",       "name":"집속 렌즈",    "desc":"[빔] 빔 무기의 폭·사거리 +N%",                "stat":"beamAreaMul",     "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
     { "id":"coil",       "name":"확장 코일",    "desc":"[범위] 범위 무기의 반경 +N% · 구슬을 끌어오는 반경도", "stat":"areaMul",   "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
     { "id":"shockwave",  "name":"충격파",       "desc":"[범위] 범위 무기의 피해 +N%",                        "stat":"areaDmgMul",      "values":[0.10,0.19,0.27,0.34,0.40,0.46,0.51,0.56,0.60,0.64] },
-    { "id":"orbitext",   "name":"궤도 확장",    "desc":"[궤도] 궤도 무기의 피해·궤도 반경·공전 속도 +N%", "stat":"orbitMul", "values":[0.08,0.15,0.21,0.27,0.32,0.37,0.41,0.45,0.48,0.50] },
+    { "id":"orbitext",   "name":"궤도 확장",    "desc":"[궤도] 궤도 무기의 피해·궤도 반경·공전 속도 +N%", "stat":"orbitMul", "values":[0.12,0.23,0.33,0.42,0.5,0.57,0.64,0.7,0.75,0.8] },
     { "id":"bulkhead",   "name":"강화 격벽",    "desc":"[기체] 최대 HP +N",                                                   "stat":"maxHpAdd",        "values":[6,12,18,24,30,36,42,48,54,60] },
     { "id":"stabilizer", "name":"자세 안정기",  "desc":"[기체] 지형(둔화·관성·과열)의 효과 −N% (만렙 = 면역)",                    "stat":"terrainResist",   "values":[0.20,0.32,0.43,0.53,0.62,0.70,0.78,0.86,0.93,1.00] },
     { "id":"study",      "name":"학습 회로",    "desc":"[기체] 획득 XP 증가",                                                 "stat":"xpGainMul",       "values":[0.10,0.18,0.25,0.31,0.36,0.40,0.44,0.48,0.51,0.54] },
@@ -3545,14 +3543,14 @@ elementBonusMul                :  §3.1의 3항. 파라미터 공간을 건드�
   "forward":   { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },                      // ㉚ 코일 = 범위 무기 전용
   "fan":       { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
   "seeker":    { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
-  "lance":     { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
-  "orbit":     { "rateKey":"hitCooldownSec",   "countKey":"bodyCount",        "pierceApplies":false, "areaKeys":["orbitRadius","projRadius"] },
-  "aura":      { "rateKey":"tickIntervalSec",  "countKey":null,               "pierceApplies":false, "areaKeys":["radius"] },
-  "mine":      { "rateKey":"placeIntervalSec", "countKey":"maxAlive",         "pierceApplies":false, "areaKeys":["blastRadius","triggerRadius","evoClusterRadius"] },
+  "lance":     { "rateKey":"cooldownSec",      "countKey":null,            "pierceApplies":false,  "areaKeys":[] },
+  "orbit":     { "rateKey":"hitCooldownSec",   "countKey":null,        "pierceApplies":false, "areaKeys":[] },
+  "aura":      { "rateKey":null,  "countKey":null,               "pierceApplies":false, "areaKeys":["radius"] },
+  ~~"mine":      { "rateKey":"placeIntervalSec", "countKey":"maxAlive",         "pierceApplies":false, "areaKeys":["blastRadius","triggerRadius","evoClusterRadius"] },~~
   "boomerang": { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":false, "areaKeys":[] },
-  "barrage":   { "rateKey":"cooldownSec",      "countKey":"strikesPerVolley", "pierceApplies":false, "areaKeys":["blastRadius"] },
-  "omni":      { "rateKey":"cooldownSec",      "countKey":"dirCount",         "pierceApplies":true,  "areaKeys":["projRadius"] },
-  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":true,  "areaKeys":[] },
+  "barrage":   { "rateKey":"cooldownSec",      "countKey":null, "pierceApplies":false, "areaKeys":["blastRadius"] },
+  ~~"omni":      { "rateKey":"cooldownSec",      "countKey":"dirCount",         "pierceApplies":true,  "areaKeys":["projRadius"] },~~
+  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":false,  "areaKeys":[] },
   "nova":      { "rateKey":"intervalSec",      "countKey":null,               "pierceApplies":false, "areaKeys":["radius","evoRing2Radius"] }
 }
 ```
@@ -3667,7 +3665,7 @@ v1.1은 `drone`의 `countKey`를 **`droneCount`로 동결**했는데 `anchorOffs
 //        값의 소유자 = enemies.json 17 archetypes + 18 emitters (04 §3.1~§3.2에 위임, C-2.1)
 //        단 bands 블록은 확정이다 — 아래 「bands[].coin 신설」이 4밴드 전량을 인쇄한다
 { "schemaVersion": 1,
-  "bands": { "chaff":{"hpMult":1.0,"coinDropChance":0.0,"coin":0,"xpRef":2,"minPerWave":30}, "line":{"hpMult":2.5,"minPerWave":6}, "turret":{"hpMult":6.0,"minPerWave":2}, "bruiser":{"hpMult":12.0,"minPerWave":2} },
+  "bands": { "chaff":{"hpMult":1.0,~~"coinDropChance":0.0,~~~~"coin":0,~~"xpRef":2,"minPerWave":30}, "line":{"hpMult":2.5,"minPerWave":6}, "turret":{"hpMult":6.0,"minPerWave":2}, "bruiser":{"hpMult":12.0,"minPerWave":2} },
   "archetypes": [{
     "id":"stalker", "name":"추격체", "desc":"플레이어를 선회하며 유도탄을 쏜다",
     "band":"bruiser", "shapeId":"claw", "radius":18,
@@ -3722,10 +3720,10 @@ v1.2의 이 표는 **「`enemies.json`에서 삭제」**를 명시 확정했는�
 
 **★ `bands[].coin` 신설 (03-§9.6 blocker 채택)**
 ```json
-"bands": { "chaff":  {"hpMult":1.0, "coinDropChance":0.0,  "coin":0, "xpRef":2},
-           "line":   {"hpMult":2.5, "coinDropChance":0.0,  "coin":0},
-           "turret": {"hpMult":6.0, "coinDropChance":0.15, "coin":1},
-           "bruiser":{"hpMult":12.0,"coinDropChance":0.15, "coin":2} }
+"bands": { "chaff":  {"hpMult":1.0, ~~"coinDropChance":0.0,~~  ~~"coin":0,~~ "xpRef":2},
+           "line":   {"hpMult":2.5, ~~"coinDropChance":0.0,~~  ~~"coin":0~~},
+           "turret": {"hpMult":6.0, ~~"coinDropChance":0.15,~~ ~~"coin":1~~},
+           "bruiser":{"hpMult":12.0,~~"coinDropChance":0.15,~~ ~~"coin":2~~} }
 ```
 > v1.0은 `coinDropChance`를 정하고 ★ **"몇 개 떨어지는가"를 어느 스키마에도 두지 않았다** → `certify.runMode.coinScarcity`가 **계산 자체를 못 한다.** 03의 희소성 검산은 「평균 1.5」라는 **존재하지 않는 값을 가정**하고 있었다. `turret 1` / `bruiser 2`는 `hpMult`(6.0 / 12.0)의 순서와 일치하며, `chaff`·`line`이 0인 것은 §8.6이 이미 확정한 "코인 = 일부 잡몹만"의 정의다.
 
@@ -3857,7 +3855,7 @@ tetrarchThroneP1  ...
   "patternSet":[ { "emitterIds":["nestAimed"] } ],
   "summon":{ "archetypeId":"drifter", "count":3, "everySec":6.0, "formationId":"scatter" },
   "parts":[],
-  "xp":50, "coin":5, "healDropChance":0.35, "score":2500
+  "xp":50, ~~"coin":5,~~ ~~"healDropChance":0.35,~~ "score":2500
 }
 ```
 > ★ **위 블록의 숫자는 예시다** (`hp`의 소유자 = §13.6.4의 표 · 그 외 = 04 §7.2). ★ **확정인 것은 필드 집합과 경로**다.
@@ -3893,17 +3891,17 @@ tetrarchThroneP1  ...
   "theme": { "offThemeHpMul": 0.67 },                       // §8.2 ③ (v1.10 ㉔) 테마 밖 속성 HP 배율 — 루트 7키
   "themeDraw": { "pool":["sea","glacier","volcano","desert","forest","bog"],
                  "count":5, "allowRepeat":false, "stage1RequiresIntroOk":true, "finalStageId":"finale" },
-  "curve": { "enemyHpScale":[1.0,1.5,2.2,3.2,4.5,6.0], "xpScale":[1.0,1.6,2.4,3.4,4.6,6.0],
-             "bossHpScale":[1.00,3.50,9.00,11.80,18.00,18.00],   // ㉝ 스테이지 보스 전용 — 「스테이지 s 는 Lv L_s 가 필요하다」 캘리브레이션(§8.13.3) · ㊲ 재보정 ~~5.4/11.2/21.63~~
+  "curve": { "enemyHpScale":[1,1.5,2.2,3.4,4.2,5.4], "xpScale":[2.46,3.72,5.16,6.72,8.4,9.72],
+             "bossHpScale":[1,3,7,9,13,13],   // ㉝ 스테이지 보스 전용 — 「스테이지 s 는 Lv L_s 가 필요하다」 캘리브레이션(§8.13.3) · ㊲ 재보정 ~~5.4/11.2/21.63~~
              "midBossHpScale":[1.00,2.70,7.00,10.44,21.63,21.63], // ㉝ 중간보스는 ㉘ 곡선을 그대로(보스와 분리)
-             "spawnDensityScale":[0.70,0.85,1.00,1.15,1.30,1.50],
-             "midBossCount":[1,1,2,2,2,2], "elitePerWaveChance":[0.10,0.15,0.20,0.25,0.30,0.35],
-             "swarmTotalScale":[0.5,0.7,0.85,1.0,1.0,1.0],
-             "crisisHpScale":[1.0,1.5,2.0,2.6,3.3,4.0],   // ㉜·㉝ 새떼 HP 배율(§8.10) — 닿기 전에 죽으면 «피하기 구간»이 못 된다 (사용자 「초기 벽을 낮추기보다 위기를 높이자」)
+             "spawnDensityScale":[1.4,1.6,2,2.5,3.05,3.6],
+             "midBossCount":[3,4,5,6,8,10], "elitePerWaveChance":[0,0.05,0.15,0.4,0.7,1],
+             "swarmTotalScale":[0.8,0.85,0.9,0.95,1,1],
+             "crisisHpScale":[1,1.4,1.7,2.1,2.5,2.9],   // ㉜·㉝ 새떼 HP 배율(§8.10) — 닿기 전에 죽으면 «피하기 구간»이 못 된다 (사용자 「초기 벽을 낮추기보다 위기를 높이자」)
              "rearSpawnAllowed":[false,false,true,true,true,true],
-             "shooterRatio":[0.00,0.10,0.20,0.35,0.55,0.70], "threatBudgetScale":[1.0,1.0,1.25,1.6,1.9,2.1] },   // ㉔ 포지션 0 = 무공격
+             "shooterRatio":[0.00,0.10,0.20,0.35,0.55,0.70], "threatBudgetScale":[1,1,1.25,1.7,2.3,2.4] },   // ㉔ 포지션 0 = 무공격
   "phase": { "mobPhaseSec":120, "mobPhaseSkippable":false, "mobPhaseMaxWaves":56,
-             "waveIntervalSec":9.0, "waveClearAdvance":true,
+             "waveIntervalSec":2.65, "waveClearAdvance":true,
              "phaseEndAutocollect":true, "enemyExitForfeitsReward":true,
              "waveListExhausted":"cycle",
              "crisisPerStage":1,
@@ -4036,14 +4034,14 @@ crisisSubWaveIntervalSec = crisisCycleSec / crisisSubWaves = 9 / 6 = 1.5 게임�
 ```json
 // meta.json
 { "schemaVersion": 1,
-  "xp":    { "curve":"poly", "base":6, "exp":1.32, "levelUpsPerRunTarget":54, "levelUpQueueMode":"serial" },
+  "xp":    { "curve":"poly", "base":5.02337, "exp":1.37, "levelUpsPerRunTarget":46, "levelUpQueueMode":"serial" },
   "draft": { "...§11.1..." },
-  "shop":  { "...§11.2..." },
+  ~~"shop":  { "...§11.2..." },~~
   "score": { "...§11.3..." },
-  "flow":  { "themeBannerSec":2.5, "stageClearSec":2.0, "healSec":1.5, "stageClearHealPct":0.25,
+  "flow":  { "themeBannerSec":2.5, "stageClearSec":2.0, "healSec":1.5, "stageClearHealPct":0.2,
              "pauseResumeCountdownSec":1.5, "attractIdleSec":20,
-             "continueCost":150, "continueTimerRestoreSec":60, "continueIframeSec":3.0,
-             "continueHealToFull":true, "continueMaxPerRun":1,
+             ~~"continueCost":150,~~ ~~"continueTimerRestoreSec":60,~~ ~~"continueIframeSec":3.0,~~
+             ~~"continueHealToFull":true,~~ ~~"continueMaxPerRun":1,~~
              "menuSpeed":1.0, "deathAnimSec":1.5,
              "edgeTriggerOnStateEnter":true, "pauseAllowsAbandon":false,
              "attract":{ "difficulty":"normal", "draftDwellSec":1.2, "endAfterMobPhase":true },
@@ -4194,15 +4192,15 @@ node tools/sim.mjs --certify                           # 임계값 판정, 실�
 ```json
 "bot": {
   "reactionMs": 250, "reactionJitterMs": 80, "stanceSwitchMs": 180,
-  "dodgeLookaheadSec": 0.8, "aimErrorPx": 12,
+  "dodgeLookaheadSec": 0.6, "aimErrorPx": 12,
   "slotOrder": "dpsDescending",
   "policies": {
     "draft":  ["generalist","specialist","weaponRush","elementRush","greedyDps","random"],
     "farm":   ["maxFarm","balanced","passive"],
     "stance": ["greedyNearest","majorityOnScreen","static"],
-    "shop":   ["survivalFirst","thrifty","spender"]
+    ~~"shop":   ["survivalFirst","thrifty","spender"]~~
   },
-  "baseline": { "draft":"generalist", "farm":"balanced", "stance":"greedyNearest", "shop":"survivalFirst" },
+  "baseline": { "draft":"generalist", "farm":"balanced", "stance":"greedyNearest", ~~"shop":"survivalFirst" ~~},
   "probes":   { "dpsProbe": true, "forceNoElement": true }
 }
 ```
@@ -4323,8 +4321,8 @@ weight(item) = categoryWeights[item.category] × modifier(item)
   "guaranteeElementCardOnFirstDraft": true,
   "guaranteeNewWeaponUntilSlots": 2,
   "elementCardPity": 6,
-  "reroll": { "granularity":"all3", "canRepeatPrevious":false, "maxPerDraft":2 },
-  "fallback": { "id":"resupply", "name":"보급", "coins":40 },
+  ~~"reroll": { "granularity":"all3", "canRepeatPrevious":false, "maxPerDraft":2 },~~
+  "fallback": { "id":"resupply", "name":"보급", ~~"coins":40 ~~},
   "pauseGame": true
 }
 ```
@@ -4442,9 +4440,9 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
 
 ### 11.2.1 ★ `meta.json > shop` — 인쇄 블록 (v1.3 신설, 전사 감사 blocker + 라운드 4 blocker) — ★ **v1.5 폐지 (스코프아웃, §0 v1.5 개정로그)**
 
-> ★ **`shop`은 7개 축약 중 유일하게 C-10을 위반하고 있었다** — §9.9가 `"shop": { "...§11.2..." }`로 축약하는데 **§11.2에 JSON 블록이 없었다**(유일한 코드 펜스는 `price()` 의사코드). 나머지 6개는 전부 해소된다(`draft`→§11.1 ✔ / `score`→§11.3 ✔ / `bot`→§10.4 ✔ / `certify`→§13.1 ✔ / `passiveHooks`→§9.6.1 ✔ / `formations`→§9.9.2 ✔).
+> ★ **`shop`은 7개 축약 중 유일하게 C-10을 위반하고 있었다** — §9.9가 `~~"shop": { "...§11.2..." }~~`로 축약하는데 **§11.2에 JSON 블록이 없었다**(유일한 코드 펜스는 `price()` 의사코드). 나머지 6개는 전부 해소된다(`draft`→§11.1 ✔ / `score`→§11.3 ✔ / `bot`→§10.4 ✔ / `certify`→§13.1 ✔ / `passiveHooks`→§9.6.1 ✔ / `formations`→§9.9.2 ✔).
 >
-> ★ **그 1칸이 약 50개 값을 감췄다**: 위 표의 **숫자 30항목(가격·성장·상한)은 전부 확정**인데 **담을 이름이 없었다.** `defense +2` · `maxhp +10` · `movespeed +6%` · `magnet +30%` · `resist −20%`는 **「효과」 열의 산문이라 필드 이름 자체가 없고**, grep `"basePrice"` = **0회**, `shop.timeToken.addSec`(§6.3, 확정 키, 값 30)은 **전 코퍼스에 정확히 1회 등장하고 인쇄 자리가 0**이었다. → meta 전사자는 **발명을 거부해 `"shop": "__AMBIGUOUS__"` 1칸**으로 두었다.
+> ★ **그 1칸이 약 50개 값을 감췄다**: 위 표의 **숫자 30항목(가격·성장·상한)은 전부 확정**인데 **담을 이름이 없었다.** `defense +2` · `maxhp +10` · `movespeed +6%` · `magnet +30%` · `resist −20%`는 **「효과」 열의 산문이라 필드 이름 자체가 없고**, grep `"basePrice"` = **0회**, `shop.timeToken.addSec`(§6.3, 확정 키, 값 30)은 **전 코퍼스에 정확히 1회 등장하고 인쇄 자리가 0**이었다. → meta 전사자는 **발명을 거부해 `~~"shop": "__AMBIGUOUS__"~~` 1칸**으로 두었다.
 
 **★ 형태 = `id`를 키로 하는 객체** (§6.3이 인쇄한 유일한 shop 경로가 **`shop.timeToken.addSec`**이므로 객체를 택하면 **기존 인쇄와 충돌 0**. 위 표의 `id` 열은 **가독성 장치**이지 배열 선언이 아니다.)
 
@@ -4538,9 +4536,9 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
   "runClearBonus": 10000,
   "noHitScope": "perStage", "stageNoHitBonus": 3000,
   "perfectScope": "perRun",  "perfectBonus": 30000,
-  "shieldPreservesNoHit": true,
-  "timeTokenForfeitsTimeBonus": true,
-  "coinToScore": 20,
+  ~~"shieldPreservesNoHit": true,~~
+  ~~"timeTokenForfeitsTimeBonus": true,~~
+  ~~"coinToScore": 20,~~
   "roundMode": "floor"
 }
 ```
@@ -5114,9 +5112,9 @@ v1.2는 이 값을 **`visual` 스코프**에 두고 **`fairness` 표(§12.4)에 
                           "startWeaponDamageShare":{"min":0.10,"max":0.40},
                           "maxElementWinShare":0.42, "maxArchetypeLethalityShare":0.25,
                           "maxThemeClearStddev":0.06 },
-    "coinScarcity":     { "medianEndCoins":{"min":0,"max":120},
+    ~~"coinScarcity":     { "medianEndCoins":{"min":0,"max":120},
                           "medianPurchasesPerVisit":{"min":1.0,"max":2.0},
-                          "p90EndCoins":{"max":260} },
+                          "p90EndCoins":{"max":260} },~~   // ㊿-z9 — v1.5 경제 폐지로 데이터에서 사라진 키다(인쇄만 남아 있었다)
     "farmXpRatio":      { "min":2.0 },
     "crisisKillShareWithoutCapstone": { "min":0.80 }
   },
@@ -6752,7 +6750,7 @@ v1.2는 §16-#34를 고치고 **C-11을 신설**했다. 그런데 **같은 클�
 | **D4** | `enemies.json > emitters` — **보스 부위 이미터 66개** | **id·거처·개수는 §9.8.1의 규칙이 확정했다** → **내용만 저작**하라: `type`·`bulletId`·**`telegraphSec ≥ 1.50`**(§7.4의 3축 max) · `from: "part"` · `count`·`speed`·`everySec`·`offsetSec`·**`repeat ≥ 2`**·**`restSec > 0`**. ★ **`stunMark`를 쓰는 이미터는 `{bossId}{PartIdPascal}P3` 형태여야 하고 스테이지당 최대 2개 부위**(S13) — **그 자리를 채우면 스턴 메커닉이 처음으로 도달 가능**해진다 | §9.8.1 (66칸) |
 | **D10** | `bosses.json` — 중간보스 3종 | §9.8.2의 블록대로 재작성: **루트 `hp`**(720/600/**880**) · **루트 `element: null`** · **`moveId`**(`anchor`/`charge`/`anchor`) + **`moveParams`**(★ **`leaveAfterSec` 금지** — S38) · `themeId: null` · `parts: []` · `patternSet` 길이 1 · 보상 4필드 · **`armorCoreRatio`·`movePattern`·`movePatternParams` 없음** | §9.8.2 |
 | **D11** | `stages.json` — 전 테마의 `waves[]` | **각 레코드에 `unlockStageMin`을 부여**하라 = **그 레코드가 속한 04의 블록 티어.** ★ **이것이 S8의 0.0%p를 참으로 만든다** — 부여 후 「`unlockStageMin ≤ s`인 레코드」로 재집계하면 04의 전 체크섬이 **한 자리도 안 틀리고 재현**된다. `finale`은 **전부 1** | §9.9 |
-| **D12** | `meta.json > shop` | §11.2.1의 블록을 **그대로** 넣어라. `"shop": "__AMBIGUOUS__"` 1칸이 **~50값으로 풀린다** | §11.2.1 |
+| **D12** | `meta.json > shop` | §11.2.1의 블록을 **그대로** 넣어라. `~~"shop": "__AMBIGUOUS__"~~` 1칸이 **~50값으로 풀린다** | §11.2.1 |
 | ★ **D13** | `weapons.json` — **`lance` · `omni` · `drone`의 `base`** | ★ **`hitCooldownSec: 0.0`을 추가**하라 (설계자 확정, v1.4). **`forward`·`fan`과 같은 값·같은 뜻** = 「**한 대상에 정확히 1회**(재히트 없음)」. 세 패밀리는 전부 **`pierce`를 갖는 투사체 패밀리**(`lance` 3→8 · `omni` 0→1 · `drone` 0→1)이므로 §9.5의 확정(「**관통·지속이 있으면 갖는다**」)이 그대로 적용된다 → **§9.5 표의 `hitCooldownSec` ✔ 8패밀리가 전부 값을 보유**하고 **S34가 처음으로 12행 전부 통과**한다. ★ **저작이 아니라 전사다** — §9.5가 이미 ✔로 확정했고 값은 「재히트 없음」의 유일한 표현인 `0.0`이다. **`lance.js`·`omni.js`·`drone.js`의 하드코딩(C-6)이 사라진다** | §9.5 (3칸) |
 
 ### 23.2 정본이 옳고 데이터가 틀린 것 (수정 필수 — `check.mjs`가 곧 거부한다)
