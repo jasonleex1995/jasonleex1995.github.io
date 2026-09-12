@@ -100,7 +100,16 @@ export function playerToEnemy(ctx, dmg, localMul, stamp, target) {
  *   즉발·범위 무기(랜스·노바·바라지·체인·빔)만 들었고, 「흡혈이 사기」라는 체감은 그 절반에서 나온 것이다.
  *   → 피해를 입히는 **두 자리**가 이 문을 지난다. 반드시 e.hp 를 깎기 **앞**에서 불러야 한다(남은 HP 로 오버킬을 자른다).
  */
-export function lifesteal(world, dealt, e) {
+export function lifesteal(world, dealt, e, family) {
+  //   ★ ㊿-za — 무기마다 «든다/안 든다»가 갈린다(rules.passiveHooks[family].lifesteal).
+  //   사용자(2026-09-12) 「자동 무기 — 내가 조준하지 않아도 알아서 맞추는 무기들 — 에서는 흡혈이 작동하지 않는다」:
+  //   스스로 표적을 고르는 무기(빔·체인·시커·옵션·바라지)와 어디로 튈지 모르는 무기(핀볼)는 안 든다.
+  //   흡혈은 «위험을 감수한 대가»다 — 내가 몸을 가져다 대야 맞는 무기만 회복한다.
+  const hook = world.data.rules.passiveHooks[family];
+  if (hook === undefined) {
+    throw new Error(`damage: 미지의 무기 패밀리 "${family}" — 흡혈의 문이 패밀리를 못 찾았다 (§11.6)`);
+  }
+  if (!hook.lifesteal) return;
   const fx = world.traitFx;
   const p = world.player;
   if (!(fx.lifestealPct > 0) || !(p.hp > 0) || p.hp > p.hpMax * fx.lifestealHpRatio) return;
@@ -127,7 +136,7 @@ export function hitEnemy(world, ctx, family, dmg, localMul, stamp, e, slotIndex)
     e.floorAt[slotIndex] = world.time;
   }
   const dealt = playerToEnemy(ctx, dmg, localMul, stamp, e);
-  lifesteal(world, dealt, e);
+  lifesteal(world, dealt, e, family);
   e.hp -= dealt;
   e.dmgTotal += dealt;                                                                  // ②
   if (hitTier(ctx.matrix, stamp, e.element) === 'super') e.dmgSuper += dealt;

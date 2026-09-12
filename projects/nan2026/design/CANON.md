@@ -3127,6 +3127,19 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
 }
 ```
 
+★★ **v1.10 ㊿-za — 흡혈은 «내가 겨눈 무기»에만 든다 (`passiveHooks[].lifesteal`, 사용자 2026-09-12)**:
+「흡혈이 좀 사기인것 같아서 조건을 걸었으면 좋겠어. **자동 무기**(내가 조준하지 않아도 알아서 맞추는 무기들)에서는 흡혈이 작동하지 않는거지 —
+바라지 같은 포격도 되겠고, 빔, 체인 라이트닝 같은 것도 포함될 것 같아」 + 「핀볼은 빼도록 하자」.
+- **가르는 기준은 «표적을 누가 고르는가»다** — 이름이 아니라 코드로 갈랐다.
+  **안 든다(7)**: `beam`·`chain`·`seeker`·`drone`·`barrage` = 적 목록을 훑어 표적을 고르는 코드가 있다 ·
+  `pinball` = 벽에 튕겨 다녀 어디로 갈지 플레이어가 못 정한다 · `aura` = 피해가 0이라 애초에 해당 없다.
+  **든다(7)**: `forward`·`fan`·`boomerang`·`lance`·`orbit`·`nova`·`missile` = 표적 선택 코드가 없고 **내 위치가 맞히느냐를 정한다**.
+  - 경계 둘의 판정: `lance` 는 표적을 고르지만 «내 x 축 기둥 안에서»만 고른다(적 위에 서야 한다) → 든다.
+    `boomerang` 은 기본이 정면 투척이고 경유 표적은 진화 이후에만 생긴다 → 든다.
+  - `nova`·`orbit` 을 남긴 이유: 둘 다 **바짝 붙어야** 피해가 들어간다. 흡혈이 「위험을 감수한 대가」라는 규칙에 가장 잘 맞는 무기다.
+- **14 패밀리가 전부 선언한다**(닫힌 키) — 기본값으로 조용히 새지 않는다. 새 무기를 넣으면 선언을 빠뜨릴 수 없다.
+- 문은 하나다: `damage.lifesteal(world, dealt, e, family)`. 모르는 패밀리가 들어오면 **이름 있는 오류**를 던진다.
+
 **★ `visual.a11y.*` ↔ `opts.*` = 공장 기본값 ↔ 사용자 오버라이드 (v1.3, 전사 감사 major — 런타임 읽기 경로가 정본 어디에도 없었다)**
 
 같은 3개 옵션이 **두 파일에 인쇄**되고 **세 개의 이름**으로 참조되고 있었다: `visual.a11y.screenShake`(§9.4.3) / `opts.shake`(§14) / **`options.cbMode`**(§7.3의 절 제목 = 어느 파일에도 없는 **유령 스코프**). 결함 셋:
@@ -3540,18 +3553,18 @@ elementBonusMul                :  §3.1의 3항. 파라미터 공간을 건드�
 
 ```json
 "passiveHooks": {
-  "forward":   { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },                      // ㉚ 코일 = 범위 무기 전용
-  "fan":       { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
-  "seeker":    { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[] },
-  "lance":     { "rateKey":"cooldownSec",      "countKey":null,            "pierceApplies":false,  "areaKeys":[] },
-  "orbit":     { "rateKey":"hitCooldownSec",   "countKey":null,        "pierceApplies":false, "areaKeys":[] },
-  "aura":      { "rateKey":null,  "countKey":null,               "pierceApplies":false, "areaKeys":["radius"] },
+  "forward":   { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[], "lifesteal":true },                      // ㉚ 코일 = 범위 무기 전용
+  "fan":       { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[], "lifesteal":true },
+  "seeker":    { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":true,  "areaKeys":[], "lifesteal":false },
+  "lance":     { "rateKey":"cooldownSec",      "countKey":null,            "pierceApplies":false,  "areaKeys":[], "lifesteal":true },
+  "orbit":     { "rateKey":"hitCooldownSec",   "countKey":null,        "pierceApplies":false, "areaKeys":[], "lifesteal":true },
+  "aura":      { "rateKey":null,  "countKey":null,               "pierceApplies":false, "areaKeys":["radius"], "lifesteal":false },
   ~~"mine":      { "rateKey":"placeIntervalSec", "countKey":"maxAlive",         "pierceApplies":false, "areaKeys":["blastRadius","triggerRadius","evoClusterRadius"] },~~
-  "boomerang": { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":false, "areaKeys":[] },
-  "barrage":   { "rateKey":"cooldownSec",      "countKey":null, "pierceApplies":false, "areaKeys":["blastRadius"] },
+  "boomerang": { "rateKey":"cooldownSec",      "countKey":"count",            "pierceApplies":false, "areaKeys":[], "lifesteal":true },
+  "barrage":   { "rateKey":"cooldownSec",      "countKey":null, "pierceApplies":false, "areaKeys":["blastRadius"], "lifesteal":false },
   ~~"omni":      { "rateKey":"cooldownSec",      "countKey":"dirCount",         "pierceApplies":true,  "areaKeys":["projRadius"] },~~
-  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":false,  "areaKeys":[] },
-  "nova":      { "rateKey":"intervalSec",      "countKey":null,               "pierceApplies":false, "areaKeys":["radius","evoRing2Radius"] }
+  "drone":     { "rateKey":"droneFireSec",     "countKey":null,               "pierceApplies":false,  "areaKeys":[], "lifesteal":false },
+  "nova":      { "rateKey":"intervalSec",      "countKey":null,               "pierceApplies":false, "areaKeys":["radius","evoRing2Radius"], "lifesteal":true }
 }
 ```
 

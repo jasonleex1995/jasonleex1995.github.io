@@ -295,7 +295,7 @@ const PASSIVE_STATS = ['fireRateMul', 'projCountAdd', 'pierceAdd', 'projSpeedMul
   'maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];   // §9.6 (14 — ㊲ 공용 1·탄 4·빔 2·범위 2·궤도 1·기체 4)
 const BODY_STATS = ['maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];                                 // §9.6 ㊲ 기체 4(무기 짝이 될 수 없다)
 const DMG_STATS = ['beamDmgMul', 'areaDmgMul', 'orbitMul'];                                                                  // §9.6.1 ㊲ dmgStat 어휘
-const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat'];
+const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat', 'lifesteal'];   // v1.10 ㊿-za
 /** §11.1 ㊲ — 패시브 stat 이 패밀리에 기계적으로 유효한가(state.js passiveAppliesTo 와 같은 표 — check 는 독립 사본) */
 function passiveAppliesTo(h, base, stat) {
   switch (stat) {

@@ -44,7 +44,7 @@ const PASSIVE_STATS = ['fireRateMul', 'projCountAdd', 'pierceAdd', 'projSpeedMul
 const DMG_STATS = ['beamDmgMul', 'areaDmgMul', 'orbitMul'];
 /** §9.6 ㊲ — 기체 패시브(무기와 무관, 모든 빌드에 유효). 나머지 10 은 «무기 분류 패시브»다. */
 export const BODY_STATS = ['maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];
-const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat'];
+const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat', 'lifesteal'];   // v1.10 ㊿-za lifesteal
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
 const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep'];

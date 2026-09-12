@@ -479,7 +479,7 @@ function collide(world, dt) {
       const tier = hitTier(ctx.matrix, stamp, e.element);
       ctx.dmgMulSum = familyDmgMul(world, world.slots[b.slot].family);   // §3.1-2항(㊲) — 미사일 = areaDmgMul, 그 외 탄 = 0
       const dealt = playerToEnemy(ctx, b.dmg, b.localMul, stamp, e);
-      lifesteal(world, dealt, e);                    // ㊿-z8 — 탄 경로도 흡혈의 문을 지난다(e.hp 를 깎기 «전»에)
+      lifesteal(world, dealt, e, world.slots[b.slot].family);   // ㊿-z8 탄 경로도 문을 지난다 · ㊿-za 패밀리가 «든다/안 든다»를 정한다
       e.hp -= dealt;
       noteDamage(world, b.family, dealt);           // §13.1.1 무기 지배도(시뮬 전용, 게임엔 무영향)
       // §11.3 attribution "damageShare" — 초효과 처치 보너스의 근거는 막타가 아니라 누적 지분이다

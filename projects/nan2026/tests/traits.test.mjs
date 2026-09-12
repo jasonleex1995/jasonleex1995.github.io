@@ -139,6 +139,42 @@ suite('traits — 효과 (§11.6 ㉒)', () => {
     assert.eq(w.player.hp, 100, '상한');
   });
 
+  test('㊿-za 흡혈은 «내가 겨눈 무기»에만 든다 — 스스로 표적을 고르는 무기는 회복이 없다', () => {
+    // 사용자(2026-09-12) 「자동 무기(내가 조준하지 않아도 알아서 맞추는 무기)에서는 흡혈이 작동하지 않는다」.
+    //   거처는 rules.passiveHooks[family].lifesteal 하나 — 14 패밀리가 «전부» 선언한다(닫힌 키라 빠뜨릴 수 없다).
+    const d = loadData();
+    const hooks = d.rules.passiveHooks;
+    const fams = Object.keys(hooks);
+    assert.eq(fams.length, 14, '패밀리 14종');
+    for (const f of fams) assert.eq(typeof hooks[f].lifesteal, 'boolean', `${f}: 흡혈 여부를 명시한다(기본값 없음)`);
+    //  갈라져 있어야 한다 — 한쪽으로 몰리면 이 축이 죽은 것이다
+    const on = fams.filter((f) => hooks[f].lifesteal);
+    const off = fams.filter((f) => !hooks[f].lifesteal);
+    assert.gt(on.length, 0, '드는 패밀리가 있다');
+    assert.gt(off.length, 0, '안 드는 패밀리가 있다');
+    //  사용자가 정한 목록 그대로인가 — 바꾸려면 이 줄을 같이 바꿔야 한다(조용히 안 새게)
+    assert.eq(off.slice().sort().join(','), 'aura,barrage,beam,chain,drone,pinball,seeker',
+      `안 드는 패밀리 (${off.sort().join(',')})`);
+    //  실제로 회복이 0 인지 — 대표로 체인(스스로 표적을 고른다)을 돌린다
+    const w = mkRun(1, 'sea', 0);
+    applyTrait(w, 'lifesteal');
+    const t = def(w, 'lifesteal');
+    for (const sl of w.slots) { sl.weaponId = null; sl.family = null; sl.level = 0; sl.effDirty = true; }
+    giveWeapon(w, 'chain');
+    const e = spawnEnemy(w, 'drifter', 'normal', w.player.x, w.player.y - 120, 1e6, false);
+    let healed = 0;
+    for (let k = 0; k < 240; k += 1) {
+      e.x = w.player.x; e.y = w.player.y - 120; e.hp = 1e6;
+      w.player.hp = w.player.hpMax * t.effect.hpRatio;
+      const before = w.player.hp;
+      w.over = false;
+      step(w, makeInput(), TICK_DT);
+      if (w.player.hp > before) healed += w.player.hp - before;
+    }
+    assert.gt(e.dmgTotal, 0, `전제: 체인이 실제로 때렸다 (${e.dmgTotal.toFixed(1)})`);
+    assert.eq(healed, 0, `체인은 회복이 0 이다 (피해 ${e.dmgTotal.toFixed(1)} · 회복 ${healed})`);
+  });
+
   test('㊿-z8 흡혈은 «탄이 닿는 경로»에서도 든다 — 이 파일이 hitEnemy 를 직접 불러서 결함을 가렸다', () => {
     // 기존 흡혈 테스트는 damage.hitEnemy 를 «직접» 부른다. 실제 플레이의 탄→적 경로는 step.collide 이고
     //   그쪽은 hitEnemy 를 안 지난다 — 그래서 포워드·시커·부메랑·드론·오빗·핀볼은 흡혈이 한 방울도 안 들었다.
@@ -146,8 +182,10 @@ suite('traits — 효과 (§11.6 ㉒)', () => {
     const w = mkRun(1, 'sea', 0);
     applyTrait(w, 'lifesteal');
     const d = def(w, 'lifesteal');
-    giveWeapon(w, 'forward');                                   // 탄 무기 — 이 경로가 step.collide 다
-    assert.ok(w.slots.some((sl) => sl.family === 'forward'), '전제: 탄 무기를 쥐었다');
+    for (const sl of w.slots) { sl.weaponId = null; sl.family = null; sl.level = 0; sl.effDirty = true; }
+    giveWeapon(w, 'forward');                                   // 탄 무기 하나만 — 이 경로가 step.collide 다
+    assert.eq(w.slots.filter((sl) => sl.family !== null).length, 1, '전제: 무기가 정확히 하나(피해와 회복이 1:1 로 대응해야 한다)');
+    assert.ok(w.data.rules.passiveHooks.forward.lifesteal, '전제: forward 는 흡혈이 드는 패밀리다');
     const e = spawnEnemy(w, 'drifter', 'normal', w.player.x, w.player.y - 160, 1e6, false);
     let healed = 0;
     for (let t = 0; t < 240; t += 1) {
