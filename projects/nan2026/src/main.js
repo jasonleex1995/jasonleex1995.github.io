@@ -872,7 +872,7 @@ async function boot() {
   function drawTitleScreen() {
     const h = rules.hud;
     mText('PRISM WING', view.logicalH / 2 - 70, h.fontHeroPx, pal.hud.textPrimary, 800);
-    mText('속성 스탠스 슈팅', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
+    mText('종스크롤 비행 슈팅 게임', view.logicalH / 2 - 24, h.fontLargePx, pal.hud.textPrimary, 700);
     mText('[Space/Enter] 시작        [O] 옵션', view.logicalH / 2 + 48, h.fontBodyPx, pal.hud.textDim, 400);
     // ㊴ — 「QWER 스탠스 · 상성 ×2 …」 요약 줄 삭제(사용자 2026-09-05). 규칙은 문장이 아니라 **튜토리얼이 가르친다**.
   }
