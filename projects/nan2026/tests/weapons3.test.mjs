@@ -15,6 +15,7 @@ import { createWorld, recomputeEff, giveWeapon, spawnEnemy, givePassive } from '
 import { step, makeInput, TICK_DT } from '../src/core/step.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { candidates } from '../src/core/draft.js';
+import { investElement, recomputeStamps } from '../src/core/stance.js';
 
 const dt = TICK_DT;
 function mkWorld(seed = 1) {
@@ -130,6 +131,42 @@ suite('weapons3 · 체인 라이트닝', () => {
     tick(w2, 1);
     assert.eq(es2.filter((e) => e.hp < 1e6).length, Math.round(eff2.chainCount * eff2.evoChainCountMul), '진화 홉 수');
     void s; void s2;
+  });
+
+  //  ㊿-zc — 갈라짐의 계약은 **한 적 한 번**이다. 한때 갈래가 잠금을 되돌려 놓아서, 두 번째 줄기가
+  //  첫 줄기의 다음 표적을 가로채고 첫 줄기가 그 적을 또 때렸다(홉 10 · 맞은 적 9 = 한 마리가 두 번).
+  //  ★ 이 테스트는 «갈라짐이 실제로 일어났음»을 먼저 증명한다 — 안 그러면 분기 없는 한 줄기를 보고 통과한다(공허 통과 = 위반).
+  test('갈라짐(폭풍)은 한 적을 두 번 때리지 않는다 — 홉 수 = 피해 입은 서로 다른 적의 수', () => {
+    const w = mkWorld();
+    const [s, eff] = setup(w, 'chain', 8, true);
+    assert.eq(eff.evoForkOnSuper, true, '이 테스트의 전제 = 상성 갈라짐');
+    //  각인은 슬롯 앞에서부터 «투자한 수»만큼 내려온다 — 체인이 몇 번 칸이든 닿게 충분히 투자한다(§4.3).
+    const [FIRE] = w.data.elements.investable;
+    for (let i = 0; i <= s.index; i += 1) investElement(w, FIRE);
+    w.player.stance = FIRE; recomputeStamps(w);
+    assert.eq(s.stampElement, FIRE, '체인 슬롯에 각인이 닿았다');
+    const p = w.player;
+    const R = eff.chainRangePx;
+    //  불 → 풀 = 상성 ×2 → 홉마다 갈라진다. 서로 전부 사거리 안인 «한 줌»으로 세워 갈래가 겹칠 판을 만든다.
+    const es = [];
+    for (let i = 0; i < 9; i += 1) {
+      es.push(spawnEnemy(w, 'drifter', 'grass', p.x + ((i % 3) - 1) * R * 0.30, p.y - 120 - Math.floor(i / 3) * R * 0.30, 1e9, false));
+    }
+    tick(w, 1);
+    const fx = w.chainFx;
+    const hops = fx.count;
+    assert.ok(hops > 0, '한 번은 쳤다');
+    //  ① 갈라짐이 실제로 일어났는가 — 갈래는 «같은 시작점»에서 두 선분이 나간다(한 줄기면 경로라 시작점이 전부 다르다).
+    let shared = 0;
+    for (let i = 0; i < hops; i += 1) {
+      for (let j = i + 1; j < hops; j += 1) {
+        if (fx.buf[i].x1 === fx.buf[j].x1 && fx.buf[i].y1 === fx.buf[j].y1) shared += 1;
+      }
+    }
+    assert.ok(shared > 0, '갈라짐이 실제로 일어났다(같은 점에서 두 선분)');
+    //  ② 그래도 한 적은 한 번 — 홉 하나당 서로 다른 적 하나.
+    const hit = es.filter((e) => e.hp < 1e9);
+    assert.eq(hit.length, hops, '홉 수 = 피해 입은 서로 다른 적의 수(한 적을 두 번 때리면 적 수가 모자란다)');
   });
 });
 

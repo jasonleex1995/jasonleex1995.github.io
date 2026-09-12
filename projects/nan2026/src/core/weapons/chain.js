@@ -59,12 +59,17 @@ function bolt(world, slot, eff, stamp, sx, sy, first, hops, mul, epoch, canFork)
     m *= eff.chainDmgMul;
     idx = nearest(world, x, y, eff.chainRangePx, epoch);
     if (forked && idx >= 0) {
-      // 갈라짐(폭풍) — 첫 줄기의 다음 표적을 잠시 잠그고 «그다음» 표적을 찾아 두 번째 줄기를 같은 남은 홉으로 보낸다.
+      // 갈라짐(폭풍) — 이 줄기가 «이미 골라 둔» 다음 표적을 잠그고 «그다음» 표적으로 두 번째 줄기를 보낸다.
       //   같은 epoch 를 쓰므로 두 줄기가 한 적을 두 번 맞히지 않는다. 재귀 깊이 1(두 번째 줄기는 다시 갈라지지 않는다).
       const nextE = en[idx];
+      //   ★ ㊿-zc — 이 잠금은 **끝까지 유지한다**. ~~nextE.chainEpoch = 0;~~ 으로 되돌려 놓으면
+      //   두 번째 줄기가 이 적을 다시 고르고, 그 뒤 이 줄기가 같은 적을 한 번 더 때린다 —
+      //   바로 위 줄이 못박은 「한 적을 두 번 맞히지 않는다」가 그 자리에서 깨진다(실측: 홉 10 · 맞은 적 9).
+      //   푸는 바람에 잃는 것도 없다 — 이 줄기는 다음 바퀴 첫 줄에서 스스로 epoch 를 다시 찍는다.
+      //   ★ 이 잠금이 «시체를 때리지 않는다»의 유일한 장치이기도 하다 — 잠긴 nextE 는 두 번째 줄기가
+      //   고를 수 없으니 죽을 수 없고, nearest 는 targetable(=alive) 로 이미 거른다. 그래서 alive 가드가 없다.
       nextE.chainEpoch = epoch;
       const second = nearest(world, x, y, eff.chainRangePx, epoch);
-      nextE.chainEpoch = 0;
       if (second >= 0) bolt(world, slot, eff, stamp, x, y, second, hops - h - 1, m, epoch, false);
     }
   }

@@ -251,6 +251,28 @@ suite('terrain — 저항 패시브 «자세 안정기» (§8.21 ⑥ v1.10 ⑳·
     w.player.slowSec = 1.0;
     step(w, inp, dt);
     assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6, '탄 둔화는 전부 받는다');
+    // ★ ㊿-zc — 빠져 있던 경우: «탄에 맞아 둔화된 채 장판 «안»에» 있을 때.
+    //   예전 코드는 «지금 장판 위인가»로만 갈라서, 늪에 들어서면 저항이 탄의 둔화까지 깎아 줬다 —
+    //   즉 **둔화 지형에 들어가면 더 빨라졌다**(면역이면 사실상 무둔화). 저항은 «지형» 저항이다.
+    for (let k = 0; k < 3; k += 1) {
+      w.player.x = t.x; w.player.y = t.y;
+      w.player.slowSec = 1.0;                     // 탄이 건 둔화(한 틱보다 길다 = 지형에서 온 것이 아니다)
+      step(w, inp, dt);
+    }
+    assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '전제: 장판 «안»이다');
+    assert.near(Math.abs(w.player.vx), rp.moveSpeed * mul, 1e-6,
+      '장판 안이어도 탄의 둔화는 깎이지 않는다 — 들어갔다고 빨라지지 않는다');
+  });
+
+  test('㊿-zc 면역(Lv10)이면 둔화 배지도 안 켜진다 — 안 느려지는데 표시만 켜지면 화면이 거짓말한다', () => {
+    const w = mkRun(3, 'bog');
+    raise(w, w.data.passives.maxLevel);
+    const t = standInFirst(w);
+    const inp = makeInput(); inp.right = true;
+    for (let k = 0; k < 5; k += 1) { w.player.x = t.x; w.player.y = t.y; step(w, inp, dt); }
+    assert.eq(terrainUnder(w, w.player.x, w.player.y), T_SLOW, '전제: 장판 안');
+    assert.near(Math.abs(w.player.vx), w.data.rules.player.moveSpeed, 1e-6, '정속(면역)');
+    assert.eq(w.player.slowSec, 0, '둔화 타이머가 안 선다 — HUD 배지의 근거가 곧 이 값이다');
   });
 
   test('inertia — τ 가 (1 − Σ) 배로 짧아진다 · 면역이면 즉시 뒤집힌다', () => {

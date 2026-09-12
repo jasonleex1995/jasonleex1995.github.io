@@ -146,7 +146,8 @@ function movePlayer(world, dt) {
   //   과열 충전)이 전부 이 하나의 배율을 본다. Lv10 = 1.00 → 배율 0 = 면역(사용자 결정 2026-09-05). 특성은 여기 없다(㉑).
   const tmul = 1 - world.stats.terrainResist;
   //   slow — 기존 둔화 상태를 «이 틱만큼» 갱신한다: 배율·배지·타이머 규약(§2.7)을 그대로 재사용, 밖으로 나가면 다음 틱에 풀린다.
-  if (tk === T_SLOW && p.slowSec < dt) p.slowSec = dt;
+  //   ★ ㊿-zc — 면역(tmul 0)이면 타이머 자체를 안 세운다. 안 그러면 안 느려지는데 HUD 둔화 배지만 켜진다(거짓 표시).
+  if (tk === T_SLOW && tmul > 0 && p.slowSec < dt) p.slowSec = dt;
   //   heat — 안에서 차고(스턴 중엔 안 찬다: 연쇄 정지 방지) 밖에서 식는다. 다 차면 stallSec 스턴(«과열 정지») 후 0.
   if (tk === T_HEAT && p.stunSec <= 0) p.heat += (dt / tr.heat.fullSec) * tmul;
   else if (tk !== T_HEAT) p.heat -= dt / tr.heat.coolSec;
@@ -161,8 +162,12 @@ function movePlayer(world, dt) {
   let v = rp.moveSpeed;
   if (p.slowSec > 0) {                                                 // §2.7 — 강도는 불변
     const mul = world.data.rules.status.slowMoveSpeedMul;
-    // 이 틱의 둔화가 지형에서 온 것이면(tk) 깊이를 tmul 만큼만 받는다(탄의 둔화는 그대로 — 저항은 «지형» 저항이다)
-    v *= (tk === T_SLOW) ? 1 - (1 - mul) * tmul : mul;
+    //   ★ ㊿-zc — «지형 위인가»가 아니라 «이 둔화가 어디서 왔는가»로 가른다. 예전에는 앞엣것을 봐서,
+    //   탄에 맞아 둔화된 채 늪에 들어서면 저항이 그 둔화까지 깎아 줬다 — 늪에 들어가면 **더 빨라졌다**
+    //   (검토 실측: 안정기 Lv10 에서 154px/s → 270px/s = 사실상 무둔화). 바로 위 주석이 그러면 안 된다고 적혀 있었다.
+    //   가르는 법: 지형은 언제나 «한 틱(dt)»만큼만 채운다(위 149행) → slowSec 이 dt 를 넘으면 그 둔화는 탄에서 온 것이다.
+    const fromTerrain = tk === T_SLOW && p.slowSec <= dt + 1e-9;
+    v *= fromTerrain ? 1 - (1 - mul) * tmul : mul;
   }
 
   if (rp.diagonalNormalize && dx !== 0 && dy !== 0) { dx *= DIAG; dy *= DIAG; }
@@ -649,7 +654,10 @@ export function applyHit(world, raw, srcArch) {
   p.hit = true;
   p.iframeSec = rp.iframeSec;
 
-  // §11.6(v1.10 ⑲·㉒) 쉴드 — 충전된 쉴드는 피격 1회를 «통째로» 막는다(피해 0, i-frame 은 그대로 = 연타 차단). 다시 충전.
+  // §11.6(v1.10 ⑲·㉒ · ㊿-zc) 쉴드 — 충전된 쉴드는 그 피격의 **HP 피해만** 막는다(피해 0, i-frame 은 그대로 = 연타 차단). 다시 충전.
+  //   ★ 상태이상(둔화·스턴)은 **그대로 통과한다** — 사용자(2026-09-12) 「쉴드는 둔화나 저항을 막지는 않아.
+  //   탄이나 레이저 같은 비행기의 HP를 깎는 것에 대해서만 반응하는게 맞아」. 그래서 여기서 true 를 돌려주고,
+  //   호출부는 그 true 를 보고 applyStatus 를 건다. ~~피격 1회를 «통째로» 막는다~~ 는 문면이 코드와 달랐다(검토가 결함으로 신고했다).
   const ts = world.traitState;
   if (ts.shieldReady) { ts.shieldReady = false; ts.shieldT = 0; noteHit(world); return true; }
 
