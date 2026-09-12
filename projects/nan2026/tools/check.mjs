@@ -94,7 +94,7 @@ const EX = (check, n) => { examined[check] = (examined[check] || 0) + n; };
  */
 const VACUOUS_WATCH = [
   'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S13', 'S14', 'S16',
-  'S19', 'S20', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
+  'S19', 'S22', 'S23', 'S24', 'S26', 'S27', 'S28', 'S29',
   'S30', 'S31', 'S32', 'S34', 'S35', 'S36', 'S37', 'S38', 'S39', 'S41',
   'S47', 'S49', 'S50', 'S51', 'S54', 'S55', 'S56', 'S57', 'S58', 'S59', 'S60', 'S61', 'S62', 'S63', 'S64', 'S65', 'S66', 'S67', 'REF',
 ];
@@ -278,7 +278,7 @@ function census() {
 // ---------------------------------------------------------------------------
 const MOVE_IDS = ['dive', 'weave', 'column', 'strafe', 'anchor', 'orbitDrift', 'charge', 'bounce'];              // §8.4 (8 — v1.7: bounce 신설 · rearIn 폐지)
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep']; // §8.5 (10, v1.5 mortar·sweep)
-const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];                        // §8.7 · §9.9.2 (7 — v1.8 wall)
+const FORMATION_IDS = ['lineH', 'vWedge', 'arc', 'scatter', 'wall'];                        // §8.7 · §9.9.2 (7 — v1.8 wall)
 const PART_TYPES = ['mobility', 'armament', 'armor', 'core'];                                                    // §8.12 (4)
 const SHAPE_IDS = ['wedge', 'delta', 'hexPod', 'orb', 'cross', 'spike', 'ring', 'slab', 'fin', 'claw', 'dart', 'bulb']; // §9.10 (12)
 const TARGET_MODES = ['forward', 'nearest', 'lowestHp', 'densest', 'randomInArena', 'sweep'];                    // §9.5 (6 — ㉚ sweep)
@@ -911,8 +911,8 @@ function S2_files() {
   // §9.9.2 formations — 6종 + 파라미터
   closedKeys('S2', D.stages.formations, FORMATION_IDS, 'stages.formations');
   const FORM_PARAMS = {
-    lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
-    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    lineH: ['gapPx'], vWedge: ['gapPx', 'angleDeg'],
+    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], scatter: ['jitterPx', 'minSepPx'],
     wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(D.stages.formations)) {
@@ -2106,44 +2106,14 @@ function S19_zoneBullet() {
 }
 
 // ===========================================================================
-//  S20 — 편대 전용성 (§9.9.2) — ★ 양방향 (⟺)
-//  pincer ⟺ moveId == "strafe" / columnV ⟺ moveId == "column"
+//  ~~S20 — 편대 전용성 (§9.9.2)~~ → ★ v1.10 ㊿-zb 삭제.
+//  «pincer ⟺ strafe · columnV ⟺ column» 을 강제하던 게이트다. 그런데 그 두 편대는 **구현된 적이 없었다** —
+//  formations.js 가 말없이 scatter 로 떨어뜨렸고(자기 주석에 «폴백»이라 적혀 있었다), 그래서 25개 웨이브가
+//  6개 스테이지에서 저작과 다른 모양으로 나왔다. 사용자(2026-09-12) 「그냥 지금 플레이가 재밌어서, 지금대로 가자.
+//  즉, 데이터를 고치면 될 것 같아」 → 편대 어휘를 5종으로 줄이고 그 웨이브들을 scatter 로 «명시»했다.
+//  규칙의 주어가 사라졌으므로 게이트도 같이 간다. 플레이는 한 픽셀도 안 바뀐다(스폰 좌표 지문으로 확인).
 // ===========================================================================
-function S20_formationExclusivity() {
-  const archById = new Map(ARCHETYPES().map((a) => [a && a.id, a]));
-  const pairs = [['pincer', 'strafe'], ['columnV', 'column']];
-  let n = 0;
-  const check = (formationId, archetypeId, tag) => {
-    const a = archById.get(archetypeId);
-    if (!a || isAmb(a.moveId) || isAmb(formationId)) return;
-    n += 1;
-    for (const [form, move] of pairs) {
-      const lhs = formationId === form, rhs = a.moveId === move;
-      if (lhs !== rhs) {
-        V('S20', `${tag}: (formationId=="${form}")=${lhs} ≠ (moveId=="${move}")=${rhs} `
-          + `— 실제 formationId="${formationId}", archetype="${archetypeId}", moveId="${a.moveId}" (§9.9.2/S20 — ⟺ 는 양방향이며 의도다)`);
-      }
-    }
-  };
-  for (const t of rows('S20', D.stages.stages, 'stages.stages',
-    '§9.9.2 — 편대 전용성이 0행을 보면 strafe/pincer 짝을 아무도 검사하지 않는다')) {
-    if (!isObj(t)) continue;
-    rowsQuiet(t.waves).forEach((w, i) => {
-      if (isObj(w)) check(w.formationId, w.archetypeId, `stages.stages[${t.id}].waves[${i}]`);
-    });
-  }
-  for (const cw of rowsQuiet(D.stages.phase && D.stages.phase.crisisWaves)) {
-    if (!isObj(cw)) continue;
-    // v1.10 ⑫ — 서브웨이브 하나에 몸(레코드 bodyId)과 공격형(phase.crisisShooterId)이 봉지로 섞인다: 둘 다 그 편대에 맞아야 한다
-    for (const id of [cw.bodyId, D.stages.phase.crisisShooterId]) {
-      check(cw.formationId, id, `stages.phase.crisisWaves[subWave ${cw.subWave}, ${id}]`);
-    }
-  }
-  for (const b of BOSSES()) {
-    if (isObj(b) && isObj(b.summon)) check(b.summon.formationId, b.summon.archetypeId, `bosses[${b.id}].summon`);
-  }
-  EX('S20', n);
-}
+
 
 // ===========================================================================
 //  S21 — 드래프트 보장 상한 (§11.1)
@@ -4994,7 +4964,7 @@ function print() {
     return 1;
   }
   line();
-  line('✓ 전 정적 게이트 통과 (S1~S67 · S33·S40·S46·S48·S52·S53 은 삭제)');
+  line('✓ 전 정적 게이트 통과 (S1~S67 · S20·S33·S40·S46·S48·S52·S53 은 삭제)');
   line();
   return 0;
 }
@@ -5027,7 +4997,7 @@ function main() {
   S17_summon();              // §8.9-R9
   S18_mobilityTruth();       // §8.12.1
   S19_zoneBullet();          // §9.7
-  S20_formationExclusivity();// §9.9.2
+  //  S20 은 ㊿-zb 에서 삭제됐다(편대 어휘에서 pincer·columnV 가 빠졌다)// §9.9.2
   S21_draftGuarantees();     // §11.1
   S22_swarmXpShare();        // §8.10
   S23_rosterComposition();   // §8.6 roster 편성 밸런스

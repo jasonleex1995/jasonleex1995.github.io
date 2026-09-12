@@ -46,7 +46,7 @@ const DMG_STATS = ['beamDmgMul', 'areaDmgMul', 'orbitMul'];
 export const BODY_STATS = ['maxHpAdd', 'terrainResist', 'xpGainMul', 'elementBonusMul'];
 const HOOK_KEYS = ['rateKey', 'countKey', 'pierceApplies', 'speedKeys', 'durationKeys', 'areaKeys', 'beamKeys', 'orbitKeys', 'dmgStat', 'lifesteal'];   // v1.10 ㊿-za lifesteal
 const BANDS = ['chaff', 'line', 'turret', 'bruiser'];
-const FORMATION_IDS = ['lineH', 'columnV', 'vWedge', 'arc', 'pincer', 'scatter', 'wall'];
+const FORMATION_IDS = ['lineH', 'vWedge', 'arc', 'scatter', 'wall'];
 const EMITTER_TYPES = ['straight', 'fan', 'aimed', 'ring', 'spiral', 'laser', 'zone', 'wall', 'mortar', 'sweep'];
 const BOSS_TIERS = ['stage', 'mid', 'final'];
 
@@ -555,8 +555,8 @@ function checkStages(c, s) {
   if (isObj(s.phase) && own(s.phase, 'sectionSpeedMul')) c.closed('stages.phase.sectionSpeedMul', s.phase.sectionSpeedMul, ['early', 'mid', 'crisis']);
   c.closed('stages.formations', s.formations, FORMATION_IDS);
   const FORM_PARAMS = {
-    lineH: ['gapPx'], columnV: ['gapSec'], vWedge: ['gapPx', 'angleDeg'],
-    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], pincer: ['yStartPx', 'yStepPx'], scatter: ['jitterPx', 'minSepPx'],
+    lineH: ['gapPx'], vWedge: ['gapPx', 'angleDeg'],
+    arc: ['radiusPx', 'spanDeg', 'flatten', 'minSepPx'], scatter: ['jitterPx', 'minSepPx'],
     wall: ['gapPx', 'rowGapPx', 'perRow', 'laneSlots', 'laneStrideCols', 'jitterY'],
   };
   if (isObj(s.formations)) {

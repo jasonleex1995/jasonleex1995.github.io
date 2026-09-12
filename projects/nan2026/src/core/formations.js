@@ -4,7 +4,9 @@
  * 편대는 «모양»이다. 그 모양이 **어디에** 놓이는지는 누가 스폰시켰는지가 정한다 —
  * 웨이브면 스폰 라인 중앙, 소환(§8.9-R9 mbNest)이면 소환자의 자리. 그래서 원점을 인자로 받는다.
  *
- * 구현 어휘: scatter · arc · lineH · vWedge (그 외 columnV·pincer·미지 = scatter 폴백).
+ * 구현 어휘: scatter · arc · lineH · vWedge · wall — ★ ㊿-zb 부터 **어휘 전체가 구현돼 있다**.
+ * ~~그 외 columnV·pincer·미지 = scatter 폴백~~ — 그 둘은 구현된 적이 없어 25개 웨이브가 저작과 다르게 나왔고,
+ * 사용자 결정(2026-09-12 「지금대로 가자 — 데이터를 고치면 될 것 같아」)으로 **데이터에서 삭제**했다(§8.7).
  * scatter 만 `rng.spawn` 을 쓴다 — 나머지는 순수 함수다(§10.2 결정성).
  */
 
@@ -123,7 +125,8 @@ export function formationPos(world, formationId, i, count, originX, originY, out
     //   0 이면 정확한 격자(v1.9), 1 이면 한 줄 높이만큼 흩어져 줄이 «사라진다». rng.spawn 이라 시드 결정적.
     y = originY - row * f.rowGapPx - rng.f() * f.jitterY * f.rowGapPx;
   } else {
-    // scatter + 폴백(columnV·pincer·미지) — rng.spawn 산포. jitterPx = y 계단, minSepPx = 가장자리 여백.
+    // scatter (+ 미지 어휘의 폴백) — rng.spawn 산포. jitterPx = y 계단, minSepPx = 가장자리 여백.
+    //   ㊿-zb — 여기로 «조용히» 떨어지던 columnV·pincer 는 어휘에서 삭제됐다. 미지 값은 S2 가 먼저 막는다.
     //   ★ 원점 중심으로 흩는다(소환 편대가 소환자 자리에 놓이는 계약). 웨이브는 originX=아레나 중앙이라
     //     결과·rng 소비가 기존과 **완전히 동일**하고(중앙±(a.w-2minSep)/2 = a.x+minSep…a.x+a.w-minSep),
     //     소환(mbNest)만 originX=소환자로 옮겨간다. 아래 클램프가 아레나 밖을 막는다.

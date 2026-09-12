@@ -1627,7 +1627,7 @@ v1.2는 `laser`에 **`chargeSec`와 `telegraphSec`를 동시에** 요구했다 �
 
 ### 8.7 편대 · 스폰 · 웨이브 스케줄
 
-**편대 어휘 `formationId` (6종, 동결)**: `lineH` `columnV`(column 전용) `vWedge` `arc` `pincer`(strafe 전용) `scatter`
+**편대 어휘 `formationId` (★ v1.10 ㊿-zb — 7종 → **5종**)**: `lineH` `vWedge` `arc` `scatter` `wall`. ~~`columnV`(column 전용)~~ ~~`pincer`(strafe 전용)~~ 는 **삭제**했다 — `formations.js` 가 처음부터 이 둘을 구현하지 않고 말없이 `scatter` 로 떨어뜨렸고(자기 주석에 «폴백»이라 적혀 있었다), 그래서 **25개 웨이브**(6개 스테이지)가 저작과 다른 모양으로 나왔다. 사용자(2026-09-12) 「그냥 지금 플레이가 재밌어서, 지금대로 가자 — 데이터를 고치면 될 것 같아」: 구현하는 대신 **데이터를 실제 동작에 맞췄다**(그 웨이브들의 `formationId` 를 `scatter` 로 명시). 플레이는 한 픽셀도 안 바뀐다 — 스폰 좌표 지문이 시드 5개 × 180초에서 동일함을 확인했다. 짝을 강제하던 **S20 도 같이 삭제**했다(규칙의 주어가 사라졌다).
 
 **★ 웨이브 스케줄 = 절대 타임라인이 아니라 순서 리스트다 (확정 — blocker `waveClearAdvance` 시맨틱)**
 
@@ -4014,10 +4014,10 @@ v1.0은 `"lineH":"..."`로 **자리만 잡아 두었다.** 「누락 키 = 에�
 | `formationId` | 파라미터 | 배치 |
 |---|---|---|
 | `lineH` | `gapPx: 64` | 수평 1열, `spawnEdge` 중앙 기준 좌우 대칭 |
-| `columnV` | `gapSec: 0.5` | **`column` 전용.** 같은 x, `gapSec` 간격으로 순차 스폰 |
+| ~~`columnV`~~ | `gapSec: 0.5` | **`column` 전용.** 같은 x, `gapSec` 간격으로 순차 스폰 |
 | `vWedge` ★v1.10 ㉕ | `gapPx: 56, angleDeg: 35` | V자, 선두 1기 + 좌우 대칭. **폭에 맞춰 접힌다**: 한 V 의 최대 단 = `floor((아레나 반폭 − 여백) / (gapPx × sin angle))`(구조 파생), 넘치는 몸은 한 단(gapPx) 뒤의 다음 V — 위기 화살 37기 = 17·17·3 의 세 겹. ~~옛 계산~~은 폭 1156px(아레나 580)라 9단부터 전부 경계에 쌓여 «양쪽 벽에 세로줄»(스크린샷) |
 | `arc` ★v1.10 ㊱ | `radiusPx: 180, spanDeg: 120, flatten: 0.3, minSepPx: 13` | 호 = 납작 타원(x = sinθ·R, y = −(1−cosθ)·R·`flatten`), 중심 = 아레나 중앙 상단. **몸은 타원 길이를 등분**해 선다(등각이면 날개 끝 간격이 가운데의 0.56 배로 눌린다). **반지름 = max(`radiusPx`, (count−1)·`minSepPx` ÷ I)**, I = 단위 반지름 타원 호 길이(중점 적분 64 등분) — 위기 새떼 37기는 R 264·현 457px(여백 안 488). 사용자 스크린샷(2026-09-05): 37기가 간격 10px(몸 지름 12)로 겹쳐 «목걸이 튜브». S54 ⑨ |
-| `pincer` | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
+| ~~`pincer`~~ | `yStartPx: 120, yStepPx: 60` | ★ **`strafe` 전용. 좌우 교대 진입** |
 | `scatter` | `jitterPx: 90, minSepPx: 40` | `rng.spawn` 산포, 가장자리 여백 = `max(minSepPx, bodyMargin)` (㉕) |
 | ★ `wall` (v1.9 · **v1.10 `jitterY`** · **v1.10 ⑤ 촘촘한 격자**) | `gapPx: 20, rowGapPx: 28, perRow: 28, laneSlots: 3, laneStrideCols: 4, jitterY: 0.85` · ~~29/40/20/2/3~~ | 초기 구간(§8.19) 전용 «화면 너비를 채우는 벽». `perRow` 칸 격자에서 `laneSlots` 칸을 비워 차선을 내고(순틈 ≥ `minGapWidthPx`, S54 ④), 차선은 줄마다 `laneStrideCols` 칸씩 삼각파로 옮겨간다. **`jitterY`** — 각 몸의 y 를 `rng.spawn` 으로 `[0, jitterY × rowGapPx)` 만큼 위로 흩뜨린다(0 = 정확한 격자, 1 = 한 줄 높이). 사용자(2026-09-04): 「한 열씩 띄워서 있는 구조 ✗, 다 같이 우루루 나오는 느낌」 — 줄이 «사라진다». 시드 결정적 |
 
