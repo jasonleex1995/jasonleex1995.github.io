@@ -839,6 +839,18 @@ export function difficultyEnemyDmgMul(world) {
   return d.enemyDmgMul;
 }
 
+/**
+ * §8.21 · §11.3(v1.10 ㊿-w) — 무대에 동시에 놓이는 **지형 장판 수의 상한**. 사용자(2026-09-12) 「난이도가 높아질수록 장판이 더 많아졌으면 좋겠어(노말 3~4개 · 하드 4~5개 · 헬 6~8개)」
+ *   ★ 배율이 아니라 «개수»다 — 그래서 rules.terrain 에는 상한이 없다(난이도 표가 유일한 거처, S60 ⑪ · S2 닫힌 키).
+ *   ★ 문은 하나다: terrain.terrainTick 만 이 함수를 부른다(S60 ⑫) — 보스 등장 무리(terrainBurst)는 bossEntryCount 가 따로 정하고,
+ *     그 값은 «가장 낮은 난이도의 상한»도 넘지 않는다(S56 ⑥).
+ */
+export function difficultyTerrainCap(world) {
+  const d = world.data.meta.difficulty[world.difficultyId];
+  if (d === undefined) throw new Error(`state: 미지의 난이도 "${world.difficultyId}" (§11.3)`);
+  return d.terrainMaxOnScreen;
+}
+
 /** 난이도 표에서 id 의 순번 — 표의 키 순서가 곧 난이도 순서다(normal → hard → hell, S60 ①). 스칼라 키는 난이도가 아니다. 없으면 -1. */
 function difficultyRank(md, id) {
   const keys = Object.keys(md);

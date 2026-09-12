@@ -2,7 +2,7 @@
  * tests/terrain.test.mjs — 지형 장판 (§8.21, v1.10 ⑦)의 정본 계약.
  *
  * 커버:
- *   스폰   — MOB 에서 everySec 마다, 무대에 maxOnScreen 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 3종 가방(mixed — 무작위 순서, 3개마다 전부)
+ *   스폰   — MOB 에서 everySec 마다, 무대에 난이도별 상한 미만일 때, 아레나 안 x · 위에서 들어온다 / 최종 스테이지는 3종 가방(mixed — 무작위 순서, 3개마다 전부)
  *   흐름   — scrollSpeedPx 로 내려가고 아레나 아래로 나가면 반납 / advanceStage 가 무대를 비운다
  *   효과   — slow: 안에서 둔화(status.slowMoveSpeedMul) · 밖으로 나가면 다음 틱에 풀림
  *            inertia: 안에서 방향을 뒤집으면 vx 가 «서서히» 뒤집힌다(tau) · 밖에서는 즉시
@@ -26,9 +26,9 @@ import { TERRAIN_KINDS, TERRAIN_MIXED } from '../src/core/schema.mjs';
 const dt = TICK_DT;
 
 /** 적·발사 없이 런 시계만 흐르는 세계 — 지형과 플레이어만 본다 */
-function mkRun(seed, stageId, pos = 0) {
+function mkRun(seed, stageId, pos = 0, difficulty = undefined) {
   // ㉚ 시작 무기를 벌컨으로 못박는다 — 추첨 무기가 리턴이면 짝 «자세 안정기» Lv1 이 딸려 와 저항 0 전제가 깨진다
-  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', hooks: { enemies: null, emitters: null, run: tickRun, boss: null } });
+  const w = createWorld({ data: loadData(), seed, weapons, startWeaponId: 'forward', difficulty, hooks: { enemies: null, emitters: null, run: tickRun, boss: null } });
   initRun(w);
   w.run.order[pos] = stageId;
   w.run.stageIndex = pos;
@@ -48,7 +48,7 @@ function standInFirst(w) {
 }
 
 suite('terrain — 스폰·흐름 (§8.21)', () => {
-  test('MOB 에서 everySec 마다 스폰, 무대 상한 maxOnScreen, x 는 아레나 안, y 는 위에서', () => {
+  test('MOB 에서 everySec 마다 스폰, 무대 상한(난이도 표), x 는 아레나 안, y 는 위에서', () => {
     const w = mkRun(3, 'bog');
     const tr = w.data.rules.terrain; const a = w.data.rules.view.arena;
     tick(w, 1);
@@ -61,8 +61,24 @@ suite('terrain — 스폰·흐름 (§8.21)', () => {
     tick(w, Math.round(tr.everySec / dt) + 2);
     assert.eq(live(w).length, 2, 'everySec 뒤 둘');
     tick(w, Math.round(tr.everySec / dt) * 6);
-    assert.lte(live(w).length, tr.maxOnScreen, '무대 상한');
+    assert.lte(live(w).length, w.data.meta.difficulty[w.difficultyId].terrainMaxOnScreen, '무대 상한(난이도 표)');
     assert.gte(live(w).length, 2, '흐르며 계속 있다');
+  });
+
+  test('★ 무대 상한은 난이도가 정한다 (㊿-w) — 노멀 < 하드 < 헬, 그리고 헬이 실제로 더 깔린다', () => {
+    // 사용자(2026-09-12) 「난이도가 높아질수록 장판이 더 많아졌으면 좋겠어(노말 3~4 · 하드 4~5 · 헬 6~8)」
+    const md = loadData().meta.difficulty;
+    assert.ok(md.normal.terrainMaxOnScreen < md.hard.terrainMaxOnScreen && md.hard.terrainMaxOnScreen < md.hell.terrainMaxOnScreen,
+      `난이도가 오르면 상한도 오른다 (${md.normal.terrainMaxOnScreen} · ${md.hard.terrainMaxOnScreen} · ${md.hell.terrainMaxOnScreen})`);
+    const peak = (id) => {
+      const w = mkRun(3, 'bog', 0, id);
+      let m = 0;
+      for (let i = 0; i < Math.round(90 / dt); i += 1) { tick(w, 1); m = Math.max(m, live(w).length); }
+      return m;
+    };
+    for (const id of ['normal', 'hard', 'hell']) {
+      assert.eq(peak(id), md[id].terrainMaxOnScreen, `${id}: 무대가 상한까지 찬다(그리고 넘지 않는다)`);
+    }
   });
 
   test('scrollSpeedPx 로 내려가고 아레나 아래로 나가면 반납된다', () => {

@@ -2661,12 +2661,12 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 
 **③ 거처와 값.** `stages[].terrainKind` ∈ `{slow, inertia, heat}` \| **`"mixed"`**(finale) \| null(지형 없음 — 어휘상 허용, 현재 데이터엔 없다).
 ★ **finale 은 `mixed` (v1.10 ⑳, 사용자 질문 2026-09-05 「최종 stage 6 에서는 장판 효과가 어떻게 되는가」에 대한 결정)**: 테마가 없으니 지형이 «없는» 것이 아니라 **셋이 전부 나온다** — ★ v1.10 ㉑(사용자 「최종이니까 3종이 다 랜덤하게」): **가방**(`run.terrainBag[3]`·`terrainBagN`, `terrain.nextKind`) — 비면 3종을 `rng.terrain` 으로 섞어 채우고 하나씩 꺼낸다. 순서는 무작위, 그러나 **3개마다 전부 한 번씩**(순수 무작위는 한 종이 안 나오는 런을 만들고, 고정 순환은 외워진다 — §8.2 의 속성 가방과 같은 문법). 보스 등장 무리 3개 = 하나씩 전부(순서만 무작위). `mix` 0.34/0.33/0.33 과 같은 정신이고, 지형 저항 패시브(⑥)가 마지막 스테이지에서 죽지 않게 하는 조건이기도 하다. 그림의 색은 **종의 속성**(`TERRAIN_KIND_ELEMENT` = 풀 slow · 물 inertia · 불 heat)이라 finale 한 화면에 세 색이 같이 보인다. ~~null(finale — 테마가 없으니 지형도 없다)~~
-`rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 2.2, maxOnScreen 5, bossEntryCount 4, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }` — ★ v1.10 ㉙(사용자 「장판이 생각보다 자주 안 나와 저항을 안 올리게 된다」): `everySec 3.2 → 2.2`, `maxOnScreen 3 → 5`, `bossEntryCount 3 → 4`. 실측(늪 초기 48초): 놓인 장판 12 · 동시 최대 5 · 평균 덮인 면적 13.7%(전 ~8%).
+`rules.terrain` = `{ radiusPx 72, scrollSpeedPx 42, everySec 2.2, bossEntryCount 4, inertia { responseTauSec 0.35 }, heat { fullSec 1.5, stallSec 0.6, coolSec 1.0 } }` — ★ v1.10 ㉙(사용자 「장판이 생각보다 자주 안 나와 저항을 안 올리게 된다」): `everySec 3.2 → 2.2`, `maxOnScreen 3 → 5`(㊿-w 에서 난이도 표로 옮겼다 — 노멀 4 · 하드 5 · 헬 8), `bossEntryCount 3 → 4`. 실측(늪 초기 48초): 놓인 장판 12 · 동시 최대 5 · 평균 덮인 면적 13.7%(전 ~8%).
 `caps.terrain 16`(overflow `rejectSpawn`) · `visual.terrain { fillAlpha 0.14, edgeAlpha 0.35, patternAlpha 0.30, heatPulseHz 0.8 }`.
 `rules.json` 루트는 **17개**가 됐다(`terrain` 추가 — `RULES_ROOT_17`).
 
 **④ 시각표와 흐름 (★ v1.10 ⑧ 구간 제한).** 구간이 `rules.terrain.spawnIn = ["early", "midboss", "boss"]` 에 들 때
-`everySec` 마다, 무대에 `maxOnScreen` 미만일 때 하나. x 는 아레나 안 균일 — **`rng.terrain`**(§10.2 스트림 9번째, 다른 스트림을
+`everySec` 마다, 무대에 **난이도별 상한** `meta.difficulty[].terrainMaxOnScreen`(노멀 **4** · 하드 **5** · 헬 **8**) 미만일 때 하나 — ★ v1.10 ㊿-w(사용자(2026-09-12) 「난이도가 높아질수록 장판이 더 많아졌으면 좋겠어(노말 3~4개 · 하드 4~5개 · 헬 6~8개)」): 상한은 `rules.terrain` 이 아니라 **난이도 표**가 소유한다(배율이 아니라 개수 · S60 ⑪ · 문은 `state.difficultyTerrainCap` 하나 · S60 ⑫). ★ 보스 등장 무리(`bossEntryCount` 4)는 «가장 낮은 난이도의 상한»을 넘을 수 없다 — 노멀을 3 으로 내리려면 `bossEntryCount` 도 함께 내려야 한다(S56 ⑥). ★ 계측 도구(dodge · pressure · study · blame)는 난이도를 노멀로 고정하므로 헬의 8개는 그 계측에 안 잡힌다 — 봇은 지형을 모른다(§8.21 ⑤). x 는 아레나 안 균일 — **`rng.terrain`**(§10.2 스트림 9번째, 다른 스트림을
 밀지 않는다) · y 는 스폰 라인 위. `scrollSpeedPx` 로 내려오다 아레나 아래로 완전히 나가면 반납.
 ★ **위기(`crisis`)에는 없다** — 사용자(2026-09-04): 「위기 구간 같이 촉박한 상황에 있어야 하는가 하면 좀 아닌 것 같다」.
 186px/s 새떼 속의 둔화·정지는 «확정 피격»이라 §2.1 ① 을 깬다 → S56 ⑥ 이 `'crisis' ∉ spawnIn` 을 못박는다. 위기가 켜지는
@@ -2683,9 +2683,9 @@ onScreen(a, e) = e.x + e.r > a.x ∧ e.x − e.r < a.x + a.w ∧ e.y + e.r > a.y
 **⑥ 지형 저항 — 패시브 «자세 안정기» (v1.10 ⑳).** 사용자(2026-09-05): 「이속이 크게 안 와닿는다. 차라리 각 스테이지의 장판에 대한 저항으로 가자 — 레벨업 패시브 카드도 포함」. `passives.json` 의 `frame`(경량 프레임, `moveSpeedMul`) 이 **`stabilizer`(자세 안정기, `terrainResist`)** 로 바뀌었다 — 11종 1:1 은 그대로. 값 `[0.20 … 1.00]` — ★ v1.10 ㉑(사용자 2026-09-05 「저항 상한은 100% 면역까지」): **Lv10 = 면역**(배율 0: 둔화 없음·즉시 응답·열이 안 찬다). 만렙 투자(패시브 6칸 중 하나를 10레벨까지)의 보상으로 지형 한 층을 통째로 지운다. 적용은 이동의 단일 소유자 `step.movePlayer` 한 곳, 배율 하나 `tmul = 1 − Σ terrainResist` 가 세 지형에 같이 걸린다: 둔화 **깊이** `1 − (1 − 0.55) × tmul` · 관성 **τ** `0.35 × tmul` · 과열 **충전 속도** `× tmul`(정지까지 1.5s ÷ tmul). **탄의 둔화는 대상이 아니다**(지형 저항이지 상태이상 저항이 아니다 — §9.6 의 `statusResistMul` 폐기 근거 그대로). ~~특성 «지형 적응»과 곱으로 겹친다~~ — v1.10 ㉑ 에 그 특성을 지웠다(겹치는 테마 금지, §11.6).
 
 **게이트 S56 (§13.4)** — ① 테마마다 kind ∈ 어휘, finale `mixed`|null ② kind = 속성 사전의 역(풀 slow·물 inertia·불 heat — 그림이 이 사전으로 칠한다) ③ 3종 전부 쓰인다 ④ 값의 범위
-(`radiusPx ∈ [24, arena.w/4]` · `stallSec ≤ fairness.maxStunSec` · `fullSec > stallSec` · `maxOnScreen ≤ caps.terrain` …)
+(`radiusPx ∈ [24, arena.w/4]` · `stallSec ≤ fairness.maxStunSec` · `fullSec > stallSec` · 난이도별 상한 ∈ [1, `caps.terrain`](S60 ⑪) …)
 ⑤ 통로: 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 폭이 남는다) ⑥ (v1.10 ⑧) `spawnIn ⊆ {early, midboss, crisis, boss}`,
-비어 있지 않고 중복 없음, **`crisis` 없음** · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0`.
+비어 있지 않고 중복 없음, **`crisis` 없음** · `bossEntryCount ∈ [0, 가장 낮은 난이도 상한]` · `fadeSec > 0`.
 
 **실측(헤드리스, 시드 5, 60초).** 늪: 스폰 9 · 동시 최대 3 · 안에 서면 둔화. 화산: 열 1.0 도달 → 정지, 안에 계속 서면
 2.1초마다 0.6초 정지. 최종: 0. 테스트 8건(스폰·흐름·전이·결정성·둔화·관성 τ·ln2·과열·무해) + 구간·페이드 2건(v1.10 ⑧).
@@ -2908,7 +2908,7 @@ data/tutorial.json   (v1.10 ㊴ — §6.7 튜토리얼)
                "telegraphConcurrentMaxPerEntity":2,
                "telegraphConcurrentMaxGlobal":80,
                "playerWeaponsExempt":true },
-  "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":2.2, "maxOnScreen":5,                                   // ㉙ 더 자주(3.2→2.2 · 3→5)
+  "terrain": { "radiusPx":72, "scrollSpeedPx":42, "everySec":2.2,                                                    // ㉙ 더 자주(3.2→2.2) · ㊿-w 상한은 난이도 표
                "spawnIn":["early","midboss","boss"], "bossEntryCount":4, "fadeSec":0.8,                          // §8.21 ④ · §8.22 (v1.10 ⑧)
                "inertia":{ "responseTauSec":0.35 }, "heat":{ "fullSec":1.5, "stallSec":0.6, "coolSec":1.0 } },   // §8.21 v1.10 ⑦
   "hud":     { "...§9.4.1 전 키..." },
@@ -3989,9 +3989,9 @@ crisisSubWaveIntervalSec = crisisCycleSec / crisisSubWaves = 9 / 6 = 1.5 게임�
              "attract":{ "difficulty":"normal", "draftDwellSec":1.2, "endAfterMobPhase":true },
              "stagePar":[0,0,0,0,0,0] },
   "onboarding": { "autoEquipFirstElement":true, "stanceHintPulse":true, "stanceHintPulseStageMax":1 },
-  "difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0},
-                  "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2},
-                  "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5},
+  "difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"terrainMaxOnScreen":4},
+                  "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"terrainMaxOnScreen":5},
+                  "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"terrainMaxOnScreen":8},
                   "stunMinDifficulty":"hard" },
   "bot":     { "...§10.4..." },
   "certify": { "...§13.1..." } }
@@ -4506,9 +4506,9 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
 ★★ **v1.10 ㊿ — 난이도의 «뜻» (`meta.json > difficulty`)**
 
 ```json
-"difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0},
-                "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2},
-                "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5},
+"difficulty": { "normal":{"speed":1.0, "scoreMul":1.0,"hpMul":0.81,"enemyDmgMul":1.0,"terrainMaxOnScreen":4},
+                "hard":  {"speed":1.1, "scoreMul":1.2,"hpMul":0.95,"enemyDmgMul":1.2,"terrainMaxOnScreen":5},
+                "hell":  {"speed":1.25,"scoreMul":1.5,"hpMul":1.0, "enemyDmgMul":1.5,"terrainMaxOnScreen":8},
                 "stunMinDifficulty":"hard" }
 ```
 
@@ -4603,7 +4603,7 @@ price(item, n) = ceil(item.basePrice × item.growth ^ n)     // n = 그 항목�
 - ★ **v1.10 ㊿-u — 클리어하면 결과 화면에 «클리어 시간»** (사용자(2026-09-12) 「클리어하면 클리어하는데 걸린 시간도 같이 나왔으면 좋겠어」). `score.tally().clearSec` = **실제로 플레이한 초** = 승리 순간까지 흐른 틱 ÷ `rules.loop.tickHz` ÷ 난이도 배속(`speed`). 월드가 도는 동안만 센다 — 일시정지 · 레벨업/특성 카드 · 스테이지 배너는 빠지고, 보스 «WARNING» 연출 · 특성 구슬 비행은 들어간다. ★ 게임초(`world.time`) 그대로 쓰지 않는다 — 하드 ×1.1 · 헬 ×1.25 에서 실제보다 길게 나온다(헬 24분 클리어가 30:00, 검토). 보스 타이머 · 시간 보너스는 게임초 그대로다. ★ 틱 수로 센다(1/60 을 더해 쌓은 `world.time` 은 정초가 소수 오차로 살짝 모자라 1초가 빠질 수 있다) · 표시도 버리기 전에 1e-6 을 더한다. 「클리어!」 아래 「클리어 시간 m:ss」(1시간을 넘으면 h:mm:ss · 초 아래는 버린다). 사망 · 시간 초과로 끝난 판에는 안 보인다(`tests/score.test.mjs` · `tests/render.test.mjs`).
 - ★ **스턴 게이팅 집행** (§2.7) — `stunMinDifficulty` 는 ㊿-p 까지 **읽는 코드가 0** 이었다(값 검사만 통과). `state.difficultyAllowsStun` + `emitters.fireVolley` 로 집행한다 → 노멀의 서리왕관·늪 보스 페이즈 3 이 조용해진다.
 - **최종 보스 여유(㊿-l·m 의 «중앙 30초»)는 불변이다** — 그 측정은 «무적 기체»로 잰 화력 대 체력이라 적 공격력이 들어가지 않는다. 바뀌는 것은 «그 시간 동안 버틸 수 있는가»뿐이다.
-- **게이트 S60** ①(키 순서) · ②'(노멀 기준선) · ③(네 열 순증) · ⑧(피해의 문 — 호출 한 곳) · ⑨(스턴 가드의 자리) · ⑩(순삭 하한)이 이 절을 지키고, «논리»는 `tests/difficulty.test.mjs` 가 실제로 돌려서 잡는다.
+- **게이트 S60** ①(키 순서) · ②'(노멀 기준선) · ③(다섯 열 순증) · ⑧(피해의 문 — 호출 한 곳) · ⑨(스턴 가드의 자리) · ⑩(순삭 하한)이 이 절을 지키고, «논리»는 `tests/difficulty.test.mjs` 가 실제로 돌려서 잡는다.
 
 **부속 판정 (전부 확정)**
 - **실드로 막은 피격 = 피격 아님** (`shieldPreservesNoHit: true`). 실드의 문구가 "1회 피격 무효"이므로 무피격도 유지되어야 문구와 동작이 일치한다.
@@ -4846,7 +4846,7 @@ ghostHpPct(t) = clamp( 1 − t / (stage.bossTimerSec − flow.stagePar[i]) , 0, 
 | `playerBullets` | **512** (v1.10 ㉖) · ~~256~~ | **`rejectSpawn`** — 만렙 빌드(6무기 Lv10 + 다중 장전 +4)가 256 을 20초에 189회 넘겨 무기가 «조용히 불발»했다(실측). 판정 순회 576 × 512 도 직접 순회 범위 |
 | `pickups` | **384** · ~~256~~ | **`merge`** — 신규 픽업 값을 최근접 기존 픽업에 합산 (**손실 0 = 무-노가다 기둥 보존**) |
 | `zones` | 64 | `rejectSpawn` |
-| ★ `terrain` (v1.10 ⑦) | **16** | `rejectSpawn` — 지형 장판(§8.21). 무대 상한은 `rules.terrain.maxOnScreen`(3)이 따로 잡는다 |
+| ★ `terrain` (v1.10 ⑦) | **16** | `rejectSpawn` — 지형 장판(§8.21). 무대 상한은 **난이도 표**가 따로 잡는다(`meta.difficulty[].terrainMaxOnScreen` 4 · 5 · 8, ㊿-w) |
 | `drones` | 8 | `rejectSpawn` |
 | `particles` | 400 | `evictOldest` |
 | **`telegraphs`** | ★ **128** (v1.0의 8은 폐기) · ~~96~~ | ★ **`deferAttack` — 공격 자체를 연기** (I-3) |
@@ -5508,11 +5508,11 @@ capstone 없는 최악 빌드 = 순수 ST 4종 (forward + seeker + lance + boome
 | **S51** ★ | **가시 피해** (v1.8, §8.20) — ① `src/core` 에서 hp 를 깎는 자리는 정확히 셋이고 그 주소가 정본이다(★ **증명이 아니라 관용구 `X.hp -=` · `X.hp = X.hp − …` 에 대한 철사**) ② `hitEnemy`·`collide` 의 **함수 본문 안**에 `onScreen(` — ★ **파일 단위로 세면 `damage.js` 는 술어를 «선언»하는 파일이라 선언이 스스로를 만족시켜 공허해진다** ③ `world.enemies.items` 를 순회하는 무기 파일은 `onScreen(` 을 부르거나 **이유와 함께** `AIM_EXEMPT` 에 오른다(`aura`·`nova`·`fan` 등재) ④ `min(view.playerBoundsInset) > player.hitboxRadius` |
 | **S54** ★ | **구간과 비율** (v1.10, §8.19) — ① `shooterRatio` 형식·단조 ② 겹침 ③ 공급(초기 + 최장 위기 ≤ `mobPhaseMaxWaves`, 포지션마다) ④ 벽 차선 ⑤ 무공격 칸 ⑥ 속성 3종 보장 ⑦ 배수 ⑧ `crisisHpScale` ⑨ ㊱ 호 편대 최소 간격(§9.9.2). 본문은 §8.19 |
 | **S55** ★ | **중간보스 구간** (v1.10, §8.19 · §8.9 · §8.10) — ① `midBossFirstId` ∈ tier mid ∧ summon ≠ null ∧ `boss.midBossSummonsAllowed` ② 소환자를 뺀 tier mid ≥ 1 ③ `crisisStartSec + crisisCycleSec ≤ mobPhaseSec` ④ `crisisOnMidBossClear ⇒ (¬crisisSuspendsWaves ∨ crisisSwarmLoop)`. ★ ④가 없으면 격파로 앞당긴 위기가 새떼 한 사이클 뒤 페이즈 끝까지 «공백»이 된다 — 두 불리언이 각각은 옳고 조합만 틀리는 경우라, 키 하나씩 보는 검사로는 못 잡는다 |
-| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale `mixed`(3종 순환, v1.10 ⑳)|null ② kind = 속성 사전(풀 slow·물 inertia·불 heat)의 역 — 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `maxOnScreen ∈ [1, caps.terrain]` · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, maxOnScreen]` · `fadeSec > 0` |
+| **S56** ★ | **지형 장판** (v1.10 ⑦, §8.21) — ① 테마마다 `terrainKind` ∈ {slow, inertia, heat}, finale `mixed`(3종 순환, v1.10 ⑳)|null ② kind = 속성 사전(풀 slow·물 inertia·불 heat)의 역 — 같은 속성 = 같은 kind(기계는 속성당 하나) ③ 3종 전부 쓰인다(죽은 어휘 금지) ④ `rules.terrain` 값의 범위 — `radiusPx ∈ [24, arena.w/4]` · `scrollSpeedPx`·`everySec`·`coolSec` > 0 · `inertia.responseTauSec ∈ (0,1]` · `heat.stallSec ∈ (0, fairness.maxStunSec]` ∧ `fullSec > stallSec` ⑤ 장판 하나가 아레나 폭의 절반을 넘지 않는다(돌아갈 통로) ⑥ (v1.10 ⑧) `spawnIn ⊆ SECTIONS`, 비어 있지 않고 중복 없음, **`crisis` 없음**(새떼 속 둔화·정지 = 확정 피격) · `bossEntryCount ∈ [0, 가장 낮은 난이도 상한]`(㊿-w) · `fadeSec > 0` |
 | **S57** ★ | **보스 등장 쓸어내기** (v1.10 ⑧, §8.22) — ① `0 < boss.entryWipeSec < boss.introSec`(강림 안에서 끝난다) ② 앞선 속도 `(arena.h + 40 − spawnLineY) ÷ entryWipeSec` > `fairness.maxBulletSpeed`(어떤 탄도 앞선을 앞지르지 못한다 = 0.7초 뒤 무대는 보스뿐) ③ `visual.wipe.bandPx > 0` · `flashAlpha ∈ [0,1]` |
 | **S58** ★ | **오빗 반경 = 자석 점선 원** (v1.10 ⑨, §7.8) — `weapons.orbit.base.orbitRadius == player.magnetRadius` ∧ 어느 레벨도 `orbitRadius` 를 바꾸지 않는다. 화면에 상시 보이는 원(자석 반경)과 공의 궤도가 어긋나면 «내 영역»이 둘로 읽힌다 |
 | **S59** ★ | **특성** (v1.10 ⑲·㉒, §11.6) — ① `maxLevel` = 한 런의 구슬 수 5 ② 효과 어휘 3종 전부 쓰인다(특성 수 = 어휘 수) ③ 레벨은 좋아지는 방향으로 단조(재생·흡혈 ↑ · 쉴드 주기 ↓) ②' 흡혈 `hpRatio ∈ [0.3, 0.6]`(㉗ — HP 50% 이하일 때만) ④ 값 범위(재생 ≤ 2.0/s · 흡혈 ≤ 2% · 쉴드 주기 ≥ i-frame × 5) ⑤ `palette.pickup.trait` |
-| **S60** ★ | **난이도** (v1.10 ㊿·㊿-c·㊿-q, §11.3 · §2.1 · §2.7) — ① 난이도는 정확히 셋(`normal`·`hard`·`hell`; 「디재스터」 삭제 · 튜토리얼은 난이도가 아니다) — ㊿-q: 표의 키 순서가 곧 난이도 순서(스턴 게이팅이 그 순서로 비교한다) ② **가장 어려운 난이도가 기준선**(`hell.hpMul == 1`)이고 나머지는 `< 1` — 저작값은 «만드는 사람이 조율하는 난이도»의 값이고 쉬운 난이도는 그 할인이다 ②' **공격력은 반대쪽 끝이 기준선**(㊿-q — `normal.enemyDmgMul == 1`: 저작 피해 = 노멀 피해 = §2.1 관대함 산술의 자리) ③ **네 열 전부**(`speed`·`scoreMul`·`hpMul`·`enemyDmgMul`)가 노멀→하드→헬로 순증 — 한 열이라도 평평하면 «이름만 다른 난이도»다 ④ ~~`evolutionsExpected` ∈ [1, weaponSlots]~~ **㊿-c 폐지** — 화면에서 빼자 읽는 곳이 0 이 된 죽은 키라 삭제했다(진화 개수는 고정 픽 예산에서 화력의 10~25% 라 애초에 집행 가능한 게이트가 아니다) ⑤ `hpMul` 계단 ≤ 1.35 — 실측 사다리(최종 보스를 170초에 잡는 총 HP: 상위 3종 241,300 · 4종 311,300 · 5종 407,500 · 6종 521,300 — ㊿-j 보스거리 기준 로스터)의 한 칸이 ×1.28~1.31 이다 ⑥ `stunMinDifficulty` 가 실재하는 난이도를 가리킨다 ⑦ **소스 검사** — `state.difficultyHpMul` 이 존재하고 **네 스포너**(`spawnEnemy`·`spawnMidBoss`·`spawnBossCore`·`spawnBossPart`) 본문이 전부 그 문을 지난다. 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍 ⑧ **소스 검사**(㊿-q) — `state.difficultyEnemyDmgMul` 이 `enemyDmgMul` 을 읽고 `step.applyHit` 가 `enemyToPlayer(rp, p, raw * difficultyEnemyDmgMul(world))` — 배율이 «raw 인자» 안(ceil 앞) — 로 곱하며, **src 전체에서 호출은 그 한 곳뿐**이다(스폰에서 또 곱하면 이중 적용 · 스폰마다 곱하면 몸통 피해가 빠진다) ⑨ **소스 검사**(㊿-q) — `state.difficultyAllowsStun` 이 `stunMinDifficulty` 를 읽고 `emitters.fireVolley` 의 **첫 문장**이 `if (stunSilenced(world, look, em)) return;` 이다. ⑥ 만 있던 ㊿-p 까지는 값이 맞아도 읽는 코드가 0 이라 노멀에서도 스턴 탄이 나갔다. ★ ⑧·⑨ 는 주석을 걷어낸 코드만 보며, 지키는 것은 «자리»까지다 — «논리»(항상 허용 · 값을 읽고 버림 · 스폰에서 한 번 더 곱함)는 `tests/difficulty.test.mjs` 가 실제로 돌려서 잡는다(피해 기댓값은 저작값에서 계산) ⑩ **§2.1 순삭 불가의 난이도판**(㊿-q) — 가장 어려운 난이도에서도 «가장 큰 한 방»(스폰된 탄·빔·장판 — 스테이지 곡선 반영 · 엘리트 몸통 · 보스/중간보스 몸통, §3.2 로 계산) 2회로는 만피(`rules.player.hpMax`)가 죽지 않는다 |
+| **S60** ★ | **난이도** (v1.10 ㊿·㊿-c·㊿-q, §11.3 · §2.1 · §2.7) — ① 난이도는 정확히 셋(`normal`·`hard`·`hell`; 「디재스터」 삭제 · 튜토리얼은 난이도가 아니다) — ㊿-q: 표의 키 순서가 곧 난이도 순서(스턴 게이팅이 그 순서로 비교한다) ② **가장 어려운 난이도가 기준선**(`hell.hpMul == 1`)이고 나머지는 `< 1` — 저작값은 «만드는 사람이 조율하는 난이도»의 값이고 쉬운 난이도는 그 할인이다 ②' **공격력은 반대쪽 끝이 기준선**(㊿-q — `normal.enemyDmgMul == 1`: 저작 피해 = 노멀 피해 = §2.1 관대함 산술의 자리) ③ **다섯 열 전부**(`speed`·`scoreMul`·`hpMul`·`enemyDmgMul`·`terrainMaxOnScreen`)가 노멀→하드→헬로 순증 — 한 열이라도 평평하면 «이름만 다른 난이도»다 ④ ~~`evolutionsExpected` ∈ [1, weaponSlots]~~ **㊿-c 폐지** — 화면에서 빼자 읽는 곳이 0 이 된 죽은 키라 삭제했다(진화 개수는 고정 픽 예산에서 화력의 10~25% 라 애초에 집행 가능한 게이트가 아니다) ⑤ `hpMul` 계단 ≤ 1.35 — 실측 사다리(최종 보스를 170초에 잡는 총 HP: 상위 3종 241,300 · 4종 311,300 · 5종 407,500 · 6종 521,300 — ㊿-j 보스거리 기준 로스터)의 한 칸이 ×1.28~1.31 이다 ⑥ `stunMinDifficulty` 가 실재하는 난이도를 가리킨다 ⑦ **소스 검사** — `state.difficultyHpMul` 이 존재하고 **네 스포너**(`spawnEnemy`·`spawnMidBoss`·`spawnBossCore`·`spawnBossPart`) 본문이 전부 그 문을 지난다. 하나라도 빠지면 그 적만 난이도를 안 탄다 = 조용한 구멍 ⑧ **소스 검사**(㊿-q) — `state.difficultyEnemyDmgMul` 이 `enemyDmgMul` 을 읽고 `step.applyHit` 가 `enemyToPlayer(rp, p, raw * difficultyEnemyDmgMul(world))` — 배율이 «raw 인자» 안(ceil 앞) — 로 곱하며, **src 전체에서 호출은 그 한 곳뿐**이다(스폰에서 또 곱하면 이중 적용 · 스폰마다 곱하면 몸통 피해가 빠진다) ⑨ **소스 검사**(㊿-q) — `state.difficultyAllowsStun` 이 `stunMinDifficulty` 를 읽고 `emitters.fireVolley` 의 **첫 문장**이 `if (stunSilenced(world, look, em)) return;` 이다. ⑥ 만 있던 ㊿-p 까지는 값이 맞아도 읽는 코드가 0 이라 노멀에서도 스턴 탄이 나갔다. ★ ⑧·⑨ 는 주석을 걷어낸 코드만 보며, 지키는 것은 «자리»까지다 — «논리»(항상 허용 · 값을 읽고 버림 · 스폰에서 한 번 더 곱함)는 `tests/difficulty.test.mjs` 가 실제로 돌려서 잡는다(피해 기댓값은 저작값에서 계산) ⑩ **§2.1 순삭 불가의 난이도판**(㊿-q) — 가장 어려운 난이도에서도 «가장 큰 한 방»(스폰된 탄·빔·장판 — 스테이지 곡선 반영 · 엘리트 몸통 · 보스/중간보스 몸통, §3.2 로 계산) 2회로는 만피(`rules.player.hpMax`)가 죽지 않는다 |
 | **S61** ★ | **어휘 사본의 일치** (v1.10 ㊿-i, §9.3) — `check.mjs` 와 `src/core/schema.mjs` 는 같은 닫힌 어휘를 **각자 한 벌씩** 들고 있다. 그 이중화는 **의도**다(검사기가 피검사자의 표를 그대로 쓰면 「표가 표를 검사」하는 공허 통과가 된다). 문제는 두 사본이 **조용히 어긋날 수 있다**는 것이고 실제로 그런 사고가 있었다(㊲ — 그때는 무기 분류를 데이터로 옮겨 해결했다). → 사본은 그대로 두고 **어긋남만 소리나게** 한다: `MANIFEST`·`WEAPON_CLASSES`·`BODY_STATS`·`TERRAIN_KINDS`·`TRAIT_EFFECT_KINDS` 5종을 원소 단위로 비교하고, `FAMILIES` 는 짝이 schema 가 아니라 **데이터**이므로 `weapons.json` 의 family 집합과 맞춘다(㊵ 스파이럴 삭제 때 이 목록이 먼저 거짓이 됐다) |
 | **S62** ★ | **감속 ≠ 삭제 · 감속은 계속 오른다** (v1.10 ㊿-o · ㊿-r, §9.5) — 같은 결함이 **세 번** 났다(v1.4 «탄막 제거» · ㊿ 까지의 «완전 정지» · 그리고 «강한 감속»조차 `maxBulletAgeSec` 때문에 삭제였다). ① `weapons.json` 의 모든 `*slowMul`(base · 레벨 칸 · 진화)은 **> 0** 이고 `< 1` — 0 은 정지이고 정지 반경이 기체 히트박스(4px)보다 크면 **반경이 얼마든 무적**이다 ② ㊿-r **감속은 레벨마다 계속 오른다** — Lv1~10 의 실효 `slowMul` 이 엄격히 줄어든다(사용자 2026-09-11 「계속 상승하는 느낌」) ②' 진화 칸(Lv8)의 오름폭 > 직전 칸 — 진화는 «한 단계 더»(사용자 「진화하면 +15%」). ~~`evoSlowMul < base.slowMul`~~ 삭제 — 곡선을 «대신»해 Lv8~10 칸을 죽이던 키였다 ③ **소스 검사** — `step.js` 의 적 탄 나이 누적이 `slowMul` 을 탄다(`b.age += dt * slow`). 이 한 줄이 ①②를 의미 있게 만든다: 없으면 `R ≤ 최저 탄속 × maxBulletAgeSec × slowMul` 을 못 지켜 필드가 탄을 «지운다» |
 | **S63** ★ | **어트랙트 — 설정값 · 읽힘 · 드라이버 배선** (v1.10 ㊿-s, §6.5) — `flow.attractIdleSec` · `flow.attract.{difficulty, draftDwellSec, endAfterMobPhase}` 는 v1.2 에 채택됐지만 ㊿-r 까지 읽는 코드가 0 이었다(죽은 키). ① **값**: 두 `Sec` 는 유한한 양수 · `difficulty` 는 난이도 id · `endAfterMobPhase` 는 불리언(로더 schema 도 같은 규칙 — 검토 재현: 난이도 id 오타가 타이틀을 검은 화면으로 만들었다) ② **읽힌다**: `main.js` 가 세 키를 읽고 `attractOver(world)` 를 부른다 · `stage.attractOver` 가 사망 · `endAfterMobPhase` · 잡몹 페이즈를 본다 — 주석과 **문자열 속**은 걷어내고 본다(`void 'data.meta.flow.attractIdleSec'` 한 줄로 통과하던 구멍) ③ **배선**(화면으로 보기 어려운 넷): 스텝 입력 `(DEMO || attract) ? botInput` · 효과음 `attract ? null : audio` · 드래프트 커서(열 때 봇이 고른 카드 · 레벨업·특성 드래프트를 여는 두 함수 모두 · `draft =` 바로 다음에 부른다 · 그 안에서 커서를 다시 쓰지 않는다 · 체류 뒤 `pick(cursor)`) · 봇 정책 = `?demo` 쇼케이스 값(§6.5 실측 «사망 1 vs 7»의 전제). ★ 시작·끝·끝 깃발·무입력 시계·blur·수정 키 조합·클릭·창 크기·일시정지·난이도 화면 무입력·사람 드래프트 대기·`?demo` 흐름은 소스 조각이 아니라 `tests/attract-driver.test.mjs` 가 main.js 를 부팅해 본다 — 검토: 조각 검사는 `endAttract` 가 `attract` 를 안 끄거나 끝 깃발이 안 지워져도 초록이었고, 따옴표·줄바꿈만 바뀌어도 빨갰다. 끝나는 때의 core 판정은 `tests/attract.test.mjs` |

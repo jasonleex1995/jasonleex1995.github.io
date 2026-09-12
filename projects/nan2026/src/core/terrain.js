@@ -16,6 +16,7 @@
  */
 
 import { TERRAIN_KINDS, TERRAIN_MIXED, SECTIONS } from './schema.mjs';
+import { difficultyTerrainCap } from './state.js';   // §8.21 ④(v1.10 ㊿-w) 무대 상한 = 난이도 표
 
 export const T_SLOW = 0;
 export const T_INERTIA = 1;
@@ -87,7 +88,7 @@ function place(world, kind, x, y) {
  * ★ 훅 진입점 — stage.tickRun 이 매 고정 틱 부른다(페이즈 무관: 흐름·반납·페이드는 늘, 스폰은 허용 구간에서만).
  *   (1) 흐름 — 모든 장판이 scrollSpeedPx 로 내려간다. 아레나 아래로 완전히 나가면 반납. 페이드 중이면 fadeSec 뒤 반납.
  *   (2) 스폰 — 현재 구간 ∈ rules.terrain.spawnIn(v1.10 ⑧: 위기 제외 — 186px/s 무리 속의 둔화·정지는 확정 피격이라
- *       §2.1 ① 을 깬다), terrainKind ≠ null, everySec 마다, 무대에 maxOnScreen 미만일 때.
+ *       §2.1 ① 을 깬다), terrainKind ≠ null, everySec 마다, 무대에 «난이도별 상한»(state.difficultyTerrainCap — 난이도 표가 소유한다) 미만일 때.
  *       x = 아레나 안 균일(rng.terrain), y = spawnLineY − radius (위에서 «들어온다»).
  */
 export function terrainTick(world, dt) {
@@ -112,7 +113,7 @@ export function terrainTick(world, dt) {
   if (st.terrainKind === null) return;                         // 지형 없는 스테이지(어휘상 허용 — 현재 데이터엔 없다)
   if (world.time < run.terrainNextT) return;
   run.terrainNextT = world.time + tr.everySec;
-  if (world.terrain.live >= tr.maxOnScreen) return;
+  if (world.terrain.live >= difficultyTerrainCap(world)) return;   // ㊿-w 난이도가 «몇 개까지»를 정한다
   const r = tr.radiusPx;
   place(world, nextKind(world, st), a.x + r + world.rng.terrain.f() * (a.w - 2 * r), world.data.rules.view.spawnLineY - r);
 }

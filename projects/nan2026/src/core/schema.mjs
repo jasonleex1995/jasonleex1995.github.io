@@ -245,7 +245,7 @@ function checkRules(c, r) {
       'allowNormalPeripheral']);
   }
   // §8.21(v1.10 ⑦) 지형 장판 — 피해 0, 조작만 건드린다. 3종의 파라미터. 둔화는 status.slowMoveSpeedMul 을 재사용(새 키 0).
-  c.closed('rules.terrain', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat']);
+  c.closed('rules.terrain', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat']);   // ㊿-w: 무대 상한은 난이도 표로 옮겼다
   if (isObj(r.terrain) && Array.isArray(r.terrain.spawnIn)) {
     for (let i = 0; i < r.terrain.spawnIn.length; i += 1) c.vocab(`rules.terrain.spawnIn[${i}]`, r.terrain.spawnIn[i], SECTIONS);
   }
@@ -692,7 +692,7 @@ function checkMeta(c, m) {
     const ds = ['normal', 'hard', 'hell'];
     for (let i = 0; i < ds.length; i += 1) {
       if (own(m.difficulty, ds[i])) {
-        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul']);
+        c.closed(`meta.difficulty.${ds[i]}`, m.difficulty[ds[i]], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']);
       }
     }
   }

@@ -154,7 +154,6 @@
     "radiusPx": 72,
     "scrollSpeedPx": 42,
     "everySec": 2.2,
-    "maxOnScreen": 5,
     "spawnIn": ["early", "midboss", "boss"],
     "bossEntryCount": 4,
     "fadeSec": 0.8,

@@ -56,18 +56,18 @@ suite('difficulty/표 §11.3', () => {
     for (let i = 0; i < ids.length - 1; i += 1) assert.gt(1, d[ids[i]].hpMul, `${ids[i]}: hpMul < 1`);
     // ㊿-q — 피해는 반대쪽 끝이 기준선이다. 저작 피해 = 노멀 피해(§2.1 산술의 자리).
     assert.eq(d[ids[0]].enemyDmgMul, 1, '가장 쉬운 난이도가 공격력 기준선 — enemyDmgMul 1');
-    for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul']) {
+    for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']) {
       for (let i = 1; i < ids.length; i += 1) {
         assert.gt(d[ids[i]][col], d[ids[i - 1]][col], `${col}: ${ids[i]} > ${ids[i - 1]}`);
       }
     }
   });
 
-  test('난이도 항목의 열은 넷뿐이다 — 죽은 키가 없다 (㊿-c · ㊿-q)', () => {
+  test('난이도 항목의 열은 다섯뿐이다 — 죽은 키가 없다 (㊿-c · ㊿-q · ㊿-w)', () => {
     // 화면에서 「진화 무기 N개 이상」을 빼자 evolutionsExpected 는 읽는 곳이 0 이 됐다 → 삭제했다.
     const d = loadData().meta.difficulty;
     for (const id of tierIds()) {
-      assert.eq(Object.keys(d[id]).sort().join(','), 'enemyDmgMul,hpMul,scoreMul,speed', `${id}: 열 넷`);
+      assert.eq(Object.keys(d[id]).sort().join(','), 'enemyDmgMul,hpMul,scoreMul,speed,terrainMaxOnScreen', `${id}: 열 다섯`);
     }
   });
 

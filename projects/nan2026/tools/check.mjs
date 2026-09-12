@@ -571,7 +571,7 @@ function S2_schema() {
   // ★ v1.3: statusBulletSpeedMul 이 visual → fairness 로 이사했다 (§23.3 · §12.4)
   // §8.21(v1.10 ⑦) 지형 장판
   if (isObj(D.stages && D.stages.phase) && isObj(D.stages.phase.sectionSpeedMul)) closedKeys('S2', D.stages.phase.sectionSpeedMul, ['early', 'mid', 'crisis'], 'stages.phase.sectionSpeedMul');   // v1.10 ⑪ drain
-  closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'maxOnScreen', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat'], 'rules.terrain');
+  closedKeys('S2', r.terrain, ['radiusPx', 'scrollSpeedPx', 'everySec', 'spawnIn', 'bossEntryCount', 'fadeSec', 'inertia', 'heat'], 'rules.terrain');   // ㊿-w: 무대 상한은 난이도 표
   if (isObj(r.terrain)) {
     closedKeys('S2', r.terrain.inertia, ['responseTauSec'], 'rules.terrain.inertia');
     closedKeys('S2', r.terrain.heat, ['fullSec', 'stallSec', 'coolSec'], 'rules.terrain.heat');
@@ -976,7 +976,7 @@ function S2_files() {
     closedKeys('S2', D.meta.difficulty, ['normal', 'hard', 'hell', 'stunMinDifficulty'], 'meta.difficulty');
     for (const k of ['normal', 'hard', 'hell']) {
       if (has(D.meta.difficulty, k)) {
-        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul'], `meta.difficulty.${k}`);
+        closedKeys('S2', D.meta.difficulty[k], ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen'], `meta.difficulty.${k}`);
       }
     }
     if (has(D.meta.difficulty, 'disaster')) {
@@ -3335,7 +3335,7 @@ function S55_midBossSection() {
  *   ② «속성당 하나»: kind == TERRAIN_KIND_ELEMENT 의 역(풀 slow · 물 inertia · 불 heat) — 그림의 색이 이 사전으로 종을 칠하므로
  *      데이터가 어긋나면 늪 위에 물색 장판이 뜬다 (기계는 3종, 테마는 겉모습만 다르다 — §8.21)
  *   ③ 3종이 전부 쓰인다 — 안 쓰이는 종은 죽은 어휘다
- *   ④ rules.terrain 의 값: radiusPx ∈ [24, arena.w ÷ 4] · scrollSpeedPx > 0 · everySec > 0 · 1 ≤ maxOnScreen ≤ caps.terrain
+ *   ④ rules.terrain 의 값: radiusPx ∈ [24, arena.w ÷ 4] · scrollSpeedPx > 0 · everySec > 0 · 난이도별 상한 ∈ [1, caps.terrain](S60 ⑪)
  *      · inertia.responseTauSec ∈ (0, 1] · heat.stallSec ∈ (0, fairness.maxStunSec] ∧ fullSec > stallSec ∧ coolSec > 0
  *      — 과열 정지는 스턴이므로 스턴 상한(§2.7)을 그대로 따른다. 지형은 피해 0 이라 텔레그래프 하한의 대상이 아니다
  *   ⑤ 지형이 화면을 «막지» 않는다: 2 × radiusPx < arena.w − 2 × radiusPx (한 장판이 서 있어도 좌우로 돌아갈 폭이 남는다)
@@ -3367,7 +3367,6 @@ function S56_terrain() {
   if (!num(tr.radiusPx) || tr.radiusPx < 24 || tr.radiusPx > a.w / 4) V('S56', `rules.terrain.radiusPx = ${tr.radiusPx} ∉ [24, arena.w/4 = ${a.w / 4}]`);
   if (!num(tr.scrollSpeedPx) || tr.scrollSpeedPx <= 0) V('S56', `rules.terrain.scrollSpeedPx = ${tr.scrollSpeedPx} — 양수여야 지형이 «흐른다»`);
   if (!num(tr.everySec) || tr.everySec <= 0) V('S56', `rules.terrain.everySec = ${tr.everySec} — 양수`);
-  if (!Number.isInteger(tr.maxOnScreen) || tr.maxOnScreen < 1 || !num(caps.terrain) || tr.maxOnScreen > caps.terrain) V('S56', `rules.terrain.maxOnScreen = ${tr.maxOnScreen} ∉ [1, caps.terrain = ${caps.terrain}]`);
   const inr = tr.inertia, ht = tr.heat;
   if (!isObj(inr) || !num(inr.responseTauSec) || inr.responseTauSec <= 0 || inr.responseTauSec > 1) V('S56', `rules.terrain.inertia.responseTauSec = ${inr && inr.responseTauSec} ∉ (0, 1]`);
   if (!isObj(ht) || !num(ht.stallSec) || ht.stallSec <= 0 || (num(fa.maxStunSec) && ht.stallSec > fa.maxStunSec)) V('S56', `rules.terrain.heat.stallSec = ${ht && ht.stallSec} ∉ (0, fairness.maxStunSec = ${fa.maxStunSec}] — 과열 정지는 스턴이다 (§2.7)`);
@@ -3377,7 +3376,7 @@ function S56_terrain() {
   n += 1;
   if (num(tr.radiusPx) && !(2 * tr.radiusPx < a.w - 2 * tr.radiusPx)) V('S56', `rules.terrain.radiusPx = ${tr.radiusPx}: 장판 하나가 아레나 폭 ${a.w} 의 절반을 넘는다 — 돌아갈 폭이 없다 (§8.21 ⑤)`);
   // ⑥ (v1.10 ⑧) 구간·보스 등장 무리·페이드 — spawnIn ⊆ SECTIONS · 비어 있지 않다 · 중복 없음 · ★ 'crisis' 가 없다
-  //    (186px/s 새떼 속의 둔화·정지는 확정 피격 = §2.1 ① 위반 — 사용자 결정 2026-09-04) · bossEntryCount ∈ [0, maxOnScreen] · fadeSec > 0
+  //    (186px/s 새떼 속의 둔화·정지는 확정 피격 = §2.1 ① 위반 — 사용자 결정 2026-09-04) · bossEntryCount ∈ [0, 가장 낮은 난이도 상한een] · fadeSec > 0
   n += 1;
   if (!Array.isArray(tr.spawnIn) || tr.spawnIn.length === 0) V('S56', 'rules.terrain.spawnIn: 비어 있으면 지형이 어디에도 안 나온다 — 죽은 기능 (§8.21 ④)');
   else {
@@ -3389,7 +3388,10 @@ function S56_terrain() {
     }
     if (seen.has('crisis')) V('S56', "rules.terrain.spawnIn 에 'crisis' — 위기(새떼 186px/s) 속의 둔화·정지는 확정 피격이라 §2.1 ① 을 깬다 (§8.21 ④)");
   }
-  if (!Number.isInteger(tr.bossEntryCount) || tr.bossEntryCount < 0 || (Number.isInteger(tr.maxOnScreen) && tr.bossEntryCount > tr.maxOnScreen)) V('S56', `rules.terrain.bossEntryCount = ${tr.bossEntryCount} ∉ [0, maxOnScreen = ${tr.maxOnScreen}] (§8.22)`);
+  // ㊿-w — 무대 상한은 난이도 표가 소유한다. 보스 등장 무리는 «가장 낮은» 난이도의 상한도 넘지 않아야 한다(넘으면 그 난이도에서 한 번에 상한 초과)
+  const tierCaps = ['normal', 'hard', 'hell'].map((k) => (isObj(D.meta && D.meta.difficulty && D.meta.difficulty[k]) ? D.meta.difficulty[k].terrainMaxOnScreen : undefined));
+  const minCap = tierCaps.every((v) => Number.isInteger(v)) ? Math.min(...tierCaps) : null;   // 난이도 표가 깨졌으면 S2·S60 이 먼저 말한다
+  if (!Number.isInteger(tr.bossEntryCount) || tr.bossEntryCount < 0 || (minCap !== null && tr.bossEntryCount > minCap)) V('S56', `rules.terrain.bossEntryCount = ${tr.bossEntryCount} ∉ [0, 가장 낮은 난이도 상한 = ${minCap === null ? '알 수 없음' : minCap}] (§8.22 · §8.21 ④)`);
   if (!num(tr.fadeSec) || tr.fadeSec <= 0) V('S56', `rules.terrain.fadeSec = ${tr.fadeSec} — 양수 (§8.21 ④)`);
   EX('S56', n);
 }
@@ -3616,7 +3618,7 @@ function S47_shapeLaw() {
  *   ②' ㊿-q 공격력은 «반대쪽» 끝이 기준선 — normal.enemyDmgMul == 1. 사용자(2026-09-11): 「노말이 x1.0이라면 하드는 x1.2,
  *      헬은 x1.5로 가보자」 → 저작 피해(bullets[].dmg · contactDmg · 장판 dmg)는 노멀의 값이다. §2.1 관대함 산술
  *      (「최대 단발 22 → 죽으려면 최소 5초」)이 서는 자리가 노멀이기 때문이다(§6.2 「무-트위치 기둥은 Normal에서 보장된다」)
- *   ③ 네 열(speed·scoreMul·hpMul·enemyDmgMul)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
+ *   ③ 다섯 열(speed·scoreMul·hpMul·enemyDmgMul·terrainMaxOnScreen)이 **모두** 노멀→하드→헬로 순증 — 한 열이라도 평평하면
  *      그 난이도는 «이름만 다른 난이도»다
  *   ④ (㊿-c 폐지 — evolutionsExpected 는 죽은 키라 삭제했다. 진화 개수는 고정 픽 예산에서 화력의 10~25% 라
  *      «집행되는 게이트»가 될 수 없다 — 실측 표는 §11.3 이 소유한다)
@@ -3669,15 +3671,25 @@ function S60_difficulty() {
     V('S60', `meta.difficulty.${low}.enemyDmgMul = ${md[low].enemyDmgMul} ≠ 1 — 저작 피해는 «가장 쉬운 난이도»의 값이다: `
       + `§2.1 「최대 단발 22 → 죽으려면 최소 5초」 보증이 서는 자리가 노멀이다 (§11.3 ②')`);
   }
-  for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul']) {
+  for (const col of ['speed', 'scoreMul', 'hpMul', 'enemyDmgMul', 'terrainMaxOnScreen']) {
     n += 1;
     for (let i = 1; i < TIERS.length; i += 1) {
       const a = md[TIERS[i - 1]]; const b = md[TIERS[i]];
       if (!isObj(a) || !isObj(b)) continue;
       if (!num(a[col]) || !num(b[col])) { V('S60', `meta.difficulty.*.${col}: 수가 아니다 (§11.3 ③)`); continue; }
       if (!(b[col] > a[col])) {
-        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 네 열 모두 순증해야 한다 (§11.3 ③)`);
+        V('S60', `meta.difficulty.${TIERS[i]}.${col} = ${b[col]} ≤ ${TIERS[i - 1]} 의 ${a[col]} — 다섯 열 모두 순증해야 한다 (§11.3 ③)`);
       }
+    }
+  }
+  // ⑪ ㊿-w — 지형 장판 무대 상한은 «개수»다(배율 아님): 정수 · 1 이상 · 풀 상한(caps.terrain) 이하
+  const capMax = D.rules && D.rules.caps && D.rules.caps.terrain;
+  for (const k of TIERS) {
+    if (!isObj(md[k])) continue;
+    n += 1;
+    const tc = md[k].terrainMaxOnScreen;
+    if (!Number.isInteger(tc) || tc < 1 || !num(capMax) || tc > capMax) {
+      V('S60', `meta.difficulty.${k}.terrainMaxOnScreen = ${tc} ∉ [1, caps.terrain = ${capMax}] — 배율이 아니라 개수다(정수) (§11.3 ⑪ · §8.21 ④)`);
     }
   }
   const STEP_MAX = 1.35;
@@ -3752,6 +3764,37 @@ function S60_difficulty() {
   if (uses.sort().join(' ') !== wantUses.join(' ')) {
     V('S60', `difficultyEnemyDmgMul( 의 출현 = [${uses.join(', ')}] ≠ [${wantUses.join(', ')}] — 정의 한 곳 · applyHit 호출 한 곳뿐이어야 한다. `
       + `다른 자리(스폰 등)에서 또 곱하면 배율이 두 번 걸린다 (§11.3 ⑧)`);
+  }
+  // ⑫ ㊿-w 소스 — 지형 무대 상한의 문도 하나다(⑧ 과 같은 규약): state.difficultyTerrainCap 이 terrainMaxOnScreen 을 읽고,
+  //   src/ 안에서 그 키를 읽는 파일은 그 문 하나 · 함수를 부르는 곳은 terrain.terrainTick 하나뿐이어야 한다.
+  //   ★ 주석·문자열은 걷고 본다 — 설명에 키 이름이 나왔다고 빨개지면 안 된다(2차 검토: 조각 게이트의 그 실패를 S63·S65 에서 이미 겪었다).
+  n += 1;
+  const capDoor = bodyOf(src, 'difficultyTerrainCap');
+  if (capDoor === null || !/\.terrainMaxOnScreen\b/.test(capDoor)) {
+    V('S60', 'state.js 에 difficultyTerrainCap 이 없거나 terrainMaxOnScreen 을 안 읽는다 — 지형 무대 상한의 유일한 문 (§11.3 ⑫ · §8.21 ④)');
+  }
+  n += 1;
+  const capUses = [];
+  const capKeyFiles = [];
+  const scanCap = (dir) => {
+    for (const f of readdirSync(dir, { withFileTypes: true })) {
+      const fp = join(dir, f.name);
+      if (f.isDirectory()) { scanCap(fp); continue; }
+      if (!/\.m?js$/.test(f.name)) continue;
+      const bare = code(readFileSync(fp, 'utf8'));
+      const rel = fp.slice(ROOT.length + 1).split('\\').join('/');
+      const hit = bare.match(/\bdifficultyTerrainCap\s*\(/g);
+      if (hit !== null) capUses.push(`${rel}×${hit.length}`);
+      if (/\bterrainMaxOnScreen\b/.test(bare)) capKeyFiles.push(rel);
+    }
+  };
+  scanCap(join(ROOT, 'src'));
+  // ★ schema.mjs 는 «닫힌 키 어휘»라 키 이름이 나오는 것이 제 일이다 — 값을 읽는 곳이 아니다. 그래서 어휘 파일은 빼고 본다.
+  const wantCap = ['src/core/state.js×1', 'src/core/terrain.js×1'].sort();   // 정의 1 · terrainTick 호출 1
+  const keyReaders = capKeyFiles.filter((f) => f !== 'src/core/schema.mjs').sort();
+  if (capUses.sort().join(' ') !== wantCap.join(' ') || keyReaders.join(' ') !== 'src/core/state.js') {
+    V('S60', `지형 무대 상한의 문이 하나가 아니다 — difficultyTerrainCap( 출현 [${capUses.join(', ')}] ≠ [${wantCap.join(', ')}] · `
+      + `terrainMaxOnScreen 을 «읽는» 파일 [${keyReaders.join(', ')}] ≠ [src/core/state.js] (어휘 파일 schema.mjs 는 제외) (§11.3 ⑫ · §8.21 ④)`);
   }
   // ⑨ ㊿-q 소스 — stunMinDifficulty 는 «값»(⑥)만으로 집행되지 않는다. ~㊿-p 에는 읽는 코드가 0 인데도 ⑥ 이 통과했고 노멀에서 스턴 탄이 나갔다.
   //   state.difficultyAllowsStun 이 그 키를 읽고, emitters.fireVolley(모든 볼리가 지나는 한 곳)의 «첫 문장»이 그 가드인지 본다.
