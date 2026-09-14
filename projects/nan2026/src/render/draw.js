@@ -484,12 +484,30 @@ const THEME_AB = {
   desert: [10, 34], forest: [-26, 22], bog: [-6, 16], finale: [22, 8],
 };
 
-function drawBackground(ctx, world, pal, fx) {
+//   ㊿-zg 사용자(2026-09-14) 「첫 화면과 스테이지 선택 화면이 살짝 아쉬워 — 배경이 너무 밋밋?하달까나?」
+//   → 메뉴도 이 함수를 부른다. 아래 「테마 없으면(타이틀 등)」 주석이 원래 그 쓰임을 적어 둔 자리다.
+//   ★ opts.rect — 시차 점을 가둘 사각형. 생략하면 아레나(= 플레이 화면의 프레이밍).
+//     메뉴는 HUD 패널이 없어 화면 전체를 넘긴다 — 아레나로 가두면 x=350·930 에 세로 이음매가 생기고,
+//     패널이 없는 화면에서 그 선은 «프레이밍»이 아니라 «렌더 버그»로 읽힌다.
+//   ★ opts.base — 바탕색. 생략하면 테마에서 파생한다(플레이 화면).
+//     ㊿-zh 사용자(2026-09-14) 「배경이 회색이 되다보니 글자가 살짝 잘 안보이긴해. 색만 예전의 그 색으로 하되,
+//     별 흐르는 방향으로 가는건 어떻게 생각해?」 — 눈이 맞았다. 파생 바탕은 L*12.6 무채색이라
+//     textDim 대비가 4.88 → **4.16** 으로 떨어져 **WCAG AA(4.5) 아래**로 내려간다. 메뉴는 panelBg 를 넘겨 되돌린다.
+//     ★ ㊿-zi 재측정 — 옮겨 오면서 적혀 있던 4.35 는 재현되지 않았다. 결론(AA 미달)은 같고 수치만 정정했다.
+//   ★ ㊿-zi 가 더 잰 것: **별이 글자 뒤에 오면** 그 자리 대비가 레이어 0 에서 4.16 · 레이어 1 에서 3.87 로
+//     AA 아래로 내려간다(점 알파 0.5 합성 기준). 점이 2~2.8px 이고 흘러가므로 «스쳐 지나가는» 국소 저하이고,
+//     §7.9.1 이 「메뉴는 단색 판이라 외곽선이 할 일이 없다」고 적은 근거는 이제 **정확하지 않다**(정본 갱신).
+//     ★ 움직임은 그대로다 — 문제였던 것은 «흐름»이 아니라 «바탕 밝기»였다. 오히려 바탕이 어두워져
+//       점과의 델타가 커지므로 별은 더 또렷해진다(잃는 것 없이 대비만 회복한다).
+export function drawBackground(ctx, world, pal, fx, opts) {
+  const o = opts === undefined ? {} : opts;
   const v = world.data.rules.view;
-  const a = v.arena;
+  const a = o.rect === undefined ? v.arena : o.rect;
   const rid = world.run && world.run.order ? world.run.order[world.run.stageIndex] : null;
   const ab = THEME_AB[rid] || [0, 0];                        // 테마 없으면(타이틀 등) 무채색
-  const base = labToHex(pal.bgMaxLightness * 100 * 0.45, ab[0] * 0.5, ab[1] * 0.5);
+  const base = o.base === undefined
+    ? labToHex(pal.bgMaxLightness * 100 * 0.45, ab[0] * 0.5, ab[1] * 0.5)
+    : o.base;
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, v.logicalW, v.logicalH);
 
