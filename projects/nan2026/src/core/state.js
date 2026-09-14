@@ -246,7 +246,9 @@ function makeTerrain() {
 }
 
 function makeDrone() {
-  // §5.3 — family 로 식별한다(slot.index 는 슬롯 재정렬 swapSlots 에 불안정). orbit/mine 과 같은 규약.
+  // §9.5 — family 로 식별한다. ~~슬롯 재정렬(swapSlots)~~ 은 ㊿-ze6 에서 폐지됐지만 규칙은 남는다:
+  //   슬롯이 «가리키는 무기»는 재정렬 말고도 바뀐다(튜토리얼 resetLoadout 이 슬롯을 비우고 다시 채운다 —
+  //   그 자리가 ㊿-z8 의 «주인 잃은 탄» 결함이었다). orbit/mine 과 같은 규약.
   return { alive: false, idx: 0, gen: 0, family: '', x: 0, y: 0, ox: 0, oy: 0, fireT: 0 };
 }
 
@@ -746,24 +748,6 @@ export function givePassive(world, passiveId) {
     return true;
   }
   return false;               // 6칸 만석 + 미보유 → 카드가 풀에 없다 (§11.1)
-}
-
-/** §5.3 — 슬롯 재정렬(스왑). 드래프트 화면에서만 호출된다 */
-// §11.1(v1.6) — 계열을 **넘는** 교환은 거부한다(false). 속성 무기가 유틸 칸에 앉으면
-//   recomputeStamps 가 각인을 안 내려 그 무기는 영원히 노말이 되고, 반대로 유틸 무기가
-//   속성 칸에 앉으면 각인을 받아 「조준하지 않는 무기는 상성을 노릴 수 없다」는 전제가
-//   무너진다. 지금은 호출처가 테스트뿐이라 실사용 위험이 없지만, 불변식을 우연이 아니라
-//   구조로 세워 둔다 — 나중에 UI 가 이걸 부르면 조용히 깨질 자리다.
-export function swapSlots(world, i, j) {
-  const eSlots = world.data.rules.player.elementSlots;
-  if ((i < eSlots) !== (j < eSlots)) return false;
-  const t = world.slots[i];
-  world.slots[i] = world.slots[j];
-  world.slots[j] = t;
-  world.slots[i].index = i;
-  world.slots[j].index = j;
-  recomputeStamps(world);     // §4.3 재계산 시점 ③ — 슬롯 재정렬
-  return true;
 }
 
 // ---------------------------------------------------------------------------

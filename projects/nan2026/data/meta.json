@@ -78,7 +78,6 @@
     "dodgeLookaheadSec": 0.6,
     "dodgePerceptionMs": 33,
     "aimErrorPx": 12,
-    "slotOrder": "dpsDescending",
     "policies": {
       "draft":  ["generalist", "specialist", "weaponRush", "elementRush", "greedyDps", "random"],
       "farm":   ["maxFarm", "balanced", "passive"],

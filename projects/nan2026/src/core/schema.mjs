@@ -283,7 +283,7 @@ function checkRules(c, r) {
   if (isObj(r.input)) {
     c.closed('rules.input.bindings', r.input.bindings, ['move', 'stanceNormal', 'stanceFire',
       'stanceWater', 'stanceGrass', 'pause', 'options', 'draftPick',
-      'reorderToggle', 'grab', 'confirm', 'mute', 'cursor']);
+      'suppress', 'grab', 'confirm', 'mute', 'cursor']);
   }
 
   c.closed('rules.palette', r.palette, ['element', 'elementCvd', 'threat', 'status', 'pickup',
@@ -704,7 +704,7 @@ function checkMeta(c, m) {
   if (isObj(m.bot)) {
     // §10.4 — grazeTolerancePx 는 삭제됐다 (§2.3 "그레이즈 없음")
     c.closed('meta.bot', m.bot, ['reactionMs', 'reactionJitterMs', 'stanceSwitchMs',
-      'dodgeLookaheadSec', 'dodgePerceptionMs', 'aimErrorPx', 'slotOrder', 'policies', 'baseline', 'probes']);
+      'dodgeLookaheadSec', 'dodgePerceptionMs', 'aimErrorPx', 'policies', 'baseline', 'probes']);
     c.closed('meta.bot.policies', m.bot.policies, ['draft', 'farm', 'stance']);
     c.closed('meta.bot.baseline', m.bot.baseline, ['draft', 'farm', 'stance']);
     c.closed('meta.bot.probes', m.bot.probes, ['dpsProbe', 'forceNoElement']);

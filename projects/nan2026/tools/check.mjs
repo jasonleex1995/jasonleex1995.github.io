@@ -618,7 +618,7 @@ function S2_schema() {
   closedKeys('S2', r.input, ['layout', 'socd', 'pauseOnBlur', 'bindings'], 'rules.input');
   if (isObj(r.input)) {
     closedKeys('S2', r.input.bindings, ['move', 'stanceNormal', 'stanceFire', 'stanceWater', 'stanceGrass',
-      'pause', 'options', 'draftPick', 'reorderToggle', 'grab',
+      'pause', 'options', 'draftPick', 'suppress', 'grab',
       'confirm', 'mute', 'cursor'], 'rules.input.bindings');
   }
 
@@ -994,7 +994,7 @@ function S2_files() {
   // §10.4 — bot. ★ grazeTolerancePx 는 삭제됐다 (§2.3 "그레이즈 없음")
   if (isObj(D.meta.bot)) {
     closedKeys('S2', D.meta.bot, ['reactionMs', 'reactionJitterMs', 'stanceSwitchMs', 'dodgeLookaheadSec',
-      'dodgePerceptionMs', 'aimErrorPx', 'slotOrder', 'policies', 'baseline', 'probes'], 'meta.bot');
+      'dodgePerceptionMs', 'aimErrorPx', 'policies', 'baseline', 'probes'], 'meta.bot');
     closedKeys('S2', D.meta.bot.policies, ['draft', 'farm', 'stance'], 'meta.bot.policies');
     closedKeys('S2', D.meta.bot.baseline, ['draft', 'farm', 'stance'], 'meta.bot.baseline');
     closedKeys('S2', D.meta.bot.probes, ['dpsProbe', 'forceNoElement'], 'meta.bot.probes');

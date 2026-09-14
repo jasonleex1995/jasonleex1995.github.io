@@ -11,7 +11,7 @@
  * 값은 전부 정본/데이터에서 유도한다 (하드코딩 매직넘버 지양).
  */
 import { suite, test, assert, loadData, baselineDifficulty } from '../tools/test.mjs';
-import { makePool, createWorld, recomputeStats, recomputeEff, giveWeapon, levelUpWeapon, givePassive, swapSlots, spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext, familyDmgMul } from '../src/core/state.js';
+import { makePool, createWorld, recomputeStats, recomputeEff, giveWeapon, levelUpWeapon, givePassive, spawnPlayerBullet, spawnEnemy, spawnPickup, spawnEnemyBullet, xpToNext, familyDmgMul } from '../src/core/state.js';
 import { weapons } from '../src/core/weapons/index.js';
 import { killEnemy } from '../src/core/step.js';
 
@@ -413,26 +413,6 @@ suite('state · 성장 give/levelUp/swap/passive', () => {
     for (let k = 0; k < nSlots - 2; k += 1) assert.ok(givePassive(w, others[k]), `채움 ${others[k]}`);
     assert.eq(w.passives.length, nSlots, `${nSlots}칸 만석`);
     assert.eq(givePassive(w, 'stabilizer'), false, '만석 + 미보유 신규 = false');
-  });
-
-  // §11.1(v1.6) — 계열을 넘는 교환은 각인 규약을 깨므로 거부된다
-  test('swapSlots — 계열을 넘는 교환은 거부 (§11.1)', () => {
-    const w = mk();
-    assert.ok(giveWeapon(w, 'orbit') >= 0, '유틸 무기 획득');
-    const before = w.slots.map((s) => s.weaponId);
-    const eSlots = w.data.rules.player.elementSlots;
-    assert.eq(swapSlots(w, 0, eSlots), false, '속성칸 ↔ 유틸칸 = false');
-    assert.eq(JSON.stringify(w.slots.map((s) => s.weaponId)), JSON.stringify(before), '거부되면 배치 불변');
-  });
-
-  test('swapSlots — 슬롯 교환 + index 갱신 (§5.3)', () => {
-    const w = mk();
-    giveWeapon(w, 'fan');                                 // slot1 = fan
-    assert.eq(swapSlots(w, 0, 1), true, '같은 계열(속성↔속성) 교환은 허용');
-    assert.eq(w.slots[0].family, 'fan', 'slot0 = fan');
-    assert.eq(w.slots[0].index, 0, 'index 갱신 0');
-    assert.eq(w.slots[1].family, 'forward', 'slot1 = forward');
-    assert.eq(w.slots[1].index, 1, 'index 갱신 1');
   });
 
   test('recomputeStats — maxHpAdd 는 hpMax 를 올리고 그 델타만큼만 hp 회복', () => {

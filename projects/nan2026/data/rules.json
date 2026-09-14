@@ -215,7 +215,7 @@
       "pause": "Escape",
       "options": "KeyO",
       "draftPick": ["Digit1", "Digit2", "Digit3"],
-      "reorderToggle": "Tab",
+      "suppress": ["Tab"],
       "grab": "Space",
       "confirm": "Enter",
       "mute": "KeyM",
