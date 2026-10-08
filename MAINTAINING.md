@@ -204,7 +204,7 @@ python3 -m http.server 8000
   - `styles.css` — 디자인을 바꿀 때만. (색/폰트는 맨 위 `:root` 변수만 수정)
   - `gallery.html` / `projects.html` 안의 `<script>` 블록 — 렌더링 로직. 수정 불필요.
   - **`.nojekyll`** (루트의 빈 파일) — 지우면 GitHub Pages가 Jekyll로 처리해서 **밑줄로 시작하는 폴더(`projects/_template/`)가 통째로 사라집니다.**
-  - **`projects/nan2026/` 폴더 이름** — PRISM WING 페이지가 이 경로를 iframe으로 직접 물고 있어서, 바꾸면 게임이 빈 화면이 됩니다.
+  - **`projects/prism-wing/index.html` 의 iframe 주소** — 게임은 이제 자기 저장소([prism-wing](https://github.com/jasonleex1995/prism-wing))에 살고 `https://jasonleex1995.github.io/prism-wing/` 로 배포됩니다. 이 페이지는 그 주소를 iframe 으로 물고 있어요(같은 도메인이라 예전과 똑같이 동작합니다). `projects/nan2026/` 에는 **예전 주소를 받은 사람을 위한 전달 페이지 한 장**만 남아 있습니다 — 게임 파일이 아닙니다.
 - **이미지는 반드시 압축**해서 올리기 (원본 수 MB 그대로 X).
 - **날짜 형식 주의**: 책 = `YYYY.MM.DD`, 갤러리 = `YYYY-MM`.
 - **JSON 문법 주의**: 따옴표 `"`, 항목 사이 쉼표 `,`, **마지막 항목 뒤에는 쉼표 금지**. 헷갈리면 [jsonlint.com](https://jsonlint.com/)에 붙여넣어 검사.

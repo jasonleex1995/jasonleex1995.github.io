@@ -50,5 +50,6 @@ python3 -m http.server 8000   # http://localhost:8000/projects.html
 그래서 `_template`은 `../../styles.css` 형태를 씁니다. **이 규칙을 깨지 마세요** (루트 절대경로 `/styles.css`로 바꾸면
 배포된 사이트에선 멀쩡한데 로컬 더블클릭에서만 무스타일로 깨집니다 — 알아채기 어려운 종류의 고장이에요).
 
-> 예외: `prism-wing`은 게임을 iframe으로 물고 있고 그 게임(`projects/nan2026/`)은 ES 모듈이라
-> `file://`에서 동작하지 않습니다. 이 둘은 위의 `python3 -m http.server 8000`으로 여세요.
+> 예외: `prism-wing`은 게임을 iframe으로 물고 있습니다. 게임 자체는 **이 저장소에 없어요** —
+> 자기 저장소([prism-wing](https://github.com/jasonleex1995/prism-wing))에서 `https://jasonleex1995.github.io/prism-wing/` 로
+> 배포됩니다. 그래서 이 페이지는 `file://` 로 열어도 게임 칸이 뜹니다(인터넷 연결 필요).
