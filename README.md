@@ -11,7 +11,7 @@
 
 ```
 index.html        Home (자기소개)
-resume.html       Education / Publications / Experience / Awards
+resume.html       Education / Publications / Experience / Misc
 projects.html     프로젝트 인덱스 (data/projects.json → 카드 목록)
 books.html        독서 기록 (카테고리별)
 gallery.html      사진 + 그림 갤러리 (data/gallery.json, 필터 + 라이트박스)
@@ -20,7 +20,8 @@ styles.css        모든 페이지 공용 스타일시트 (디자인 토큰은 :
 assets/
   favicon.ico     브라우저 탭 아이콘
   profile.webp    프로필 사진 (홈)
-  photos/         갤러리 사진 (웹용 압축본) — README.md 포함
+  photos/         갤러리 사진 (웹용 압축본, 크게 보기용) — README.md 포함
+    thumbs/       목록용 썸네일 (같은 파일명, 긴 변 1200px)
   drawings/       갤러리 그림 — README.md 포함
 
 projects/         개별 프로젝트 페이지 (각 프로젝트 = 독립 HTML)

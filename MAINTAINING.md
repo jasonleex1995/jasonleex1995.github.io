@@ -58,7 +58,7 @@ git push
 | 하고 싶은 것 | 건드리는 곳 |
 |---|---|
 | 책 추가 | `books.html` |
-| 사진 / 그림 추가 | `assets/photos/` 또는 `assets/drawings/` + `data/gallery.json` |
+| 사진 / 그림 추가 | `assets/photos/` (+ 썸네일 `assets/photos/thumbs/`) 또는 `assets/drawings/` + `data/gallery.json` |
 | 프로젝트 추가 | `projects/<슬러그>/` + `data/projects.json` |
 | 논문 추가 | `resume.html` (Publications) |
 | 경력 추가 | `resume.html` (Experience) |
@@ -90,15 +90,19 @@ git push
 
 ### 3.2 사진 / 그림 추가 — 갤러리
 
-**2단계**입니다: ① 이미지 파일을 폴더에 넣고 ② `data/gallery.json`에 한 줄 등록.
+**2단계**입니다: ① 이미지 파일을 폴더에 넣고 (사진은 **원본 + 썸네일 두 장**) ② `data/gallery.json`에 한 줄 등록.
 
 **① 이미지 준비 & 저장**
-- **사진**: 원본은 수 MB라 **반드시 압축**해서 webp로 올립니다 (**q95, 긴 변 2400px**).
+- **사진**: 카메라 원본은 수 MB라 **반드시 압축**해서 webp로 올립니다. 한 장을 **두 크기로** 만들어요:
+  - **원본**(크게 보기용) — **q95, 긴 변 2400px** → `assets/photos/202606.webp`
+    - `cwebp -q 95 -m 6 -resize 2400 0 ~/Downloads/202606.png -o assets/photos/202606.webp` (세로 사진은 `-resize 0 2400`)
+  - **썸네일**(목록용) — **q85, 긴 변 1200px**, **같은 파일명** → `assets/photos/thumbs/202606.webp`
+    - `cwebp -q 85 -m 6 -resize 1200 0 assets/photos/202606.webp -o assets/photos/thumbs/202606.webp` (세로 사진은 `-resize 0 1200`)
+  - 갤러리 목록은 썸네일만 받고, 사진을 눌렀을 때만 원본을 받습니다. 썸네일을 빠뜨려도 목록이 원본으로 대신 보여 줘서 깨지진 않지만 그만큼 무거워져요. **원본을 바꾸면 썸네일도 다시** 만드세요.
   - 보통 [EXIF Frame](projects/exif-frame/)으로 프레임 입힌 PNG를 받아 → webp로 변환. (원본 PNG는 레포에 보관 안 함 — webp만 커밋. 필요하면 EXIF Frame으로 재생성)
-  - 명령어: `cwebp -q 95 -m 6 -resize 2400 0 ~/Downloads/202606.png -o assets/photos/202606.webp` (세로 사진은 `-resize 0 2400`)
-  - 프레임 없이 카메라 원본을 바로 쓸 땐 [Squoosh](https://squoosh.app/)가 가장 쉬움(회전 자동 처리)
-  - → webp는 `assets/photos/`에 저장. 자세한 절차는 `assets/photos/README.md`
-- **그림**: 보통 작아서 그대로 둬도 됩니다 → `assets/drawings/`에 저장
+  - 프레임 없이 카메라 원본을 바로 쓸 땐 [Squoosh](https://squoosh.app/)가 가장 쉬움(회전 자동 처리) — 썸네일은 위 명령으로 따로
+  - 규칙·자세한 절차는 `assets/photos/README.md`
+- **그림**: 보통 작아서 그대로 둬도 됩니다 → `assets/drawings/`에 저장 (썸네일 없음 — 목록도 원본을 씀)
 - 파일명은 **영문/숫자**로 (한글 파일명 X)
 
 **② `data/gallery.json`의 `items` 배열에 추가** (관례상 맨 위. ★ 실제 화면 순서는 배열 위치가 아니라 **`date` 기준 자동 최신순**입니다):
@@ -217,6 +221,7 @@ python3 -m http.server 8000
 | 증상 | 원인 / 해결 |
 |---|---|
 | 이미지가 안 보임 (깨진 아이콘) | 파일명·경로·**대소문자** 불일치. `data/gallery.json`의 `file`과 실제 파일명을 정확히 맞추기 |
+| 갤러리 목록의 사진과 크게 본 사진이 다름 / 갤러리가 느려짐 | 썸네일 문제. 원본을 바꿨으면 `assets/photos/thumbs/`의 같은 이름 썸네일도 다시 만들기. 썸네일이 빠지면 목록이 원본을 받느라 느려짐 → `assets/photos/README.md`의 빠진 썸네일 확인 명령 |
 | 갤러리/프로젝트가 안 바뀜 | `data/*.json` **문법 오류**(쉼표 누락/초과). jsonlint로 검사 |
 | 사진이 옆으로 누움 | 회전(EXIF) 문제 → `assets/photos/README.md`의 "회전 고치기" |
 | push했는데 사이트 반영 안 됨 | ① 1분쯤 기다렸는지 확인 (빌드는 없지만 반영에 약간 걸립니다). ② 거의 대부분 **브라우저 캐시**입니다 → **하드 리프레시**(Mac `⌘+Shift+R`, Win `Ctrl+F5`). 특히 `styles.css`·이미지가 캐시에 잘 남아요. ③ 저장소 **Settings → Pages**에서 마지막 배포 상태를 볼 수 있어요 |
