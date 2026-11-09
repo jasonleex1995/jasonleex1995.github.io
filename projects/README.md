@@ -46,7 +46,7 @@ cp -r projects/_template projects/my-project
 ```bash
 python3 -m http.server 8000   # http://localhost:8000/projects.html
 ```
-개별 프로젝트 페이지는 **상대경로만 쓰면** 더블클릭(`file://`)으로도 열려요 — `_template`·`exif-frame`이 그렇습니다.
+개별 프로젝트 페이지는 **상대경로만 쓰면** 더블클릭(`file://`)으로도 열려요 — `_template`·`exif-frame`·`dot-qr`이 그렇습니다.
 그래서 `_template`은 `../../styles.css` 형태를 씁니다. **이 규칙을 깨지 마세요** (루트 절대경로 `/styles.css`로 바꾸면
 배포된 사이트에선 멀쩡한데 로컬 더블클릭에서만 무스타일로 깨집니다 — 알아채기 어려운 종류의 고장이에요).
 
