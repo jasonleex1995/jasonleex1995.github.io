@@ -7,10 +7,11 @@
    1) Plain symbols: per-version fingerprints of 1,920 symbols (versions 1–40 × L/M/Q/H × masks).
       Those exact symbols were compared module-for-module against node-qrcode 1.5.4 on
       2026-11-09 and were identical, so a changed fingerprint means the encoder changed.
-   2) Picture symbols: every preset in index.html × several links × grid sizes builds, reads
-      back as exactly the link (DotQR.verify), and keeps most dots on the drawing.
-   3) Rendering: whatever the Blend, the centre pixel of every module shows its true colour —
-      that centre is what scanners read.
+   2) Drawings in the middle: every preset in index.html × links × grid sizes. When a code is made,
+      it reads back as exactly the link, its box shows the drawing exactly (plus a light margin),
+      the drawing covers no function pattern except the centre alignment square, and the rendered
+      image puts every module's colour where scanners look.
+   3) maxInsetSide tells the truth: a drawing that big fits, one module bigger does not.
 */
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -48,7 +49,7 @@ for (let v = 1; v <= 40; v++) {
   check(allRead, `a plain symbol at version ${v} does not read back`);
 }
 
-/* ---------- 2) Picture symbols ---------- */
+/* ---------- 2) Drawings in the middle ---------- */
 const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const presets = {};
 for (const m of html.matchAll(/^\s*(\w+): '((?:[0-9a-f]{8} ){31}[0-9a-f]{8})',?$/gm)) presets[m[1]] = m[2];
@@ -66,48 +67,96 @@ function resample(bits, M, M2) {      // same nearest-neighbour rule as the page
   return out;
 }
 
-const LINKS = ['https://jasonleex1995.github.io', 'https://bit.ly/3xYz9Ab',
-  'https://www.example.com/articles/2026/11/a-much-longer-link?ref=newsletter&id=12345', '안녕하세요 Dot QR'];
+// Everything a finished code with a drawing must satisfy.
+function checkInset(res, d, bytes, tag) {
+  const read = DotQR.verify(res, bytes);
+  check(read.ok, `${tag}: does not read back (${read.why})`);
+  const N = res.size, b = res.box, ver = res.version;
+  const ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2);
+  let wrong = 0, badCover = 0, clash = 0;
+  const al = DotQR._alignmentPositions(ver), mid = al.length >= 3 ? al[(al.length - 1) >> 1] : -1;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, inBox = x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+    if (res.covered[i]) {
+      const centre = mid >= 0 && Math.abs(x - mid) <= 2 && Math.abs(y - mid) <= 2;
+      if (!centre || !inBox) badCover++;
+    }
+    if (!inBox) continue;
+    const dx = x - ox, dy = y - oy;
+    const want = (dx >= 0 && dy >= 0 && dx < d.w && dy < d.h) ? d.bits[dy * d.w + dx] : 0;
+    if (res.modules[i] !== want) wrong++;
+    if (res.isFunction[i] && !res.covered[i]) clash++;
+  }
+  const coveredCount = res.covered.reduce((a, c) => a + c, 0);
+  check(wrong === 0, `${tag}: ${wrong} modules in the box differ from the drawing`);
+  check(badCover === 0, `${tag}: ${badCover} covered modules are not the centre alignment square`);
+  check(coveredCount === 0 || coveredCount === 25, `${tag}: the centre alignment square is only partly covered (${coveredCount}/25)`);
+  check(clash === 0, `${tag}: ${clash} function modules sit visibly inside the drawing's box`);
+  check(b.x >= 0 && b.y >= 0 && b.x + b.w <= N && b.y + b.h <= N && d.w + 2 <= b.w && d.h + 2 <= b.h, `${tag}: box lacks its margin`);
+  const px = 6, W = (N + 8) * px, img = new Uint8Array(W * W);                         // rendering
+  DotQR.renderModules(res, { px }, (x, y, w, h) => { for (let yy = y; yy < y + h; yy++) img.fill(1, yy * W + x, yy * W + x + w); });
+  let badPix = 0;
+  for (let my = 0; my < N; my++) for (let mx = 0; mx < N; mx++)
+    for (const [fx, fy] of [[1, 1], [3, 3], [5, 5]]) if (img[((my + 4) * px + fy) * W + (mx + 4) * px + fx] !== res.modules[my * N + mx]) badPix++;
+  check(badPix === 0, `${tag}: rendering puts ${badPix} pixels in the wrong colour`);
+  let quiet = 0;
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (img[y * W + x] && (x < 4 * px || y < 4 * px || x >= W - 4 * px || y >= W - 4 * px)) quiet++;
+  check(quiet === 0, `${tag}: ${quiet} dark pixels in the quiet zone`);
+}
+
+const SHORT = ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'mailto:someone@example.com', '안녕하세요 Dot QR'];
+const LONG = 'https://www.example.com/articles/2026/11/a-much-longer-link?ref=newsletter&id=12345';
 for (const [name, hex] of Object.entries(presets)) {
   const base = bitsOf(hex);
-  for (const link of LINKS) for (const M of [16, 32, 64]) {
-    const bits = M === 32 ? base : resample(base, 32, M), bytes = DotQR.utf8(link);
-    const ver = DotQR.autoVersion(bytes, M, { maxVersion: 20 });
-    const tag = `${name} / grid ${M} / ${link.slice(0, 28)}`;
-    if (!(ver > 0)) { check(false, `${tag}: no version chosen`); continue; }
-    const N = DotQR.sizeOf(ver), gray = DotQR.fitDrawing(bits, M, N);
-    const target = Uint8Array.from(gray, g => (g >= 0.5 ? 1 : 0));
-    const res = DotQR.makeArt(bytes, { version: ver, ecl: DotQR.ECL.L, target, weight: DotQR.weights(gray, N) });
-    const read = DotQR.verify(res, bytes);
-    check(read.ok, `${tag}: does not read back (${read.why})`);
-    check(res.match >= 0.6, `${tag}: only ${(res.match * 100).toFixed(0)}% of dots follow the drawing`);
+  for (const link of SHORT) for (const M of [16, 24, 32]) {
+    const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(M === 32 ? base : resample(base, 32, M), M);
+    const tag = `${name} / grid ${M} / ${link.slice(0, 26)}`;
+    const res = DotQR.makeInset(bytes, d, { cache: {} });
+    check(!!res, `${tag}: should fit but no code was made`);
+    if (res) checkInset(res, d, bytes, tag);
+  }
+  const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
+  check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
+}
 
-    /* ---------- 3) Rendering: true colour across the middle of each module, drawing colour
-                      in the corner of the modules that disagree with it ---------- */
-    for (const centre of [0.5, 0.75, 1]) {
-      const px = 20, W = (res.size + 8) * px, img = new Uint8Array(W * W);
-      DotQR.renderModules(res, target, { px, centre }, (x, y, w, h) => {
-        for (let yy = y; yy < y + h; yy++) img.fill(1, yy * W + x, yy * W + x + w);
-      });
-      const at = (mx, my, fx, fy) => img[((my + 4) * px + Math.floor(fy * px)) * W + (mx + 4) * px + Math.floor(fx * px)];
-      let badMiddle = 0, badCorner = 0;
-      for (let my = 0; my < res.size; my++) for (let mx = 0; mx < res.size; mx++) {
-        const i = my * res.size + mx, v = res.modules[i];
-        for (const fy of [0.3, 0.5, 0.7]) for (const fx of [0.3, 0.5, 0.7]) if (at(mx, my, fx, fy) !== v) { badMiddle++; break; }
-        const outer = (centre < 1 && !res.isFunction[i]) ? target[i] : v;
-        if (at(mx, my, 0.05, 0.05) !== outer) badCorner++;
-      }
-      check(badMiddle === 0, `${tag}: ${badMiddle} modules lose their true colour in the middle at Blend ${centre}`);
-      check(badCorner === 0, `${tag}: ${badCorner} modules have the wrong colour at the corner at Blend ${centre}`);
+// Shapes the presets don't cover: a tiny drawing in a big code (box must grow to cover the centre
+// square whole) and a wide, flat one (box runs close to the edges, past alignment squares).
+{
+  const bytes = DotQR.utf8('https://jasonleex1995.github.io');
+  for (const ver of [7, 9, 12]) {
+    const tiny = { w: 2, h: 2, bits: Uint8Array.from([1, 0, 0, 1]) };
+    const res = DotQR.makeInset(bytes, tiny, { version: ver, cache: {} });
+    check(!!res, `tiny drawing at version ${ver}: no code made`);
+    if (res) checkInset(res, tiny, bytes, `tiny drawing at version ${ver}`);
+  }
+  for (const [w, h] of [[34, 10], [10, 34], [30, 14]]) {
+    const bits = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) bits[i] = (Math.imul(i + 7, 2654435761) >>> 11) & 1;
+    const d = { w, h, bits };
+    for (const ver of [8, 9, 10, 11]) {
+      const res = DotQR.makeInset(bytes, d, { version: ver, cache: {} });
+      if (res) checkInset(res, d, bytes, `${w}×${h} drawing at version ${ver}`);
     }
+    const auto = DotQR.makeInset(bytes, d, { cache: {} });
+    check(!!auto, `${w}×${h} drawing: no code made`);
   }
 }
 
+/* ---------- 3) maxInsetSide matches what makeInset can actually do ---------- */
+for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'https://jasonleex1995.github.io/projects/dot-qr/']) {
+  const bytes = DotQR.utf8(link), s = DotQR.maxInsetSide(bytes, { cache: {} });
+  const random = n => { const b = new Uint8Array(n * n); for (let i = 0; i < n * n; i++) b[i] = (Math.imul(i + n, 2654435761) >>> 9) & 1; b[0] = b[n - 1] = b[n * n - 1] = b[n * n - n] = 1; return { w: n, h: n, bits: b }; };
+  const fit = DotQR.makeInset(bytes, random(s), { cache: {} });
+  check(!!fit, `${link}: maxInsetSide says ${s} fits, but it doesn't`);
+  if (fit) checkInset(fit, random(s), bytes, `${link} @ ${s}×${s}`);
+  check(DotQR.makeInset(bytes, random(s + 1), { cache: {} }) === null, `${link}: ${s + 1}×${s + 1} fits although maxInsetSide says ${s}`);
+}
+check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache: {} }) === 32, 'a 31-character link should hold a full 32×32 drawing');
+
 /* ---------- 4) Edges ---------- */
+check(DotQR.cropDrawing(new Uint8Array(32 * 32), 32) === null, 'an empty drawing must crop to null');
 check(DotQR.makePlain(DotQR.utf8('x'.repeat(2000)), { ecl: DotQR.ECL.M }) !== null, 'a 2000-byte link should still fit a plain code');
 check(DotQR.makePlain(DotQR.utf8('x'.repeat(3000)), { ecl: DotQR.ECL.M }) === null, 'a 3000-byte link cannot fit and must return null');
-check(DotQR.autoVersion(DotQR.utf8('https://example.com/?q=' + 'x'.repeat(700)), 32, { maxVersion: 20 }) === -1,
-  'an overlong link must leave the picture out (autoVersion −1)');
 
 console.log(`${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

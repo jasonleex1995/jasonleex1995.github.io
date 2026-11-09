@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dot QR &middot; Jason&rsquo;s Blog</title>
-  <meta name="description" content="Draw a small black-and-white picture and get a QR code shaped like it — one that still scans. Runs entirely in your browser.">
+  <meta name="description" content="Draw a small black-and-white picture and get a QR code with it sitting in the middle — untouched, and still scannable. Runs entirely in your browser.">
   <link rel="icon" href="../../assets/favicon.ico">
   <link rel="stylesheet" href="../../styles.css">
   <style>
@@ -60,25 +60,15 @@
     .dq-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
     .dq-qr { display: block; image-rendering: pixelated; }
     .dq-empty { color: var(--muted); font-size: 0.9375rem; padding: var(--space-6); text-align: center; }
-    .dq-check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.8125rem; color: var(--muted); cursor: pointer; }
-    .dq-check input { accent-color: var(--accent); margin: 0; }
 
     .dq-status { margin: 0; font-size: 0.9375rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
     .dq-ok { color: var(--accent); font-weight: 600; }
-    .dq-controls { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-3) var(--space-4); }
-    .dq-range { display: flex; align-items: center; gap: var(--space-3); font-size: 0.8125rem; color: var(--muted); }
-    .dq-range input { flex: 1; min-width: 0; accent-color: var(--accent); }
-    .dq-stepper { display: inline-flex; align-items: center; gap: var(--space-2); }
-    .dq-stepper .dq-btn { width: 2rem; padding-inline: 0; text-align: center; }
-    .dq-stepper output { min-width: 5.5rem; text-align: center; font-family: var(--font-mono); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-    .dq-linkbtn { font: inherit; font-size: 0.8125rem; background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
-    .dq-linkbtn:hover { color: var(--accent-hover); }
     .dq-warn {
       margin: 0; font-size: 0.875rem; color: var(--fg); background: var(--surface);
       border: 1px solid var(--border); border-left: 3px solid var(--accent);
       border-radius: 4px; padding: var(--space-3) var(--space-4);
     }
-    .dq-warn[hidden], .dq-hint[hidden], .dq-linkbtn[hidden] { display: none; }
+    .dq-warn[hidden], .dq-empty[hidden] { display: none; }
     .dq-notes { max-width: 68ch; }
   </style>
 </head>
@@ -101,8 +91,8 @@
       <div class="container" style="max-width: 980px;">
         <h1>Dot QR</h1>
         <p class="lead muted">
-          Type a link, draw a small black-and-white picture, and get a QR code shaped like your
-          drawing &mdash; one that still scans. Everything runs in your browser.
+          Type a link, draw a small black-and-white picture, and get a QR code with your drawing
+          sitting in the middle &mdash; untouched, and still scannable. Everything runs in your browser.
         </p>
         <noscript><p class="dq-warn">Dot QR needs JavaScript to draw and build the code.</p></noscript>
 
@@ -122,8 +112,6 @@
                   <option value="16">16 × 16</option>
                   <option value="24">24 × 24</option>
                   <option value="32" selected>32 × 32</option>
-                  <option value="48">48 × 48</option>
-                  <option value="64">64 × 64</option>
                 </select>
               </label>
             </div>
@@ -149,8 +137,7 @@
               <button class="dq-btn dq-chip" type="button" data-preset="heart">Heart</button>
               <button class="dq-btn dq-chip" type="button" data-preset="smile">Smile</button>
             </div>
-            <label class="dq-check"><input type="checkbox" id="dq-guides" checked>
-              Tint the spots the QR&rsquo;s own markers will cover</label>
+            <p class="dq-hint">Only what you draw goes into the code &mdash; empty space around it is cropped away.</p>
           </section>
 
           <section class="dq-panel" aria-labelledby="dq-qr-h">
@@ -163,20 +150,6 @@
               <p class="dq-empty" id="dq-qr-empty" hidden>Your QR code will appear here.</p>
             </div>
             <p class="dq-status" id="dq-status" aria-live="polite"></p>
-            <div class="dq-controls">
-              <label class="dq-label" for="dq-blend">Blend</label>
-              <div class="dq-range"><span>Picture</span>
-                <input type="range" id="dq-blend" min="0.5" max="1" step="0.05" value="0.75"
-                       aria-describedby="dq-blend-hint"><span>Sturdy</span></div>
-              <span class="dq-label" id="dq-size-label">Size</span>
-              <div class="dq-stepper" role="group" aria-labelledby="dq-size-label">
-                <button class="dq-btn" type="button" id="dq-smaller" aria-label="Fewer, larger dots">&minus;</button>
-                <output id="dq-size">Auto</output>
-                <button class="dq-btn" type="button" id="dq-bigger" aria-label="More, smaller dots">+</button>
-                <button class="dq-linkbtn" type="button" id="dq-auto" hidden>Auto</button>
-              </div>
-            </div>
-            <p class="dq-hint" id="dq-blend-hint">Mismatched dots keep a small centre in their true colour &mdash; that is what scanners read.</p>
             <div class="dq-row">
               <button class="dq-btn dq-btn--primary" type="button" id="dq-png">Download PNG</button>
               <button class="dq-btn" type="button" id="dq-svg">Download SVG</button>
@@ -191,28 +164,26 @@
             A QR code is your link plus error correction, and both are fixed by the link &mdash; with one
             loophole. After the link and a short end marker, every remaining data bit is free: scanners
             stop reading at the marker. QR error correction is linear, so every dot in the code is an XOR
-            of those free bits, and Gaussian elimination can pick them so that as many dots as possible
-            match your drawing &mdash; the important ones first: outlines, thin lines, eyes. Nothing is
-            damaged on purpose; the result is an ordinary, error-free QR code.
+            of those free bits, and a little linear algebra (Gaussian elimination) can choose them so that
+            every dot in the middle of the code shows your drawing exactly. Nothing is covered up or
+            damaged; it is an ordinary, error-free QR code that happens to contain your picture.
           </p>
           <p>
-            The dots that can&rsquo;t be steered &mdash; the link itself and part of the error correction
-            &mdash; are painted in your drawing&rsquo;s colour with a small centre square in their true
-            colour. Scanners read the centre of each dot, so the code keeps working while looking like the
-            picture. <strong>Blend</strong> sets how small those centres get.
+            Two things have to stay out of the drawing&rsquo;s way: the code&rsquo;s own markers (the three
+            corner squares and the dotted lines between them) and the dots that spell out the link itself,
+            which can&rsquo;t be changed. Dot QR picks the smallest code where both miss the middle, turning
+            the code a quarter turn if that helps. Bigger codes have one small alignment square at the very
+            centre; scanners don&rsquo;t need it, so your drawing simply covers it.
           </p>
           <p>
-            The ideas come from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a>
-            (2012) and Chu et&nbsp;al.&rsquo;s <a href="https://doi.org/10.1145/2508363.2508408">Halftone QR
-            Codes</a> (SIGGRAPH Asia 2013).
+            The idea comes from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a> (2012).
           </p>
 
           <h2>Tips</h2>
           <ul>
-            <li>Shorter links leave more free bits, so the picture comes out cleaner &mdash; a link shortener helps.</li>
-            <li>The three corner squares and the dotted lines between them belong to the QR. Draw around the tinted spots.</li>
-            <li>Outlines and details (eyes, edges) survive better than big solid areas, and they scan better too.</li>
-            <li>Test the downloaded code with your phone before printing, keep the white border, and print it at least 3&nbsp;cm (1.2&nbsp;in) wide &mdash; larger if you slide Blend toward Picture.</li>
+            <li>Shorter links leave more room: about 30 characters fits a full 32&nbsp;&times;&nbsp;32 drawing, 45 characters about 20&nbsp;&times;&nbsp;20. A link shortener helps a lot.</li>
+            <li>Smaller drawings make smaller codes, and smaller codes are easier to scan from a distance.</li>
+            <li>Codes with a drawing are fairly dense (often 49&nbsp;&times;&nbsp;49 dots or more), so print them at least 4&nbsp;cm (1.6&nbsp;in) wide, keep the white border, and test the download with your phone first.</li>
           </ul>
         </div>
       </div>
@@ -257,22 +228,19 @@
        2. State + elements.
        ============================================================ */
     var INK = '#161615', GRID = '#ECECE6', GRID_MAJOR = '#D9D9D1';
-    var GUIDE = 'rgba(91, 123, 87, 0.32)', HOVER = 'rgba(91, 123, 87, 0.75)';
-    var MAX_ART_VERSION = 20;           // 97×97 — beyond this the picture is too fine to matter
+    var LIMIT = '#5B7B57', VEIL = 'rgba(255, 255, 255, 0.6)', HOVER = 'rgba(91, 123, 87, 0.75)';
 
     function $(id) { return document.getElementById(id); }
     var els = {
       url: $('dq-url'), encoded: $('dq-encoded'), grid: $('dq-grid'), board: $('dq-board'),
       canvas: $('dq-canvas'), qrWrap: $('dq-qr-wrap'), qr: $('dq-qr'), qrEmpty: $('dq-qr-empty'),
-      status: $('dq-status'), meta: $('dq-meta'), blend: $('dq-blend'), size: $('dq-size'),
-      smaller: $('dq-smaller'), bigger: $('dq-bigger'), auto: $('dq-auto'), png: $('dq-png'),
-      svg: $('dq-svg'), warn: $('dq-warn'), guides: $('dq-guides'), undo: $('dq-undo'),
-      invert: $('dq-invert'), clear: $('dq-clear')
+      status: $('dq-status'), meta: $('dq-meta'), png: $('dq-png'), svg: $('dq-svg'),
+      warn: $('dq-warn'), undo: $('dq-undo'), invert: $('dq-invert'), clear: $('dq-clear')
     };
     var state = {
-      M: 32, bits: presetBits('cat'), tool: 1, centre: 0.75, verOverride: 0, undo: [],
-      link: '', bytes: null, res: null, target: null, warn: '',
-      ver: 0, rot: null, mask: null, cache: null,
+      M: 32, bits: presetBits('cat'), tool: 1, undo: [],
+      link: '', bytes: null, cacheFor: null, cache: null, maxSide: 0,
+      res: null, drawing: null, warn: '', last: null,
       cursor: { x: 16, y: 16 }, hover: null
     };
 
@@ -293,53 +261,43 @@
       var raw = els.url.value.trim(), link = state.link;
       if (!link) { els.encoded.textContent = 'Paste or type a link.'; return; }
       var n = state.bytes.length, ascii = !/[^\x00-\x7f]/.test(link);
-      var text = (link !== raw ? 'In the code: ' + link + ' · ' : '') + n + (ascii ? ' characters' : ' bytes');
-      if (n > 40) text += ' — shorter links make cleaner pictures';
+      var text = (link !== raw ? 'In the code: ' + link + ' · ' : '') + n + (ascii ? ' characters' : ' bytes') + ' · ';
+      text += state.maxSide >= 6
+        ? 'drawings up to ' + state.maxSide + ' × ' + state.maxSide + ' fit in the middle'
+        : 'too long to fit a drawing — try a link shortener';
       els.encoded.textContent = text;
     }
 
     /* ============================================================
        4. Build the code.
        ============================================================ */
-    function hasDrawing() {
-      for (var i = 0; i < state.bits.length; i++) if (state.bits[i]) return true;
-      return false;
-    }
-
-    // quick = during a stroke: keep the last mask + rotation (≈1 ms) instead of trying all 32.
+    // quick = during a stroke: keep the last mask (≈5 ms) instead of trying all 8.
     function regenerate(quick) {
       state.link = normalizeLink(els.url.value);
       state.bytes = state.link ? Q.utf8(state.link) : null;
-      updateEncoded();
-      var res = null, target = null, warn = '';
-      if (state.bytes && hasDrawing()) {
-        if (state.verOverride && Q.freeRatio(state.bytes, state.verOverride, Q.ECL.L) < 0) state.verOverride = 0;
-        var ver = state.verOverride || Q.autoVersion(state.bytes, state.M, { maxVersion: MAX_ART_VERSION });
-        if (ver > 0) {
-          var N = Q.sizeOf(ver), gray = Q.fitDrawing(state.bits, state.M, N);
-          target = new Uint8Array(N * N);
-          for (var i = 0; i < target.length; i++) target[i] = gray[i] >= 0.5 ? 1 : 0;
-          var key = state.link + '|' + ver;
-          if (!state.cache || state.cache.key !== key) state.cache = { key: key, sys: Q.artSystem(state.bytes, ver, Q.ECL.L) };
-          var opts = { version: ver, ecl: Q.ECL.L, target: target, weight: Q.weights(gray, N), system: state.cache.sys };
-          var same = state.ver === ver && state.rot != null;
-          if (quick && same) { opts.masks = [state.mask]; opts.rotations = [state.rot]; }
-          res = Q.makeArt(state.bytes, opts);
-          if (!quick && same && res && res.rotation !== state.rot) {
-            // Don't spin the picture's corner markers around for a marginal gain.
-            var keep = Q.makeArt(state.bytes, Object.assign({}, opts, { rotations: [state.rot] }));
-            if (res.score < keep.score * 1.03) res = keep;
-          }
-          if (res && res.control < 0.35) warn = state.verOverride ? 'small' : 'long';
-        } else warn = 'toolong';
+      if (state.cacheFor !== state.link) {                    // per-link work, done once per link
+        state.cacheFor = state.link; state.cache = {}; state.last = null;
+        state.maxSide = state.bytes ? Q.maxInsetSide(state.bytes, { cache: state.cache }) : 0;
       }
-      if (!res && state.bytes) { res = Q.makePlain(state.bytes, { ecl: Q.ECL.M }); target = null; }
-      if (res && !Q.verify(res, state.bytes).ok) {           // never expected — fall back rather than show a dud
-        res = Q.makePlain(state.bytes, { ecl: Q.ECL.M }); target = null; warn = 'fallback';
+      updateEncoded();
+      var res = null, warn = '', d = Q.cropDrawing(state.bits, state.M);
+      state.drawing = d;
+      if (state.bytes && d) {
+        var last = state.last, rots = [0, 1, 2, 3];
+        if (last) rots = [last.rot].concat(rots.filter(function (r) { return r !== last.rot; }));   // keep the markers still
+        var opts = { cache: state.cache, rotations: rots };
+        if (quick && last) opts.masks = [last.mask];
+        res = Q.makeInset(state.bytes, d, opts);
+        if (!res && quick) res = Q.makeInset(state.bytes, d, { cache: state.cache, rotations: rots });
+        if (!res) warn = 'toobig';
+      }
+      if (!res && state.bytes) res = Q.makePlain(state.bytes, { ecl: Q.ECL.M });
+      if (res && !Q.verify(res, state.bytes).ok) {             // never expected — fall back rather than show a dud
+        res = Q.makePlain(state.bytes, { ecl: Q.ECL.M }); warn = 'fallback';
       }
       if (state.bytes && !res) warn = 'huge';
-      state.res = res; state.target = target; state.warn = warn;
-      if (res && res.art) { state.ver = res.version; state.rot = res.rotation; state.mask = res.mask; }
+      state.res = res; state.warn = warn;
+      if (res && res.art) state.last = { rot: res.rotation, mask: res.mask };
       drawQR(); drawCanvas(); updateInfo();
     }
 
@@ -355,25 +313,6 @@
     /* ============================================================
        5. Drawing canvas.
        ============================================================ */
-    // Where the QR's function patterns land on the drawing grid (display orientation).
-    function guideMap() {
-      if (!els.guides.checked || !state.bytes) return null;
-      var M = state.M, fn, N, res = state.res;
-      if (res && res.art) { fn = res.isFunction; N = res.size; }
-      else {                                   // no drawing yet: show where they would land
-        var v = state.verOverride || Q.autoVersion(state.bytes, M, { maxVersion: MAX_ART_VERSION });
-        if (v < 0) return null;
-        N = Q.sizeOf(v); fn = Q.functionMap(v, state.rot || 0);
-      }
-      var g = new Uint8Array(M * M), oneToOne = N === M || N === M + 1;
-      for (var y = 0; y < M; y++) for (var x = 0; x < M; x++) {
-        var mx = oneToOne ? x : Math.min(N - 1, Math.floor((x + 0.5) * N / M));
-        var my = oneToOne ? y : Math.min(N - 1, Math.floor((y + 0.5) * N / M));
-        g[y * M + x] = fn[my * N + mx];
-      }
-      return g;
-    }
-
     function drawCanvas() {
       var c = els.canvas, M = state.M, dpr = window.devicePixelRatio || 1;
       var avail = Math.floor(els.board.clientWidth * dpr);
@@ -388,10 +327,24 @@
       }
       ctx.fillStyle = INK;
       for (var y = 0; y < M; y++) for (var x = 0; x < M; x++) if (state.bits[y * M + x]) ctx.fillRect(x * px, y * px, px, px);
-      var g = guideMap();
-      if (g) {
-        ctx.fillStyle = GUIDE;
-        for (y = 0; y < M; y++) for (x = 0; x < M; x++) if (g[y * M + x]) ctx.fillRect(x * px, y * px, px, px);
+      if (state.bytes && state.maxSide < M && state.maxSide > 0) {
+        // How big a drawing this link can hold, centred on the drawing (only its size matters — it is
+        // cropped and centred in the code). When it doesn't fit, the parts outside are veiled.
+        var s = state.maxSide, d = state.drawing;
+        var cx = d ? d.x + d.w / 2 : M / 2, cy = d ? d.y + d.h / 2 : M / 2;
+        var sx = Math.min(M - s, Math.max(0, Math.round(cx - s / 2))), sy = Math.min(M - s, Math.max(0, Math.round(cy - s / 2)));
+        if (state.warn === 'toobig') {
+          ctx.fillStyle = VEIL;
+          ctx.fillRect(0, 0, W, sy * px); ctx.fillRect(0, (sy + s) * px, W, W - (sy + s) * px);
+          ctx.fillRect(0, sy * px, sx * px, s * px); ctx.fillRect((sx + s) * px, sy * px, W - (sx + s) * px, s * px);
+        }
+        ctx.save();
+        var lw2 = Math.max(2, Math.round(2 * dpr)), inset = lw2 / 2;
+        ctx.lineWidth = lw2 + 2 * Math.round(dpr); ctx.strokeStyle = '#fff';
+        ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
+        ctx.lineWidth = lw2; ctx.strokeStyle = LIMIT; ctx.setLineDash([5 * dpr, 4 * dpr]);
+        ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
+        ctx.restore();
       }
       var mark = null;
       if (document.activeElement === c && c.matches(':focus-visible')) mark = state.cursor;
@@ -499,7 +452,7 @@
     function paint(ctx, res, px) {
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, (res.size + 8) * px, (res.size + 8) * px);
       ctx.fillStyle = '#000';
-      Q.renderModules(res, state.target, { px: px, centre: state.centre }, function (x, y, w, h) { ctx.fillRect(x, y, w, h); });
+      Q.renderModules(res, { px: px }, function (x, y, w, h) { ctx.fillRect(x, y, w, h); });
     }
 
     function drawQR() {
@@ -514,41 +467,30 @@
       c.setAttribute('aria-label', 'QR code for ' + state.link);
     }
 
-    var WARN = {
-      long: 'This link is long, so fewer dots are free to follow the drawing. A shorter link — or a link shortener — gives a cleaner picture.',
-      small: 'At this size only a few dots are free to follow the drawing. Press + (or Auto) for a cleaner picture.',
-      toolong: 'This link is too long to leave room for a picture, so this is a plain code. Try a shorter link.',
-      fallback: 'Couldn’t fit the picture, so this is a plain code.',
-      huge: 'This link is too long for a QR code.'
-    };
-
-    function artBounds() {
-      if (!state.bytes) return null;
-      for (var v = 1; v <= MAX_ART_VERSION; v++) if (Q.freeRatio(state.bytes, v, Q.ECL.L) >= 0.05) return { lo: v, hi: MAX_ART_VERSION };
-      return null;
-    }
-
     function updateInfo() {
-      var res = state.res, art = !!(res && res.art);
+      var res = state.res, d = state.drawing;
       els.meta.textContent = res ? res.size + ' × ' + res.size : '';
       els.status.textContent = '';
       if (res) {
-        els.status.appendChild(document.createTextNode(art
-          ? Math.round(res.match * 100) + '% of the dots follow your drawing. '
-          : hasDrawing() ? 'Plain code — no room left for the picture. ' : 'Plain code — draw on the grid to shape it. '));
+        els.status.appendChild(document.createTextNode(res.art
+          ? 'Your ' + d.w + ' × ' + d.h + ' drawing sits in the middle, untouched. '
+          : d ? 'Plain code — the drawing doesn’t fit with this link. ' : 'Plain code — draw something to put it in the middle. '));
         var ok = document.createElement('span');
         ok.className = 'dq-ok';
         ok.textContent = '✓ Reads back as your ' + (/^[a-z][a-z0-9+\-]*:/i.test(state.link) ? 'link' : 'text');
         els.status.appendChild(ok);
       }
-      var b = art ? artBounds() : null;
-      els.size.textContent = !art ? 'Auto' : (state.verOverride ? res.size + ' × ' + res.size : 'Auto');
-      els.smaller.disabled = !b || res.version <= b.lo;
-      els.bigger.disabled = !b || res.version >= b.hi;
-      els.auto.hidden = !state.verOverride;
+      var warn = '';
+      if (state.warn === 'toobig') {
+        warn = state.maxSide >= 6
+          ? 'This drawing is ' + d.w + ' × ' + d.h + ', but with this link only drawings up to ' + state.maxSide + ' × ' + state.maxSide +
+            ' fit in the middle (the dashed square). Draw smaller, or use a shorter link — a link shortener helps.'
+          : 'This link is too long to leave room for a drawing, so this is a plain code. Try a link shortener.';
+      } else if (state.warn === 'fallback') warn = 'Couldn’t fit the drawing, so this is a plain code.';
+      else if (state.warn === 'huge') warn = 'This link is too long for a QR code.';
+      els.warn.hidden = !warn;
+      els.warn.textContent = warn;
       els.png.disabled = els.svg.disabled = !res;
-      els.warn.hidden = !state.warn;
-      els.warn.textContent = state.warn ? WARN[state.warn] : '';
     }
 
     /* ============================================================
@@ -575,10 +517,8 @@
       var res = state.res;
       if (!res) return;
       var d = [];
-      var W = Q.renderModules(res, state.target, { px: 10, centre: state.centre }, function (x, y, w, h) {
-        d.push('M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z');
-      });
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + W + '" width="' + W + '" height="' + W +
+      var W = Q.renderModules(res, { px: 1 }, function (x, y, w, h) { d.push('M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z'); });
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + W + '" width="' + W * 10 + '" height="' + W * 10 +
         '" shape-rendering="crispEdges"><rect width="' + W + '" height="' + W + '" fill="#fff"/><path fill="#000" d="' + d.join('') + '"/></svg>';
       save(new Blob([svg], { type: 'image/svg+xml' }), 'dot-qr.svg');
     });
@@ -597,7 +537,6 @@
       btn.addEventListener('click', function () {
         pushUndo();
         setGrid(32, presetBits(btn.dataset.preset));
-        state.verOverride = 0;
         regenerate(false);
       });
     });
@@ -608,7 +547,7 @@
       regenerate(false);
     });
     els.clear.addEventListener('click', function () {
-      if (!hasDrawing()) return;
+      if (!Q.cropDrawing(state.bits, state.M)) return;
       pushUndo();
       state.bits = new Uint8Array(state.M * state.M);
       regenerate(false);
@@ -619,20 +558,8 @@
         out[y * M2 + x] = state.bits[Math.floor((y + 0.5) * M / M2) * M + Math.floor((x + 0.5) * M / M2)];
       pushUndo();
       setGrid(M2, out);
-      state.verOverride = 0;
       regenerate(false);
     });
-    els.guides.addEventListener('change', drawCanvas);
-    els.blend.addEventListener('input', function () { state.centre = +els.blend.value; drawQR(); });
-    function stepSize(delta) {
-      var b = artBounds(), res = state.res;
-      if (!b || !res || !res.art) return;
-      state.verOverride = Math.min(b.hi, Math.max(b.lo, res.version + delta));
-      regenerate(false);
-    }
-    els.smaller.addEventListener('click', function () { stepSize(-1); });
-    els.bigger.addEventListener('click', function () { stepSize(1); });
-    els.auto.addEventListener('click', function () { state.verOverride = 0; regenerate(false); });
     document.addEventListener('keydown', function (e) {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && e.target !== els.url) { e.preventDefault(); undo(); }
     });

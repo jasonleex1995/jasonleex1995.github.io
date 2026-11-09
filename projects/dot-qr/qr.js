@@ -1,18 +1,13 @@
 /* ============================================================
-   Dot QR — a QR code encoder that can steer its modules toward a picture.
+   Dot QR — a QR code encoder that puts a drawing, untouched, in the middle of the code.
    Vanilla JS, no dependencies. Browser: window.DotQR · Node: module.exports.
 
-   How the picture gets in (both ideas are from published work):
-   1) QArt codes (Russ Cox, 2012). After the link and its 4-bit terminator, every
-      remaining data bit is free — decoders stop reading at the terminator. Reed–Solomon
-      is linear, so every module of the symbol is an XOR (GF(2)-linear) function of
-      those free bits. Gaussian elimination then picks the free bits so that as many
-      modules as possible — most important first — match the drawing. The result has
-      zero errors: it is an ordinary, valid QR code.
-   2) Halftone rendering (Chu et al., "Halftone QR Codes", SIGGRAPH Asia 2013).
-      Scanners sample the centre of each module, so a module whose value disagrees
-      with the drawing can be painted in the drawing's colour with only a small centre
-      square in its true colour. See renderModules().
+   How the drawing gets in (the idea is Russ Cox's QArt codes, 2012): after the link and its
+   4-bit terminator, every remaining data bit is free — decoders stop reading at the
+   terminator. Reed–Solomon is linear, so every module of the symbol is an XOR (GF(2)-linear)
+   function of those free bits, and Gaussian elimination can pick them so that every module
+   in the drawing's box shows the drawing exactly. Nothing is damaged: the result is an
+   ordinary QR code with zero errors. See makeInset().
    ============================================================ */
 (function (root) {
   'use strict';
@@ -367,6 +362,7 @@
     var fixedCw = bitsToBytes(fixedBits, L.dataCw);  // free bits = 0
 
     var nbits = L.raw * 8, order = t.order;
+    var fixedQ = new Uint8Array(t.size * t.size);    // 1 = a module whose colour the link alone decides
     var blockSys = L.blocks.map(function (bl, b) {
       var lo = Math.max(U, bl.start * 8), hi = (bl.start + bl.dataLen) * 8;
       var k = Math.max(0, hi - lo), W = (k + 31) >>> 5;
@@ -405,10 +401,11 @@
         }
       }
       bs.mods.push(kk); bs.rows.push(row); bs.consts.push(cst);
+      if (!row) fixedQ[pos] = 1;
     }
     var freeBits = cap - U;
     return { ver: ver, ecl: ecl, t: t, L: L, U: U, fixedBits: fixedBits, blockSys: blockSys,
-             freeBits: freeBits, dataModules: order.length };
+             freeBits: freeBits, dataModules: order.length, fixedQ: fixedQ };
   }
 
   // Greedy GF(2) elimination in priority order (Gauss–Jordan, basis kept fully reduced).
@@ -448,213 +445,167 @@
     return f;
   }
 
-  function hash01(i) {            // deterministic jitter in [0, 1) — stable output, no flicker
+  function hash01(i) {            // deterministic pseudo-random in [0, 1) — same input, same code
     var h = Math.imul(i ^ 0x9E3779B9, 0x85EBCA6B);
     h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35); h ^= h >>> 16;
     return (h >>> 0) / 4294967296;
   }
 
-  // target/weight: display orientation, length size². Tries the given masks × rotations,
-  // keeps the one whose finished modules agree best (weighted) with the drawing.
-  function makeArt(bytes, opts) {
-    var ver = opts.version, ecl = opts.ecl == null ? 0 : opts.ecl;
-    var sys = opts.system && opts.system.ver === ver && opts.system.ecl === ecl ? opts.system : artSystem(bytes, ver, ecl);
-    if (!sys) return null;
-    var t = sys.t, L = sys.L, size = t.size, n = size * size, order = t.order, nbits = L.raw * 8;
-    var target = opts.target, weight = opts.weight;
-    var masks = opts.masks || [0, 1, 2, 3, 4, 5, 6, 7], rots = opts.rotations || [0, 1, 2, 3];
-    var best = null;
+  // Solve every block for one mask. tq = wanted final colour of each module (QR orientation),
+  // orders = per block, its modules most-important-first. Returns the finished matrix.
+  function steer(sys, mask, tq, orders) {
+    var t = sys.t, L = sys.L, order = t.order, mk = t.masks[mask], nbits = L.raw * 8;
+    var dataBits = sys.fixedBits.slice();
+    for (var g = dataBits.length; g < L.dataCw * 8; g++) dataBits.push(0);
+    sys.blockSys.forEach(function (bs, bi) {
+      if (!bs.k) return;
+      var rhs = new Uint8Array(bs.mods.length);
+      for (var i = 0; i < bs.mods.length; i++) { var kk = bs.mods[i]; rhs[i] = tq[order[kk]] ^ mk[kk] ^ bs.consts[i]; }
+      var f = solveBlock(bs, orders[bi], rhs);
+      for (var j = 0; j < bs.k; j++) dataBits[bs.lo + j] = f[j];
+    });
+    var rem = new Uint8Array(order.length - nbits);
+    for (var q = nbits; q < order.length; q++) rem[q - nbits] = tq[order[q]];
+    return buildMatrix(sys.ver, sys.ecl, mask, bitsToBytes(dataBits, L.dataCw), rem);
+  }
 
-    rots.forEach(function (r) {
-      var tq = new Uint8Array(n), wq = new Float32Array(n);
-      for (var y = 0; y < size; y++) for (var x = 0; x < size; x++) {
-        var di = rotIndex(r, size, x, y), qi = y * size + x;
-        tq[qi] = target[di]; wq[qi] = weight[di] + 1e-4 * hash01(di);
+  // Crop an M×M drawing (1 = dark) to the box around what was drawn; null when nothing is drawn.
+  function cropDrawing(bits, M) {
+    var x0 = M, y0 = M, x1 = -1, y1 = -1, x, y;
+    for (y = 0; y < M; y++) for (x = 0; x < M; x++) if (bits[y * M + x]) {
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return null;
+    var w = x1 - x0 + 1, h = y1 - y0 + 1, out = new Uint8Array(w * h);
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) out[y * w + x] = bits[(y + y0) * M + x + x0];
+    return { w: w, h: h, bits: out, x: x0, y: y0 };
+  }
+
+  var MAX_INSET_VERSION = 13;     // from version 14 on, several alignment squares sit inside the middle
+
+  // The drawing, intact, in the middle of the code. Every module of the drawing's box (plus a light
+  // margin) is steered to the drawing's colour exactly, so the code has zero errors. The smallest
+  // version where that works is used: the box must miss every function pattern — except the
+  // alignment square at the very centre of version 7–13 codes, which scanners don't need, so the
+  // drawing covers it — and must miss the modules that carry the link itself (they can't be steered;
+  // turning the code a quarter turn moves them). Among the masks that work, the one with the lowest
+  // standard penalty wins, because that is what the penalty is for: easy scanning.
+  // drawing = cropDrawing(...); opts: version | minVersion/maxVersion, rotations, masks, margin, cache.
+  function makeInset(bytes, drawing, opts) {
+    opts = opts || {};
+    var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin;
+    var lo = opts.version || opts.minVersion || MIN_VERSION, hi = Math.min(opts.version || opts.maxVersion || MAX_INSET_VERSION, MAX_INSET_VERSION);
+    for (var v = lo; v <= hi; v++) {
+      var plan = insetPlan(bytes, drawing.w, drawing.h, v, ecl, margin, opts.rotations || [0, 1, 2, 3], opts.cache);
+      var res = plan && insetSolve(plan, drawing, opts.masks || [0, 1, 2, 3, 4, 5, 6, 7]);
+      if (res) return res;
+    }
+    return null;
+  }
+
+  // Largest square drawing (side, in modules) that can sit in the middle of a code for these bytes.
+  function maxInsetSide(bytes, opts) {
+    opts = opts || {};
+    var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin, best = 0;
+    for (var v = MIN_VERSION; v <= MAX_INSET_VERSION; v++) {
+      for (var s = sizeOf(v) - 14 - 2 * margin; s > best; s--) {
+        if (insetPlan(bytes, s, s, v, ecl, margin, [0, 1, 2, 3], opts.cache)) { best = s; break; }
       }
+    }
+    return best;
+  }
+
+  // Everything that depends only on the box size: where the box goes, which quarter turns keep it
+  // clear of function patterns and of the link's own modules. Null if no turn works at this version.
+  function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache) {
+    if (!fits(bytes, ver, ecl)) return null;
+    var size = sizeOf(ver), n = size * size, t = template(ver);
+    var al = alignmentPositions(ver), mid = al.length >= 3 ? al[(al.length - 1) >> 1] : -1;
+    var Rw = w + 2 * margin, Rh = h + 2 * margin;
+    if (mid >= 0) { Rw = Math.max(Rw, 5); Rh = Math.max(Rh, 5); }      // cover the centre square whole, never half
+    if (Rw > size - 14 || Rh > size - 14) return null;                // can't even clear the timing lines
+    var x0 = Math.floor((size - Rw) / 2), y0 = Math.floor((size - Rh) / 2);
+    var inR = new Uint8Array(n);                                      // display orientation
+    for (var y = y0; y < y0 + Rh; y++) for (var x = x0; x < x0 + Rw; x++) inR[y * size + x] = 1;
+    var okRots = rots.filter(function (r) {
+      for (var qy = 0; qy < size; qy++) for (var qx = 0; qx < size; qx++) {
+        if (!t.fn[qy * size + qx] || !inR[rotIndex(r, size, qx, qy)]) continue;
+        if (!(mid >= 0 && Math.abs(qx - mid) <= 2 && Math.abs(qy - mid) <= 2)) return false;
+      }
+      return true;
+    });
+    if (!okRots.length) return null;
+    var key = ver + '|' + ecl, sys = cache && cache[key];
+    if (!sys) { sys = artSystem(bytes, ver, ecl); if (cache) cache[key] = sys; }
+    if (!sys || Rw * Rh > sys.freeBits) return null;
+    okRots = okRots.filter(function (r) {
+      for (var qi = 0; qi < n; qi++) if (sys.fixedQ[qi] && inR[rotIndex(r, size, qi % size, (qi / size) | 0)]) return false;
+      return true;
+    });
+    if (!okRots.length) return null;
+    return { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } };
+  }
+
+  // Steer the box to the drawing for each workable turn and mask; keep the first turn that works
+  // with its lowest-penalty mask. Null if (rarely) the box's modules can't all be set at once.
+  function insetSolve(plan, d, masks) {
+    var sys = plan.sys, t = plan.t, size = plan.size, n = plan.n, inR = plan.inR, b = plan.box, x, y, i;
+    var ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2), want = new Uint8Array(n);
+    for (y = b.y; y < b.y + b.h; y++) for (x = b.x; x < b.x + b.w; x++) {
+      var dx = x - ox, dy = y - oy;
+      want[y * size + x] = (dx >= 0 && dy >= 0 && dx < d.w && dy < d.h) ? d.bits[dy * d.w + dx] : 0;
+    }
+    for (var ri = 0; ri < plan.rots.length; ri++) {
+      var r = plan.rots[ri], tq = new Uint8Array(n), wq = new Float32Array(n), boxQ = new Uint8Array(n);
+      for (y = 0; y < size; y++) for (x = 0; x < size; x++) {
+        var di = rotIndex(r, size, x, y), qi = y * size + x;
+        boxQ[qi] = inR[di];
+        tq[qi] = inR[di] ? want[di] : (hash01(qi * 7 + 3) < 0.5 ? 1 : 0);   // outside: ordinary QR texture
+        wq[qi] = (inR[di] ? 2 : 0) + hash01(qi);                            // the box first
+      }
+      var order = t.order;
       var orders = sys.blockSys.map(function (bs) {
-        var idx = []; for (var i = 0; i < bs.mods.length; i++) idx.push(i);
-        idx.sort(function (a, b) { return wq[order[bs.mods[b]]] - wq[order[bs.mods[a]]]; });
+        var idx = [];
+        for (var k = 0; k < bs.mods.length; k++) idx.push(k);
+        idx.sort(function (a, c) { return wq[order[bs.mods[c]]] - wq[order[bs.mods[a]]]; });
         return idx;
       });
-      masks.forEach(function (m) {
-        var mk = t.masks[m];
-        var dataBits = sys.fixedBits.slice();
-        for (var g = dataBits.length; g < L.dataCw * 8; g++) dataBits.push(0);
-        sys.blockSys.forEach(function (bs, bi) {
-          if (!bs.k) return;
-          var rhs = new Uint8Array(bs.mods.length);
-          for (var i = 0; i < bs.mods.length; i++) {
-            var kk = bs.mods[i];
-            rhs[i] = tq[order[kk]] ^ mk[kk] ^ bs.consts[i];
-          }
-          var f = solveBlock(bs, orders[bi], rhs);
-          for (var j = 0; j < bs.k; j++) dataBits[bs.lo + j] = f[j];
-        });
-        var dataCw = bitsToBytes(dataBits, L.dataCw);
-        var rem = new Uint8Array(order.length - nbits);
-        for (var q = nbits; q < order.length; q++) rem[q - nbits] = tq[order[q]];
-        var mod = buildMatrix(ver, ecl, m, dataCw, rem);
-        var score = 0;
-        for (var i2 = 0; i2 < n; i2++) if (mod[i2] === tq[i2]) score += wq[i2];
-        if (!best || score > best.score) best = { score: score, mod: mod, mask: m, rot: r, tq: tq };
-      });
-    });
-
-    var fn = t.fn, agree = 0, dataN = 0;
-    for (var i3 = 0; i3 < n; i3++) if (!fn[i3]) { dataN++; if (best.mod[i3] === best.tq[i3]) agree++; }
-    return {
-      size: size, version: ver, ecl: ecl, mask: best.mask, rotation: best.rot, art: true,
-      modules: rotateArray(best.mod, size, best.rot),
-      isFunction: rotateArray(fn, size, best.rot),
-      match: agree / dataN,                       // share of data modules that match the drawing
-      control: sys.freeBits / sys.dataModules,    // share of data modules we could set freely
-      score: best.score                           // weighted agreement (compare runs of the same drawing)
-    };
-  }
-
-  /* ---------- Picking a version for a drawing ---------- */
-  // Share of data modules the free bits can steer.
-  function freeRatio(bytes, ver, ecl) {
-    if (!fits(bytes, ver, ecl)) return -1;
-    var free = numDataCodewords(ver, ecl) * 8 - bitsNeeded(bytes, ver) - 4;
-    return free < 0 ? -1 : free / numRawDataModules(ver);
-  }
-
-  // Prefer the version that maps an M×M drawing 1:1 (size M+1); otherwise the smallest
-  // version at least that big whose free share reaches `minRatio`.
-  function autoVersion(bytes, M, opts) {
-    opts = opts || {};
-    var ecl = opts.ecl == null ? 0 : opts.ecl, minRatio = opts.minRatio || 0.4, maxVer = opts.maxVersion || 20;
-    var exact = (M + 1 - 17) / 4;
-    if (exact === Math.floor(exact) && exact >= 1 && exact <= maxVer && freeRatio(bytes, exact, ecl) >= minRatio) return exact;
-    var startVer = Math.max(1, Math.ceil((M + 1 - 17) / 4));
-    for (var v = startVer; v <= maxVer; v++) if (freeRatio(bytes, v, ecl) >= minRatio) return v;
-    for (v = Math.min(startVer, maxVer); v >= 1; v--) if (freeRatio(bytes, v, ecl) >= minRatio) return v;
-    return -1;
-  }
-
-  /* ---------- Fitting an M×M drawing onto the N×N module grid ---------- */
-  function cubic(x) {             // Keys cubic convolution, a = −0.5 (the usual "bicubic")
-    x = Math.abs(x);
-    if (x < 1) return (1.5 * x - 2.5) * x * x + 1;
-    if (x < 2) return ((-0.5 * x + 2.5) * x - 4) * x + 2;
-    return 0;
-  }
-
-  // Returns gray levels in [0, 1] (1 = dark) for each module, display orientation.
-  //  · N is M or M+1 → placed 1:1 (bicubic at ~1:1 would erase lone dots).
-  //  · N > M+1      → bicubic, then every drawn pixel keeps at least its nearest module.
-  //  · N < M        → area average.
-  function fitDrawing(bits, M, N) {
-    var out = new Float32Array(N * N), x, y, i;
-    if (N === M || N === M + 1) {
-      for (y = 0; y < M; y++) for (x = 0; x < M; x++) out[y * N + x] = bits[y * M + x];
-      return out;
-    }
-    if (N > M) {
-      var s = M / N, taps = [];
-      for (i = 0; i < N; i++) {
-        var c = (i + 0.5) * s - 0.5, base = Math.floor(c) - 1, w = [], idx = [];
-        for (var k = 0; k < 4; k++) { idx.push(Math.min(M - 1, Math.max(0, base + k))); w.push(cubic(c - (base + k))); }
-        taps.push({ idx: idx, w: w });
+      var best = null;
+      for (var mi = 0; mi < masks.length; mi++) {
+        var mod = steer(sys, masks[mi], tq, orders), clean = true;
+        for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
+        if (!clean) continue;
+        var pen = masks.length > 1 ? penalty(mod, size) : 0;
+        if (!best || pen < best.pen) best = { pen: pen, mod: mod, mask: masks[mi] };
       }
-      var tmp = new Float32Array(M * N);
-      for (y = 0; y < M; y++) for (x = 0; x < N; x++) {
-        var tx = taps[x], acc = 0;
-        for (k = 0; k < 4; k++) acc += tx.w[k] * bits[y * M + tx.idx[k]];
-        tmp[y * N + x] = acc;
+      if (best) {
+        var shown = rotateArray(best.mod, size, r), fnD = rotateArray(t.fn, size, r), covered = new Uint8Array(n);
+        for (i = 0; i < n; i++) if (inR[i] && fnD[i]) { covered[i] = 1; shown[i] = want[i]; }
+        return {
+          size: size, version: sys.ver, ecl: sys.ecl, mask: best.mask, rotation: r, art: true,
+          modules: shown,             // what gets drawn (display orientation)
+          isFunction: fnD,
+          covered: covered,           // function modules painted over by the drawing (only ever the centre square)
+          box: b
+        };
       }
-      for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
-        var ty = taps[y], a2 = 0;
-        for (k = 0; k < 4; k++) a2 += ty.w[k] * tmp[ty.idx[k] * N + x];
-        out[y * N + x] = Math.min(1, Math.max(0, a2));
-      }
-      for (y = 0; y < M; y++) for (x = 0; x < M; x++) {                 // keep lone dots / thin gaps
-        var nx = Math.round((x + 0.5) / s - 0.5), ny = Math.round((y + 0.5) / s - 0.5), o = ny * N + nx;
-        if (bits[y * M + x] && out[o] < 0.5) out[o] = 0.75;
-        else if (!bits[y * M + x] && out[o] >= 0.5) out[o] = 0.25;
-      }
-      return out;
     }
-    var r = M / N;                                                        // area average
-    for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
-      var y0 = y * r, y1 = y0 + r, x0 = x * r, x1 = x0 + r, sum = 0;
-      for (var sy = Math.floor(y0); sy < Math.ceil(y1); sy++) {
-        var hy = Math.min(y1, sy + 1) - Math.max(y0, sy);
-        for (var sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
-          var hx = Math.min(x1, sx + 1) - Math.max(x0, sx);
-          if (bits[sy * M + sx]) sum += hx * hy;
-        }
-      }
-      out[y * N + x] = sum / (r * r);
-    }
-    return out;
-  }
-
-  // Which modules matter most: confident ones (gray far from 0.5), and among those the
-  // ones next to a colour boundary — they carry the outline, thin lines and lone dots.
-  // The figure (whichever colour does not own the border) outranks the background, so the
-  // modules nobody can control — and the link's own band — land in the background.
-  function weights(gray, N) {
-    var n = N * N, t = new Uint8Array(n), d = new Uint8Array(n), w = new Float32Array(n), x, y, i;
-    for (i = 0; i < n; i++) t[i] = gray[i] >= 0.5 ? 1 : 0;
-    var ring = 0, ringDark = 0;
-    for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
-      if (Math.min(x, y, N - 1 - x, N - 1 - y) > 1) continue;
-      ring++; ringDark += t[y * N + x];
-    }
-    var figure = ringDark * 3 < ring ? 1 : ringDark * 3 > ring * 2 ? 0 : -1;   // −1: no clear background
-    var CAP = 4;
-    for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
-      var me = t[y * N + x], best = CAP;
-      for (var r = 1; r < CAP && best === CAP; r++) {
-        for (var dy = -r; dy <= r && best === CAP; dy++) for (var dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          var xx = x + dx, yy = y + dy;
-          var other = (xx < 0 || yy < 0 || xx >= N || yy >= N) ? 0 : t[yy * N + xx];   // quiet zone is light
-          if (other !== me) { best = r; break; }
-        }
-      }
-      d[y * N + x] = best;
-    }
-    var c = (N - 1) / 2;
-    for (y = 0; y < N; y++) for (x = 0; x < N; x++) {
-      i = y * N + x;
-      var conf = Math.min(1, Math.abs(gray[i] * 2 - 1) * 1.5 + 0.05);
-      var rr = Math.sqrt((x - c) * (x - c) + (y - c) * (y - c)) / (c * Math.SQRT2);
-      w[i] = conf * (0.6 + 1 / d[i]) * (1.15 - 0.3 * rr) * (t[i] === figure ? 1.3 : 1);
-    }
-    return w;
+    return null;
   }
 
   /* ---------- Rendering ---------- */
-  // Calls fill(x, y, w, h) for every dark rectangle, in pixel units, quiet zone included.
-  // A module whose value differs from the drawing is painted in the drawing's colour with a
-  // centre square of side `centre` (0–1 of a module) in its true colour. centre = 1 → plain QR.
-  function renderModules(res, target, opts, fill) {
+  // Calls fill(x, y, w, h) for every run of dark modules, in pixel units, quiet zone included.
+  function renderModules(res, opts, fill) {
     var size = res.size, px = opts.px, quiet = opts.quiet == null ? 4 : opts.quiet;
-    var centre = opts.centre == null ? 1 : opts.centre;
-    var cpx = Math.max(1, Math.min(px, Math.round(px * centre))), off = Math.floor((px - cpx) / 2);
     for (var y = 0; y < size; y++) {
-      var runStart = -1;
+      var run = -1;
       for (var x = 0; x <= size; x++) {
-        var i = y * size + x, full = false;
-        if (x < size) {
-          var v = res.modules[i];
-          var outer = (target && !res.isFunction[i]) ? target[i] : v;
-          if (outer === v) full = v === 1;
-          else {
-            if (outer === 1) {            // dark square with a light centre: paint the ring as 4 bars
-              var X = (x + quiet) * px, Y = (y + quiet) * px;
-              fill(X, Y, px, off);
-              fill(X, Y + off + cpx, px, px - off - cpx);
-              fill(X, Y + off, off, cpx);
-              fill(X + off + cpx, Y + off, px - off - cpx, cpx);
-            } else fill((x + quiet) * px + off, (y + quiet) * px + off, cpx, cpx);
-          }
-        }
-        if (full && runStart < 0) runStart = x;
-        if (!full && runStart >= 0) { fill((runStart + quiet) * px, (y + quiet) * px, (x - runStart) * px, px); runStart = -1; }
+        var dark = x < size && res.modules[y * size + x] === 1;
+        if (dark && run < 0) run = x;
+        if (!dark && run >= 0) { fill((run + quiet) * px, (y + quiet) * px, (x - run) * px, px); run = -1; }
       }
     }
     return (size + quiet * 2) * px;
@@ -664,6 +615,7 @@
   function verify(res, expectedBytes) {
     var size = res.size, ver = (size - 17) / 4;
     var mod = unrotateArray(res.modules, size, res.rotation || 0);
+    var covered = res.covered ? unrotateArray(res.covered, size, res.rotation || 0) : null;
     var pos = formatPositions(size), read = [0, 0];
     pos.forEach(function (copy, ci) { copy.forEach(function (p, i) { read[ci] |= mod[p[1] * size + p[0]] << i; }); });
     if (read[0] !== read[1]) return { ok: false, why: 'format copies differ' };
@@ -671,7 +623,8 @@
     for (var e = 0; e < 4; e++) for (var m = 0; m < 8; m++) if (formatBits(e, m) === read[0]) { ecl = e; mask = m; }
     if (ecl < 0) return { ok: false, why: 'format bits invalid' };
     var t = template(ver), L = layout(ver, ecl), order = t.order, mk = t.masks[mask];
-    for (var i = 0; i < size * size; i++) if (t.fn[i] && t.mod[i] !== mod[i] && !isFormatModule(i, size)) return { ok: false, why: 'function pattern damaged' };
+    for (var i = 0; i < size * size; i++)
+      if (t.fn[i] && t.mod[i] !== mod[i] && !isFormatModule(i, size) && !(covered && covered[i])) return { ok: false, why: 'function pattern damaged' };
     var stream = new Uint8Array(L.raw);
     for (var k = 0; k < L.raw * 8; k++) stream[k >>> 3] |= ((mod[order[k]] ^ mk[k]) & 1) << (7 - (k & 7));
     var data = new Uint8Array(L.dataCw), ecs = L.blocks.map(function () { return new Uint8Array(L.ecLen); });
@@ -706,11 +659,8 @@
   var API = {
     ECL: { L: 0, M: 1, Q: 2, H: 3 },
     utf8: utf8, sizeOf: sizeOf, fits: fits, smallestVersion: smallestVersion,
-    makePlain: makePlain, makeArt: makeArt, artSystem: artSystem,
-    autoVersion: autoVersion, freeRatio: freeRatio,
-    // Function-pattern map (finders, timing, alignment, format/version info) in display orientation.
-    functionMap: function (ver, rot) { var t = template(ver); return rotateArray(t.fn, t.size, rot || 0); },
-    fitDrawing: fitDrawing, weights: weights, renderModules: renderModules, verify: verify,
+    makePlain: makePlain, cropDrawing: cropDrawing, makeInset: makeInset, maxInsetSide: maxInsetSide,
+    renderModules: renderModules, verify: verify,
     // exposed for tests
     _rsEncode: rsEncode, _numDataCodewords: numDataCodewords, _numRawDataModules: numRawDataModules,
     _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits

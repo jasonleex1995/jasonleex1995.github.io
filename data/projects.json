@@ -1,6 +1,6 @@
 {
   "projects": [
-    { "title": "Dot QR", "venue": "Side Project", "year": 2026, "url": "projects/dot-qr/", "description": "Draw a small black-and-white picture and get a QR code shaped like it — one that still scans." },
+    { "title": "Dot QR", "venue": "Side Project", "year": 2026, "url": "projects/dot-qr/", "description": "Draw a small black-and-white picture and get a QR code with it sitting in the middle — untouched, and still scannable." },
     { "title": "PRISM WING", "venue": "Side Project", "year": 2026, "url": "projects/prism-wing/", "description": "An arcade flight-shooter roguelite — its design, development, and QA all done with Claude Code alone." },
     { "title": "EXIF Frame", "venue": "Side Project", "year": 2026, "url": "projects/exif-frame/", "description": "Reads a JPEG's EXIF and frames the photo with its camera, lens, and shooting settings." }
   ]
