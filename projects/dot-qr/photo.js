@@ -8,7 +8,8 @@
         mean  the cell's average (area-weighted)            → for Shapes
         dark  a low percentile: "is there ink in this cell?" → for Lines (a thin line survives)
       both over the part of the cell that is on the photo; cov says how much that is. Zoomed out
-      past the photo's edge, the rest reads as plain paper, so the edge itself never draws a line.
+      past the photo's edge, the rest reads as plain paper, so the edge itself never draws a line;
+      a cell less than half on the photo is always white, and only cells on it set the thresholds.
    2. lighting — phone photos of paper are never evenly lit. A smooth surface is fitted to the
       cells that aren't much darker than it, and every tone is read relative to it (1 = paper).
    3. decide:
@@ -162,10 +163,11 @@
     for (i = 0; i < N; i++) if (full[i]) { ratio.push(t[i] / Math.max(1, q[i])); level.push(q[i]); }
     var sorted = seen.sort(function (a, b) { return a - b; }), bright = sorted[Math.floor((sorted.length - 1) * 0.9)];
     // Not a page when most cells sit well below the fitted surface, or when that "paper" is far darker
-    // than the picture's bright end (a dark background under a lit face is not paper).
+    // than the picture's bright end (a dark background under a lit face is not paper). The price: a page
+    // mostly under a deep shadow reads the same way, so the shadow comes out black (Ink −1 clears it).
     if (median(ratio) < 0.85 || median(level) < 0.6 * bright) return out.fill(Math.max(16, bright));
-    var top = 16;
-    for (i = 0; i < N; i++) top = Math.max(top, q[i]);
+    var top = 16;                                                 // the brightest paper on the photo (off it,
+    for (i = 0; i < N; i++) if (full[i]) top = Math.max(top, q[i]);   // the surface is only extrapolation)
     for (i = 0; i < N; i++) out[i] = Math.max(0.4 * top, q[i]);   // light varies at most 2.5× across a page
     return out;
   }
@@ -199,14 +201,20 @@
     return out;
   }
 
-  /* The picture's own grain: spread of v in the flattest quarter of blocks (paper, sky, skin…). */
-  function grain(v, n) {
-    var B = Math.max(2, n >> 3), out = [];
+  /* The picture's own grain: spread of v in the flattest quarter of blocks (paper, sky, skin…).
+     Only blocks on the photo count — the white bars of a zoomed-out crop are perfectly flat. */
+  function grain(v, n, cov) {
+    var B = Math.max(2, n >> 3), out = [], all = [];
     for (var by = 0; by + B <= n; by += B) for (var bx = 0; bx + B <= n; bx += B) {
-      var s = 0, s2 = 0, c = 0;
-      for (var y = by; y < by + B; y++) for (var x = bx; x < bx + B; x++) { var a = v[y * n + x]; s += a; s2 += a * a; c++; }
-      out.push(Math.sqrt(Math.max(0, s2 / c - (s / c) * (s / c))));
+      var s = 0, s2 = 0, c = 0, on = true;
+      for (var y = by; y < by + B; y++) for (var x = bx; x < bx + B; x++) {
+        var a = v[y * n + x]; s += a; s2 += a * a; c++;
+        if (cov && cov[y * n + x] <= 0.5) on = false;
+      }
+      var sd = Math.sqrt(Math.max(0, s2 / c - (s / c) * (s / c)));
+      all.push(sd); if (on) out.push(sd);
     }
+    if (!out.length) out = all;
     out.sort(function (a, b) { return a - b; });
     return out[Math.floor(out.length * 0.25)];
   }
@@ -240,30 +248,31 @@
     } else m = blur(u, n, 3 * n / 32);
     var r = new Float32Array(N);
     for (i = 0; i < N; i++) r[i] = m[i] - u[i];                  // how much darker than the surroundings
-    var noise = Math.max(0.006, grain(r, n));
+    var noise = Math.max(0.006, grain(r, n, cov));
     var kappa = ink >= 0 ? 3 - ink : 3 - 2 * ink;                 // × grain: what counts as clearly darker
     var off = Math.max(kappa * noise, ink >= 0 ? 0.07 - 0.04 * ink : 0.07 - 0.12 * ink);
     var solid = 0.45 + 0.25 * ink;                                // this much darker than paper is black anyway
     var bits = new Uint8Array(n * n);
-    for (i = 0; i < n * n; i++) bits[i] = r[i] > off || u[i] < solid ? 1 : 0;
+    for (i = 0; i < n * n; i++) bits[i] = (!cov || cov[i] > 0.5) && (r[i] > off || u[i] < solid) ? 1 : 0;
     return bits;
   }
 
   var SCALE = 170;                                                // relative tone 1.5 → 255 for Otsu
   function shapesDots(mean, n, ink, cov) {
-    var u = relative(mean, n, cov), s = new Float32Array(n * n), i;
-    for (i = 0; i < n * n; i++) s[i] = u[i] * SCALE;
-    var cut = otsu(s) / SCALE, a = 0, ca = 0, b = 0, cb = 0;
-    for (i = 0; i < n * n; i++) { if (u[i] < cut) { a += u[i]; ca++; } else { b += u[i]; cb++; } }
+    var u = relative(mean, n, cov), N = n * n, on = [], i;          // the cut comes from the cells on the photo
+    for (i = 0; i < N; i++) if (!cov || cov[i] > 0.5) on.push(u[i]);
+    if (!on.length) return new Uint8Array(N);
+    var cut = otsu(on.map(function (v) { return v * SCALE; })) / SCALE, a = 0, ca = 0, b = 0, cb = 0;
+    for (i = 0; i < on.length; i++) { if (on[i] < cut) { a += on[i]; ca++; } else { b += on[i]; cb++; } }
     var light = cb ? b / cb : 1, darkest = ca ? a / ca : 0;
     if (light - darkest < 0.12) {                                 // no real dark group: one even tone —
-      var onPhoto = [];                                           // blank paper or fog stays white, a dark photo goes black
-      for (i = 0; i < n * n; i++) if (!cov || cov[i] > 0.5) onPhoto.push(mean[i]);
-      cut = median(onPhoto.length ? onPhoto : mean) < 100 ? 2 : 0; darkest = 0;
+      var onPhoto = [];                                           // paper, fog or a dim room stays white,
+      for (i = 0; i < N; i++) if (!cov || cov[i] > 0.5) onPhoto.push(mean[i]);   // a nearly black photo goes black
+      cut = median(onPhoto) < 32 ? 2 : 0; darkest = 0;
     }
     cut += 0.8 * ink * (ink >= 0 ? light - cut : cut - darkest);  // ink moves the cut toward either group, never past it
-    var bits = new Uint8Array(n * n);
-    for (i = 0; i < n * n; i++) bits[i] = u[i] < cut ? 1 : 0;
+    var bits = new Uint8Array(N);
+    for (i = 0; i < N; i++) bits[i] = (!cov || cov[i] > 0.5) && u[i] < cut ? 1 : 0;
     return bits;
   }
 

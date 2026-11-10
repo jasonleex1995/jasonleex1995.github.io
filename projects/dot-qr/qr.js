@@ -634,8 +634,9 @@
 
   // Steer the box to the drawing for each workable turn and mask. Keep the first turn that has a mask
   // leaving no finder look-alike outside the box, with its lowest-penalty such mask. If no turn has one,
-  // take the candidate with the fewest look-alikes (then the lowest penalty). A single mask asked for —
-  // the quick redraw during a stroke — skips the look-alike test.
+  // take each turn's best mask (fewest look-alikes, then lowest penalty) and keep the turn whose best
+  // leaves the fewest, the earlier turn on a tie. A single mask asked for — the quick redraw during a
+  // stroke — skips the look-alike test.
   // Null if (rarely) the box's modules can't all be set at once.
   function insetSolve(plan, d, masks) {
     var sys = plan.sys, t = plan.t, size = plan.size, n = plan.n, inR = plan.inR, b = plan.box, x, y, i;

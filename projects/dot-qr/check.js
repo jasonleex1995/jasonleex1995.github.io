@@ -229,6 +229,13 @@ check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache:
   check(withFakes <= links.length / 50, `plain codes: ${withFakes} of ${links.length} have a look-alike — far more than the few that can't avoid one`);
   check(DotQR._lookalikes(DotQR.makePlain(DotQR.utf8(links[0]), { ecl: DotQR.ECL.M })).length === 0, `plain codes: ${links[0]} should get a mask without look-alikes`);
   check(readBack, 'plain codes: an automatic-mask code does not read back');
+  // One control per quarter turn of the scan: each code (mask forced) has a single look-alike that the
+  // scan only meets at that turn — and ZXing fails a clean render of it at exactly that turn.
+  for (const [link, mask, turn, want] of [['https://i96zclsc', 4, 0, '[[14,12]]'], ['https://99rt8qex76fi10cej3nsgbyqdd0', 2, 1, '[[14,14]]'],
+    ['https://nbh9cbsxsjqbby', 4, 2, '[[9,17]]'], ['https://984a831h39hv6y4', 7, 3, '[[4,9]]']]) {
+    const got = JSON.stringify(DotQR._lookalikes(DotQR.makePlain(DotQR.utf8(link), { ecl: DotQR.ECL.M, mask })));
+    check(got === want, `look-alike scan, turn ${turn}: ${link} with mask ${mask} should show ${want}, got ${got}`);
+  }
 }
 
 /* ---------- 4) Edges ---------- */
@@ -267,6 +274,18 @@ const DotPhoto = require('./photo.js');
   const portrait = pic((x, y) => (y < 270 ? 55 : inFace(x, y) ? 190 : 75) + grain(8));
   const tall = pic((x, y) => 205 + grain(6), 450, 600);                                      // a portrait-shaped page
   const noisyBlack = pic(() => 3 + grain(6));
+  // A strip of lettering, its paper brighter than the plain white that the bars of a zoomed-out crop count as.
+  const strip = pic((x, y) => y >= 35 && y < 85 && x >= 60 && x < 540 && x % 48 < 30 ? 25 : 238 + grain(3), 600, 120);
+  const narrow = pic((x, y) => 150 + 260 * (y / 200 - 0.5) ** 2 + grain(8), 800, 200);      // a narrow page, dim across the middle
+  const dim = pic((x, y) => blank[y * W + x] * 0.5);                                         // the blank page in a dim room
+  // A page lit evenly but for a shadow over its lower 70% (soft edge, 48 px), the pen ring across both parts.
+  const shaded = k => pic((x, y) => {
+    const s = Math.min(1, Math.max(0, (y - 0.3 * W + 24) / 48)), p = (236 + blot(x, y) + grain(8)) * (1 - s * (1 - k));
+    return ringDist(x, y) < 1 ? p * 0.3 : p;
+  });
+  const lightShade = shaded(0.6), deepShade = shaded(0.3);
+  // A photo with a caption band under it (as in the gallery): dark picture above, white caption with a little text.
+  const caption = pic((x, y) => y < 66 ? 35 + grain(10) : y >= 80 && y < 100 && x >= 30 && x < 210 && x % 14 < 4 ? 30 : 245 + grain(2), 600, 120);
   for (const n of [16, 24, 32]) {
     const tag = `photo ${n}×${n}`, cell = W / n;
     const centre = (cx, cy) => Math.hypot((cx + 0.5) * cell - W / 2, (cy + 0.5) * cell - W / 2);
@@ -307,20 +326,49 @@ const DotPhoto = require('./photo.js');
     }
     // Zoomed out past the photo's edges (white bars), blank paper is still blank: the edge is no line.
     for (const style of DotPhoto.STYLES) {
-      const bars = count(DotPhoto.toDots(DotPhoto.measure(tall, 450, 600, { x: -75, y: 0, size: 600 }, n), { style }));
+      const bars = count(DotPhoto.toDots(DotPhoto.measure(tall, 450, 600, { x: -80, y: 0, size: 600 }, n), { style }));
       const frame = count(DotPhoto.toDots(DotPhoto.measure(blank, W, W, { x: -60, y: -60, size: 720 }, n), { style }));
       check(bars === 0 && frame === 0, `${tag} ${style}: zoomed out past the photo, blank paper should still give no dots (${bars}, ${frame})`);
+      // A cell less than half on the photo stays white, even when the photo's paper is brighter than the bars.
+      const m = DotPhoto.measure(strip, 600, 120, { x: 0, y: -240, size: 600 }, n), b = DotPhoto.toDots(m, { style });
+      let off = 0, on = 0;
+      for (let i = 0; i < n * n; i++) { if (m.cov[i] <= 0.5) off += b[i]; else on += b[i]; }
+      check(off === 0 && on > 0, `${tag} ${style}: zoomed out on a strip of lettering, nothing off the photo should turn black (${off}) and the letters should show (${on})`);
+      const mc = DotPhoto.measure(caption, 600, 120, { x: 0, y: -240, size: 600 }, n), bc = DotPhoto.toDots(mc, { style });
+      let offC = 0;
+      for (let i = 0; i < n * n; i++) if (mc.cov[i] <= 0.5) offC += bc[i];
+      check(offC === 0, `${tag} ${style}: zoomed out on a photo with a caption band, nothing off the photo should turn black (${offC})`);
+      // Past a narrow photo's edges the fitted light is only a guess; it must not set how bright the paper is.
+      // (At 16 the strip is just 4 rows, and Shapes may split its lit rows from its dim ones.)
+      const wide = n >= 24 ? count(DotPhoto.toDots(DotPhoto.measure(narrow, 800, 200, { x: 0, y: -300, size: 800 }, n), { style })) : 0;
+      check(wide === 0, `${tag} ${style}: a narrow, unevenly lit blank page seen whole should give no dots (${wide})`);
+      const dimDots = count(DotPhoto.toDots(DotPhoto.measure(dim, W, W, crop, n), { style }));
+      check(dimDots === 0, `${tag} ${style}: blank paper in a dim room should give no dots (${dimDots})`);
+    }
+    // A page mostly in shadow. A light shadow is evened out: the ring shows in both parts and nothing else
+    // does, bar the shadow's own edge. A deep one comes out black — the price of telling portraits from
+    // pages in lighting() — but at Ink −1 the paper is white again and the ring still shows.
+    for (const [pic2, ink, what] of [[lightShade, 0, 'mostly in light shadow'], [deepShade, -1, 'mostly in deep shadow, at Ink −1,']]) {
+      const b = DotPhoto.toDots(DotPhoto.measure(pic2, W, W, crop, n), { ink });
+      let missed = 0, stray = 0;
+      for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+        const off = Math.abs(centre(cx, cy) - R), edge = Math.abs((cy + 0.5) * cell - 0.3 * W) < 24 + 2 * cell;
+        if (off < cell * 0.3 && !b[cy * n + cx]) missed++;
+        if (off > cell * 1.5 && !edge && b[cy * n + cx]) stray++;
+      }
+      check(missed === 0 && stray === 0, `${tag}: a page ${what} should show the ring and nothing else (${missed} ring cells lost, ${stray} stray dots)`);
     }
     // The portrait: hair and background black, face white (Lines).
     {
       const b = DotPhoto.toDots(DotPhoto.measure(portrait, W, W, crop, n), {});
-      let hair = 0, hairN = 0, face = 0, faceN = 0;
+      let hair = 0, hairN = 0, face = 0, faceN = 0, bg = 0, bgN = 0;
       for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
         const x0 = cx * cell, y0 = cy * cell, x1 = x0 + cell, y1 = y0 + cell;
         if (y1 <= 270) { hairN++; hair += b[cy * n + cx]; }
         else if (inFace(x0, y0) && inFace(x1 - 0.01, y1 - 0.01) && x0 >= 180 + cell && x1 <= 420 - cell && y0 >= 270 + cell) { faceN++; face += b[cy * n + cx]; }
+        else if (y0 >= 270 + cell && (x1 <= 180 - cell || x0 >= 420 + cell)) { bgN++; bg += b[cy * n + cx]; }
       }
-      check(hair >= 0.9 * hairN && face <= 0.1 * faceN, `${tag}: a portrait should keep dark hair black and the face white (hair ${hair}/${hairN}, face ${face}/${faceN})`);
+      check(hair >= 0.9 * hairN && bg >= 0.9 * bgN && face <= 0.1 * faceN, `${tag}: a portrait should keep dark hair and background black and the face white (hair ${hair}/${hairN}, background ${bg}/${bgN}, face ${face}/${faceN})`);
     }
     // Ink never pushes Shapes all the way: at −1 the disk is still there, at +1 the paper is still white.
     {
@@ -334,7 +382,7 @@ const DotPhoto = require('./photo.js');
       check(inside >= 0.9 * insideN && outside <= 0.1 * outsideN, `${tag}: Shapes ink ±1 should stay between the disk and the paper (disk at −1: ${inside}/${insideN}, paper at +1: ${outside}/${outsideN})`);
     }
     for (const style of DotPhoto.STYLES) {
-      check(count(DotPhoto.toDots(DotPhoto.measure(noisyBlack, W, W, crop, n), { style })) === n * n, `${tag} ${style}: a dark, slightly noisy photo should be all black`);
+      check(count(DotPhoto.toDots(DotPhoto.measure(noisyBlack, W, W, crop, n), { style })) === n * n, `${tag} ${style}: a nearly black, slightly noisy photo should be all black`);
       check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 0), W, W, crop, n), { style })) === n * n, `${tag} ${style}: a black picture should be all black`);
       check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 255), W, W, crop, n), { style })) === 0, `${tag} ${style}: a white picture should be all white`);
     }
