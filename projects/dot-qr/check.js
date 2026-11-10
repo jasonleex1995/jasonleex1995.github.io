@@ -286,6 +286,7 @@ const DotPhoto = require('./photo.js');
   const lightShade = shaded(0.6), deepShade = shaded(0.3);
   // A photo with a caption band under it (as in the gallery): dark picture above, white caption with a little text.
   const caption = pic((x, y) => y < 66 ? 35 + grain(10) : y >= 80 && y < 100 && x >= 30 && x < 210 && x % 14 < 4 ? 30 : 245 + grain(2), 600, 120);
+  const steep = pic((x, y) => 240 - 150 * (x + y) / (2 * W) + blot(x, y) + grain(8));        // light falling 2.7× across the page
   for (const n of [16, 24, 32]) {
     const tag = `photo ${n}×${n}`, cell = W / n;
     const centre = (cx, cy) => Math.hypot((cx + 0.5) * cell - W / 2, (cy + 0.5) * cell - W / 2);
@@ -293,8 +294,12 @@ const DotPhoto = require('./photo.js');
       const b = DotPhoto.toDots(DotPhoto.measure(ramp, W, W, crop, n), { style, ink, invert });
       check(b.length === n * n && b.every(v => v === 0 || v === 1), `${tag} ${style} ink ${ink}: every dot must be exactly 0 or 1`);
     }
-    const mb = DotPhoto.measure(blank, W, W, crop, n);
+    const mb = DotPhoto.measure(blank, W, W, crop, n), ms = DotPhoto.measure(steep, W, W, crop, n);
     for (const style of DotPhoto.STYLES) check(count(DotPhoto.toDots(mb, { style })) === 0, `${tag} ${style}: blank, shadowed, stained paper should give no dots`);
+    for (const style of DotPhoto.STYLES) {                    // the light surface may fall to 40% of the brightest paper
+      const c = count(DotPhoto.toDots(ms, { style }));
+      check(c === 0, `${tag} ${style}: paper whose light falls 2.7× from corner to corner should give no dots (${c})`);
+    }
     // Lines finds the thin ring all the way round, and nothing far from it.
     const mr = DotPhoto.measure(ringed, W, W, crop, n), lines = DotPhoto.toDots(mr, {});
     let missed = 0, stray = 0;
