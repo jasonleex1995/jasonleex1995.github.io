@@ -144,7 +144,7 @@ cp -r projects/_template projects/my-project   # 템플릿 복사
 
 ### 3.4 논문 추가 — `resume.html`
 
-`<h2>Publications</h2>` 섹션에서 기존 항목 하나를 복사해 **맨 위**에 붙이고 내용만 교체:
+`<h2>Publications</h2>` 섹션에서 기존 항목 하나를 복사해 날짜 순서(**최신이 위**)에 맞는 자리 — 보통은 맨 위 — 에 붙이고 내용만 교체:
 
 ```html
 <div class="entry">
