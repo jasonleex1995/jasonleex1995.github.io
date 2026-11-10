@@ -287,6 +287,10 @@ const DotPhoto = require('./photo.js');
   // A photo with a caption band under it (as in the gallery): dark picture above, white caption with a little text.
   const caption = pic((x, y) => y < 66 ? 35 + grain(10) : y >= 80 && y < 100 && x >= 30 && x < 210 && x % 14 < 4 ? 30 : 245 + grain(2), 600, 120);
   const steep = pic((x, y) => 240 - 150 * (x + y) / (2 * W) + blot(x, y) + grain(8));        // light falling 2.7× across the page
+  // Two more to be seen whole: a 5:1 strip of thin pen lettering on unevenly lit paper, and a blotchy blank page.
+  const mark = (x, y) => y > 60 && y < 140 && x > 100 && x < 900 && (x % 40 < 3 || Math.abs(y - 100) < 1.5 && x % 80 < 40);
+  const lettering = pic((x, y) => mark(x, y) ? 70 + grain(8) : 225 - 60 * x / 1000 + grain(8), 1000, 200);
+  const blotchy = pic((x, y) => 215 + 14 * Math.sin(x / 23) * Math.cos(y / 31) + 9 * Math.sin((x + y) / 11) + grain(10), 450, 600);
   for (const n of [16, 24, 32]) {
     const tag = `photo ${n}×${n}`, cell = W / n;
     const centre = (cx, cy) => Math.hypot((cx + 0.5) * cell - W / 2, (cy + 0.5) * cell - W / 2);
@@ -349,6 +353,19 @@ const DotPhoto = require('./photo.js');
       check(wide === 0, `${tag} ${style}: a narrow, unevenly lit blank page seen whole should give no dots (${wide})`);
       const dimDots = count(DotPhoto.toDots(DotPhoto.measure(dim, W, W, crop, n), { style }));
       check(dimDots === 0, `${tag} ${style}: blank paper in a dim room should give no dots (${dimDots})`);
+    }
+    // Seen whole, a blotchy blank page's grain is measured on the photo, not on the perfectly flat bars.
+    const blotDots = count(DotPhoto.toDots(DotPhoto.measure(blotchy, 450, 600, { x: -75, y: 0, size: 600 }, n), {}));
+    check(blotDots === 0, `${tag}: a blotchy blank page seen whole should give no dots in Lines (${blotDots})`);
+    // But a thin strip seen whole has too few blocks on the photo to measure its grain (all hold letters):
+    // Lines must still keep the letters. Checked at 16, where the strip is thinnest.
+    if (n === 16) {
+      const step = 1000 / n, m = DotPhoto.measure(lettering, 1000, 200, { x: 0, y: -400, size: 1000 }, n), b = DotPhoto.toDots(m, {});
+      const truth = new Uint8Array(n * n);
+      for (let y = 0; y < 200; y++) for (let x = 0; x < 1000; x++) if (mark(x, y)) truth[Math.floor((y + 400) / step) * n + Math.floor(x / step)] = 1;
+      let hit = 0, tot = 0;
+      for (let i = 0; i < n * n; i++) if (truth[i] && m.cov[i] > 0.5) { tot++; hit += b[i]; }
+      check(tot > 0 && hit >= 0.75 * tot, `${tag}: a thin strip of pen lettering seen whole should keep its letters in Lines (${hit}/${tot} cells)`);
     }
     // A page mostly in shadow. A light shadow is evened out: the ring shows in both parts and nothing else
     // does, bar the shadow's own edge. A deep one comes out black — the price of telling portraits from

@@ -164,7 +164,8 @@
     var sorted = seen.sort(function (a, b) { return a - b; }), bright = sorted[Math.floor((sorted.length - 1) * 0.9)];
     // Not a page when most cells sit well below the fitted surface, or when that "paper" is far darker
     // than the picture's bright end (a dark background under a lit face is not paper). The price: a page
-    // mostly under a deep shadow reads the same way, so the shadow comes out black (Ink −1 clears it).
+    // mostly under a deep shadow reads the same way, so the shadow comes out black. In Lines, Ink −1
+    // clears shadows down to about a quarter of the paper's brightness; Shapes has no such way out.
     if (median(ratio) < 0.85 || median(level) < 0.6 * bright) return out.fill(Math.max(16, bright));
     var top = 16;                                                 // the brightest paper on the photo (off it,
     for (i = 0; i < N; i++) if (full[i]) top = Math.max(top, q[i]);   // the surface is only extrapolation)
@@ -202,7 +203,9 @@
   }
 
   /* The picture's own grain: spread of v in the flattest quarter of blocks (paper, sky, skin…).
-     Only blocks on the photo count — the white bars of a zoomed-out crop are perfectly flat. */
+     Only blocks on the photo count — the white bars of a zoomed-out crop are perfectly flat. But a thin
+     strip seen whole has only a few blocks on the photo, all holding something, so none is flat: with
+     fewer than 3/8 of the blocks on the photo, the bars count too (which in effect means the plain floor). */
   function grain(v, n, cov) {
     var B = Math.max(2, n >> 3), out = [], all = [];
     for (var by = 0; by + B <= n; by += B) for (var bx = 0; bx + B <= n; bx += B) {
@@ -214,7 +217,7 @@
       var sd = Math.sqrt(Math.max(0, s2 / c - (s / c) * (s / c)));
       all.push(sd); if (on) out.push(sd);
     }
-    if (!out.length) out = all;
+    if (out.length < all.length * 3 / 8) out = all;
     out.sort(function (a, b) { return a - b; });
     return out[Math.floor(out.length * 0.25)];
   }
