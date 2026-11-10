@@ -45,9 +45,11 @@
     .dq-btn:disabled { opacity: 0.4; cursor: default; border-color: var(--border); }
     .dq-btn[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
     .dq-seg { display: inline-flex; gap: 0; }
-    .dq-seg .dq-btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-    .dq-seg .dq-btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
+    .dq-seg .dq-btn:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .dq-seg .dq-btn:not(:first-child) { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
     .dq-chip { font-size: 0.8125rem; padding: 2px var(--space-3); }
+    .dq-chip[data-preset] { display: inline-flex; align-items: center; gap: 6px; padding-left: 6px; }
+    .dq-thumb { display: block; width: 18px; height: 18px; flex: none; }
     .dq-select { font: inherit; font-size: 0.875rem; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; background: #fff; color: var(--fg); }
     .dq-field { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.875rem; color: var(--muted); }
 
@@ -70,6 +72,36 @@
     }
     .dq-warn[hidden], .dq-empty[hidden] { display: none; }
     .dq-notes { max-width: 68ch; }
+    .dq-board.dq-drop { box-shadow: 0 0 0 2px var(--accent); }
+
+    /* ---- Start from a photo ---- */
+    .dq-dialog {
+      width: min(760px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
+      margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--bg); color: var(--fg);
+      box-shadow: 0 24px 64px rgba(30, 30, 28, 0.28);
+    }
+    .dq-dialog::backdrop { background: rgba(30, 30, 28, 0.45); }
+    .dq-dialog-body { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+    @media (max-width: 560px) { .dq-dialog-body { padding: var(--space-4); } }
+    .dq-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4); }
+    @media (max-width: 560px) { .dq-pair { gap: var(--space-3); } }
+    .dq-fig { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+    .dq-frame {
+      aspect-ratio: 1; background: #fff; border-radius: 6px; box-shadow: 0 0 0 1px var(--border);
+      display: grid; place-items: center; overflow: hidden;
+    }
+    .dq-crop { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+    .dq-crop.dq-grabbing { cursor: grabbing; }
+    .dq-crop:focus { outline: none; }
+    .dq-crop:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .dq-dots { display: block; }
+    .dq-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3) var(--space-4); align-items: center; }
+    .dq-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); min-width: 0; }
+    .dq-range { width: 100%; min-width: 0; accent-color: var(--accent); }
+    .dq-ink { flex-wrap: nowrap; gap: var(--space-2); }
+    .dq-ink .dq-range { flex: 1; }
+    .dq-field input { accent-color: var(--accent); }
+    .dq-row--end { justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -91,15 +123,15 @@
       <div class="container" style="max-width: 980px;">
         <h1>Dot QR</h1>
         <p class="lead muted">
-          Type a link, draw a small black-and-white picture, and get a QR code with your drawing
-          sitting in the middle &mdash; untouched, and still scannable. Everything runs in your browser.
+          Type a link, draw a small black-and-white picture (or start from a photo), and get a QR code
+          with your drawing sitting in the middle &mdash; untouched, and still scannable. Everything runs in your browser.
         </p>
         <noscript><p class="dq-warn">Dot QR needs JavaScript to draw and build the code.</p></noscript>
 
         <div class="dq-link">
           <label class="dq-label" for="dq-url">Link</label>
           <input class="dq-input" id="dq-url" type="text" inputmode="url" autocomplete="off"
-                 autocapitalize="off" spellcheck="false" value="https://jasonleex1995.github.io">
+                 autocapitalize="off" spellcheck="false" placeholder="https://example.com">
           <p class="dq-hint" id="dq-encoded" aria-live="polite"></p>
         </div>
 
@@ -132,11 +164,13 @@
             </div>
             <div class="dq-row">
               <span class="dq-hint">Start from</span>
-              <button class="dq-btn dq-chip" type="button" data-preset="cat">Cat</button>
-              <button class="dq-btn dq-chip" type="button" data-preset="camera">Camera</button>
-              <button class="dq-btn dq-chip" type="button" data-preset="heart">Heart</button>
-              <button class="dq-btn dq-chip" type="button" data-preset="smile">Smile</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="logo">JS logo</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="instagram">Instagram</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="linkedin">LinkedIn</button>
+              <button class="dq-btn dq-chip" type="button" id="dq-photo-btn" aria-haspopup="dialog">Your photo&hellip;</button>
+              <input type="file" id="dq-photo-file" accept="image/*" hidden>
             </div>
+            <p class="dq-warn" id="dq-photo-err" role="alert" hidden></p>
             <p class="dq-hint">Only what you draw goes into the code &mdash; empty space around it is cropped away.</p>
           </section>
 
@@ -147,7 +181,7 @@
             </div>
             <div class="dq-qr-wrap" id="dq-qr-wrap">
               <canvas class="dq-qr" id="dq-qr" role="img" aria-label="QR code"></canvas>
-              <p class="dq-empty" id="dq-qr-empty" hidden>Your QR code will appear here.</p>
+              <p class="dq-empty" id="dq-qr-empty" hidden>Paste a link above and your QR code appears here.</p>
             </div>
             <p class="dq-status" id="dq-status" aria-live="polite"></p>
             <div class="dq-row">
@@ -158,33 +192,78 @@
           </section>
         </div>
 
-        <div class="dq-notes">
-          <h2>How it works</h2>
-          <p>
-            A QR code is your link plus error correction, and both are fixed by the link &mdash; with one
-            loophole. After the link and a short end marker, every remaining data bit is free: scanners
-            stop reading at the marker. QR error correction is linear, so every dot in the code is an XOR
-            of those free bits, and a little linear algebra (Gaussian elimination) can choose them so that
-            every dot in the middle of the code shows your drawing exactly. Nothing is covered up or
-            damaged; it is an ordinary, error-free QR code that happens to contain your picture.
-          </p>
-          <p>
-            Two things have to stay out of the drawing&rsquo;s way: the code&rsquo;s own markers (the three
-            corner squares and the dotted lines between them) and the dots that spell out the link itself,
-            which can&rsquo;t be changed. Dot QR picks the smallest code where both miss the middle, turning
-            the code a quarter turn if that helps. Bigger codes have one small alignment square at the very
-            centre; scanners don&rsquo;t need it, so your drawing simply covers it.
-          </p>
-          <p>
-            The idea comes from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a> (2012).
-          </p>
+        <dialog class="dq-dialog" id="dq-photo" aria-labelledby="dq-photo-h">
+          <div class="dq-dialog-body">
+            <div class="dq-panel-head">
+              <h2 class="dq-label" id="dq-photo-h">Start from a photo</h2>
+              <button class="dq-btn dq-chip" type="button" id="dq-photo-change">Change photo</button>
+            </div>
+            <div class="dq-pair">
+              <figure class="dq-fig">
+                <div class="dq-frame" id="dq-crop-frame">
+                  <canvas class="dq-crop" id="dq-crop" tabindex="0"
+                          aria-label="Your photo, cropped to a square. Drag or use the arrow keys to move it; scroll, pinch, or press + and − to zoom."></canvas>
+                </div>
+                <figcaption class="dq-hint">Drag to move &middot; scroll or pinch to zoom</figcaption>
+              </figure>
+              <figure class="dq-fig">
+                <div class="dq-frame" id="dq-dots-frame">
+                  <canvas class="dq-dots" id="dq-dots" role="img" aria-label="The dots made from your photo"></canvas>
+                </div>
+                <figcaption class="dq-hint" id="dq-dots-cap">Dots</figcaption>
+              </figure>
+            </div>
+            <div class="dq-controls">
+              <label class="dq-label" for="dq-zoom">Zoom</label>
+              <input class="dq-range" id="dq-zoom" type="range" min="0" max="1000" step="1" value="0">
 
+              <span class="dq-label" id="dq-style-l">Style</span>
+              <div class="dq-ctl">
+                <div class="dq-seg" role="group" aria-labelledby="dq-style-l">
+                  <button class="dq-btn" type="button" data-style="lines" aria-pressed="true">Lines</button>
+                  <button class="dq-btn" type="button" data-style="shapes" aria-pressed="false">Shapes</button>
+                </div>
+                <span class="dq-hint" id="dq-style-hint"></span>
+              </div>
+
+              <label class="dq-label" for="dq-ink">Ink</label>
+              <div class="dq-ctl dq-ink">
+                <span class="dq-hint" aria-hidden="true">less</span>
+                <input class="dq-range" id="dq-ink" type="range" min="-100" max="100" step="5" value="0">
+                <span class="dq-hint" aria-hidden="true">more</span>
+              </div>
+
+              <span class="dq-label" id="dq-size-l">Size</span>
+              <div class="dq-ctl">
+                <div class="dq-seg" role="group" aria-labelledby="dq-size-l">
+                  <button class="dq-btn" type="button" data-size="16" aria-pressed="false">16</button>
+                  <button class="dq-btn" type="button" data-size="24" aria-pressed="false">24</button>
+                  <button class="dq-btn" type="button" data-size="32" aria-pressed="true">32</button>
+                </div>
+                <label class="dq-field"><input type="checkbox" id="dq-pinvert"> Invert</label>
+              </div>
+            </div>
+            <p class="dq-status" id="dq-photo-status" aria-live="polite"></p>
+            <p class="dq-warn" id="dq-photo-warn" role="status" hidden></p>
+            <div class="dq-row dq-row--end">
+              <button class="dq-btn" type="button" id="dq-photo-cancel">Cancel</button>
+              <button class="dq-btn dq-btn--primary" type="button" id="dq-photo-use">Use as drawing</button>
+            </div>
+            <p class="dq-hint">
+              The dots replace the drawing on the grid as a starting point &mdash; keep drawing and erasing on
+              top, or undo. Your photo never leaves this device.
+            </p>
+          </div>
+        </dialog>
+
+        <div class="dq-notes">
           <h2>Tips</h2>
           <ul>
-            <li>Shorter links leave more room: about 30 characters fits a full 32&nbsp;&times;&nbsp;32 drawing, 45 characters about 20&nbsp;&times;&nbsp;20. A link shortener helps a lot.</li>
-            <li>Smaller drawings make smaller codes, and smaller codes are easier to scan from a distance.</li>
-            <li>Codes with a drawing are fairly dense (often 49&nbsp;&times;&nbsp;49 dots or more), so print them at least 4&nbsp;cm (1.6&nbsp;in) wide, keep the white border, and test the download with your phone first.</li>
+            <li>Shorter links fit bigger drawings: about 30 characters holds a full 32&nbsp;&times;&nbsp;32. A link shortener helps.</li>
+            <li>Photos work best cropped tight around one simple subject.</li>
+            <li>Before printing, scan the download with your phone. Print it at least 4&nbsp;cm (1.6&nbsp;in) wide and keep the white border.</li>
           </ul>
+          <p class="dq-hint">The trick behind it comes from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a>.</p>
         </div>
       </div>
     </main>
@@ -201,6 +280,7 @@
   </div>
 
   <script src="qr.js"></script>
+  <script src="photo.js"></script>
   <script>
   (function () {
     'use strict';
@@ -208,12 +288,14 @@
 
     /* ============================================================
        1. Presets — 32×32, one hex word per row (bit 31 = left).
+          logo: the site's "JS." favicon at 31 cells.
+          instagram, linkedin: their one-colour glyphs at 22 × 22, so they still fit next to a typical
+          profile link (~40 characters) — bigger drawings need shorter links.
        ============================================================ */
     var PRESETS = {
-      cat: '00000000 00000000 00000000 00000000 00000000 00800100 00c00300 00e00700 00f00f00 00f81f00 00ffff00 00ffff00 00ffff00 01ffff80 01ffff80 03ffffc0 03c3c3c0 07cbcbe0 07cbcbe0 07cbcbe0 07e7e7e0 07ffffe0 03fc3fc0 03fe7fc0 01ffff80 00ffff00 007ffe00 001ff800 00000000 00000000 00000000 00000000',
-      camera: '00000000 00000000 00000000 00000000 00000000 00000000 00000000 001ff800 039ff800 039ff800 07ffffe0 0ffffff0 0ffc3e30 0ff00e30 0fe3c7f0 0fc7e3f0 0fc9f3f0 0fc9f3f0 0fcff3f0 0fcff3f0 0fcff3f0 0fc7e3f0 0fe3c7f0 0ff00ff0 0ffc3ff0 0ffffff0 07ffffe0 00000000 00000000 00000000 00000000 00000000',
-      heart: '00000000 00000000 00000000 00000000 00000000 00000000 00000000 01fc3f80 07fe7fe0 07ffffe0 0fc183f0 0f8001f0 1f0000f8 1f0000f8 1f0000f8 1f0000f8 0f0000f0 0f0000f0 078001e0 07c003e0 03e007c0 01f00f80 00f81f00 007e7e00 003ffc00 001ff800 0007e000 00018000 00000000 00000000 00000000 00000000',
-      smile: '00000000 00000000 00000000 00000000 001ff800 007ffe00 00ffff00 01ffff80 03ffffc0 07ffffe0 07e7e7e0 0fc3c3f0 0fc3c3f0 0fc3c3f0 0fc3c3f0 0fe7e7f0 0ffffff0 0ffffff0 0f1ff8f0 0f8ff1f0 0f87e1f0 07c003e0 07f00fe0 03fe7fc0 01ffff80 00ffff00 007ffe00 001ff800 00000000 00000000 00000000 00000000'
+      logo: '00000000 07ff00c0 0fffc7f0 0fffdff0 2fffbff8 70783e78 70787878 78387070 383cf0f0 3c3cf1e0 1c1cf1e0 1e1e7880 1e1e7c00 0f0e3f00 0f0e1f80 070f0fc0 078f03e0 378701f0 7b8700f8 7bc77078 73cf783c f3cf7c3c f00e3e1c 701e0e3c 787c003c 7ff800f8 3ff003f0 1fe7ffe6 000fffc6 0007ff00 00038000 00000000',
+      instagram: '00000000 00000000 00000000 00000000 00000000 007ffe00 01ffff80 03ffffc0 038001c0 07000ee0 07018ee0 0707eee0 070ff0e0 071e78e0 071c38e0 07381ce0 07381ce0 071c38e0 071e78e0 070ff0e0 0707e0e0 070180e0 070000e0 038001c0 03ffffc0 01ffff80 007ffe00 00000000 00000000 00000000 00000000 00000000',
+      linkedin: '00000000 00000000 00000000 00000000 00000000 01ffff80 03ffffc0 07ffffe0 07cfffe0 0787ffe0 0787ffe0 07cfffe0 07ffffe0 078403e0 078401e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 07ffffe0 07ffffe0 03ffffc0 01ffff80 00000000 00000000 00000000 00000000 00000000'
     };
     function presetBits(name) {
       var out = new Uint8Array(32 * 32);
@@ -238,7 +320,7 @@
       warn: $('dq-warn'), undo: $('dq-undo'), invert: $('dq-invert'), clear: $('dq-clear')
     };
     var state = {
-      M: 32, bits: presetBits('cat'), tool: 1, undo: [],
+      M: 32, bits: presetBits('logo'), tool: 1, undo: [],
       link: '', bytes: null, cacheFor: null, cache: null, maxSide: 0,
       res: null, drawing: null, warn: '', last: null,
       cursor: { x: 16, y: 16 }, hover: null
@@ -313,39 +395,48 @@
     /* ============================================================
        5. Drawing canvas.
        ============================================================ */
-    function drawCanvas() {
-      var c = els.canvas, M = state.M, dpr = window.devicePixelRatio || 1;
-      var avail = Math.floor(els.board.clientWidth * dpr);
-      var px = Math.max(2, Math.floor(avail / M)), W = px * M;
+    // Size canvas c to the largest whole number of device pixels per cell that fits box; returns that.
+    function fitCanvas(c, box, M) {
+      var dpr = window.devicePixelRatio || 1, px = Math.max(2, Math.floor(box.clientWidth * dpr / M)), W = px * M;
       if (c.width !== W) { c.width = c.height = W; c.style.width = c.style.height = (W / dpr) + 'px'; }
-      var ctx = c.getContext('2d');
+      return px;
+    }
+    // An M×M dot grid: white paper, light grid lines (darker every 8), ink dots.
+    function paintGrid(ctx, M, bits, px, dpr) {
+      var W = px * M, lw = Math.max(1, Math.round(dpr));
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
-      var lw = Math.max(1, Math.round(dpr));
       for (var i = 1; i < M; i++) {
         ctx.fillStyle = i % 8 === 0 ? GRID_MAJOR : GRID;
         ctx.fillRect(i * px, 0, lw, W); ctx.fillRect(0, i * px, W, lw);
       }
       ctx.fillStyle = INK;
-      for (var y = 0; y < M; y++) for (var x = 0; x < M; x++) if (state.bits[y * M + x]) ctx.fillRect(x * px, y * px, px, px);
-      if (state.bytes && state.maxSide < M && state.maxSide > 0) {
-        // How big a drawing this link can hold, centred on the drawing (only its size matters — it is
-        // cropped and centred in the code). When it doesn't fit, the parts outside are veiled.
-        var s = state.maxSide, d = state.drawing;
-        var cx = d ? d.x + d.w / 2 : M / 2, cy = d ? d.y + d.h / 2 : M / 2;
-        var sx = Math.min(M - s, Math.max(0, Math.round(cx - s / 2))), sy = Math.min(M - s, Math.max(0, Math.round(cy - s / 2)));
-        if (state.warn === 'toobig') {
-          ctx.fillStyle = VEIL;
-          ctx.fillRect(0, 0, W, sy * px); ctx.fillRect(0, (sy + s) * px, W, W - (sy + s) * px);
-          ctx.fillRect(0, sy * px, sx * px, s * px); ctx.fillRect((sx + s) * px, sy * px, W - (sx + s) * px, s * px);
-        }
-        ctx.save();
-        var lw2 = Math.max(2, Math.round(2 * dpr)), inset = lw2 / 2;
-        ctx.lineWidth = lw2 + 2 * Math.round(dpr); ctx.strokeStyle = '#fff';
-        ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
-        ctx.lineWidth = lw2; ctx.strokeStyle = LIMIT; ctx.setLineDash([5 * dpr, 4 * dpr]);
-        ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
-        ctx.restore();
+      for (var y = 0; y < M; y++) for (var x = 0; x < M; x++) if (bits[y * M + x]) ctx.fillRect(x * px, y * px, px, px);
+    }
+    // How big a drawing this link can hold, as a dashed square centred on drawing d (only its size
+    // matters — it is cropped and centred in the code). veil: it doesn't fit, so fade what's outside.
+    function paintLimit(ctx, M, d, px, dpr, veil) {
+      var s = state.maxSide, W = px * M;
+      var cx = d ? d.x + d.w / 2 : M / 2, cy = d ? d.y + d.h / 2 : M / 2;
+      var sx = Math.min(M - s, Math.max(0, Math.round(cx - s / 2))), sy = Math.min(M - s, Math.max(0, Math.round(cy - s / 2)));
+      if (veil) {
+        ctx.fillStyle = VEIL;
+        ctx.fillRect(0, 0, W, sy * px); ctx.fillRect(0, (sy + s) * px, W, W - (sy + s) * px);
+        ctx.fillRect(0, sy * px, sx * px, s * px); ctx.fillRect((sx + s) * px, sy * px, W - (sx + s) * px, s * px);
       }
+      ctx.save();
+      var lw2 = Math.max(2, Math.round(2 * dpr)), inset = lw2 / 2;
+      ctx.lineWidth = lw2 + 2 * Math.round(dpr); ctx.strokeStyle = '#fff';
+      ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
+      ctx.lineWidth = lw2; ctx.strokeStyle = LIMIT; ctx.setLineDash([5 * dpr, 4 * dpr]);
+      ctx.strokeRect(sx * px + inset, sy * px + inset, s * px - lw2, s * px - lw2);
+      ctx.restore();
+    }
+
+    function drawCanvas() {
+      var c = els.canvas, M = state.M, dpr = window.devicePixelRatio || 1;
+      var px = fitCanvas(c, els.board, M), ctx = c.getContext('2d');
+      paintGrid(ctx, M, state.bits, px, dpr);
+      if (state.bytes && state.maxSide < M && state.maxSide > 0) paintLimit(ctx, M, state.drawing, px, dpr, state.warn === 'toobig');
       var mark = null;
       if (document.activeElement === c && c.matches(':focus-visible')) mark = state.cursor;
       else if (state.hover && !stroke) mark = state.hover;
@@ -533,6 +624,17 @@
         document.querySelectorAll('[data-tool]').forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
       });
     });
+    // Each preset button carries a small picture of its drawing (crisp: whole device pixels per dot).
+    document.querySelectorAll('[data-preset]').forEach(function (btn) {
+      var d = Q.cropDrawing(presetBits(btn.dataset.preset), 32), side = Math.max(d.w, d.h);
+      var c = document.createElement('canvas'), W = Math.round(18 * (window.devicePixelRatio || 1)), ctx = c.getContext('2d');
+      c.width = c.height = W; c.className = 'dq-thumb'; c.setAttribute('aria-hidden', 'true');
+      ctx.fillStyle = INK;
+      var ox = (side - d.w) / 2, oy = (side - d.h) / 2, at = function (v) { return Math.floor(v * W / side); };
+      for (var y = 0; y < d.h; y++) for (var x = 0; x < d.w; x++)
+        if (d.bits[y * d.w + x]) ctx.fillRect(at(ox + x), at(oy + y), at(ox + x + 1) - at(ox + x), at(oy + y + 1) - at(oy + y));
+      btn.insertBefore(c, btn.firstChild);
+    });
     document.querySelectorAll('[data-preset]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         pushUndo();
@@ -561,10 +663,326 @@
       regenerate(false);
     });
     document.addEventListener('keydown', function (e) {
+      if (pels.dlg.open) return;                                // the photo dialog has its own keys
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && e.target !== els.url) { e.preventDefault(); undo(); }
     });
     if (window.ResizeObserver) new ResizeObserver(function () { drawCanvas(); drawQR(); }).observe(els.board);
     else window.addEventListener('resize', function () { drawCanvas(); drawQR(); });
+
+    /* ============================================================
+       9. Start from a photo — crop it, turn it into dots (photo.js),
+          and use them as the drawing, to keep editing by hand.
+       ============================================================ */
+    var DP = window.DotPhoto, LONG_SIDE = 1600;
+    var pels = {
+      btn: $('dq-photo-btn'), file: $('dq-photo-file'), err: $('dq-photo-err'), dlg: $('dq-photo'),
+      crop: $('dq-crop'), cropFrame: $('dq-crop-frame'), dots: $('dq-dots'), dotsFrame: $('dq-dots-frame'),
+      dotsCap: $('dq-dots-cap'), zoom: $('dq-zoom'), ink: $('dq-ink'), invert: $('dq-pinvert'),
+      styleHint: $('dq-style-hint'), status: $('dq-photo-status'), warn: $('dq-photo-warn'),
+      use: $('dq-photo-use'), cancel: $('dq-photo-cancel'), change: $('dq-photo-change')
+    };
+    var STYLE_HINTS = {
+      lines: 'Keeps outlines and thin strokes — drawings, logos, faces.',
+      shapes: 'Bold black-and-white areas — silhouettes and simple shapes.'
+    };
+    var photo = null;                       // working copy: { w, h, gray, canvas }, long side ≤ LONG_SIDE
+    var view = { x: 0, y: 0, size: 1 };     // the square crop, in working-copy pixels (may run past the edges)
+    var popt = { style: 'lines', ink: 0, invert: false, n: 32 };
+    var pm = null, pbits = null, fitTimer = 0;
+
+    function photoError(msg) {
+      msg = msg || 'Couldn’t open that file as a picture. Try a JPEG or PNG.';
+      if (pels.dlg.open) { pels.warn.textContent = msg; pels.warn.hidden = false; return; }
+      pels.err.textContent = msg; pels.err.hidden = false;
+    }
+
+    // Decode, shrink (halving step by step, so every pixel is averaged in and thin lines survive),
+    // and keep a greyscale copy. EXIF rotation is applied by the browser when the image is drawn.
+    function loadPhoto(file) {
+      pels.err.hidden = true;
+      if (!file) return;
+      if (file.type && !/^image\//.test(file.type)) { photoError('That file isn’t a picture. Try a JPEG or PNG.'); return; }
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var ok = false;
+        try { ok = makeWorkingCopy(img); } catch (e) { ok = false; }
+        URL.revokeObjectURL(url);
+        if (!ok) { photoError(); return; }
+        popt.ink = 0; popt.invert = false; popt.n = bestSize();
+        resetView();
+        openPhotoDialog();
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); photoError(); };
+      img.src = url;
+    }
+    function makeWorkingCopy(img) {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) return false;
+      var s = Math.min(1, LONG_SIDE / Math.max(w, h)), W = Math.max(1, Math.round(w * s)), H = Math.max(1, Math.round(h * s));
+      var src = img, sw = w, sh = h;
+      while (sw >= 2 * W && sh >= 2 * H) {
+        var f = 2;
+        while ((sw / f) * (sh / f) > 8e6) f *= 2;            // stay inside phone canvas limits on the first step
+        var nw = Math.max(W, Math.round(sw / f)), nh = Math.max(H, Math.round(sh / f));
+        var t = document.createElement('canvas');
+        t.width = nw; t.height = nh;
+        var tc = t.getContext('2d');
+        tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
+        tc.drawImage(src, 0, 0, sw, sh, 0, 0, nw, nh);
+        src = t; sw = nw; sh = nh;
+      }
+      var c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      var ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);       // transparent parts become white paper
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, 0, 0, sw, sh, 0, 0, W, H);
+      photo = { w: W, h: H, gray: DP.grayFromRGBA(ctx.getImageData(0, 0, W, H).data, W, H), canvas: c };
+      return true;
+    }
+
+    // The biggest grid whose full square still fits in the middle with this link.
+    function bestSize() {
+      if (!state.bytes) return state.M;
+      for (var i = 0, sizes = [32, 24, 16]; i < sizes.length; i++) if (sizes[i] <= state.maxSide) return sizes[i];
+      return 16;
+    }
+
+    /* ---- crop: size runs from the whole photo (white bars) to 8× in ---- */
+    function sizeRange() {
+      var lo = Math.min(photo.w, photo.h), hi = Math.max(photo.w, photo.h);
+      return { min: Math.max(Math.min(lo, 8), lo / 8), cover: lo, max: hi };
+    }
+    function clampView() {
+      var r = sizeRange(), s = view.size = Math.min(r.max, Math.max(r.min, view.size));
+      view.x = s <= photo.w ? Math.min(photo.w - s, Math.max(0, view.x)) : Math.min(0, Math.max(photo.w - s, view.x));
+      view.y = s <= photo.h ? Math.min(photo.h - s, Math.max(0, view.y)) : Math.min(0, Math.max(photo.h - s, view.y));
+    }
+    function resetView() {
+      var r = sizeRange();
+      view.size = r.cover; view.x = (photo.w - r.cover) / 2; view.y = (photo.h - r.cover) / 2;
+      syncZoom();
+    }
+    function sizeAt(p) { var r = sizeRange(); return r.max * Math.pow(r.min / r.max, p / 1000); }
+    function syncZoom() {
+      var r = sizeRange();
+      pels.zoom.value = r.max > r.min ? String(Math.round(1000 * Math.log(view.size / r.max) / Math.log(r.min / r.max))) : '0';
+    }
+    // Zoom to size, keeping the photo point at (fx, fy) of the frame where it is.
+    function zoomAt(size, fx, fy, fromSlider) {
+      var px = view.x + fx * view.size, py = view.y + fy * view.size, r = sizeRange();
+      size = Math.min(r.max, Math.max(r.min, size));
+      view.x = px - fx * size; view.y = py - fy * size; view.size = size;
+      clampView();
+      if (!fromSlider) syncZoom();
+      cropChanged();
+    }
+    function cropChanged() { pm = null; schedulePhoto(); }
+
+    var photoPending = false;
+    function schedulePhoto() {
+      if (photoPending) return;
+      photoPending = true;
+      requestAnimationFrame(function () { photoPending = false; renderPhoto(); });
+    }
+    // The dots for the current crop and settings (measuring the crop again only when it changed).
+    function currentDots() {
+      if (!pm || pm.n !== popt.n) pm = DP.measure(photo.gray, photo.w, photo.h, view, popt.n);
+      return (pbits = DP.toDots(pm, popt));
+    }
+    function renderPhoto() {
+      if (!photo || !pels.dlg.open) return;
+      drawCrop();
+      currentDots();
+      var d = Q.cropDrawing(pbits, popt.n), fit = fitOf(d);
+      drawDots(d, fit === 'no');
+      photoStatus(d, fit);
+    }
+    function drawCrop() {
+      var c = pels.crop, dpr = window.devicePixelRatio || 1, W = Math.max(1, Math.round(pels.cropFrame.clientWidth * dpr));
+      if (c.width !== W) { c.width = c.height = W; }
+      var ctx = c.getContext('2d'), k = W / view.size;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+      var x0 = Math.max(0, view.x), y0 = Math.max(0, view.y);
+      var x1 = Math.min(photo.w, view.x + view.size), y1 = Math.min(photo.h, view.y + view.size);
+      if (x1 <= x0 || y1 <= y0) return;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(photo.canvas, x0, y0, x1 - x0, y1 - y0, (x0 - view.x) * k, (y0 - view.y) * k, (x1 - x0) * k, (y1 - y0) * k);
+    }
+    function drawDots(d, veil) {
+      var n = popt.n, dpr = window.devicePixelRatio || 1, px = fitCanvas(pels.dots, pels.dotsFrame, n), ctx = pels.dots.getContext('2d');
+      paintGrid(ctx, n, pbits, px, dpr);
+      if (state.bytes && state.maxSide > 0 && state.maxSide < n) paintLimit(ctx, n, d, px, dpr, veil);
+      pels.dotsCap.textContent = 'Dots · ' + n + ' × ' + n + ' grid';
+    }
+
+    // Does drawing d fit in the middle with this link? Within the square maxInsetSide promises: yes.
+    // Wider than it both ways: no. Only wider one way: ask makeInset (debounced in photoStatus).
+    function fitOf(d) {
+      if (!d || !state.bytes) return 'yes';
+      if (Math.max(d.w, d.h) <= state.maxSide) return 'yes';
+      if (Math.min(d.w, d.h) > state.maxSide) return 'no';
+      return 'maybe';
+    }
+    function photoStatus(d, fit) {
+      clearTimeout(fitTimer);
+      pels.use.disabled = !d;
+      var warn = '', text = '';
+      if (!d) warn = 'No black dots — move Ink toward “more”, or try Invert.';
+      else if (!state.bytes) text = d.w + ' × ' + d.h + ' dots.';
+      else if (fit === 'yes') text = d.w + ' × ' + d.h + ' dots — fits in the middle with this link.';
+      else if (fit === 'no') warn = tooBigText(d);
+      else {
+        text = d.w + ' × ' + d.h + ' dots — checking whether it fits…';
+        fitTimer = setTimeout(function () {
+          var ok = !!Q.makeInset(state.bytes, d, { cache: state.cache });
+          showPhotoStatus(ok ? d.w + ' × ' + d.h + ' dots — fits in the middle with this link.' : '', ok ? '' : tooBigText(d), ok);
+          if (!ok) drawDots(d, true);
+        }, 250);
+      }
+      showPhotoStatus(text, warn, fit === 'yes' && !!d && !!state.bytes);
+    }
+    function tooBigText(d) {
+      return 'These dots are ' + d.w + ' × ' + d.h + ', but with this link only drawings up to ' + state.maxSide + ' × ' + state.maxSide +
+        ' fit in the middle' + (state.maxSide >= 16 ? ' — pick a smaller size' : ' — try a link shortener') + ', or the code will be plain.';
+    }
+    function showPhotoStatus(text, warn, ok) {
+      pels.status.textContent = text;
+      if (ok) { var tick = document.createElement('span'); tick.className = 'dq-ok'; tick.textContent = ' ✓'; pels.status.appendChild(tick); }
+      pels.status.hidden = !text;
+      pels.warn.textContent = warn; pels.warn.hidden = !warn;
+    }
+
+    function syncPhotoControls() {
+      pels.ink.value = String(Math.round(popt.ink * 100));
+      pels.invert.checked = popt.invert;
+      document.querySelectorAll('[data-style]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.style === popt.style)); });
+      document.querySelectorAll('[data-size]').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.dataset.size === popt.n)); });
+      pels.styleHint.textContent = STYLE_HINTS[popt.style];
+    }
+    function openPhotoDialog() {
+      syncPhotoControls();
+      pels.warn.hidden = true;
+      if (!pels.dlg.open) pels.dlg.showModal();
+      pm = null;
+      schedulePhoto();
+      pels.crop.focus({ preventScroll: true });
+    }
+    function openPicker() { pels.file.value = ''; pels.file.click(); }
+
+    /* ---- moving and zooming the photo: drag, pinch, wheel, keys, slider ---- */
+    var pointers = new Map(), gesture = null;
+    function startGesture() {
+      var pts = Array.from(pointers.values());
+      gesture = pts.length ? { view: { x: view.x, y: view.y, size: view.size }, rect: pels.crop.getBoundingClientRect(), pts: pts } : null;
+      pels.crop.classList.toggle('dq-grabbing', pts.length > 0);
+    }
+    pels.crop.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      pels.crop.focus({ preventScroll: true });
+      pels.crop.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      startGesture();
+    });
+    pels.crop.addEventListener('pointermove', function (e) {
+      if (!pointers.has(e.pointerId) || !gesture) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      var pts = Array.from(pointers.values()), g = gesture, r = g.rect, per = g.view.size / r.width;   // photo px per screen px
+      if (pts.length === 1) {
+        view.size = g.view.size;
+        view.x = g.view.x - (pts[0].x - g.pts[0].x) * per;
+        view.y = g.view.y - (pts[0].y - g.pts[0].y) * per;
+      } else {
+        // Pinch: scale by the change in finger distance, keeping the photo point between them under them.
+        var d0 = Math.hypot(g.pts[1].x - g.pts[0].x, g.pts[1].y - g.pts[0].y) || 1, d1 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) || 1;
+        var m0x = (g.pts[0].x + g.pts[1].x) / 2 - r.left, m0y = (g.pts[0].y + g.pts[1].y) / 2 - r.top;
+        var m1x = (pts[0].x + pts[1].x) / 2 - r.left, m1y = (pts[0].y + pts[1].y) / 2 - r.top;
+        var sr = sizeRange(), size = Math.min(sr.max, Math.max(sr.min, g.view.size * d0 / d1));
+        var px = g.view.x + m0x * per, py = g.view.y + m0y * per, per1 = size / r.width;
+        view.size = size; view.x = px - m1x * per1; view.y = py - m1y * per1;
+      }
+      clampView(); syncZoom(); cropChanged();
+    });
+    function endPointer(e) {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      startGesture();                                          // carry on with the fingers still down
+    }
+    pels.crop.addEventListener('pointerup', endPointer);
+    pels.crop.addEventListener('pointercancel', endPointer);
+    pels.crop.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var r = pels.crop.getBoundingClientRect(), dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      zoomAt(view.size * Math.exp(dy * (e.ctrlKey ? 0.01 : 0.0015)), (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    }, { passive: false });
+    pels.crop.addEventListener('keydown', function (e) {
+      var step = view.size * (e.shiftKey ? 0.25 : 0.05);
+      switch (e.key) {                                         // arrows move the photo, like dragging it
+        case 'ArrowLeft': view.x += step; break;
+        case 'ArrowRight': view.x -= step; break;
+        case 'ArrowUp': view.y += step; break;
+        case 'ArrowDown': view.y -= step; break;
+        case '+': case '=': e.preventDefault(); zoomAt(view.size / 1.15, 0.5, 0.5); return;
+        case '-': case '_': e.preventDefault(); zoomAt(view.size * 1.15, 0.5, 0.5); return;
+        default: return;
+      }
+      e.preventDefault();
+      clampView(); cropChanged();
+    });
+    pels.zoom.addEventListener('input', function () { zoomAt(sizeAt(+pels.zoom.value), 0.5, 0.5, true); });
+
+    /* ---- style, ink, size, invert ---- */
+    document.querySelectorAll('[data-style]').forEach(function (b) {
+      b.addEventListener('click', function () { popt.style = b.dataset.style; syncPhotoControls(); schedulePhoto(); });
+    });
+    document.querySelectorAll('[data-size]').forEach(function (b) {
+      b.addEventListener('click', function () { popt.n = +b.dataset.size; syncPhotoControls(); cropChanged(); });
+    });
+    pels.ink.addEventListener('input', function () { popt.ink = +pels.ink.value / 100; schedulePhoto(); });
+    pels.invert.addEventListener('change', function () { popt.invert = pels.invert.checked; schedulePhoto(); });
+
+    /* ---- open, use, cancel ---- */
+    pels.btn.addEventListener('click', function () { if (photo) openPhotoDialog(); else openPicker(); });
+    pels.change.addEventListener('click', openPicker);
+    pels.file.addEventListener('change', function () { loadPhoto(pels.file.files && pels.file.files[0]); });
+    pels.cancel.addEventListener('click', function () { pels.dlg.close(); });
+    pels.dlg.addEventListener('close', function () { clearTimeout(fitTimer); pointers.clear(); startGesture(); });
+    pels.use.addEventListener('click', function () {
+      if (!photo) return;
+      var bits = currentDots().slice();                        // not the last frame: a setting may have just changed
+      if (!Q.cropDrawing(bits, popt.n)) return;
+      pushUndo();                                              // one Undo brings the old drawing back
+      setGrid(popt.n, bits);
+      pels.dlg.close();
+      regenerate(false);
+    });
+    if (window.ResizeObserver) new ResizeObserver(schedulePhoto).observe(pels.cropFrame);
+
+    // Drop a picture on the grid, or paste one.
+    function imageIn(files) {
+      for (var i = 0; files && i < files.length; i++) if (/^image\//.test(files[i].type)) return files[i];
+      return null;
+    }
+    els.board.addEventListener('dragover', function (e) {
+      if (!e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') < 0) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; els.board.classList.add('dq-drop');
+    });
+    els.board.addEventListener('dragleave', function () { els.board.classList.remove('dq-drop'); });
+    els.board.addEventListener('drop', function (e) {
+      els.board.classList.remove('dq-drop');
+      if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+      e.preventDefault();                                      // never let the browser navigate to the file
+      var f = imageIn(e.dataTransfer.files);
+      if (f) loadPhoto(f); else photoError('That file isn’t a picture. Try a JPEG or PNG.');
+    });
+    document.addEventListener('paste', function (e) {
+      var cd = e.clipboardData, f = null;
+      for (var i = 0; cd && i < cd.items.length; i++) if (cd.items[i].kind === 'file' && /^image\//.test(cd.items[i].type)) { f = cd.items[i].getAsFile(); break; }
+      if (!f || (e.target === els.url && cd.getData('text/plain'))) return;   // pasting a link stays a link
+      e.preventDefault();
+      loadPhoto(f);
+    });
 
     regenerate(false);
   })();

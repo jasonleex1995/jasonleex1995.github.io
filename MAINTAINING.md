@@ -207,7 +207,7 @@ python3 -m http.server 8000
 - 🔴 **건드리지 말 것**:
   - `styles.css` — 디자인을 바꿀 때만. (색/폰트는 맨 위 `:root` 변수만 수정)
   - `gallery.html` / `projects.html` 안의 `<script>` 블록 — 렌더링 로직. 수정 불필요.
-  - `projects/dot-qr/qr.js` — QR 인코더(표준 표·오류 정정·배치). 고쳤다면 `node projects/dot-qr/check.js`가 `0 failed`여야 합니다 (`projects/dot-qr/README.md` 참고).
+  - `projects/dot-qr/qr.js` — QR 인코더(표준 표·오류 정정·배치), `projects/dot-qr/photo.js` — 사진을 흑백 점으로 바꾸는 코드. 둘 중 하나라도 고쳤다면 `node projects/dot-qr/check.js`가 `0 failed`여야 합니다 (`projects/dot-qr/README.md` 참고).
   - **`.nojekyll`** (루트의 빈 파일) — 지우면 GitHub Pages가 Jekyll로 처리해서 **밑줄로 시작하는 폴더(`projects/_template/`)가 통째로 사라집니다.**
   - **`projects/prism-wing/index.html` 의 iframe 주소** — 게임은 이제 자기 저장소([prism-wing](https://github.com/jasonleex1995/prism-wing))에 살고 `https://jasonleex1995.github.io/prism-wing/` 로 배포됩니다. 이 페이지는 그 주소를 iframe 으로 물고 있어요(같은 도메인이라 예전과 똑같이 동작합니다). `projects/nan2026/` 에는 **예전 주소를 받은 사람을 위한 전달 페이지 한 장**만 남아 있습니다 — 게임 파일이 아닙니다.
 - **이미지는 반드시 압축**해서 올리기 (원본 수 MB 그대로 X).

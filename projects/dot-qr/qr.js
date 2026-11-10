@@ -327,6 +327,71 @@
     return score;
   }
 
+  /* ---------- Finder look-alikes ---------- */
+  // Scanners find the three corner squares by looking for dark·light·dark·light·dark runs in roughly
+  // 1:1:3:1:1 proportion that hold up vertically through their centre too. ZXing accepts anything
+  // within half a module of those proportions. Steering the free bits can leave such a pattern in the
+  // data area, and a decoder may then take it for a corner square: ZXing failed to read one code
+  // even as a clean image (Clawd preset + mailto:hello@example.com, 2026-11-10). This replays
+  // ZXing's row scan and cross-checks on the module grid (the ratios don't depend on scale) and returns
+  // the look-alikes that are not one of the three real corner squares. mod is in QR orientation.
+  function finderLike(c) {
+    var t = c[0] + c[1] + c[2] + c[3] + c[4], m = t / 7, v = m / 2;
+    return c[0] > 0 && c[1] > 0 && c[2] > 0 && c[3] > 0 && c[4] > 0 &&
+      Math.abs(m - c[0]) < v && Math.abs(m - c[1]) < v && Math.abs(3 * m - c[2]) < 3 * v &&
+      Math.abs(m - c[3]) < v && Math.abs(m - c[4]) < v;
+  }
+  function crossCheck(at, lo, hi, start, maxCount, origTotal) {     // ZXing's crossCheckVertical, on modules
+    var c = [0, 0, 0, 0, 0], i = start;
+    while (i >= lo && at(i)) { c[2]++; i--; }
+    if (i < lo) return NaN;
+    while (i >= lo && !at(i) && c[1] <= maxCount) { c[1]++; i--; }
+    if (i < lo || c[1] > maxCount) return NaN;
+    while (i >= lo && at(i) && c[0] <= maxCount) { c[0]++; i--; }
+    if (c[0] > maxCount) return NaN;
+    i = start + 1;
+    while (i <= hi && at(i)) { c[2]++; i++; }
+    if (i > hi) return NaN;
+    while (i <= hi && !at(i) && c[3] < maxCount) { c[3]++; i++; }
+    if (i > hi || c[3] >= maxCount) return NaN;
+    while (i <= hi && at(i) && c[4] < maxCount) { c[4]++; i++; }
+    if (c[4] >= maxCount) return NaN;
+    var tot = c[0] + c[1] + c[2] + c[3] + c[4];
+    if (5 * Math.abs(tot - origTotal) >= 2 * origTotal) return NaN;
+    return finderLike(c) ? i - c[4] - c[3] - c[2] / 2 : NaN;
+  }
+  function rowScanLookalikes(dark, size) {
+    var lo = -4, hi = size + 3, found = [];                        // the quiet zone counts as light
+    for (var y = 0; y < size; y++) {
+      var runs = [], x = lo;
+      while (x <= hi) { var v = dark(x, y), s0 = x; while (x <= hi && dark(x, y) === v) x++; runs.push({ v: v, s: s0, n: x - s0 }); }
+      for (var k = 0; k + 4 < runs.length; k++) {
+        if (!runs[k].v) continue;
+        var c = [runs[k].n, runs[k + 1].n, runs[k + 2].n, runs[k + 3].n, runs[k + 4].n];
+        if (!finderLike(c)) continue;
+        var total = c[0] + c[1] + c[2] + c[3] + c[4], col = Math.floor(runs[k + 2].s + c[2] / 2);
+        var cy = crossCheck(function (i) { return dark(col, i); }, lo, hi, y, c[2], total);
+        if (isNaN(cy)) continue;
+        var row = Math.floor(cy);
+        var cx = crossCheck(function (i) { return dark(i, row); }, lo, hi, col, c[2], total);
+        if (!isNaN(cx)) found.push([cx, cy]);
+      }
+    }
+    return found;
+  }
+  function lookalikes(mod, size, skip) {                          // skip(x, y): ignore look-alikes centred there
+    var at = function (x, y) { return x >= 0 && y >= 0 && x < size && y < size && mod[y * size + x] === 1; };
+    var found = rowScanLookalikes(at, size).concat(               // and a code held sideways: columns first
+      rowScanLookalikes(function (x, y) { return at(y, x); }, size).map(function (p) { return [p[1], p[0]]; }));
+    var real = [[3.5, 3.5], [size - 3.5, 3.5], [3.5, size - 3.5]], out = [];
+    found.forEach(function (p) {
+      if (real.some(function (r) { return Math.abs(p[0] - r[0]) < 3 && Math.abs(p[1] - r[1]) < 3; })) return;
+      if (skip && skip(Math.min(size - 1, Math.floor(p[0])), Math.min(size - 1, Math.floor(p[1])))) return;
+      if (!out.some(function (o) { return Math.abs(o[0] - p[0]) < 2 && Math.abs(o[1] - p[1]) < 2; })) out.push(p);
+    });
+    return out;
+  }
+
   /* ---------- Rotation helpers (QR orientation ↔ display orientation) ---------- */
   // r = number of clockwise quarter turns applied to the QR to get the displayed image.
   function rotIndex(r, size, x, y) {
@@ -549,8 +614,11 @@
     return { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } };
   }
 
-  // Steer the box to the drawing for each workable turn and mask; keep the first turn that works
-  // with its lowest-penalty mask. Null if (rarely) the box's modules can't all be set at once.
+  // Steer the box to the drawing for each workable turn and mask. Keep the first turn that works with
+  // its lowest-penalty mask — but a mask that leaves a finder look-alike outside the box only counts if
+  // no turn has a mask without one. (A single mask asked for — the quick redraw during a stroke — skips
+  // that test.)
+  // Null if (rarely) the box's modules can't all be set at once.
   function insetSolve(plan, d, masks) {
     var sys = plan.sys, t = plan.t, size = plan.size, n = plan.n, inR = plan.inR, b = plan.box, x, y, i;
     var ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2), want = new Uint8Array(n);
@@ -558,6 +626,7 @@
       var dx = x - ox, dy = y - oy;
       want[y * size + x] = (dx >= 0 && dy >= 0 && dx < d.w && dy < d.h) ? d.bits[dy * d.w + dx] : 0;
     }
+    var fallback = null;
     for (var ri = 0; ri < plan.rots.length; ri++) {
       var r = plan.rots[ri], tq = new Uint8Array(n), wq = new Float32Array(n), boxQ = new Uint8Array(n);
       for (y = 0; y < size; y++) for (x = 0; x < size; x++) {
@@ -573,27 +642,36 @@
         idx.sort(function (a, c) { return wq[order[bs.mods[c]]] - wq[order[bs.mods[a]]]; });
         return idx;
       });
-      var best = null;
+      var best = null, bestOk = null;
       for (var mi = 0; mi < masks.length; mi++) {
         var mod = steer(sys, masks[mi], tq, orders), clean = true;
         for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
         if (!clean) continue;
-        var pen = masks.length > 1 ? penalty(mod, size) : 0;
-        if (!best || pen < best.pen) best = { pen: pen, mod: mod, mask: masks[mi] };
+        var pen = masks.length > 1 ? penalty(mod, size) : 0, cand = { pen: pen, mod: mod, mask: masks[mi] };
+        if (!best || pen < best.pen) best = cand;
+        if (masks.length > 1 && (!bestOk || pen < bestOk.pen)) {
+          var seen = mod.slice();                                   // as drawn: the drawing covers the centre square
+          for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
+          // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
+          if (!lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length) bestOk = cand;
+        }
       }
-      if (best) {
-        var shown = rotateArray(best.mod, size, r), fnD = rotateArray(t.fn, size, r), covered = new Uint8Array(n);
-        for (i = 0; i < n; i++) if (inR[i] && fnD[i]) { covered[i] = 1; shown[i] = want[i]; }
-        return {
-          size: size, version: sys.ver, ecl: sys.ecl, mask: best.mask, rotation: r, art: true,
-          modules: shown,             // what gets drawn (display orientation)
-          isFunction: fnD,
-          covered: covered,           // function modules painted over by the drawing (only ever the centre square)
-          box: b
-        };
-      }
+      if (bestOk || (best && masks.length === 1)) return finish(bestOk || best, r);
+      if (best && !fallback) fallback = { best: best, r: r };
     }
-    return null;
+    return fallback ? finish(fallback.best, fallback.r) : null;
+
+    function finish(pick, r) {
+      var shown = rotateArray(pick.mod, size, r), fnD = rotateArray(t.fn, size, r), covered = new Uint8Array(n);
+      for (var j = 0; j < n; j++) if (inR[j] && fnD[j]) { covered[j] = 1; shown[j] = want[j]; }
+      return {
+        size: size, version: sys.ver, ecl: sys.ecl, mask: pick.mask, rotation: r, art: true,
+        modules: shown,             // what gets drawn (display orientation)
+        isFunction: fnD,
+        covered: covered,           // function modules painted over by the drawing (only ever the centre square)
+        box: b
+      };
+    }
   }
 
   /* ---------- Rendering ---------- */
@@ -663,7 +741,15 @@
     renderModules: renderModules, verify: verify,
     // exposed for tests
     _rsEncode: rsEncode, _numDataCodewords: numDataCodewords, _numRawDataModules: numRawDataModules,
-    _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits
+    _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits,
+    // Finder look-alikes of a finished code, as display-orientation modules [x, y].
+    _lookalikes: function (res) {
+      var size = res.size, r = res.rotation || 0;
+      return lookalikes(unrotateArray(res.modules, size, r), size).map(function (p) {
+        var i = rotIndex(r, size, Math.min(size - 1, Math.floor(p[0])), Math.min(size - 1, Math.floor(p[1])));
+        return [i % size, (i / size) | 0];
+      });
+    }
   };
   if (typeof module === 'object' && module.exports) module.exports = API;
   else root.DotQR = API;

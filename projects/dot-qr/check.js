@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Dot QR self-check — run it after touching qr.js or the presets:
+/* Dot QR self-check — run it after touching qr.js, photo.js or the presets:
 
      node projects/dot-qr/check.js
 
@@ -9,9 +9,15 @@
       2026-11-09 and were identical, so a changed fingerprint means the encoder changed.
    2) Drawings in the middle: every preset in index.html × links × grid sizes. When a code is made,
       it reads back as exactly the link, its box shows the drawing exactly (plus a light margin),
-      the drawing covers no function pattern except the centre alignment square, and the rendered
-      image puts every module's colour where scanners look.
+      the drawing covers no function pattern except the centre alignment square, no data modules
+      form a finder look-alike, and the rendered image puts every module's colour where scanners look.
    3) maxInsetSide tells the truth: a drawing that big fits, one module bigger does not.
+   4) Edges: empty drawings, the largest links.
+   5) Photo → dots (photo.js) on synthetic phone photos of paper (strong shadow, stains, grain):
+      every dot is exactly 0 or 1; blank paper gives no dots; a 2-px pen ring survives whole with
+      nothing stray; a filled disk is solid; a fleck of dust or an even paper texture leaves nothing
+      (Lines); Invert flips; more ink never means fewer dots; black/white pictures; the crop past
+      the photo's edge counts as white. Each of these was broken on purpose once to see it caught.
 */
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -53,7 +59,10 @@ for (let v = 1; v <= 40; v++) {
 const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const presets = {};
 for (const m of html.matchAll(/^\s*(\w+): '((?:[0-9a-f]{8} ){31}[0-9a-f]{8})',?$/gm)) presets[m[1]] = m[2];
-check(Object.keys(presets).length >= 4, 'could not read the presets from index.html');
+const buttons = [...html.matchAll(/data-preset="(\w+)"/g)].map(m => m[1]);
+check(Object.keys(presets).length >= 1, 'could not read the presets from index.html');
+check(buttons.length === Object.keys(presets).length && buttons.every(b => b in presets),
+  `preset buttons (${buttons}) and PRESETS (${Object.keys(presets)}) must match one to one`);
 
 function bitsOf(hex) {
   const out = new Uint8Array(32 * 32);
@@ -68,7 +77,7 @@ function resample(bits, M, M2) {      // same nearest-neighbour rule as the page
 }
 
 // Everything a finished code with a drawing must satisfy.
-function checkInset(res, d, bytes, tag) {
+function checkInset(res, d, bytes, tag, curated) {
   const read = DotQR.verify(res, bytes);
   check(read.ok, `${tag}: does not read back (${read.why})`);
   const N = res.size, b = res.box, ver = res.version;
@@ -102,6 +111,10 @@ function checkInset(res, d, bytes, tag) {
   let quiet = 0;
   for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (img[y * W + x] && (x < 4 * px || y < 4 * px || x >= W - 4 * px || y >= W - 4 * px)) quiet++;
   check(quiet === 0, `${tag}: ${quiet} dark pixels in the quiet zone`);
+  // Finder look-alikes: none outside the box (the mask choice avoids them); none inside it either for
+  // the curated presets (curated = true), since there the drawing itself would be the culprit.
+  const fakes = DotQR._lookalikes(res).filter(([x, y]) => curated || !(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h));
+  check(fakes.length === 0, `${tag}: finder look-alike(s) at ${JSON.stringify(fakes)} — scanners like ZXing can take them for a corner square`);
 }
 
 const SHORT = ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'mailto:someone@example.com', '안녕하세요 Dot QR'];
@@ -113,7 +126,7 @@ for (const [name, hex] of Object.entries(presets)) {
     const tag = `${name} / grid ${M} / ${link.slice(0, 26)}`;
     const res = DotQR.makeInset(bytes, d, { cache: {} });
     check(!!res, `${tag}: should fit but no code was made`);
-    if (res) checkInset(res, d, bytes, tag);
+    if (res) checkInset(res, d, bytes, tag, true);
   }
   const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
   check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
@@ -142,6 +155,30 @@ for (const [name, hex] of Object.entries(presets)) {
   }
 }
 
+// Regression: this drawing (an earlier Clawd preset, 24×18) with this link once got a mask whose data
+// modules formed a finder look-alike near the top edge, and ZXing could not read the code even as a
+// clean image.
+{
+  const rows = ['.....##############.....', '....################....', '...##################...', '...##################...',
+    '...###..########..###...', '...###..########..###...', '...###..########..###...', '...###..########..###...',
+    '...##################...', '########################', '########################', '...##################...',
+    '...##################...', '...##################...', '....################....', '.....##.##....##.##.....',
+    '.....##.##....##.##.....', '.....##.##....##.##.....'];
+  const d = { w: 24, h: 18, bits: Uint8Array.from(rows.join(''), c => c === '#' ? 1 : 0) };
+  const bytes = DotQR.utf8('mailto:hello@example.com'), res = DotQR.makeInset(bytes, d, { cache: {} });
+  check(!!res, 'look-alike regression: no code made');
+  if (res) checkInset(res, d, bytes, 'look-alike regression (old Clawd + mailto)', true);
+  // The detector itself must still see the look-alike in the code that broke ZXing (that mask and
+  // turn, forced), upright and turned on its side.
+  const bad = DotQR.makeInset(bytes, d, { cache: {}, masks: [2], rotations: [1] });
+  check(!!bad && DotQR._lookalikes(bad).length > 0, 'the look-alike detector misses the pattern that broke ZXing');
+  if (bad) {
+    const N = bad.size, side = new Uint8Array(N * N);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) side[x * N + y] = bad.modules[y * N + x];
+    check(DotQR._lookalikes({ modules: side, size: N, rotation: 0 }).length > 0, 'the look-alike detector misses that pattern when the code is mirrored on its diagonal');
+  }
+}
+
 /* ---------- 3) maxInsetSide matches what makeInset can actually do ---------- */
 for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'https://jasonleex1995.github.io/projects/dot-qr/']) {
   const bytes = DotQR.utf8(link), s = DotQR.maxInsetSide(bytes, { cache: {} });
@@ -157,6 +194,86 @@ check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache:
 check(DotQR.cropDrawing(new Uint8Array(32 * 32), 32) === null, 'an empty drawing must crop to null');
 check(DotQR.makePlain(DotQR.utf8('x'.repeat(2000)), { ecl: DotQR.ECL.M }) !== null, 'a 2000-byte link should still fit a plain code');
 check(DotQR.makePlain(DotQR.utf8('x'.repeat(3000)), { ecl: DotQR.ECL.M }) === null, 'a 3000-byte link cannot fit and must return null');
+
+/* ---------- 5) Photo → dots (photo.js) ---------- */
+// Synthetic 600×600 grey "phone photos of paper": a strong shadow across the page (236 → ~110),
+// blotches, pixel grain — then a thin pen ring, a filled disk, or one fleck of dust on it.
+const DotPhoto = require('./photo.js');
+{
+  const W = 600, crop = { x: 0, y: 0, size: W };
+  let seed = 7;
+  const rnd = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296;
+  const grain = a => (rnd() + rnd() + rnd() - 1.5) * a;
+  const G = 12, blotch = Array.from({ length: (G + 1) * (G + 1) }, () => grain(12));
+  const blot = (x, y) => {                                     // smooth ±6-ish stains, bilinear between grid points
+    const gx = x / W * G, gy = y / W * G, ix = Math.min(G - 1, Math.floor(gx)), iy = Math.min(G - 1, Math.floor(gy)), fx = gx - ix, fy = gy - iy;
+    return blotch[iy * (G + 1) + ix] * (1 - fx) * (1 - fy) + blotch[iy * (G + 1) + ix + 1] * fx * (1 - fy) +
+      blotch[(iy + 1) * (G + 1) + ix] * (1 - fx) * fy + blotch[(iy + 1) * (G + 1) + ix + 1] * fx * fy;
+  };
+  const pic = (f, w = W, h = W) => { const g = new Uint8ClampedArray(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) g[y * w + x] = f(x, y); return g; };
+  const paper = (x, y) => 236 - 126 * (x + y) / (2 * W) + blot(x, y) + grain(8);
+  const R = W * 0.3, ringDist = (x, y) => Math.abs(Math.hypot(x - W / 2, y - W / 2) - R);
+  const count = b => b.reduce((a, v) => a + v, 0);
+  const blank = pic(paper);
+  const ringed = pic((x, y) => ringDist(x, y) < 1 ? 70 + grain(8) : paper(x, y));                  // a 2-px pen line
+  const disk = pic((x, y) => Math.hypot(x - W / 2, y - W / 2) < R ? 50 + grain(8) : paper(x, y));
+  const dust = pic((x, y) => x >= 304 && x < 314 && y >= 304 && y < 314 ? 40 : paper(x, y));     // inside one cell at 16, 24 and 32
+  const ramp = pic((x, y) => (x * 7 + y * 3) % 256);
+  const woven = pic((x, y) => paper(x, y) * (1 + 0.12 * Math.sin(2 * Math.PI * x / 75) * Math.sin(2 * Math.PI * y / 75)));   // textured paper
+  for (const n of [16, 24, 32]) {
+    const tag = `photo ${n}×${n}`, cell = W / n;
+    const centre = (cx, cy) => Math.hypot((cx + 0.5) * cell - W / 2, (cy + 0.5) * cell - W / 2);
+    for (const style of DotPhoto.STYLES) for (const ink of [-1, 0, 1]) for (const invert of [false, true]) {
+      const b = DotPhoto.toDots(DotPhoto.measure(ramp, W, W, crop, n), { style, ink, invert });
+      check(b.length === n * n && b.every(v => v === 0 || v === 1), `${tag} ${style} ink ${ink}: every dot must be exactly 0 or 1`);
+    }
+    const mb = DotPhoto.measure(blank, W, W, crop, n);
+    for (const style of DotPhoto.STYLES) check(count(DotPhoto.toDots(mb, { style })) === 0, `${tag} ${style}: blank, shadowed, stained paper should give no dots`);
+    // Lines finds the thin ring all the way round, and nothing far from it.
+    const mr = DotPhoto.measure(ringed, W, W, crop, n), lines = DotPhoto.toDots(mr, {});
+    let missed = 0, stray = 0;
+    for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+      const off = Math.abs(centre(cx, cy) - R);
+      if (off < cell * 0.3 && !lines[cy * n + cx]) missed++;
+      if (off > cell * 1.5 && lines[cy * n + cx]) stray++;
+    }
+    check(missed === 0, `${tag}: Lines lost ${missed} cells of a thin pen ring`);
+    check(stray === 0, `${tag}: Lines put ${stray} dots far from the ring`);
+    const inv = DotPhoto.toDots(mr, { invert: true });
+    check(inv.every((v, i) => v === (lines[i] ^ 1)), `${tag}: Invert must flip every dot`);
+    // A filled disk comes out solid in both styles — inside black, outside white.
+    const md = DotPhoto.measure(disk, W, W, crop, n);
+    for (const style of DotPhoto.STYLES) {
+      const b = DotPhoto.toDots(md, { style });
+      let bad = 0;
+      for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+        const r = centre(cx, cy);
+        if ((r < R - cell * 1.2 && !b[cy * n + cx]) || (r > R + cell * 1.2 && b[cy * n + cx])) bad++;
+      }
+      check(bad === 0, `${tag} ${style}: a filled disk should be solid inside and clean outside (${bad} cells wrong)`);
+    }
+    check(count(DotPhoto.toDots(DotPhoto.measure(dust, W, W, crop, n), {})) === 0, `${tag}: a lone fleck of dust should not leave a dot`);
+    check(count(DotPhoto.toDots(DotPhoto.measure(woven, W, W, crop, n), {})) === 0, `${tag}: Lines should read an even paper texture as grain, not as dots`);
+    for (const style of DotPhoto.STYLES) {                    // more ink → more black dots (tidying may nudge by a few)
+      const counts = [-1, -0.5, 0, 0.5, 1].map(ink => count(DotPhoto.toDots(DotPhoto.measure(ramp, W, W, crop, n), { style, ink })));
+      check(counts.every((c, i) => i === 0 || c >= counts[i - 1] - 3), `${tag} ${style}: dot count should grow with ink (${counts})`);
+    }
+    for (const style of DotPhoto.STYLES) {
+      check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 0), W, W, crop, n), { style })) === n * n, `${tag} ${style}: a black picture should be all black`);
+      check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 255), W, W, crop, n), { style })) === 0, `${tag} ${style}: a white picture should be all white`);
+    }
+    // A black 600×300 photo seen whole (square crop runs past its top and bottom): those parts are white.
+    const wide = DotPhoto.toDots(DotPhoto.measure(pic(() => 0, W, W / 2), W, W / 2, { x: 0, y: -W / 4, size: W }, n), { style: 'shapes' });
+    let rowsOk = true;
+    for (let y = 0; y < n; y++) {
+      const c = (y + 0.5) * cell - W / 4, want = c > cell && c < W / 2 - cell ? 1 : c < -cell || c > W / 2 + cell ? 0 : -1;
+      for (let x = 0; x < n; x++) if (want >= 0 && wide[y * n + x] !== want) rowsOk = false;
+    }
+    check(rowsOk, `${tag}: parts of the crop outside the photo must count as white`);
+  }
+  const g = DotPhoto.grayFromRGBA(Uint8ClampedArray.from([0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255]), 3, 1);
+  check(g[0] === 255 && g[1] === 0 && g[2] === 255, 'grayFromRGBA: transparent → white paper, black → 0, white → 255');
+}
 
 console.log(`${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
