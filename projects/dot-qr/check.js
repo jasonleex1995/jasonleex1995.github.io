@@ -12,12 +12,16 @@
       the drawing covers no function pattern except the centre alignment square, no data modules
       form a finder look-alike, and the rendered image puts every module's colour where scanners look.
    3) maxInsetSide tells the truth: a drawing that big fits, one module bigger does not.
+   3b) Plain codes: with the mask chosen automatically, no finder look-alikes unless every mask has
+       some — then the fewest (200 random links).
    4) Edges: empty drawings, the largest links.
    5) Photo → dots (photo.js) on synthetic phone photos of paper (strong shadow, stains, grain):
-      every dot is exactly 0 or 1; blank paper gives no dots; a 2-px pen ring survives whole with
-      nothing stray; a filled disk is solid; a fleck of dust or an even paper texture leaves nothing
-      (Lines); Invert flips; more ink never means fewer dots; black/white pictures; the crop past
-      the photo's edge counts as white. Each of these was broken on purpose once to see it caught.
+      every dot is exactly 0 or 1; blank paper gives no dots, also zoomed out past the photo's
+      edges; a 2-px pen ring survives whole with nothing stray; a filled disk is solid; a fleck of
+      dust or an even paper texture leaves nothing (Lines); a portrait keeps dark hair black and the
+      face white; Invert flips; more ink never means fewer dots (tidying may nudge a few), and Shapes' ink stays between the
+      two tone groups; black, noisy-black and white pictures; the crop past the photo's edge counts
+      as white in both styles; tidying removes specks, fills pinholes, keeps diagonals.
 */
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -179,6 +183,17 @@ for (const [name, hex] of Object.entries(presets)) {
   }
 }
 
+// Regression: the default drawing (logo) with this link got a mask whose look-alike only shows when
+// the code is seen turned (the scan once covered one orientation only) — ZXing failed it even upright.
+if (presets.logo) {
+  const bytes = DotQR.utf8('https://7qb.me/eLQzyWCASYl9y7GTcH'), d = DotQR.cropDrawing(bitsOf(presets.logo), 32);
+  const res = DotQR.makeInset(bytes, d, { cache: {} });
+  check(!!res, 'turned look-alike regression: no code made');
+  if (res) checkInset(res, d, bytes, 'turned look-alike regression (logo + 7qb.me)', true);
+  const old = DotQR.makeInset(bytes, d, { cache: {}, masks: [4], rotations: [2] });
+  check(!!old && DotQR._lookalikes(old).length > 0, 'the look-alike detector misses the turned pattern (logo + 7qb.me, mask 4, turn 2)');
+}
+
 /* ---------- 3) maxInsetSide matches what makeInset can actually do ---------- */
 for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'https://jasonleex1995.github.io/projects/dot-qr/']) {
   const bytes = DotQR.utf8(link), s = DotQR.maxInsetSide(bytes, { cache: {} });
@@ -189,6 +204,32 @@ for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io',
   check(DotQR.makeInset(bytes, random(s + 1), { cache: {} }) === null, `${link}: ${s + 1}×${s + 1} fits although maxInsetSide says ${s}`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache: {} }) === 32, 'a 31-character link should hold a full 32×32 drawing');
+
+/* ---------- 3b) Plain codes avoid finder look-alikes ---------- */
+// With the mask chosen automatically, a plain code avoids masks that leave a finder look-alike
+// (about 1 in 12 random links otherwise got one that ZXing couldn't read even as a clean image).
+// Explicit masks are untouched — the fingerprints in section 1 use them.
+{
+  let seed = 99, withFakes = 0, readBack = true;
+  const rnd = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296;
+  const A = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
+  const links = ['https://LwBG_VkSj_T8h7zDZFRfn28exvMXa'];          // got a look-alike mask before (v3, mask 2)
+  for (let i = 0; i < 199; i++) { const L = 10 + Math.floor(rnd() * 140); let s = 'https://'; while (s.length < L) s += A[Math.floor(rnd() * A.length)]; links.push(s); }
+  let notFewest = 0;
+  for (const link of links) {
+    const bytes = DotQR.utf8(link), res = DotQR.makePlain(bytes, { ecl: DotQR.ECL.M }), fakes = DotQR._lookalikes(res).length;
+    if (fakes) {                                                  // allowed only if every mask has at least as many
+      withFakes++;
+      const fewest = Math.min(...[0, 1, 2, 3, 4, 5, 6, 7].map(m => DotQR._lookalikes(DotQR.makePlain(bytes, { ecl: DotQR.ECL.M, mask: m })).length));
+      if (fakes > fewest) notFewest++;
+    }
+    if (!DotQR.verify(res, bytes).ok) readBack = false;
+  }
+  check(notFewest === 0, `plain codes: ${notFewest} automatic masks leave more finder look-alikes than another mask would`);
+  check(withFakes <= links.length / 50, `plain codes: ${withFakes} of ${links.length} have a look-alike — far more than the few that can't avoid one`);
+  check(DotQR._lookalikes(DotQR.makePlain(DotQR.utf8(links[0]), { ecl: DotQR.ECL.M })).length === 0, `plain codes: ${links[0]} should get a mask without look-alikes`);
+  check(readBack, 'plain codes: an automatic-mask code does not read back');
+}
 
 /* ---------- 4) Edges ---------- */
 check(DotQR.cropDrawing(new Uint8Array(32 * 32), 32) === null, 'an empty drawing must crop to null');
@@ -205,7 +246,7 @@ const DotPhoto = require('./photo.js');
   const rnd = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296;
   const grain = a => (rnd() + rnd() + rnd() - 1.5) * a;
   const G = 12, blotch = Array.from({ length: (G + 1) * (G + 1) }, () => grain(12));
-  const blot = (x, y) => {                                     // smooth ±6-ish stains, bilinear between grid points
+  const blot = (x, y) => {                                     // smooth stains up to about ±12, bilinear between grid points
     const gx = x / W * G, gy = y / W * G, ix = Math.min(G - 1, Math.floor(gx)), iy = Math.min(G - 1, Math.floor(gy)), fx = gx - ix, fy = gy - iy;
     return blotch[iy * (G + 1) + ix] * (1 - fx) * (1 - fy) + blotch[iy * (G + 1) + ix + 1] * fx * (1 - fy) +
       blotch[(iy + 1) * (G + 1) + ix] * (1 - fx) * fy + blotch[(iy + 1) * (G + 1) + ix + 1] * fx * fy;
@@ -220,6 +261,12 @@ const DotPhoto = require('./photo.js');
   const dust = pic((x, y) => x >= 304 && x < 314 && y >= 304 && y < 314 ? 40 : paper(x, y));     // inside one cell at 16, 24 and 32
   const ramp = pic((x, y) => (x * 7 + y * 3) % 256);
   const woven = pic((x, y) => paper(x, y) * (1 + 0.12 * Math.sin(2 * Math.PI * x / 75) * Math.sin(2 * Math.PI * y / 75)));   // textured paper
+  // A portrait crop: dark hair over the top, a light face in the middle, a darkish background. Not a
+  // page, so it must be judged against its own bright end — not against a fitted "paper" surface.
+  const inFace = (x, y) => x >= 180 && x < 420 && y >= 270;
+  const portrait = pic((x, y) => (y < 270 ? 55 : inFace(x, y) ? 190 : 75) + grain(8));
+  const tall = pic((x, y) => 205 + grain(6), 450, 600);                                      // a portrait-shaped page
+  const noisyBlack = pic(() => 3 + grain(6));
   for (const n of [16, 24, 32]) {
     const tag = `photo ${n}×${n}`, cell = W / n;
     const centre = (cx, cy) => Math.hypot((cx + 0.5) * cell - W / 2, (cy + 0.5) * cell - W / 2);
@@ -258,21 +305,63 @@ const DotPhoto = require('./photo.js');
       const counts = [-1, -0.5, 0, 0.5, 1].map(ink => count(DotPhoto.toDots(DotPhoto.measure(ramp, W, W, crop, n), { style, ink })));
       check(counts.every((c, i) => i === 0 || c >= counts[i - 1] - 3), `${tag} ${style}: dot count should grow with ink (${counts})`);
     }
+    // Zoomed out past the photo's edges (white bars), blank paper is still blank: the edge is no line.
     for (const style of DotPhoto.STYLES) {
+      const bars = count(DotPhoto.toDots(DotPhoto.measure(tall, 450, 600, { x: -75, y: 0, size: 600 }, n), { style }));
+      const frame = count(DotPhoto.toDots(DotPhoto.measure(blank, W, W, { x: -60, y: -60, size: 720 }, n), { style }));
+      check(bars === 0 && frame === 0, `${tag} ${style}: zoomed out past the photo, blank paper should still give no dots (${bars}, ${frame})`);
+    }
+    // The portrait: hair and background black, face white (Lines).
+    {
+      const b = DotPhoto.toDots(DotPhoto.measure(portrait, W, W, crop, n), {});
+      let hair = 0, hairN = 0, face = 0, faceN = 0;
+      for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+        const x0 = cx * cell, y0 = cy * cell, x1 = x0 + cell, y1 = y0 + cell;
+        if (y1 <= 270) { hairN++; hair += b[cy * n + cx]; }
+        else if (inFace(x0, y0) && inFace(x1 - 0.01, y1 - 0.01) && x0 >= 180 + cell && x1 <= 420 - cell && y0 >= 270 + cell) { faceN++; face += b[cy * n + cx]; }
+      }
+      check(hair >= 0.9 * hairN && face <= 0.1 * faceN, `${tag}: a portrait should keep dark hair black and the face white (hair ${hair}/${hairN}, face ${face}/${faceN})`);
+    }
+    // Ink never pushes Shapes all the way: at −1 the disk is still there, at +1 the paper is still white.
+    {
+      const lo = DotPhoto.toDots(md, { style: 'shapes', ink: -1 }), hi = DotPhoto.toDots(md, { style: 'shapes', ink: 1 });
+      let inside = 0, insideN = 0, outside = 0, outsideN = 0;
+      for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+        const r = centre(cx, cy);
+        if (r < R - cell * 1.5) { insideN++; inside += lo[cy * n + cx]; }
+        if (r > R + cell * 1.5) { outsideN++; outside += hi[cy * n + cx]; }
+      }
+      check(inside >= 0.9 * insideN && outside <= 0.1 * outsideN, `${tag}: Shapes ink ±1 should stay between the disk and the paper (disk at −1: ${inside}/${insideN}, paper at +1: ${outside}/${outsideN})`);
+    }
+    for (const style of DotPhoto.STYLES) {
+      check(count(DotPhoto.toDots(DotPhoto.measure(noisyBlack, W, W, crop, n), { style })) === n * n, `${tag} ${style}: a dark, slightly noisy photo should be all black`);
       check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 0), W, W, crop, n), { style })) === n * n, `${tag} ${style}: a black picture should be all black`);
       check(count(DotPhoto.toDots(DotPhoto.measure(pic(() => 255), W, W, crop, n), { style })) === 0, `${tag} ${style}: a white picture should be all white`);
     }
     // A black 600×300 photo seen whole (square crop runs past its top and bottom): those parts are white.
-    const wide = DotPhoto.toDots(DotPhoto.measure(pic(() => 0, W, W / 2), W, W / 2, { x: 0, y: -W / 4, size: W }, n), { style: 'shapes' });
-    let rowsOk = true;
-    for (let y = 0; y < n; y++) {
-      const c = (y + 0.5) * cell - W / 4, want = c > cell && c < W / 2 - cell ? 1 : c < -cell || c > W / 2 + cell ? 0 : -1;
-      for (let x = 0; x < n; x++) if (want >= 0 && wide[y * n + x] !== want) rowsOk = false;
+    for (const style of DotPhoto.STYLES) {
+      const wide = DotPhoto.toDots(DotPhoto.measure(pic(() => 0, W, W / 2), W, W / 2, { x: 0, y: -W / 4, size: W }, n), { style });
+      let rowsOk = true;
+      for (let y = 0; y < n; y++) {
+        const c = (y + 0.5) * cell - W / 4, want = c > cell && c < W / 2 - cell ? 1 : c < -cell || c > W / 2 + cell ? 0 : -1;
+        for (let x = 0; x < n; x++) if (want >= 0 && wide[y * n + x] !== want) rowsOk = false;
+      }
+      check(rowsOk, `${tag} ${style}: parts of the crop outside the photo must count as white`);
     }
-    check(rowsOk, `${tag}: parts of the crop outside the photo must count as white`);
   }
-  const g = DotPhoto.grayFromRGBA(Uint8ClampedArray.from([0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255]), 3, 1);
+  // Tidying, on dots directly: a lone speck goes, a pinhole fills, a thin diagonal line stays.
+  {
+    const n = 12, at = (x, y) => y * n + x;
+    const speck = new Uint8Array(n * n); speck[at(5, 6)] = 1;
+    const hole = new Uint8Array(n * n).fill(1); hole[at(5, 6)] = 0;
+    const diag = new Uint8Array(n * n); for (let i = 2; i < 10; i++) diag[at(i, i)] = 1;
+    check(count(DotPhoto._despeckle(speck, n)) === 0, 'tidy: a lone black dot should go');
+    check(count(DotPhoto._despeckle(hole, n)) === n * n, 'tidy: a lone white pinhole should fill');
+    check(DotPhoto._despeckle(diag, n).every((v, i) => v === diag[i]), 'tidy: a one-dot diagonal line should stay as it is');
+  }
+  const g = DotPhoto.grayFromRGBA(Uint8ClampedArray.from([0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 0, 255, 0, 255, 0, 0, 255, 255]), 5, 1);
   check(g[0] === 255 && g[1] === 0 && g[2] === 255, 'grayFromRGBA: transparent → white paper, black → 0, white → 255');
+  check(g[3] === 150 && g[4] === 29, `grayFromRGBA: pure green → 150, pure blue → 29 (Rec. 601 weights), got ${g[3]}, ${g[4]}`);
 }
 
 console.log(`${passed} checks passed, ${failed} failed`);

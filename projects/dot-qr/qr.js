@@ -292,9 +292,13 @@
     var masks = opts.mask != null ? [opts.mask] : [0, 1, 2, 3, 4, 5, 6, 7];
     masks.forEach(function (m) {
       var mod = buildMatrix(ver, ecl, m, dataCw);
-      var score = masks.length > 1 ? penalty(mod, size) : 0;
-      if (!best || score < best.score) best = { mod: mod, mask: m, score: score };
+      var score = masks.length > 1 ? penalty(mod, size) : 0, fakes = masks.length > 1 ? lookalikes(mod, size).length : 0;
+      if (!best || fakes < best.fakes || (fakes === best.fakes && score < best.score)) best = { mod: mod, mask: m, score: score, fakes: fakes };
     });
+    // The standard picks the lowest penalty; we pick the lowest penalty among masks without a finder
+    // look-alike (see lookalikes), else the mask with the fewest — about 1 in 12 links otherwise gets a
+    // mask ZXing can't read even as a clean image (node-qrcode picks the same masks). Any mask is valid;
+    // decoders read it from the format bits. A mask asked for explicitly is used as is.
     return { size: size, version: ver, ecl: ecl, mask: best.mask, rotation: 0,
              modules: best.mod, isFunction: template(ver).fn.slice(), art: false };
   }
@@ -330,18 +334,21 @@
   /* ---------- Finder look-alikes ---------- */
   // Scanners find the three corner squares by looking for dark·light·dark·light·dark runs in roughly
   // 1:1:3:1:1 proportion that hold up vertically through their centre too. ZXing accepts anything
-  // within half a module of those proportions. Steering the free bits can leave such a pattern in the
-  // data area, and a decoder may then take it for a corner square: ZXing failed to read one code
-  // even as a clean image (Clawd preset + mailto:hello@example.com, 2026-11-10). This replays
-  // ZXing's row scan and cross-checks on the module grid (the ratios don't depend on scale) and returns
-  // the look-alikes that are not one of the three real corner squares. mod is in QR orientation.
+  // within half a module of those proportions. A mask (or steered free bits) can leave such a pattern
+  // in the data area, and a decoder may then take it for a corner square: ZXing failed to read one
+  // code even as a clean image (an earlier Clawd preset + mailto:hello@example.com, 2026-11-10), and
+  // about 1 plain code in 12 had the same problem with the standard lowest-penalty mask. This replays
+  // ZXing's row scan and cross-checks on the module grid (the ratios don't depend on scale) at all
+  // four quarter turns, and returns the look-alikes that are not one of the three real corner squares.
+  // It flags a little more than ZXing confirms (one hit is enough, no row skipping) — the safe side.
+  // mod is in QR orientation.
   function finderLike(c) {
     var t = c[0] + c[1] + c[2] + c[3] + c[4], m = t / 7, v = m / 2;
     return c[0] > 0 && c[1] > 0 && c[2] > 0 && c[3] > 0 && c[4] > 0 &&
       Math.abs(m - c[0]) < v && Math.abs(m - c[1]) < v && Math.abs(3 * m - c[2]) < 3 * v &&
       Math.abs(m - c[3]) < v && Math.abs(m - c[4]) < v;
   }
-  function crossCheck(at, lo, hi, start, maxCount, origTotal) {     // ZXing's crossCheckVertical, on modules
+  function crossCheck(at, lo, hi, start, maxCount, origTotal, strict) {   // ZXing's cross-checks, on modules
     var c = [0, 0, 0, 0, 0], i = start;
     while (i >= lo && at(i)) { c[2]++; i--; }
     if (i < lo) return NaN;
@@ -357,7 +364,7 @@
     while (i <= hi && at(i) && c[4] < maxCount) { c[4]++; i++; }
     if (c[4] >= maxCount) return NaN;
     var tot = c[0] + c[1] + c[2] + c[3] + c[4];
-    if (5 * Math.abs(tot - origTotal) >= 2 * origTotal) return NaN;
+    if (5 * Math.abs(tot - origTotal) >= (strict ? 1 : 2) * origTotal) return NaN;   // vertical 40 %, horizontal 20 %
     return finderLike(c) ? i - c[4] - c[3] - c[2] / 2 : NaN;
   }
   function rowScanLookalikes(dark, size) {
@@ -373,7 +380,7 @@
         var cy = crossCheck(function (i) { return dark(col, i); }, lo, hi, y, c[2], total);
         if (isNaN(cy)) continue;
         var row = Math.floor(cy);
-        var cx = crossCheck(function (i) { return dark(i, row); }, lo, hi, col, c[2], total);
+        var cx = crossCheck(function (i) { return dark(i, row); }, lo, hi, col, c[2], total, true);
         if (!isNaN(cx)) found.push([cx, cy]);
       }
     }
@@ -381,8 +388,19 @@
   }
   function lookalikes(mod, size, skip) {                          // skip(x, y): ignore look-alikes centred there
     var at = function (x, y) { return x >= 0 && y >= 0 && x < size && y < size && mod[y * size + x] === 1; };
-    var found = rowScanLookalikes(at, size).concat(               // and a code held sideways: columns first
-      rowScanLookalikes(function (x, y) { return at(y, x); }, size).map(function (p) { return [p[1], p[0]]; }));
+    // What ZXing registers depends on which way the image runs (rounding of a centre on a module edge,
+    // the asymmetric cross-check), and a phone may see the code at any quarter turn: scan all four.
+    var found = [];
+    [0, 1, 2, 3].forEach(function (r) {                           // the code turned r quarter turns clockwise
+      rowScanLookalikes(function (x, y) {
+        for (var k = 0; k < r; k++) { var nx = y; y = size - 1 - x; x = nx; }
+        return at(x, y);
+      }, size).forEach(function (p) {
+        var X = p[0], Y = p[1];
+        for (var k = 0; k < r; k++) { var nX = Y; Y = size - X; X = nX; }
+        found.push([X, Y]);
+      });
+    });
     var real = [[3.5, 3.5], [size - 3.5, 3.5], [3.5, size - 3.5]], out = [];
     found.forEach(function (p) {
       if (real.some(function (r) { return Math.abs(p[0] - r[0]) < 3 && Math.abs(p[1] - r[1]) < 3; })) return;
@@ -614,10 +632,10 @@
     return { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } };
   }
 
-  // Steer the box to the drawing for each workable turn and mask. Keep the first turn that works with
-  // its lowest-penalty mask — but a mask that leaves a finder look-alike outside the box only counts if
-  // no turn has a mask without one. (A single mask asked for — the quick redraw during a stroke — skips
-  // that test.)
+  // Steer the box to the drawing for each workable turn and mask. Keep the first turn that has a mask
+  // leaving no finder look-alike outside the box, with its lowest-penalty such mask. If no turn has one,
+  // take the candidate with the fewest look-alikes (then the lowest penalty). A single mask asked for —
+  // the quick redraw during a stroke — skips the look-alike test.
   // Null if (rarely) the box's modules can't all be set at once.
   function insetSolve(plan, d, masks) {
     var sys = plan.sys, t = plan.t, size = plan.size, n = plan.n, inR = plan.inR, b = plan.box, x, y, i;
@@ -642,22 +660,21 @@
         idx.sort(function (a, c) { return wq[order[bs.mods[c]]] - wq[order[bs.mods[a]]]; });
         return idx;
       });
-      var best = null, bestOk = null;
+      var best = null;
       for (var mi = 0; mi < masks.length; mi++) {
         var mod = steer(sys, masks[mi], tq, orders), clean = true;
         for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
         if (!clean) continue;
-        var pen = masks.length > 1 ? penalty(mod, size) : 0, cand = { pen: pen, mod: mod, mask: masks[mi] };
-        if (!best || pen < best.pen) best = cand;
-        if (masks.length > 1 && (!bestOk || pen < bestOk.pen)) {
-          var seen = mod.slice();                                   // as drawn: the drawing covers the centre square
-          for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
-          // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
-          if (!lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length) bestOk = cand;
-        }
+        if (masks.length === 1) { best = { pen: 0, mod: mod, mask: masks[mi], fakes: 0 }; continue; }
+        var seen = mod.slice();                                     // as drawn: the drawing covers the centre square
+        for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
+        // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
+        var fakes = lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length;
+        var cand = { pen: penalty(mod, size), mod: mod, mask: masks[mi], fakes: fakes };
+        if (!best || fakes < best.fakes || (fakes === best.fakes && cand.pen < best.pen)) best = cand;
       }
-      if (bestOk || (best && masks.length === 1)) return finish(bestOk || best, r);
-      if (best && !fallback) fallback = { best: best, r: r };
+      if (best && (best.fakes === 0 || masks.length === 1)) return finish(best, r);
+      if (best && (!fallback || best.fakes < fallback.best.fakes)) fallback = { best: best, r: r };
     }
     return fallback ? finish(fallback.best, fallback.r) : null;
 
