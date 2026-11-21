@@ -633,10 +633,13 @@
   // Everything that depends only on the box size: where the box goes, which quarter turns keep it
   // clear of function patterns and of the link's own modules. Null if no turn works at this version.
   // A box that would cut an alignment square in two widens its white frame instead — each axis on its
-  // own (a flat drawing that cuts squares only above and below needn't get wider), trying the smallest
-  // box first, up to 6 modules more on each side — until every square it touches lies wholly inside.
+  // own (a flat drawing that cuts squares only above and below needn't get wider), a module at a time,
+  // smallest box first, up to 12 modules wider — until every square it touches lies wholly inside.
+  // An even-sized box sits half a module off centre, so it may fit only some quarter turns; if one module
+  // more fits more turns, take it: each turn is another set of candidates for avoiding look-alikes (the
+  // 22–24-cell presets at version 18 fitted one turn at 32 wide and all four at 33).
   var GROW = [];
-  for (var gx = 0; gx <= 6; gx++) for (var gy = 0; gy <= 6; gy++) GROW.push([gx, gy]);
+  for (var gx = 0; gx <= 12; gx++) for (var gy = 0; gy <= 12; gy++) GROW.push([gx, gy]);
   function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache) {
     if (!fits(bytes, ver, ecl)) return null;
     var size = sizeOf(ver), n = size * size, t = template(ver), squares = alignmentSquares(ver, size);
@@ -649,11 +652,21 @@
     var fnList = [], fixList = [], i;
     for (i = 0; i < n; i++) { if (t.fn[i]) fnList.push(i); if (sys.fixedQ[i]) fixList.push(i); }
     var grow = GROW.slice().sort(function (p, q) {                   // smallest box first (by its real area)
-      return (Rw0 + 2 * p[0]) * (Rh0 + 2 * p[1]) - (Rw0 + 2 * q[0]) * (Rh0 + 2 * q[1]) || Math.max(p[0], p[1]) - Math.max(q[0], q[1]) || p[0] - q[0];
+      return (Rw0 + p[0]) * (Rh0 + p[1]) - (Rw0 + q[0]) * (Rh0 + q[1]) || Math.max(p[0], p[1]) - Math.max(q[0], q[1]) || p[0] - q[0];
     });
+    var best = null;
     for (var gi = 0; gi < grow.length; gi++) {
-      var Rw = Rw0 + 2 * grow[gi][0], Rh = Rh0 + 2 * grow[gi][1];
-      if (Rw > size - 14 || Rh > size - 14 || Rw * Rh > sys.freeBits) continue;
+      var g = grow[gi];
+      if (best && !(g[0] >= best.g[0] && g[1] >= best.g[1] && g[0] <= best.g[0] + 1 && g[1] <= best.g[1] + 1)) continue;
+      var plan = tryBox(Rw0 + g[0], Rh0 + g[1]);
+      if (!plan) continue;
+      if (!best) { best = { g: g, plan: plan }; if (plan.rots.length === rots.length) break; continue; }
+      if (plan.rots.length > best.plan.rots.length) best.plan = plan;
+    }
+    return best ? best.plan : null;
+
+    function tryBox(Rw, Rh) {
+      if (Rw > size - 14 || Rh > size - 14 || Rw * Rh > sys.freeBits) return null;
       var x0 = Math.floor((size - Rw) / 2), y0 = Math.floor((size - Rh) / 2);
       var inR = new Uint8Array(n);                                    // display orientation
       for (var y = y0; y < y0 + Rh; y++) for (var x = x0; x < x0 + Rw; x++) inR[y * size + x] = 1;
@@ -672,18 +685,16 @@
         for (a = 0; a < fixList.length; a++) if (inR[rotIndex(r, size, fixList[a] % size, (fixList[a] / size) | 0)]) return false;
         return true;
       });
-      if (okRots.length) return { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } };
+      return okRots.length ? { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } } : null;
     }
-    return null;
   }
 
   // Steer the box to the drawing for each workable turn and mask. Keep the first turn that has a mask
   // leaving no finder look-alike outside the box, with its lowest-penalty such mask. If no turn has one,
   // try again with other textures outside the box (the free bits left over after the box steer the
   // rest of the code toward a random texture; another texture gives other modules there) — big codes
-  // need this. Those tries use the first workable turn only: the turn hardly changes what a texture
-  // gives, and each try is a full solve (all turns: up to 0.9 s at version 18; first turn: 0.37 s).
-  // If none has one either, take the candidate with the fewest look-alikes: each turn's best mask
+  // need this, and every workable turn counts (trying other textures on the first turn only left look-
+  // alikes in six times as many codes). If none has one either, take the candidate with the fewest look-alikes: each turn's best mask
   // (fewest, then lowest penalty), the earlier texture and turn on a tie. A single mask asked for — the
   // quick redraw during a stroke — keeps the texture it is given and skips the look-alike test.
   // Null if (rarely) the box's modules can't all be set at once.
@@ -699,7 +710,7 @@
     var seeds = quick ? [seed0 || 0] : [0, 1, 2, 3, 4, 5].slice(0, TEXTURES);
     for (var si = 0; si < seeds.length; si++) {
       var seed = seeds[si];
-      for (var ri = 0; ri < (si === 0 ? plan.rots.length : 1); ri++) {      // other textures: first turn only
+      for (var ri = 0; ri < plan.rots.length; ri++) {
         var r = plan.rots[ri], tq = new Uint8Array(n), wq = new Float32Array(n), boxQ = new Uint8Array(n);
         for (y = 0; y < size; y++) for (x = 0; x < size; x++) {
           var di = rotIndex(r, size, x, y), qi = y * size + x;

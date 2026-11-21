@@ -141,7 +141,7 @@ for (const [name, hex] of Object.entries(presets)) {
     const tag = `${name} / ${version ? 'version ' + version : 'smallest version'} / ${link.slice(0, 26)}`;
     const res = DotQR.makeInset(bytes, d, { cache: {}, version: version || undefined });
     check(!!res, `${tag}: should fit but no code was made`);
-    if (res) checkInset(res, d, bytes, tag, true, version ? 1 : 0);
+    if (res) checkInset(res, d, bytes, tag, true);
   }
   const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
   check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
@@ -164,19 +164,45 @@ for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0
   const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character link / version ${PAGE_VERSION}`;
   const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
   check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
-  if (res) checkInset(res, d, bytes, tag, true, 1);
+  if (res) checkInset(res, d, bytes, tag, true);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');
+{ // version: 18 is honoured — a 48-character link holds 24×24 at the best version but 18×18 at version 18
+  const b48 = DotQR.utf8('https://www.linkedin.com/in/' + 'b'.repeat(19) + '/');
+  const at18 = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32, version: PAGE_VERSION }), any = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32 });
+  check(at18 === 18 && any === 24, `maxInsetSide with version 18 should be 18 for a 48-character link (got ${at18}; any version ${any})`);
+}
+// The page's own wiring, read from index.html: the fixed version reaches every call, the plain code's
+// error correction, the preset drawn on load, and Remove tracking cleaning what is in the box.
+{
+  const calls = [...html.matchAll(/Q\.(makeInset|maxInsetSide)\(state\.bytes, [^;]*?\{([^}]*)\}\)/g)];
+  const viaOpts = /var opts = \{[^}]*version: VERSION[^}]*\};\s*if \(quick && last\)[^\n]*\n\s*res = Q\.makeInset\(state\.bytes, d, opts\);/.test(html);
+  check(calls.length >= 3 && calls.every(m => /version: VERSION/.test(m[2])) && viaOpts,
+    `every makeInset/maxInsetSide call in the page should pass version: VERSION (${calls.map(m => m[1] + '{' + m[2] + '}').join(' ; ')}; main solve ${viaOpts ? 'ok' : 'missing'})`);
+  const pc = html.match(/function plainCode\(bytes\) \{[\s\S]*?\n    \}/);
+  check(!!pc, 'could not find plainCode in index.html');
+  if (pc) {
+    const plainCode = new Function('Q', 'VERSION', pc[0] + '\nreturn plainCode;')(DotQR, PAGE_VERSION);
+    const a = plainCode(DotQR.utf8('https://x.com/jasonleex1995')), b = plainCode(new Uint8Array(500).fill(97)), c = plainCode(new Uint8Array(800).fill(97));
+    check(a.version === PAGE_VERSION && a.ecl === DotQR.ECL.Q, `plainCode: a short link should get version 18 with error correction Q (got version ${a.version}, ecl ${a.ecl})`);
+    check(b.version === PAGE_VERSION && b.ecl === DotQR.ECL.L, `plainCode: 500 bytes should get version 18 with L (got version ${b.version}, ecl ${b.ecl})`);
+    check(c && c.version > PAGE_VERSION && DotQR.verify(c, new Uint8Array(800).fill(97)).ok, 'plainCode: 800 bytes should get a bigger version that reads back');
+  }
+  const first = buttons[0], onLoad = (html.match(/bits: presetBits\('(\w+)'\)/) || [])[1];
+  check(first === 'x' && onLoad === first, `the first preset button (${first}) should be X and be drawn on load (${onLoad})`);
+  check(/els\.clean\.addEventListener\('click', function \(\) \{\s*var c = DL\.cleanLink\(normalizeLink\(els\.url\.value\)\);[\s\S]{0,160}?els\.url\.value = c\.link;/.test(html),
+    'Remove tracking should clean the link that is in the box now and put the result back');
+}
 // Rather than cut alignment squares in two, the box widens its white frame: at version 14 the LinkedIn
-// glyph's 24×24 box would cut four squares; with a 2-module frame it covers all four whole.
+// glyph's 24×24 box would cut four squares; a frame a module or two wider covers all four whole.
 if (presets.linkedin) {
   const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(presets.linkedin), 32);
   const res = DotQR.makeInset(bytes, d, { version: 14, cache: {} });
   check(!!res, 'frame: the LinkedIn glyph should fit version 14 by widening its white frame');
   if (res) {
     const covered = res.covered.reduce((a, c) => a + c, 0);
-    check(res.box.w - d.w >= 4 && covered === 100, `frame: expected a 2-module frame covering 4 whole alignment squares (box ${res.box.w} for a ${d.w}-wide drawing, ${covered} modules covered)`);
+    check(res.box.w - d.w >= 3 && covered === 100, `frame: expected a wider frame covering 4 whole alignment squares (box ${res.box.w} for a ${d.w}-wide drawing, ${covered} modules covered)`);
   }
 }
 // When every turn and mask leaves a finder look-alike, other textures outside the box are tried: the
@@ -187,7 +213,9 @@ if (presets.linkedin) {
   const res = DotQR.makeInset(bytes, d, { cache: {} });
   check(!!res && res.seed > 0, `textures: the logo with ${PROFILE[0]} should need a texture after the first (got ${res ? 'texture ' + res.seed : 'no code'})`);
   if (res) {
-    const alone = DotQR.makeInset(bytes, d, { cache: {}, version: res.version, masks: [res.mask], rotations: [res.rotation], seed: res.seed });
+    // As the page's quick redraw asks: the same turns, the chosen one first (the box depends on which turns are allowed).
+    const turns = [res.rotation, ...[0, 1, 2, 3].filter(r => r !== res.rotation)];
+    const alone = DotQR.makeInset(bytes, d, { cache: {}, version: res.version, masks: [res.mask], rotations: turns, seed: res.seed });
     check(!!alone && alone.modules.every((v, i) => v === res.modules[i]), 'masks solved together should give what the chosen mask gives alone');
   }
 }
@@ -519,6 +547,8 @@ for (const [from, to] of [
   ['https://huggingface.co/jasonleex1995', 'https://huggingface.co/jasonleex1995'],
   ['mailto:someone@example.com?subject=hi&utm_source=x', 'mailto:someone@example.com?subject=hi&utm_source=x'],      // not a web link: untouched
   ['https://example.com/a?utm_source', 'https://example.com/a'],
+  ['https://example.com/?utm%5Fsource=x&a=1', 'https://example.com/?a=1'],                                           // keys are compared decoded
+  ['https://WWW.YOUTUBE.COM/watch?v=abc&si=xyz', 'https://WWW.YOUTUBE.COM/watch?v=abc'],                             // hosts in any case
 ]) {
   const got = DotLink.cleanLink(from);
   check(got.link === to, `cleanLink: ${from} → ${got.link}, expected ${to}`);

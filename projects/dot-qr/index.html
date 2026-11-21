@@ -364,7 +364,6 @@
       var c = DL.cleanLink(link), shorter = c.removed.length ? Q.utf8(c.link).length : 0;
       els.cleanRow.hidden = !c.removed.length;
       if (c.removed.length) {
-        state.cleanLink = c.link;
         announce(els.cleanText, 'The end of this link only tracks where it was shared from (' + c.removed.join(', ') +
           '). Without it the link is ' + shorter + (ascii ? ' characters' : ' bytes') + '.');
       }
@@ -383,8 +382,8 @@
       return Q.makePlain(bytes, { ecl: Q.ECL.M });
     }
     els.clean.addEventListener('click', function () {
-      if (!state.cleanLink) return;
-      els.url.value = state.cleanLink;
+      var c = DL.cleanLink(normalizeLink(els.url.value));      // what is in the box now (a paste may not be built yet)
+      if (c.removed.length) els.url.value = c.link;
       regenerate(false);
       els.url.focus();
     });
@@ -891,7 +890,7 @@
       var S = state.maxSide;
       if (S < 6) return 'This link is too long to leave room for these dots — try a link shortener, or the code will be plain.';
       return 'These dots are ' + d.w + ' × ' + d.h + ', but with this link only drawings up to ' + S + ' × ' + S +
-        ' fit in the middle' + (S >= 16 ? ' — pick a smaller grid' : ' — try a link shortener') + ', or the code will be plain.';
+        ' fit in the middle — zoom out, or shorten the link (Remove tracking, or a link shortener), or the code will be plain.';
     }
     function showPhotoStatus(text, warn, ok) {
       if (pels.status.textContent !== text + (ok ? ' ✓' : '')) {
