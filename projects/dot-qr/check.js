@@ -15,6 +15,7 @@
    3b) Plain codes: with the mask chosen automatically, no finder look-alikes unless every mask has
        some — then the fewest (200 random links).
    4) Edges: empty drawings, the largest links.
+   6) link.js: tracking parameters come off a link; everything else stays exactly as typed.
    5) Photo → dots (photo.js) on synthetic phone photos of paper (strong shadow, stains, grain):
       every dot is exactly 0 or 1; blank paper gives no dots, also zoomed out past the photo's
       edges; a 2-px pen ring survives whole with nothing stray; a filled disk is solid; a fleck of
@@ -73,15 +74,15 @@ function bitsOf(hex) {
   hex.split(' ').forEach((w, y) => { const v = parseInt(w, 16); for (let x = 0; x < 32; x++) out[y * 32 + x] = (v >>> (31 - x)) & 1; });
   return out;
 }
-function resample(bits, M, M2) {      // same nearest-neighbour rule as the page's grid switch
-  const out = new Uint8Array(M2 * M2);
-  for (let y = 0; y < M2; y++) for (let x = 0; x < M2; x++)
-    out[y * M2 + x] = bits[Math.floor((y + 0.5) * M / M2) * M + Math.floor((x + 0.5) * M / M2)];
-  return out;
-}
+// The JS logo (the site's favicon at 31 cells) was a preset until 2026-11-21. Two regressions below are
+// about this exact drawing, so it stays here.
+const OLD_LOGO = '00000000 07ff00c0 0fffc7f0 0fffdff0 2fffbff8 70783e78 70787878 78387070 383cf0f0 3c3cf1e0 1c1cf1e0 1e1e7880 1e1e7c00 0f0e3f00 0f0e1f80 070f0fc0 078f03e0 378701f0 7b8700f8 7bc77078 73cf783c f3cf7c3c f00e3e1c 701e0e3c 787c003c 7ff800f8 3ff003f0 1fe7ffe6 000fffc6 0007ff00 00038000 00000000';
+// The page makes every code at this version (89 × 89).
+const PAGE_VERSION = DotQR.MAX_INSET_VERSION;
+check(PAGE_VERSION === 18 && /var VERSION = Q\.MAX_INSET_VERSION;/.test(html), 'the page should make every code at version 18 (Q.MAX_INSET_VERSION)');
 
 // Everything a finished code with a drawing must satisfy.
-function checkInset(res, d, bytes, tag, curated) {
+function checkInset(res, d, bytes, tag, curated, outsideAllowed = 0) {
   const read = DotQR.verify(res, bytes);
   check(read.ok, `${tag}: does not read back (${read.why})`);
   const N = res.size, b = res.box, ver = res.version;
@@ -121,39 +122,52 @@ function checkInset(res, d, bytes, tag, curated) {
   let quiet = 0;
   for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (img[y * W + x] && (x < 4 * px || y < 4 * px || x >= W - 4 * px || y >= W - 4 * px)) quiet++;
   check(quiet === 0, `${tag}: ${quiet} dark pixels in the quiet zone`);
-  // Finder look-alikes: none outside the box (the mask choice avoids them); none inside it either for
-  // the curated presets (curated = true), since there the drawing itself would be the culprit.
-  const fakes = DotQR._lookalikes(res).filter(([x, y]) => curated || !(x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h));
-  check(fakes.length === 0, `${tag}: finder look-alike(s) at ${JSON.stringify(fakes)} — scanners like ZXing can take them for a corner square`);
+  // Finder look-alikes: none outside the box (the mask and texture choice avoids them) — except in the
+  // page's 89 × 89 codes, where a short link leaves so much random-looking data that sometimes every
+  // candidate keeps one (outsideAllowed = 1; they read anyway, see README «89 × 89로 고정»); none inside
+  // the box either for the curated presets (curated = true), since there the drawing would be the culprit.
+  const all = DotQR._lookalikes(res), inBoxAt = ([x, y]) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+  const outside = all.filter(p => !inBoxAt(p)), inside = curated ? all.filter(inBoxAt) : [];
+  check(outside.length <= outsideAllowed && inside.length === 0,
+    `${tag}: finder look-alike(s) at ${JSON.stringify([...inside, ...outside])} — scanners like ZXing can take them for a corner square`);
 }
 
 const SHORT = ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io', 'mailto:someone@example.com', '안녕하세요 Dot QR'];
 const LONG = 'https://www.example.com/articles/2026/11/a-much-longer-link?ref=newsletter&id=12345';
 for (const [name, hex] of Object.entries(presets)) {
   const base = bitsOf(hex);
-  for (const link of SHORT) for (const M of [16, 24, 32]) {
-    const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(M === 32 ? base : resample(base, 32, M), M);
-    const tag = `${name} / grid ${M} / ${link.slice(0, 26)}`;
-    const res = DotQR.makeInset(bytes, d, { cache: {} });
+  for (const link of SHORT) for (const version of [0, PAGE_VERSION]) {
+    const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(base, 32);
+    const tag = `${name} / ${version ? 'version ' + version : 'smallest version'} / ${link.slice(0, 26)}`;
+    const res = DotQR.makeInset(bytes, d, { cache: {}, version: version || undefined });
     check(!!res, `${tag}: should fit but no code was made`);
-    if (res) checkInset(res, d, bytes, tag, true);
+    if (res) checkInset(res, d, bytes, tag, true, version ? 1 : 0);
   }
   const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
   check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
 }
 
 // Bigger codes for longer links (versions up to 18). Profile links of 42–48 characters used to leave
-// room for a 20×20 drawing at most; now the 22×22 social glyphs fit at version 14 (73×73), and the
-// JS logo fits links up to 46 characters at version 18.
+// room for a 20×20 drawing at most; now drawings of up to 24×24 fit them at version 14 (73×73), and
+// bigger ones fit links of up to 46 characters at version 18.
 const PROFILE = ['https://www.linkedin.com/in/jasonleex1995/', 'https://www.instagram.com/jasonleex1995/?hl=ko', 'https://scholar.google.com/citations?user=abc123'];
 for (const [name, hex] of Object.entries(presets)) for (const link of PROFILE) {
   const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character profile link`;
   const want = Math.max(d.w, d.h) <= 24 ? 14 : link.length <= 46 ? 18 : 0;
-  if (!want) continue;                                         // the JS logo with a 48-character link: too big
+  if (!want) continue;                                         // a bigger drawing with a 48-character link: too big
   const res = DotQR.makeInset(bytes, d, { cache: {} });
   check(!!res && res.version <= want, `${tag}: should fit at version ${want} or below (got ${res ? 'version ' + res.version : 'no code'})`);
   if (res) checkInset(res, d, bytes, tag, true);
 }
+// The page's fixed size: at version 18 every preset fits profile links of up to 46 characters.
+for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0], PROFILE[1], 'https://huggingface.co/jasonleex1995', 'https://x.com/jasonleex1995/status/1234567890']) {
+  const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character link / version ${PAGE_VERSION}`;
+  const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
+  check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
+  if (res) checkInset(res, d, bytes, tag, true, 1);
+}
+check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
+  'at version 18 a 45-character link should hold a full 32×32 drawing');
 // Rather than cut alignment squares in two, the box widens its white frame: at version 14 the LinkedIn
 // glyph's 24×24 box would cut four squares; with a 2-module frame it covers all four whole.
 if (presets.linkedin) {
@@ -168,8 +182,8 @@ if (presets.linkedin) {
 // When every turn and mask leaves a finder look-alike, other textures outside the box are tried: the
 // JS logo with the LinkedIn link gets a clean code only from a later texture. And the eight masks,
 // solved together, give exactly what solving the chosen one alone gives.
-if (presets.logo) {
-  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(presets.logo), 32);
+{
+  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(OLD_LOGO), 32);
   const res = DotQR.makeInset(bytes, d, { cache: {} });
   check(!!res && res.seed > 0, `textures: the logo with ${PROFILE[0]} should need a texture after the first (got ${res ? 'texture ' + res.seed : 'no code'})`);
   if (res) {
@@ -227,8 +241,8 @@ if (presets.logo) {
 
 // Regression: the default drawing (logo) with this link got a mask whose look-alike only shows when
 // the code is seen turned (the scan once covered one orientation only) — ZXing failed it even upright.
-if (presets.logo) {
-  const bytes = DotQR.utf8('https://7qb.me/eLQzyWCASYl9y7GTcH'), d = DotQR.cropDrawing(bitsOf(presets.logo), 32);
+{
+  const bytes = DotQR.utf8('https://7qb.me/eLQzyWCASYl9y7GTcH'), d = DotQR.cropDrawing(bitsOf(OLD_LOGO), 32);
   const res = DotQR.makeInset(bytes, d, { cache: {} });
   check(!!res, 'turned look-alike regression: no code made');
   if (res) checkInset(res, d, bytes, 'turned look-alike regression (logo + 7qb.me)', true);
@@ -246,6 +260,20 @@ for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io',
   check(DotQR.makeInset(bytes, random(s + 1), { cache: {} }) === null, `${link}: ${s + 1}×${s + 1} fits although maxInsetSide says ${s}`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache: {}, maxSide: 32 }) === 32, 'a 31-character link should hold a full 32×32 drawing');
+// It holds for rectangles too, and a white frame widens only the side that needs it: growing both sides at
+// once once left rectangles at 47–48 characters with no code, and gave a 32×25 drawing a 40×33 box at
+// version 18 that Apple Vision misread.
+{
+  let sd = 9; const rnd = () => (sd = (Math.imul(sd, 1103515245) + 12345) >>> 0) / 4294967296;
+  const draw = (w, h) => { const b = new Uint8Array(w * h); for (let i = 0; i < b.length; i++) b[i] = rnd() < 0.5 ? 1 : 0; b[0] = b[w - 1] = b[w * h - 1] = b[w * h - w] = 1; return { w, h, bits: b }; };
+  for (const link of ['https://www.instagram.com/' + 'a'.repeat(20) + '/', 'https://www.linkedin.com/in/' + 'b'.repeat(19) + '/']) {
+    const bytes = DotQR.utf8(link), cache = {}, S = DotQR.maxInsetSide(bytes, { cache, maxSide: 32 }), gaps = [];
+    for (let w = 2; w <= S; w += 5) for (let h = 1; h <= S; h += 3) if (!DotQR.makeInset(bytes, draw(w, h), { cache, masks: [0] })) gaps.push(w + '×' + h);
+    check(gaps.length === 0, `${link.length}-character link: maxInsetSide says up to ${S}×${S}, but these got no code: ${gaps.slice(0, 8)}`);
+  }
+  const wide = DotQR.makeInset(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), draw(32, 25), { cache: {}, version: 18 });
+  check(!!wide && wide.box.w === 34 && wide.box.h <= 33, `frame per side: a 32×25 drawing at version 18 should get a 34-wide box (got ${wide ? wide.box.w + '×' + wide.box.h : 'no code'})`);
+}
 
 /* ---------- 3b) Plain codes avoid finder look-alikes ---------- */
 // With the mask chosen automatically, a plain code avoids masks that leave a finder look-alike
@@ -475,6 +503,28 @@ const DotPhoto = require('./photo.js');
   check(g[0] === 255 && g[1] === 0 && g[2] === 255, 'grayFromRGBA: transparent → white paper, black → 0, white → 255');
   check(g[3] === 150 && g[4] === 29, `grayFromRGBA: pure green → 150, pure blue → 29 (Rec. 601 weights), got ${g[3]}, ${g[4]}`);
 }
+
+/* ---------- 6) Taking the tracking off a link (link.js) ---------- */
+// Only parameters that track where a link was shared from go; the rest stays exactly as typed.
+const DotLink = require('./link.js');
+for (const [from, to] of [
+  ['https://www.linkedin.com/in/jasonleex1995?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app', 'https://www.linkedin.com/in/jasonleex1995'],
+  ['https://www.instagram.com/jasonleex1995?igsh=MWQ1ZGUxMzBkMA==', 'https://www.instagram.com/jasonleex1995'],
+  ['https://youtu.be/dQw4w9WgXcQ?si=abcDEF123&t=42', 'https://youtu.be/dQw4w9WgXcQ?t=42'],                       // YouTube's t= is a time: keep
+  ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=shared&list=PL1', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL1'],
+  ['https://x.com/jasonleex1995/status/123?s=20&t=AbCdEf', 'https://x.com/jasonleex1995/status/123'],                 // X's t= is tracking
+  ['https://example.com/page?id=7&UTM_Source=x&fbclid=abc#top', 'https://example.com/page?id=7#top'],
+  ['https://open.spotify.com/track/abc?si=xyz&context=spotify%3Aalbum%3A1', 'https://open.spotify.com/track/abc?context=spotify%3Aalbum%3A1'],
+  ['https://example.com/?t=5&s=3', 'https://example.com/?t=5&s=3'],                                                   // t=, s= elsewhere: keep
+  ['https://huggingface.co/jasonleex1995', 'https://huggingface.co/jasonleex1995'],
+  ['mailto:someone@example.com?subject=hi&utm_source=x', 'mailto:someone@example.com?subject=hi&utm_source=x'],      // not a web link: untouched
+  ['https://example.com/a?utm_source', 'https://example.com/a'],
+]) {
+  const got = DotLink.cleanLink(from);
+  check(got.link === to, `cleanLink: ${from} → ${got.link}, expected ${to}`);
+  check((got.link !== from) === (got.removed.length > 0), `cleanLink: ${from} — removed list (${got.removed}) disagrees with the result`);
+}
+check(DotLink.cleanLink('').link === '' && DotLink.cleanLink('not a link').link === 'not a link', 'cleanLink: text that is not a link comes back unchanged');
 
 console.log(`${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
