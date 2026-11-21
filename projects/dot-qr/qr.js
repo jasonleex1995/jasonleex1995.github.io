@@ -493,7 +493,8 @@
 
   // Greedy GF(2) elimination in priority order (Gauss–Jordan, basis kept fully reduced).
   // Returns the k free-bit values. A module whose row is dependent on higher-priority
-  // ones is simply left to whatever value they imply.
+  // ones is simply left to whatever value they imply. Right-hand sides are bytes: up to eight
+  // independent problems (one per bit) that share the rows ride along in one pass.
   function solveBlock(bs, orderIdx, rhs) {
     var k = bs.k, W = bs.W;
     var basis = new Array(k), bRhs = new Uint8Array(k), piv = new Uint32Array(W), pivList = [];
@@ -536,20 +537,29 @@
 
   // Solve every block for one mask. tq = wanted final colour of each module (QR orientation),
   // orders = per block, its modules most-important-first. Returns the finished matrix.
-  function steer(sys, mask, tq, orders) {
-    var t = sys.t, L = sys.L, order = t.order, mk = t.masks[mask], nbits = L.raw * 8;
-    var dataBits = sys.fixedBits.slice();
-    for (var g = dataBits.length; g < L.dataCw * 8; g++) dataBits.push(0);
+  // One matrix per mask. The masks share the elimination (it depends only on the order), so they are
+  // solved together: bit m of each right-hand side byte is mask m's — exactly what one-at-a-time gives.
+  function steerAll(sys, masks, tq, orders) {
+    var t = sys.t, L = sys.L, order = t.order, nbits = L.raw * 8, M = masks.length, m;
+    var dataBits = masks.map(function () {
+      var db = sys.fixedBits.slice();
+      for (var g = db.length; g < L.dataCw * 8; g++) db.push(0);
+      return db;
+    });
     sys.blockSys.forEach(function (bs, bi) {
       if (!bs.k) return;
       var rhs = new Uint8Array(bs.mods.length);
-      for (var i = 0; i < bs.mods.length; i++) { var kk = bs.mods[i]; rhs[i] = tq[order[kk]] ^ mk[kk] ^ bs.consts[i]; }
+      for (var i = 0; i < bs.mods.length; i++) {
+        var kk = bs.mods[i], base = tq[order[kk]] ^ bs.consts[i], v = 0;
+        for (m = 0; m < M; m++) v |= (base ^ t.masks[masks[m]][kk]) << m;
+        rhs[i] = v;
+      }
       var f = solveBlock(bs, orders[bi], rhs);
-      for (var j = 0; j < bs.k; j++) dataBits[bs.lo + j] = f[j];
+      for (m = 0; m < M; m++) for (var j = 0; j < bs.k; j++) dataBits[m][bs.lo + j] = (f[j] >>> m) & 1;
     });
     var rem = new Uint8Array(order.length - nbits);
     for (var q = nbits; q < order.length; q++) rem[q - nbits] = tq[order[q]];
-    return buildMatrix(sys.ver, sys.ecl, mask, bitsToBytes(dataBits, L.dataCw), rem);
+    return masks.map(function (mask, mi) { return buildMatrix(sys.ver, sys.ecl, mask, bitsToBytes(dataBits[mi], L.dataCw), rem); });
   }
 
   // Crop an M×M drawing (1 = dark) to the box around what was drawn; null when nothing is drawn.
@@ -567,60 +577,88 @@
     return { w: w, h: h, bits: out, x: x0, y: y0 };
   }
 
-  var MAX_INSET_VERSION = 13;     // from version 14 on, several alignment squares sit inside the middle
+  // Up to version 18 (89 × 89). The link's own modules spread toward the middle as links get longer,
+  // and a bigger code moves them out of the drawing's way: a 42-character link held only a 20 × 20
+  // drawing at version 13, and holds 32 × 32 at 18. Past 18, finder look-alikes outside the drawing
+  // could no longer be avoided in most codes (measured 2026-11-21), and the codes get dense.
+  var MAX_INSET_VERSION = 18;
 
   // The drawing, intact, in the middle of the code. Every module of the drawing's box (plus a light
   // margin) is steered to the drawing's colour exactly, so the code has zero errors. The smallest
-  // version where that works is used: the box must miss every function pattern — except the
-  // alignment square at the very centre of version 7–13 codes, which scanners don't need, so the
-  // drawing covers it — and must miss the modules that carry the link itself (they can't be steered;
-  // turning the code a quarter turn moves them). Among the masks that work, the one with the lowest
-  // standard penalty wins, because that is what the penalty is for: easy scanning.
-  // drawing = cropDrawing(...); opts: version | minVersion/maxVersion, rotations, masks, margin, cache.
+  // version where that works is used: the box must miss every function pattern — except alignment
+  // squares, which it may cover whole (scanners find the code by its corner squares and, at most,
+  // the alignment square near the bottom-right corner, which a centred box never reaches) — and must
+  // miss the modules that carry the link itself (they can't be steered; turning the code a quarter
+  // turn moves them). Among the masks that work, the one with the lowest standard penalty wins,
+  // because that is what the penalty is for: easy scanning.
+  // drawing = cropDrawing(...); opts: version | minVersion/maxVersion, rotations, masks, seed (the
+  // texture to keep with a single mask: the quick redraw passes the last code's), margin, cache.
   function makeInset(bytes, drawing, opts) {
     opts = opts || {};
     var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin;
     var lo = opts.version || opts.minVersion || MIN_VERSION, hi = Math.min(opts.version || opts.maxVersion || MAX_INSET_VERSION, MAX_INSET_VERSION);
     for (var v = lo; v <= hi; v++) {
       var plan = insetPlan(bytes, drawing.w, drawing.h, v, ecl, margin, opts.rotations || [0, 1, 2, 3], opts.cache);
-      var res = plan && insetSolve(plan, drawing, opts.masks || [0, 1, 2, 3, 4, 5, 6, 7]);
+      var res = plan && insetSolve(plan, drawing, opts.masks || [0, 1, 2, 3, 4, 5, 6, 7], opts.seed || 0);
       if (res) return res;
     }
     return null;
   }
 
-  // Largest square drawing (side, in modules) that can sit in the middle of a code for these bytes.
+  // Largest square drawing (side, in modules) that can sit in the middle of a code for these bytes,
+  // no bigger than opts.maxSide when given (the page's grid is at most 32).
   function maxInsetSide(bytes, opts) {
     opts = opts || {};
     var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin, best = 0;
     for (var v = MIN_VERSION; v <= MAX_INSET_VERSION; v++) {
-      for (var s = sizeOf(v) - 14 - 2 * margin; s > best; s--) {
+      for (var s = Math.min(opts.maxSide || Infinity, sizeOf(v) - 14 - 2 * margin); s > best; s--) {
         if (insetPlan(bytes, s, s, v, ecl, margin, [0, 1, 2, 3], opts.cache)) { best = s; break; }
       }
     }
     return best;
   }
 
+  // Alignment squares of a version, as centres [x, y] (the three under the corner squares left out).
+  function alignmentSquares(ver, size) {
+    var al = alignmentPositions(ver), out = [];
+    for (var i = 0; i < al.length; i++) for (var j = 0; j < al.length; j++) {
+      var x = al[i], y = al[j];
+      if ((x === 6 && y === 6) || (x === 6 && y === size - 7) || (x === size - 7 && y === 6)) continue;
+      out.push([x, y]);
+    }
+    return out;
+  }
+
   // Everything that depends only on the box size: where the box goes, which quarter turns keep it
   // clear of function patterns and of the link's own modules. Null if no turn works at this version.
+  // A box that would cut an alignment square in two grows a module all round (a wider white frame
+  // around the drawing) until every square it touches lies wholly inside it.
   function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache) {
     if (!fits(bytes, ver, ecl)) return null;
-    var size = sizeOf(ver), n = size * size, t = template(ver);
-    var al = alignmentPositions(ver), mid = al.length >= 3 ? al[(al.length - 1) >> 1] : -1;
-    var Rw = w + 2 * margin, Rh = h + 2 * margin;
-    if (mid >= 0) { Rw = Math.max(Rw, 5); Rh = Math.max(Rh, 5); }      // cover the centre square whole, never half
-    if (Rw > size - 14 || Rh > size - 14) return null;                // can't even clear the timing lines
-    var x0 = Math.floor((size - Rw) / 2), y0 = Math.floor((size - Rh) / 2);
-    var inR = new Uint8Array(n);                                      // display orientation
-    for (var y = y0; y < y0 + Rh; y++) for (var x = x0; x < x0 + Rw; x++) inR[y * size + x] = 1;
-    var okRots = rots.filter(function (r) {
-      for (var qy = 0; qy < size; qy++) for (var qx = 0; qx < size; qx++) {
-        if (!t.fn[qy * size + qx] || !inR[rotIndex(r, size, qx, qy)]) continue;
-        if (!(mid >= 0 && Math.abs(qx - mid) <= 2 && Math.abs(qy - mid) <= 2)) return false;
-      }
-      return true;
-    });
-    if (!okRots.length) return null;
+    var size = sizeOf(ver), n = size * size, t = template(ver), squares = alignmentSquares(ver, size);
+    var al = alignmentPositions(ver), Rw0 = w + 2 * margin, Rh0 = h + 2 * margin;
+    if (al.length === 3) { Rw0 = Math.max(Rw0, 5); Rh0 = Math.max(Rh0, 5); }  // versions 7–13: a tiny box covers the centre square
+    for (var g = 0; ; g++) {
+      var Rw = Rw0 + 2 * g, Rh = Rh0 + 2 * g;
+      if (Rw > size - 14 || Rh > size - 14) return null;              // can't even clear the timing lines
+      var x0 = Math.floor((size - Rw) / 2), y0 = Math.floor((size - Rh) / 2);
+      var inR = new Uint8Array(n);                                    // display orientation
+      for (var y = y0; y < y0 + Rh; y++) for (var x = x0; x < x0 + Rw; x++) inR[y * size + x] = 1;
+      var okRots = rots.filter(function (r) {
+        var whole = squares.filter(function (c) {
+          for (var dy = -2; dy <= 2; dy++) for (var dx = -2; dx <= 2; dx++) if (!inR[rotIndex(r, size, c[0] + dx, c[1] + dy)]) return false;
+          return true;
+        });
+        for (var qy = 0; qy < size; qy++) for (var qx = 0; qx < size; qx++) {
+          if (!t.fn[qy * size + qx] || !inR[rotIndex(r, size, qx, qy)]) continue;
+          var inside = false;
+          for (var k = 0; k < whole.length && !inside; k++) inside = Math.abs(qx - whole[k][0]) <= 2 && Math.abs(qy - whole[k][1]) <= 2;
+          if (!inside) return false;                                  // a corner square, timing line, format or version bits, or half a square
+        }
+        return true;
+      });
+      if (okRots.length) break;
+    }
     var key = ver + '|' + ecl, sys = cache && cache[key];
     if (!sys) { sys = artSystem(bytes, ver, ecl); if (cache) cache[key] = sys; }
     if (!sys || Rw * Rh > sys.freeBits) return null;
@@ -634,59 +672,69 @@
 
   // Steer the box to the drawing for each workable turn and mask. Keep the first turn that has a mask
   // leaving no finder look-alike outside the box, with its lowest-penalty such mask. If no turn has one,
-  // take each turn's best mask (fewest look-alikes, then lowest penalty) and keep the turn whose best
-  // leaves the fewest, the earlier turn on a tie. A single mask asked for — the quick redraw during a
-  // stroke — skips the look-alike test.
-  // Null if (rarely) the box's modules can't all be set at once.
-  function insetSolve(plan, d, masks) {
+  // try again with other textures outside the box (the free bits left over after the box steer the
+  // rest of the code toward a random texture; another texture gives other modules there) — big codes
+  // need this. If none of those has one either, take the candidate with the fewest look-alikes: each
+  // turn's best mask (fewest, then lowest penalty), the earlier texture and turn on a tie. A single
+  // mask asked for — the quick redraw during a stroke — keeps the texture it is given and skips the
+  // look-alike test. Null if (rarely) the box's modules can't all be set at once.
+  var TEXTURES = 6;
+  function insetSolve(plan, d, masks, seed0) {
     var sys = plan.sys, t = plan.t, size = plan.size, n = plan.n, inR = plan.inR, b = plan.box, x, y, i;
     var ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2), want = new Uint8Array(n);
     for (y = b.y; y < b.y + b.h; y++) for (x = b.x; x < b.x + b.w; x++) {
       var dx = x - ox, dy = y - oy;
       want[y * size + x] = (dx >= 0 && dy >= 0 && dx < d.w && dy < d.h) ? d.bits[dy * d.w + dx] : 0;
     }
-    var fallback = null;
-    for (var ri = 0; ri < plan.rots.length; ri++) {
-      var r = plan.rots[ri], tq = new Uint8Array(n), wq = new Float32Array(n), boxQ = new Uint8Array(n);
-      for (y = 0; y < size; y++) for (x = 0; x < size; x++) {
-        var di = rotIndex(r, size, x, y), qi = y * size + x;
-        boxQ[qi] = inR[di];
-        tq[qi] = inR[di] ? want[di] : (hash01(qi * 7 + 3) < 0.5 ? 1 : 0);   // outside: ordinary QR texture
-        wq[qi] = (inR[di] ? 2 : 0) + hash01(qi);                            // the box first
+    var quick = masks.length === 1, fallback = null, anyClean = false;
+    var seeds = quick ? [seed0 || 0] : [0, 1, 2, 3, 4, 5].slice(0, TEXTURES);
+    for (var si = 0; si < seeds.length; si++) {
+      var seed = seeds[si];
+      for (var ri = 0; ri < plan.rots.length; ri++) {
+        var r = plan.rots[ri], tq = new Uint8Array(n), wq = new Float32Array(n), boxQ = new Uint8Array(n);
+        for (y = 0; y < size; y++) for (x = 0; x < size; x++) {
+          var di = rotIndex(r, size, x, y), qi = y * size + x;
+          boxQ[qi] = inR[di];
+          tq[qi] = inR[di] ? want[di] : (hash01(qi * 7 + 3 + seed * 1000003) < 0.5 ? 1 : 0);   // outside: ordinary QR texture
+          wq[qi] = (inR[di] ? 2 : 0) + hash01(qi + seed * 7919);                              // the box first
+        }
+        var order = t.order;
+        var orders = sys.blockSys.map(function (bs) {
+          var idx = [];
+          for (var k = 0; k < bs.mods.length; k++) idx.push(k);
+          idx.sort(function (a, c) { return wq[order[bs.mods[c]]] - wq[order[bs.mods[a]]]; });
+          return idx;
+        });
+        var mods = steerAll(sys, masks, tq, orders), best = null;
+        for (var mi = 0; mi < masks.length; mi++) {
+          var mod = mods[mi], clean = true;
+          for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
+          if (!clean) continue;
+          anyClean = true;
+          if (quick) { best = { pen: 0, mod: mod, mask: masks[mi], fakes: 0 }; continue; }
+          var seen = mod.slice();                                   // as drawn: the drawing covers its alignment squares
+          for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
+          // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
+          var fakes = lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length;
+          if (best && fakes > best.fakes) continue;
+          var cand = { pen: penalty(mod, size), mod: mod, mask: masks[mi], fakes: fakes };
+          if (!best || fakes < best.fakes || cand.pen < best.pen) best = cand;
+        }
+        if (best && (best.fakes === 0 || quick)) return finish(best, r, seed);
+        if (best && (!fallback || best.fakes < fallback.best.fakes)) fallback = { best: best, r: r, seed: seed };
       }
-      var order = t.order;
-      var orders = sys.blockSys.map(function (bs) {
-        var idx = [];
-        for (var k = 0; k < bs.mods.length; k++) idx.push(k);
-        idx.sort(function (a, c) { return wq[order[bs.mods[c]]] - wq[order[bs.mods[a]]]; });
-        return idx;
-      });
-      var best = null;
-      for (var mi = 0; mi < masks.length; mi++) {
-        var mod = steer(sys, masks[mi], tq, orders), clean = true;
-        for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
-        if (!clean) continue;
-        if (masks.length === 1) { best = { pen: 0, mod: mod, mask: masks[mi], fakes: 0 }; continue; }
-        var seen = mod.slice();                                     // as drawn: the drawing covers the centre square
-        for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
-        // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
-        var fakes = lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length;
-        var cand = { pen: penalty(mod, size), mod: mod, mask: masks[mi], fakes: fakes };
-        if (!best || fakes < best.fakes || (fakes === best.fakes && cand.pen < best.pen)) best = cand;
-      }
-      if (best && (best.fakes === 0 || masks.length === 1)) return finish(best, r);
-      if (best && (!fallback || best.fakes < fallback.best.fakes)) fallback = { best: best, r: r };
+      if (!anyClean) break;                                         // nothing settable: no texture changes that
     }
-    return fallback ? finish(fallback.best, fallback.r) : null;
+    return fallback ? finish(fallback.best, fallback.r, fallback.seed) : null;
 
-    function finish(pick, r) {
+    function finish(pick, r, seed) {
       var shown = rotateArray(pick.mod, size, r), fnD = rotateArray(t.fn, size, r), covered = new Uint8Array(n);
       for (var j = 0; j < n; j++) if (inR[j] && fnD[j]) { covered[j] = 1; shown[j] = want[j]; }
       return {
-        size: size, version: sys.ver, ecl: sys.ecl, mask: pick.mask, rotation: r, art: true,
+        size: size, version: sys.ver, ecl: sys.ecl, mask: pick.mask, rotation: r, seed: seed, art: true,
         modules: shown,             // what gets drawn (display orientation)
         isFunction: fnD,
-        covered: covered,           // function modules painted over by the drawing (only ever the centre square)
+        covered: covered,           // function modules painted over by the drawing (whole alignment squares only)
         box: b
       };
     }

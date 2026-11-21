@@ -266,9 +266,9 @@
         <div class="dq-notes">
           <h2>Tips</h2>
           <ul>
-            <li>Shorter links fit bigger drawings: a link of about 30 characters holds a full 32&nbsp;&times;&nbsp;32 drawing. A link shortener helps.</li>
+            <li>Longer links and bigger drawings make a bigger code. Links up to about 45 characters still hold a full 32&nbsp;&times;&nbsp;32 drawing. For anything longer, a link shortener helps.</li>
             <li>Photos work best cropped tight around one simple subject.</li>
-            <li>Before printing, scan the download with your phone. Print it at least 4&nbsp;cm (1.6&nbsp;in) wide and keep the white border.</li>
+            <li>Before printing, scan the download with your phone. Print it at least 4&nbsp;cm (1.6&nbsp;in) wide, or 5&nbsp;cm (2&nbsp;in) for a big code, and keep the white border.</li>
           </ul>
           <p class="dq-hint">The trick behind it comes from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a>.</p>
         </div>
@@ -370,7 +370,7 @@
       state.bytes = state.link ? Q.utf8(state.link) : null;
       if (state.cacheFor !== state.link) {                    // per-link work, done once per link
         state.cacheFor = state.link; state.cache = {}; state.last = null;
-        state.maxSide = state.bytes ? Q.maxInsetSide(state.bytes, { cache: state.cache }) : 0;
+        state.maxSide = state.bytes ? Q.maxInsetSide(state.bytes, { cache: state.cache, maxSide: 32 }) : 0;
       }
       updateEncoded();
       var res = null, warn = '', d = Q.cropDrawing(state.bits, state.M);
@@ -379,7 +379,7 @@
         var last = state.last, rots = [0, 1, 2, 3];
         if (last) rots = [last.rot].concat(rots.filter(function (r) { return r !== last.rot; }));   // keep the markers still
         var opts = { cache: state.cache, rotations: rots };
-        if (quick && last) opts.masks = [last.mask];
+        if (quick && last) { opts.masks = [last.mask]; opts.seed = last.seed; }
         res = Q.makeInset(state.bytes, d, opts);
         if (!res && quick) res = Q.makeInset(state.bytes, d, { cache: state.cache, rotations: rots });
         if (!res) warn = 'toobig';
@@ -397,7 +397,7 @@
         var b = res.box;
         return p[0] >= b.x && p[0] < b.x + b.w && p[1] >= b.y && p[1] < b.y + b.h;
       }).length : 0;
-      if (res && res.art) state.last = { rot: res.rotation, mask: res.mask };
+      if (res && res.art) state.last = { rot: res.rotation, mask: res.mask, seed: res.seed };
       drawQR(); drawCanvas(); updateInfo();
     }
 

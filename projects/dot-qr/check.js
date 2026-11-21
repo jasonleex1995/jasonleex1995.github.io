@@ -9,7 +9,7 @@
       2026-11-09 and were identical, so a changed fingerprint means the encoder changed.
    2) Drawings in the middle: every preset in index.html × links × grid sizes. When a code is made,
       it reads back as exactly the link, its box shows the drawing exactly (plus a light margin),
-      the drawing covers no function pattern except the centre alignment square, no data modules
+      the drawing covers no function pattern except whole alignment squares, no data modules
       form a finder look-alike, and the rendered image puts every module's colour where scanners look.
    3) maxInsetSide tells the truth: a drawing that big fits, one module bigger does not.
    3b) Plain codes: with the mask chosen automatically, no finder look-alikes unless every mask has
@@ -87,12 +87,18 @@ function checkInset(res, d, bytes, tag, curated) {
   const N = res.size, b = res.box, ver = res.version;
   const ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2);
   let wrong = 0, badCover = 0, clash = 0;
-  const al = DotQR._alignmentPositions(ver), mid = al.length >= 3 ? al[(al.length - 1) >> 1] : -1;
+  // Alignment square centres where the code shows them: the symbol is turned res.rotation quarter turns
+  // clockwise, and the squares' grid isn't symmetric at every version, so turn the centres too.
+  const al = DotQR._alignmentPositions(ver), squares = new Map(), r = (res.rotation || 0) & 3, centres = [];
+  for (const ax of al) for (const ay of al)
+    centres.push(r === 0 ? [ax, ay] : r === 1 ? [N - 1 - ay, ax] : r === 2 ? [N - 1 - ax, N - 1 - ay] : [ay, N - 1 - ax]);
+  const squareOf = (x, y) => { for (const [cx, cy] of centres) if (Math.abs(x - cx) <= 2 && Math.abs(y - cy) <= 2) return cx + ',' + cy; return null; };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const i = y * N + x, inBox = x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
     if (res.covered[i]) {
-      const centre = mid >= 0 && Math.abs(x - mid) <= 2 && Math.abs(y - mid) <= 2;
-      if (!centre || !inBox) badCover++;
+      const sq = squareOf(x, y);
+      if (!sq || !inBox) badCover++;
+      else squares.set(sq, (squares.get(sq) || 0) + 1);
     }
     if (!inBox) continue;
     const dx = x - ox, dy = y - oy;
@@ -100,10 +106,10 @@ function checkInset(res, d, bytes, tag, curated) {
     if (res.modules[i] !== want) wrong++;
     if (res.isFunction[i] && !res.covered[i]) clash++;
   }
-  const coveredCount = res.covered.reduce((a, c) => a + c, 0);
+  const partial = [...squares.values()].filter(c => c !== 25).length;
   check(wrong === 0, `${tag}: ${wrong} modules in the box differ from the drawing`);
-  check(badCover === 0, `${tag}: ${badCover} covered modules are not the centre alignment square`);
-  check(coveredCount === 0 || coveredCount === 25, `${tag}: the centre alignment square is only partly covered (${coveredCount}/25)`);
+  check(badCover === 0, `${tag}: ${badCover} covered modules are not part of an alignment square inside the box`);
+  check(partial === 0, `${tag}: ${partial} alignment square(s) only partly covered — the drawing must cover them whole or not at all`);
   check(clash === 0, `${tag}: ${clash} function modules sit visibly inside the drawing's box`);
   check(b.x >= 0 && b.y >= 0 && b.x + b.w <= N && b.y + b.h <= N && d.w + 2 <= b.w && d.h + 2 <= b.h, `${tag}: box lacks its margin`);
   const px = 6, W = (N + 8) * px, img = new Uint8Array(W * W);                         // rendering
@@ -134,6 +140,42 @@ for (const [name, hex] of Object.entries(presets)) {
   }
   const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
   check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
+}
+
+// Bigger codes for longer links (versions up to 18). Profile links of 42–48 characters used to leave
+// room for a 20×20 drawing at most; now the 22×22 social glyphs fit at version 14 (73×73), and the
+// JS logo fits links up to 46 characters at version 18.
+const PROFILE = ['https://www.linkedin.com/in/jasonleex1995/', 'https://www.instagram.com/jasonleex1995/?hl=ko', 'https://scholar.google.com/citations?user=abc123'];
+for (const [name, hex] of Object.entries(presets)) for (const link of PROFILE) {
+  const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character profile link`;
+  const want = Math.max(d.w, d.h) <= 24 ? 14 : link.length <= 46 ? 18 : 0;
+  if (!want) continue;                                         // the JS logo with a 48-character link: too big
+  const res = DotQR.makeInset(bytes, d, { cache: {} });
+  check(!!res && res.version <= want, `${tag}: should fit at version ${want} or below (got ${res ? 'version ' + res.version : 'no code'})`);
+  if (res) checkInset(res, d, bytes, tag, true);
+}
+// Rather than cut alignment squares in two, the box widens its white frame: at version 14 the LinkedIn
+// glyph's 24×24 box would cut four squares; with a 2-module frame it covers all four whole.
+if (presets.linkedin) {
+  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(presets.linkedin), 32);
+  const res = DotQR.makeInset(bytes, d, { version: 14, cache: {} });
+  check(!!res, 'frame: the LinkedIn glyph should fit version 14 by widening its white frame');
+  if (res) {
+    const covered = res.covered.reduce((a, c) => a + c, 0);
+    check(res.box.w - d.w >= 4 && covered === 100, `frame: expected a 2-module frame covering 4 whole alignment squares (box ${res.box.w} for a ${d.w}-wide drawing, ${covered} modules covered)`);
+  }
+}
+// When every turn and mask leaves a finder look-alike, other textures outside the box are tried: the
+// JS logo with the LinkedIn link gets a clean code only from a later texture. And the eight masks,
+// solved together, give exactly what solving the chosen one alone gives.
+if (presets.logo) {
+  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(presets.logo), 32);
+  const res = DotQR.makeInset(bytes, d, { cache: {} });
+  check(!!res && res.seed > 0, `textures: the logo with ${PROFILE[0]} should need a texture after the first (got ${res ? 'texture ' + res.seed : 'no code'})`);
+  if (res) {
+    const alone = DotQR.makeInset(bytes, d, { cache: {}, version: res.version, masks: [res.mask], rotations: [res.rotation], seed: res.seed });
+    check(!!alone && alone.modules.every((v, i) => v === res.modules[i]), 'masks solved together should give what the chosen mask gives alone');
+  }
 }
 
 // Shapes the presets don't cover: a tiny drawing in a big code (box must grow to cover the centre
@@ -203,7 +245,7 @@ for (const link of ['https://bit.ly/3xYz9Ab', 'https://jasonleex1995.github.io',
   if (fit) checkInset(fit, random(s), bytes, `${link} @ ${s}×${s}`);
   check(DotQR.makeInset(bytes, random(s + 1), { cache: {} }) === null, `${link}: ${s + 1}×${s + 1} fits although maxInsetSide says ${s}`);
 }
-check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache: {} }) === 32, 'a 31-character link should hold a full 32×32 drawing');
+check(DotQR.maxInsetSide(DotQR.utf8('https://jasonleex1995.github.io'), { cache: {}, maxSide: 32 }) === 32, 'a 31-character link should hold a full 32×32 drawing');
 
 /* ---------- 3b) Plain codes avoid finder look-alikes ---------- */
 // With the mask chosen automatically, a plain code avoids masks that leave a finder look-alike
