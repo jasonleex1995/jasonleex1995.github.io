@@ -296,13 +296,15 @@
        1. Presets — 32×32, one hex word per row (bit 31 = left). One-colour glyphs of four services,
           for a code that links to your own page there: x and linkedin (white mark in a black rounded
           square), huggingface (the hugging face, hands in front), instagram (camera outline).
-          22–24 cells, so a full-size drawing still fits any link of up to 46 characters.
+          27 × 27 each: in the 89 × 89 code the white frame round any drawing of 19–31 cells is 33 wide
+          (it takes in the four alignment squares round the middle), so 27 fills it with 3 white cells
+          to spare on each side. They fit any link of up to 46 characters.
        ============================================================ */
     var PRESETS = {
-      x: '00000000 00000000 00000000 00000000 07ffffe0 0ffffff0 0ffffff0 0ffffff0 0f03f8f0 0f81f0f0 0fdcf1f0 0fcee3f0 0fee47f0 0fe76ff0 0ff7bff0 0ffb9ff0 0ff9dff0 0ffdeff0 0ff4eff0 0fe277f0 0fc773f0 0f8f3bf0 0f0f81f0 0f1ffff0 0ffffff0 0ffffff0 0ffffff0 07ffffe0 00000000 00000000 00000000 00000000',
-      linkedin: '00000000 00000000 00000000 00000000 00000000 01ffff80 03ffffc0 07ffffe0 07cfffe0 0787ffe0 0787ffe0 07cfffe0 07ffffe0 078403e0 078401e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 07ffffe0 07ffffe0 03ffffc0 01ffff80 00000000 00000000 00000000 00000000 00000000',
-      huggingface: '00000000 00000000 00000000 0003c000 001ff800 00781e00 00e00700 01800180 030000c0 030000c0 06100860 06381c60 04381c20 0c181830 0c000030 0c000030 0c3ffc30 043ffc20 063ffc60 061ff860 0007e000 070000e0 0d8001b0 0da005b0 0fd81bf0 07dffbe0 0783c1e0 00000000 00000000 00000000 00000000 00000000',
-      instagram: '00000000 00000000 00000000 00000000 00000000 007ffe00 01ffff80 03ffffc0 038001c0 07000ee0 07018ee0 0707eee0 070ff0e0 071e78e0 071c38e0 07381ce0 07381ce0 071c38e0 071e78e0 070ff0e0 0707e0e0 070180e0 070000e0 038001c0 03ffffc0 01ffff80 007ffe00 00000000 00000000 00000000 00000000 00000000'
+      x: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3ffffcf8 3e03f8f8 3f01f0f8 3fbde1f8 3f9cc3f8 3fdec7f8 3fce4ff8 3fef3ff8 3ff7bff8 3ff39ff8 3ffbdff8 3ff9eff8 3fe4e7f8 3fc6f7f8 3f8673f8 3f0f7bf8 3e1f01f8 3e3f80f8 3e7ffff8 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000',
+      linkedin: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3f1ffff8 3e0ffff8 3e0ffff8 3e0ffff8 3f1ffff8 3ffffff8 3e0803f8 3e0800f8 3e080078 3e083078 3e083878 3e083878 3e083878 3e083878 3e083878 3e083878 3e083878 3e083878 3e083878 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000',
+      huggingface: '00000000 00000000 003ff800 00f83e00 01c00700 03800380 070001c0 0e0000e0 0c000060 1c200870 18701c30 18701c30 38701c38 30200818 30000018 30000018 387ffc38 187ffc30 183ff830 1c1ff070 0c0fe060 0e0000e0 01000100 1c800270 36e00ed8 367ffcd8 3f3ff9f8 1f0381f0 1e0000f0 00000000 00000000 00000000',
+      instagram: '00000000 00000000 01ffff00 07ffffc0 0fffffe0 1f0001f0 1c000070 3c000778 38000738 3807c738 381ff038 383ff838 38383838 38701c38 38701c38 38701c38 38701c38 38701c38 38383838 383ff838 381ff038 3807c038 38000038 3c000078 1c000070 1f0001f0 0fffffe0 07ffffc0 01ffff00 00000000 00000000 00000000'
     };
     function presetBits(name) {
       var out = new Uint8Array(32 * 32);

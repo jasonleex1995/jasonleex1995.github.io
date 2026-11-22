@@ -77,6 +77,9 @@ function bitsOf(hex) {
 // The JS logo (the site's favicon at 31 cells) was a preset until 2026-11-21. Two regressions below are
 // about this exact drawing, so it stays here.
 const OLD_LOGO = '00000000 07ff00c0 0fffc7f0 0fffdff0 2fffbff8 70783e78 70787878 78387070 383cf0f0 3c3cf1e0 1c1cf1e0 1e1e7880 1e1e7c00 0f0e3f00 0f0e1f80 070f0fc0 078f03e0 378701f0 7b8700f8 7bc77078 73cf783c f3cf7c3c f00e3e1c 701e0e3c 787c003c 7ff800f8 3ff003f0 1fe7ffe6 000fffc6 0007ff00 00038000 00000000';
+// The LinkedIn glyph at 22 cells (the preset until 2026-11-22, when the presets grew to 27 cells to fill
+// the white frame at 89 × 89). The frame test below is about a drawing of this size.
+const OLD_LINKEDIN = '00000000 00000000 00000000 00000000 00000000 01ffff80 03ffffc0 07ffffe0 07cfffe0 0787ffe0 0787ffe0 07cfffe0 07ffffe0 078403e0 078401e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 07ffffe0 07ffffe0 03ffffc0 01ffff80 00000000 00000000 00000000 00000000 00000000';
 // The page makes every code at this version (89 × 89).
 const PAGE_VERSION = DotQR.MAX_INSET_VERSION;
 check(PAGE_VERSION === 18 && /var VERSION = Q\.MAX_INSET_VERSION;/.test(html), 'the page should make every code at version 18 (Q.MAX_INSET_VERSION)');
@@ -151,7 +154,8 @@ for (const [name, hex] of Object.entries(presets)) {
 // room for a 20×20 drawing at most; now drawings of up to 24×24 fit them at version 14 (73×73), and
 // bigger ones fit links of up to 46 characters at version 18.
 const PROFILE = ['https://www.linkedin.com/in/jasonleex1995/', 'https://www.instagram.com/jasonleex1995/?hl=ko', 'https://scholar.google.com/citations?user=abc123'];
-for (const [name, hex] of Object.entries(presets)) for (const link of PROFILE) {
+// The presets are 27 cells now; the old 22-cell LinkedIn glyph keeps the version-14 promise for 22×22 tested.
+for (const [name, hex] of Object.entries({ ...presets, 'linkedin at 22 cells': OLD_LINKEDIN })) for (const link of PROFILE) {
   const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character profile link`;
   const want = Math.max(d.w, d.h) <= 24 ? 14 : link.length <= 46 ? 18 : 0;
   if (!want) continue;                                         // a bigger drawing with a 48-character link: too big
@@ -165,6 +169,9 @@ for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0
   const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
   check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
   if (res) checkInset(res, d, bytes, tag, true);
+  // The white frame there is 33 wide for any drawing of 19–31 cells; a much smaller preset looks lost in it
+  // (the 22–24-cell presets did — user, 2026-11-22). At most 3 white cells on each side.
+  if (res) check(res.box.w - d.w <= 6 && res.box.h - d.h <= 6, `${tag}: a ${d.w}×${d.h} preset in a ${res.box.w}×${res.box.h} white frame — presets should fill it`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');
@@ -194,10 +201,10 @@ check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl
   check(/els\.clean\.addEventListener\('click', function \(\) \{\s*var c = DL\.cleanLink\(normalizeLink\(els\.url\.value\)\);[\s\S]{0,160}?els\.url\.value = c\.link;/.test(html),
     'Remove tracking should clean the link that is in the box now and put the result back');
 }
-// Rather than cut alignment squares in two, the box widens its white frame: at version 14 the LinkedIn
-// glyph's 24×24 box would cut four squares; a frame a module or two wider covers all four whole.
-if (presets.linkedin) {
-  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(presets.linkedin), 32);
+// Rather than cut alignment squares in two, the box widens its white frame: at version 14 the 22-cell
+// LinkedIn glyph's 24×24 box would cut four squares; a frame a module or two wider covers all four whole.
+{
+  const bytes = DotQR.utf8(PROFILE[0]), d = DotQR.cropDrawing(bitsOf(OLD_LINKEDIN), 32);
   const res = DotQR.makeInset(bytes, d, { version: 14, cache: {} });
   check(!!res, 'frame: the LinkedIn glyph should fit version 14 by widening its white frame');
   if (res) {
