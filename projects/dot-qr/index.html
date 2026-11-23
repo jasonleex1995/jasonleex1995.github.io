@@ -267,7 +267,7 @@
         <div class="dq-notes">
           <h2>Tips</h2>
           <ul>
-            <li>Every code is 89&nbsp;&times;&nbsp;89 dots with your drawing in the middle. Links up to about 45 characters hold a full 32&nbsp;&times;&nbsp;32 drawing. A link copied from an app often ends in tracking (?utm_&hellip;) &mdash; <b>Remove tracking</b> takes it off. Otherwise, a link shortener helps.</li>
+            <li>Every code is 89&nbsp;&times;&nbsp;89 dots with your drawing in the middle. Links up to about 65 characters hold a full 32&nbsp;&times;&nbsp;32 drawing &mdash; past about 47, a few of the link&rsquo;s dots sit under the drawing and the code&rsquo;s error correction fills them in. A link copied from an app often ends in tracking (?utm_&hellip;) &mdash; <b>Remove tracking</b> takes it off. Otherwise, a link shortener helps.</li>
             <li>Photos work best cropped tight around one simple subject.</li>
             <li>Before printing, scan the download with your phone. Print it at least 5&nbsp;cm (2&nbsp;in) wide and keep the white border &mdash; with a transparent background, keep the area around the code light and empty instead.</li>
           </ul>
@@ -295,7 +295,9 @@
     'use strict';
     var Q = window.DotQR, DL = window.DotLink;
     // Every code is the same size: version 18, 89 × 89 dots. A 32 × 32 drawing fits in the middle of it
-    // for any link of up to 46 characters (longer links leave room for less; see README).
+    // for any link of up to 67 bytes: up to 47 with its box clear, past that with up to Q.LINK_ERRORS of the
+    // link's codewords under the drawing, put back by the code's error correction (longer links leave room
+    // for less; see README «긴 링크»).
     var VERSION = Q.MAX_INSET_VERSION;
 
     /* ============================================================
@@ -305,7 +307,8 @@
           for a project page — the 🌐 of research READMEs), link (a chain link, the 🔗, for any other link).
           27 × 27 each: in the 89 × 89 code the white frame is 33 cells wide along any side of 19–31 cells
           (it takes in the four alignment squares round the middle), so 27 fills it with 3 white cells
-          to spare on each side. They fit any link of up to 46 characters.
+          to spare on each side. They fit any link of up to 67 bytes (past 47 with a few of the link's
+          codewords under them, which error correction puts back).
        ============================================================ */
     var PRESETS = {
       x: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3ffffe78 3f03fc78 3f01f8f8 3fbcf1f8 3fdee3f8 3fce47f8 3fef6ff8 3fe72ff8 3ff79ff8 3ffbdff8 3ff9cff8 3ffdeff8 3fe4f7f8 3fc273f8 3f877bf8 3f8f39f8 3f1f81f8 3e3f80f8 3e7ffff8 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000',
@@ -320,9 +323,11 @@
     // the arXiv badge's big black square is the one some phone cameras miss in noisy, low-contrast shots of
     // screens and slides (README, presets).
     var PRESET_NOTES = {
-      arxiv: 'Some phone cameras struggle with this badge’s big black square on low-contrast screens and slides — ' +
-        'test the download with your phone before you use it.'
+      arxiv: 'Some phone cameras struggle with this badge’s big black square on low-contrast screens and slides.'
     };
+    // A long link leaves a few of its own codewords under the drawing (res.errors; README «긴 링크»).
+    var LONG_NOTE = 'This link is long, so a few of its dots sit under the drawing — the code’s error correction ' +
+      'fills them in, leaving it a little less room for dim or low-contrast photos.';
     function presetNote() {
       if (state.M !== 32) return '';
       for (var name in PRESET_NOTES) {
@@ -659,7 +664,10 @@
       else if (state.warn === 'huge') warn = 'This link is too long for a QR code.';
       else if (state.fakes) warn = 'Part of this drawing looks like one of the code’s corner squares, which can confuse some ' +
         'scanners. Change it a little (for example, open up a ring or a filled square), and test the download with your phone.';
-      else if (res && res.art) warn = presetNote();
+      else if (res && res.art) {
+        var notes = [res.errors ? LONG_NOTE : '', presetNote()].filter(Boolean);
+        if (notes.length) warn = notes.join(' ') + ' Test the download with your phone before you use it.';
+      }
       els.warn.hidden = !warn;
       announce(els.warn, warn);
       els.png.disabled = els.svg.disabled = !res;

@@ -7,7 +7,9 @@
    terminator. Reed–Solomon is linear, so every module of the symbol is an XOR (GF(2)-linear)
    function of those free bits, and Gaussian elimination can pick them so that every module
    in the drawing's box shows the drawing exactly. Nothing is damaged: the result is an
-   ordinary QR code with zero errors. See makeInset().
+   ordinary QR code with zero errors. See makeInset(). The one exception is a link too long to
+   leave the box clear: then a few of the link's own codewords sit under the drawing, the drawing
+   wins there, and the code's error correction restores them (LINK_ERRORS).
    ============================================================ */
 (function (root) {
   'use strict';
@@ -51,6 +53,54 @@
       rem[n - 1] = gmul(g[n], f);
     }
     return rem;
+  }
+
+  function gdiv(a, b) { return a === 0 ? 0 : EXP[(LOG[a] + 255 - LOG[b]) % 255]; }
+  function gpow(x, k) { return k === 0 ? 1 : x === 0 ? 0 : EXP[(LOG[x] * k) % 255]; }
+  function syndromesZero(cw, nEc, S) {
+    var any = 0;
+    for (var j = 0; j < nEc; j++) {
+      var s = 0, a = EXP[j];
+      for (var i = 0; i < cw.length; i++) s = gmul(s, a) ^ cw[i];   // R(α^j), cw[0] the highest power
+      if (S) S[j] = s;
+      any |= s;
+    }
+    return !any;
+  }
+  // What a scanner does with one block: data then error-correction codewords, as read. Fixes up to
+  // nEc / 2 wrong codewords in place (Berlekamp–Massey, Chien search, Forney; the generator's roots
+  // are α^0 … α^(nEc−1)). Returns how many it fixed, or −1 when there are too many to fix.
+  function rsCorrect(cw, nEc) {
+    var n = cw.length, S = new Uint8Array(nEc), i, j, k;
+    if (syndromesZero(cw, nEc, S)) return 0;
+    var C = [1], B = [1], L = 0, m = 1, b = 1;                      // error locator Λ, lowest power first
+    for (k = 0; k < nEc; k++) {
+      var d = S[k];
+      for (i = 1; i <= L; i++) d ^= gmul(C[i] || 0, S[k - i]);
+      if (d === 0) { m++; continue; }
+      var coef = gdiv(d, b), T = C.slice();
+      for (i = 0; i < B.length; i++) { while (C.length <= i + m) C.push(0); C[i + m] ^= gmul(coef, B[i]); }
+      if (2 * L <= k) { L = k + 1 - L; B = T; b = d; m = 1; } else m++;
+    }
+    while (C.length > 1 && C[C.length - 1] === 0) C.pop();
+    if (C.length - 1 !== L || 2 * L > nEc) return -1;
+    var where = [], inv = [];
+    for (i = 0; i < n; i++) {                                       // codeword i holds power n−1−i
+      var xi = EXP[(255 - (n - 1 - i) % 255) % 255], v = 0;
+      for (j = C.length - 1; j >= 0; j--) v = gmul(v, xi) ^ C[j];
+      if (v === 0) { where.push(i); inv.push(xi); }
+    }
+    if (where.length !== L) return -1;
+    var O = new Uint8Array(nEc);                                    // Ω = S·Λ mod x^nEc
+    for (i = 0; i < nEc; i++) { var acc = 0; for (j = 0; j <= i && j < C.length; j++) acc ^= gmul(C[j], S[i - j]); O[i] = acc; }
+    for (k = 0; k < where.length; k++) {
+      var om = 0, dl = 0;
+      for (j = nEc - 1; j >= 0; j--) om = gmul(om, inv[k]) ^ O[j];
+      for (j = 1; j < C.length; j += 2) dl ^= gmul(C[j], gpow(inv[k], j - 1));
+      if (dl === 0) return -1;
+      cw[where[k]] ^= gmul(EXP[(n - 1 - where[k]) % 255], gdiv(om, dl));
+    }
+    return syndromesZero(cw, nEc) ? where.length : -1;
   }
 
   /* ---------- Version tables (ISO/IEC 18004), index = version, [0] unused ---------- */
@@ -446,6 +496,7 @@
 
     var nbits = L.raw * 8, order = t.order;
     var fixedQ = new Uint8Array(t.size * t.size);    // 1 = a module whose colour the link alone decides
+    var fixedP = new Int32Array(t.size * t.size);    // its stream codeword + 1 (0 = not fixed)
     var blockSys = L.blocks.map(function (bl, b) {
       var lo = Math.max(U, bl.start * 8), hi = (bl.start + bl.dataLen) * 8;
       var k = Math.max(0, hi - lo), W = (k + 31) >>> 5;
@@ -484,11 +535,11 @@
         }
       }
       bs.mods.push(kk); bs.rows.push(row); bs.consts.push(cst);
-      if (!row) fixedQ[pos] = 1;
+      if (!row) { fixedQ[pos] = 1; fixedP[pos] = p + 1; }
     }
     var freeBits = cap - U;
     return { ver: ver, ecl: ecl, t: t, L: L, U: U, fixedBits: fixedBits, blockSys: blockSys,
-             freeBits: freeBits, dataModules: order.length, fixedQ: fixedQ };
+             freeBits: freeBits, dataModules: order.length, fixedQ: fixedQ, fixedP: fixedP };
   }
 
   // Greedy GF(2) elimination in priority order (Gauss–Jordan, basis kept fully reduced).
@@ -583,27 +634,41 @@
   // could no longer be avoided in most codes (measured 2026-11-21), and the codes get dense.
   var MAX_INSET_VERSION = 18;
 
+  // A link too long to keep its own modules out of the box: how many of its codewords (in any one
+  // error-correction block) may sit under the drawing. There the drawing wins and the code's error
+  // correction puts the link back — what a scanner does with any damage. At version 18 (L) a block
+  // fixes up to 15 wrong codewords, so this spends a part of one block's margin, only for long links:
+  // when the box can be kept clear, it is (zero errors), as before. Never more than half of what a
+  // block can correct (ecLen / 4: 7 at version 18 L, less in small codes). See README («긴 링크»).
+  var LINK_ERRORS = 7;
+
   // The drawing, intact, in the middle of the code. Every module of the drawing's box (plus a light
   // margin) is steered to the drawing's colour exactly, so the code has zero errors. The smallest
   // version where that works is used: the box must miss every function pattern — except alignment
   // squares, which it may cover whole (scanners find the code by its corner squares and, at most,
   // the alignment square near the bottom-right corner, which a centred box never reaches) — and must
   // miss the modules that carry the link itself (they can't be steered; turning the code a quarter
-  // turn moves them). Among the masks that work, the one with the lowest standard penalty wins,
-  // because that is what the penalty is for: easy scanning.
+  // turn moves them). Only if no version lets it miss them does it take, at the biggest version
+  // allowed, a box that covers up to opts.linkErrors (default LINK_ERRORS) of the link's codewords;
+  // their modules show the drawing. Among the masks that work, the one with the lowest standard
+  // penalty wins, because that is what the penalty is for: easy scanning.
   // drawing = cropDrawing(...); opts: version | minVersion/maxVersion, rotations, masks, seed (the
-  // texture to keep with a single mask: the quick redraw passes the last code's), margin, cache.
+  // texture to keep with a single mask: the quick redraw passes the last code's), margin, cache, linkErrors.
   function makeInset(bytes, drawing, opts) {
     opts = opts || {};
     var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin;
     var lo = opts.version || opts.minVersion || MIN_VERSION, hi = Math.min(opts.version || opts.maxVersion || MAX_INSET_VERSION, MAX_INSET_VERSION);
-    for (var v = lo; v <= hi; v++) {
-      var plan = insetPlan(bytes, drawing.w, drawing.h, v, ecl, margin, opts.rotations || [0, 1, 2, 3], opts.cache);
+    var tries = [], v;
+    for (v = lo; v <= hi; v++) tries.push([v, 0]);                 // a clear box, smallest version first
+    if (linkBudget(opts) > 0 && lo <= hi) tries.push([hi, linkBudget(opts)]);   // then the biggest code, over a few of the link's codewords
+    for (var i = 0; i < tries.length; i++) {
+      var plan = insetPlan(bytes, drawing.w, drawing.h, tries[i][0], ecl, margin, opts.rotations || [0, 1, 2, 3], opts.cache, tries[i][1]);
       var res = plan && insetSolve(plan, drawing, opts.masks || [0, 1, 2, 3, 4, 5, 6, 7], opts.seed || 0);
       if (res) return res;
     }
     return null;
   }
+  function linkBudget(opts) { return opts.linkErrors == null ? LINK_ERRORS : opts.linkErrors; }
 
   // Largest square drawing (side, in modules) that can sit in the middle of a code for these bytes,
   // no bigger than opts.maxSide when given (the page's grid is 32), at opts.version when given.
@@ -612,8 +677,9 @@
     var ecl = opts.ecl == null ? 0 : opts.ecl, margin = opts.margin == null ? 1 : opts.margin, best = 0;
     var lo = opts.version || MIN_VERSION, hi = Math.min(opts.version || MAX_INSET_VERSION, MAX_INSET_VERSION);
     for (var v = lo; v <= hi; v++) {
+      var budget = v === hi ? linkBudget(opts) : 0;                 // as makeInset: only the biggest code covers link codewords
       for (var s = Math.min(opts.maxSide || Infinity, sizeOf(v) - 14 - 2 * margin); s > best; s--) {
-        if (insetPlan(bytes, s, s, v, ecl, margin, [0, 1, 2, 3], opts.cache)) { best = s; break; }
+        if (insetPlan(bytes, s, s, v, ecl, margin, [0, 1, 2, 3], opts.cache, budget)) { best = s; break; }
       }
     }
     return best;
@@ -631,7 +697,8 @@
   }
 
   // Everything that depends only on the box size: where the box goes, which quarter turns keep it
-  // clear of function patterns and of the link's own modules. Null if no turn works at this version.
+  // clear of function patterns and of the link's own modules (or, with maxErr, cover at most maxErr of
+  // the link's codewords in any one error-correction block). Null if no turn works at this version.
   // A box that would cut an alignment square in two widens its white frame instead — each axis on its
   // own (a flat drawing that cuts squares only above and below needn't get wider), a module at a time,
   // smallest box first, up to 12 modules wider — until every square it touches lies wholly inside.
@@ -640,7 +707,7 @@
   // 22–24-cell presets of 2026-11-21 fitted one turn at 32 wide and all four at 33).
   var GROW = [];
   for (var gx = 0; gx <= 12; gx++) for (var gy = 0; gy <= 12; gy++) GROW.push([gx, gy]);
-  function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache) {
+  function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache, maxErr) {
     if (!fits(bytes, ver, ecl)) return null;
     var size = sizeOf(ver), n = size * size, t = template(ver), squares = alignmentSquares(ver, size);
     var al = alignmentPositions(ver), Rw0 = w + 2 * margin, Rh0 = h + 2 * margin;
@@ -682,7 +749,16 @@
           for (var k = 0; k < whole.length && !inside; k++) inside = Math.abs(qx - whole[k][0]) <= 2 && Math.abs(qy - whole[k][1]) <= 2;
           if (!inside) return false;                                  // a corner square, timing line, format or version bits, or half a square
         }
-        for (a = 0; a < fixList.length; a++) if (inR[rotIndex(r, size, fixList[a] % size, (fixList[a] / size) | 0)]) return false;
+        var under = {}, perBlock = {}, most = Math.min(maxErr || 0, sys.L.ecLen >> 2);   // never more than half of what a block corrects
+        for (a = 0; a < fixList.length; a++) {
+          var fq = fixList[a];
+          if (!inR[rotIndex(r, size, fq % size, (fq / size) | 0)]) continue;
+          if (!most) return false;
+          var p = sys.fixedP[fq] - 1, blk = sys.L.sBlock[p];
+          if (under[p]) continue;
+          under[p] = 1;
+          if ((perBlock[blk] = (perBlock[blk] || 0) + 1) > most) return false;
+        }
         return true;
       });
       return okRots.length ? { sys: sys, t: t, size: size, n: n, inR: inR, rots: okRots, margin: margin, box: { x: x0, y: y0, w: Rw, h: Rh } } : null;
@@ -728,17 +804,19 @@
         var mods = steerAll(sys, masks, tq, orders), best = null;
         for (var mi = 0; mi < masks.length; mi++) {
           var mod = mods[mi], clean = true;
-          for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && mod[q] !== tq[q]) clean = false;
+          // The link's own modules in the box can't be steered (a long link — see LINK_ERRORS): the drawing covers them.
+          for (var q = 0; q < n && clean; q++) if (boxQ[q] && !t.fn[q] && !sys.fixedQ[q] && mod[q] !== tq[q]) clean = false;
           if (!clean) continue;
           anyClean = true;
-          if (quick) { best = { pen: 0, mod: mod, mask: masks[mi], fakes: 0 }; continue; }
+          var errs = linkErrors(mod, boxQ, tq);
+          if (quick) { best = { pen: 0, mod: mod, mask: masks[mi], fakes: 0, errs: errs }; continue; }
           var seen = mod.slice();                                   // as drawn: the drawing covers its alignment squares
-          for (q = 0; q < n; q++) if (boxQ[q] && t.fn[q]) seen[q] = tq[q];
+          for (q = 0; q < n; q++) if (boxQ[q] && (t.fn[q] || sys.fixedQ[q])) seen[q] = tq[q];
           // Only look-alikes outside the box count: inside it every module is the drawing, whatever the mask.
           var fakes = lookalikes(seen, size, function (x, y) { return boxQ[y * size + x]; }).length;
           if (best && fakes > best.fakes) continue;
-          var cand = { pen: penalty(mod, size), mod: mod, mask: masks[mi], fakes: fakes };
-          if (!best || fakes < best.fakes || cand.pen < best.pen) best = cand;
+          var cand = { pen: penalty(mod, size), mod: mod, mask: masks[mi], fakes: fakes, errs: errs };
+          if (!best || fakes < best.fakes || errs < best.errs || (errs === best.errs && cand.pen < best.pen)) best = cand;
         }
         if (best && (best.fakes === 0 || quick)) return finish(best, r, seed);
         if (best && (!fallback || best.fakes < fallback.best.fakes)) fallback = { best: best, r: r, seed: seed };
@@ -747,14 +825,27 @@
     }
     return fallback ? finish(fallback.best, fallback.r, fallback.seed) : null;
 
+    // Codewords of the link that the drawing gets wrong (QR orientation): what error correction will fix.
+    function linkErrors(mod, boxQ, tq) {
+      var bad = {}, c = 0;
+      for (var q = 0; q < n; q++) {
+        var p = sys.fixedP[q];
+        if (p && boxQ[q] && mod[q] !== tq[q] && !bad[p]) { bad[p] = 1; c++; }
+      }
+      return c;
+    }
     function finish(pick, r, seed) {
-      var shown = rotateArray(pick.mod, size, r), fnD = rotateArray(t.fn, size, r), covered = new Uint8Array(n);
-      for (var j = 0; j < n; j++) if (inR[j] && fnD[j]) { covered[j] = 1; shown[j] = want[j]; }
+      var shown = rotateArray(pick.mod, size, r), fnD = rotateArray(t.fn, size, r), fixD = rotateArray(sys.fixedQ, size, r), covered = new Uint8Array(n);
+      for (var j = 0; j < n; j++) if (inR[j]) {
+        if (fnD[j]) { covered[j] = 1; shown[j] = want[j]; }
+        else if (fixD[j]) shown[j] = want[j];                       // the link's own module: the drawing wins, error correction restores it
+      }
       return {
         size: size, version: sys.ver, ecl: sys.ecl, mask: pick.mask, rotation: r, seed: seed, art: true,
         modules: shown,             // what gets drawn (display orientation)
         isFunction: fnD,
         covered: covered,           // function modules painted over by the drawing (whole alignment squares only)
+        errors: pick.errs || 0,     // codewords of the link under the drawing that the drawing gets wrong (0 unless the link is long)
         box: b
       };
     }
@@ -796,9 +887,14 @@
       if (L.sEc[p]) ecs[L.sBlock[p]][L.sIdx[p]] = stream[p];
       else data[L.blocks[L.sBlock[p]].start + L.sIdx[p]] = stream[p];
     }
+    var corrected = 0, perBlock = [];                               // as a scanner would: fix what error correction can
     for (var b = 0; b < L.blocks.length; b++) {
-      var bl = L.blocks[b], want = rsEncode(data.subarray(bl.start, bl.start + bl.dataLen), L.ecLen);
-      for (var j = 0; j < L.ecLen; j++) if (want[j] !== ecs[b][j]) return { ok: false, why: 'error correction mismatch in block ' + b };
+      var bl = L.blocks[b], cw = new Uint8Array(bl.dataLen + L.ecLen);
+      cw.set(data.subarray(bl.start, bl.start + bl.dataLen)); cw.set(ecs[b], bl.dataLen);
+      var fixed = rsCorrect(cw, L.ecLen);
+      if (fixed < 0) return { ok: false, why: 'too many errors to correct in block ' + b };
+      data.set(cw.subarray(0, bl.dataLen), bl.start);
+      corrected += fixed; perBlock.push(fixed);
     }
     var bitPos = 0;
     function take(nb) { var v = 0; for (var q = 0; q < nb; q++, bitPos++) v = v << 1 | ((data[bitPos >>> 3] >>> (7 - (bitPos & 7))) & 1); return v; }
@@ -812,7 +908,7 @@
       if (got.length !== expectedBytes.length) return { ok: false, why: 'length differs' };
       for (c = 0; c < count; c++) if (got[c] !== expectedBytes[c]) return { ok: false, why: 'content differs' };
     }
-    return { ok: true, bytes: got, ecl: ecl, mask: mask };
+    return { ok: true, bytes: got, ecl: ecl, mask: mask, corrected: corrected, correctedPerBlock: perBlock };
   }
 
   function isFormatModule(i, size) {
@@ -821,12 +917,12 @@
   }
 
   var API = {
-    ECL: { L: 0, M: 1, Q: 2, H: 3 }, MAX_INSET_VERSION: MAX_INSET_VERSION,
+    ECL: { L: 0, M: 1, Q: 2, H: 3 }, MAX_INSET_VERSION: MAX_INSET_VERSION, LINK_ERRORS: LINK_ERRORS,
     utf8: utf8, sizeOf: sizeOf, fits: fits, smallestVersion: smallestVersion,
     makePlain: makePlain, cropDrawing: cropDrawing, makeInset: makeInset, maxInsetSide: maxInsetSide,
     renderModules: renderModules, verify: verify,
     // exposed for tests
-    _rsEncode: rsEncode, _numDataCodewords: numDataCodewords, _numRawDataModules: numRawDataModules,
+    _rsEncode: rsEncode, _rsCorrect: rsCorrect, _numDataCodewords: numDataCodewords, _numRawDataModules: numRawDataModules,
     _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits, _rotIndex: rotIndex,
     // Finder look-alikes of a finished code, as display-orientation modules [x, y].
     _lookalikes: function (res) {

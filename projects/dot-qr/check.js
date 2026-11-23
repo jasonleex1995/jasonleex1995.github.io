@@ -12,6 +12,9 @@
       it reads back as exactly the link, its box shows the drawing exactly (plus a light margin),
       the drawing covers no function pattern except whole alignment squares, no data modules
       form a finder look-alike, and the rendered image puts every module's colour where scanners look.
+   2b) Long links (48–67 bytes): every preset still sits whole in the 89 × 89 code; up to LINK_ERRORS of the
+       link's codewords lie under it, and the code reads back by correcting exactly those. One byte more and
+       the preset no longer fits. Reed–Solomon decoding itself is tested on random blocks.
    3) maxInsetSide tells the truth: a drawing that big fits, one module bigger does not.
    3b) Plain codes: with the mask chosen automatically, no finder look-alikes unless every mask has
        some — then the fewest (200 random links).
@@ -90,6 +93,11 @@ check(PAGE_VERSION === 18 && /var VERSION = Q\.MAX_INSET_VERSION;/.test(html), '
 function checkInset(res, d, bytes, tag, curated, outsideAllowed = 0) {
   const read = DotQR.verify(res, bytes);
   check(read.ok, `${tag}: does not read back (${read.why})`);
+  // Zero errors, except a long link's own codewords under the drawing (res.errors, at most LINK_ERRORS): reading
+  // back must correct exactly those.
+  check(!read.ok || read.corrected === (res.errors || 0), `${tag}: reads back correcting ${read.corrected} codewords, but the code says ${res.errors || 0}`);
+  const perBlock = read.ok ? Math.max(0, ...read.correctedPerBlock) : 0;              // the budget is per error-correction block
+  check(perBlock <= DotQR.LINK_ERRORS, `${tag}: ${perBlock} of the link's codewords under the drawing in one block — more than LINK_ERRORS (${DotQR.LINK_ERRORS})`);
   const N = res.size, b = res.box, ver = res.version;
   const ox = b.x + Math.floor((b.w - d.w) / 2), oy = b.y + Math.floor((b.h - d.h) / 2);
   let wrong = 0, badCover = 0, clash = 0;
@@ -147,6 +155,7 @@ for (const [name, hex] of Object.entries(presets)) {
     const res = DotQR.makeInset(bytes, d, { cache: {}, version: version || undefined });
     check(!!res, `${tag}: should fit but no code was made`);
     if (res) checkInset(res, d, bytes, tag, true);
+    if (res) check(res.errors === 0, `${tag}: a short link should leave the box clear (zero errors), got ${res.errors}`);
   }
   const d = DotQR.cropDrawing(base, 32);                       // too long a link for a preset-sized drawing
   check(DotQR.makeInset(DotQR.utf8(LONG), d, { cache: {} }) === null, `${name}: a ${LONG.length}-character link should not fit a ${d.w}×${d.h} drawing`);
@@ -175,6 +184,7 @@ for (const [name, hex] of Object.entries(presets)) for (const link of PAGE_LINKS
   const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
   check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
   if (res) checkInset(res, d, bytes, tag, true);
+  if (res) check(res.errors === 0, `${tag}: links of up to 47 bytes keep the box clear (zero errors), got ${res.errors}`);
   // The white frame there is 33 wide along any side of 19–31 cells; a much smaller preset looks lost in it
   // (the 22–24-cell presets did — user, 2026-11-22). At most 3 white cells on each side.
   if (res) check(res.box.w - d.w <= 6 && res.box.h - d.h <= 6, `${tag}: a ${d.w}×${d.h} preset in a ${res.box.w}×${res.box.h} white frame — presets should fill it`);
@@ -208,10 +218,67 @@ for (const [name, hex] of Object.entries(presets)) {
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');
-{ // version: 18 is honoured — a 48-character link holds 24×24 at the best version but 18×18 at version 18
+{ // version: 18 is honoured — with the box kept clear (linkErrors: 0) a 48-character link holds 24×24 at the best
+  // version but 18×18 at version 18; letting a few of its codewords lie under the drawing (the default), 32×32.
   const b48 = DotQR.utf8('https://www.linkedin.com/in/' + 'b'.repeat(19) + '/');
-  const at18 = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32, version: PAGE_VERSION }), any = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32 });
-  check(at18 === 18 && any === 24, `maxInsetSide with version 18 should be 18 for a 48-character link (got ${at18}; any version ${any})`);
+  const at18 = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32, version: PAGE_VERSION, linkErrors: 0 }), any = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32, linkErrors: 0 });
+  const dflt = DotQR.maxInsetSide(b48, { cache: {}, maxSide: 32, version: PAGE_VERSION });
+  check(at18 === 18 && any === 24 && dflt === 32, `48-character link: clear box at version 18 should hold 18 (got ${at18}; any version ${any}), and 32 by default (got ${dflt})`);
+}
+
+/* ---------- 2b) Long links: a few of the link's codewords under the drawing, put back by error correction ---------- */
+{ // Reed–Solomon decoding as a scanner does it: any block with at most nEc/2 wrong codewords comes back exactly.
+  let sd = 31; const rnd = () => (sd = (Math.imul(sd, 1103515245) + 12345) >>> 0) / 4294967296;
+  let missed = 0, refused = 0, beyond = 0;
+  for (let k = 0; k < 600; k++) {
+    const dl = 20 + Math.floor(rnd() * 130), ec = [7, 10, 13, 15, 17, 18, 22, 26, 28, 30][k % 10], t = ec >> 1;   // every size QR uses, odd ones too
+    const cw = new Uint8Array(dl + ec); for (let i = 0; i < dl; i++) cw[i] = Math.floor(rnd() * 256);
+    cw.set(DotQR._rsEncode(cw.subarray(0, dl), ec), dl);
+    const e = k % 4 === 3 ? t + 1 + Math.floor(rnd() * 3) : Math.floor(rnd() * (t + 1)), rx = cw.slice(), hit = new Set();
+    while (hit.size < e) { const p = Math.floor(rnd() * rx.length); if (!hit.has(p)) { hit.add(p); rx[p] ^= 1 + Math.floor(rnd() * 255); } }
+    const n = DotQR._rsCorrect(rx, ec), back = rx.every((v, i) => v === cw[i]);
+    if (e <= t && (n !== e || !back)) missed++;
+    if (e > t) { beyond++; if (n < 0) refused++; }
+  }
+  check(missed === 0, `Reed–Solomon: ${missed} blocks with at most nEc/2 wrong codewords were not put right`);
+  check(refused >= beyond * 0.95, `Reed–Solomon: only ${refused} of ${beyond} blocks with too many errors were refused`);
+}
+{ // Every preset with links of 48–67 bytes at the page's version: whole, at most LINK_ERRORS codewords under it.
+  const LONGISH = ['https://www.linkedin.com/in/' + 'b'.repeat(19) + '/',      // 48 (the old limit was 47)
+    'https://github.com/facebookresearch/segment-anything',                       // 52, a repository
+    'https://jasonleex1995.github.io/TAISR_needs_Reasoning/',                     // 54, a project page (user, 2026-11-23)
+    'https://jasonleex1995.github.io/' + 'a'.repeat(34) + '/'];                   // 67, the longest that takes a 27-cell preset
+  for (const [name, hex] of Object.entries(presets)) for (const link of LONGISH) {
+    const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character link`;
+    const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
+    check(!!res && res.version === PAGE_VERSION, `${tag}: should still take the preset at version 18`);
+    if (res) checkInset(res, d, bytes, tag, true);
+  }
+  const d = DotQR.cropDrawing(bitsOf(presets.x), 32), over = DotQR.utf8('https://jasonleex1995.github.io/' + 'a'.repeat(35) + '/');
+  check(DotQR.makeInset(over, d, { cache: {}, version: PAGE_VERSION }) === null, '68 bytes should be one too many for a 27-cell preset');
+  check(DotQR.maxInsetSide(over, { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 18, '68 bytes: maxInsetSide should fall back to 18 (a clear box)');
+  check(DotQR.makeInset(DotQR.utf8(LONGISH[2]), d, { cache: {}, version: PAGE_VERSION, linkErrors: 0 }) === null,
+    'linkErrors: 0 should keep the box clear (54 bytes then no longer takes a 27-cell preset)');
+  // The budget is per block: a 200-byte link (past block 0's 120 data codewords) puts an 18×18 drawing over two blocks.
+  const b200 = DotQR.utf8('https://jasonleex1995.github.io/' + 'a'.repeat(168)), d18 = DotQR.cropDrawing(bitsOf(presets.x), 32);
+  const small = { w: 18, h: 18, bits: new Uint8Array(324).map((_, i) => ((i * 2654435761) >>> 13) & 1) };
+  const r200 = DotQR.makeInset(b200, small, { cache: {}, version: PAGE_VERSION });
+  const v200 = r200 && DotQR.verify(r200, b200), hit = v200 && v200.ok ? v200.correctedPerBlock.filter(n => n > 0) : [];
+  check(!!r200 && hit.length >= 2 && Math.max(...hit) <= DotQR.LINK_ERRORS && hit.reduce((a, n) => a + n, 0) === r200.errors,
+    `200 bytes / 18×18: errors should spread over blocks, at most ${DotQR.LINK_ERRORS} each (got ${r200 ? r200.errors : 'no code'}: ${hit})`);
+  check(DotQR.makeInset(b200, d18, { cache: {}, version: PAGE_VERSION }) === null, '200 bytes should not take a 27-cell preset');
+  // Never more than half of what a block corrects (ecLen / 4) — small codes get a smaller budget; and no version
+  // outside the allowed range (the budget is tried only at the biggest version asked for).
+  for (const ver of [5, 10, 14]) {
+    const L = DotQR._layout(ver, 0), most = Math.min(DotQR.LINK_ERRORS, L.ecLen >> 2);
+    for (let len = 20; len <= 80; len += 4) {
+      const bytes = DotQR.utf8('https://' + 'a'.repeat(len - 8)), r = DotQR.makeInset(bytes, { w: 9, h: 9, bits: new Uint8Array(81).fill(1) }, { cache: {}, version: ver });
+      const v = r && DotQR.verify(r, bytes);
+      if (r) check(v.ok && Math.max(...v.correctedPerBlock) <= most, `version ${ver}, ${len} bytes: ${v.ok ? Math.max(...v.correctedPerBlock) : v.why} errors in one block (at most ${most})`);
+    }
+  }
+  check(DotQR.makeInset(DotQR.utf8('https://x.com/a'), { w: 5, h: 5, bits: new Uint8Array(25).fill(1) }, { cache: {}, version: 25 }) === null,
+    'a version above MAX_INSET_VERSION should give no code (as before)');
 }
 // The page's own wiring, read from index.html: the fixed version reaches every call, the plain code's
 // error correction, the preset drawn on load, and Remove tracking cleaning what is in the box.
