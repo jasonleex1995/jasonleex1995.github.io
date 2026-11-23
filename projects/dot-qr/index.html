@@ -174,6 +174,7 @@
               <button class="dq-btn dq-chip" type="button" data-preset="github">GitHub</button>
               <button class="dq-btn dq-chip" type="button" data-preset="huggingface">Hugging Face</button>
               <button class="dq-btn dq-chip" type="button" data-preset="project">Project page</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="link">Link</button>
               <button class="dq-btn dq-chip" type="button" id="dq-photo-btn">Your photo&hellip;</button>
               <input type="file" id="dq-photo-file" accept="image/*" hidden>
             </div>
@@ -298,7 +299,7 @@
        1. Presets — 32×32, one hex word per row (bit 31 = left). One-colour marks for the links people
           share: x, linkedin and arxiv (white mark in a black rounded square), github (the Octicons mark:
           white cat in a black disc), huggingface (the hugging face, hands in front), project (a globe,
-          for a project page — the 🌐 of research READMEs).
+          for a project page — the 🌐 of research READMEs), link (a chain link, the 🔗, for any other link).
           27 × 27 each: in the 89 × 89 code the white frame is 33 cells wide along any side of 19–31 cells
           (it takes in the four alignment squares round the middle), so 27 fills it with 3 white cells
           to spare on each side. They fit any link of up to 46 characters.
@@ -309,8 +310,26 @@
       arxiv: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffbbff8 3ffbaff8 3ffd7ff8 39ad6bb8 3e9eebb8 38bd6d78 36bd6d78 36bbaef8 38bbaef8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000',
       github: '00000000 00000000 000fe000 007ffc00 00fffe00 03ffff80 07bffbc0 079ff3c0 0f8fe3e0 1f8003f0 1f8003f0 1f8003f0 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f8003f8 1fc007f0 1fe00ff0 1c783ff0 0e701fe0 07001fc0 07801fc0 03f01f80 00f01e00 00701c00 00301800 00000000 00000000 00000000',
       huggingface: '00000000 00000000 003ff800 00f83e00 01c00700 03800380 070001c0 0e0000e0 0c000060 1c200870 18701c30 18701c30 38701c38 30200818 30000018 30000018 387ffc38 187ffc30 183ff830 1c1ff070 0c0fe060 0e0000e0 01000100 1c800270 36e00ed8 367ffcd8 3f3ff9f8 1f0381f0 1e0000f0 00000000 00000000 00000000',
-      project: '00000000 00000000 000fe000 007ffc00 00fffe00 03cdb780 071999c0 061998c0 0fffffe0 1c318c70 18318c30 18318c30 30318c18 30618618 30618618 3ffffff8 3ffffff8 30618618 30318c18 18318c30 18318c30 1c318c70 0c318c60 07ffffc0 071999c0 03cdb780 00fffe00 007ffc00 000fe000 00000000 00000000 00000000'
+      project: '00000000 00000000 000fe000 007ffc00 00fffe00 03cdb780 071999c0 061998c0 0fffffe0 1c318c70 18318c30 18318c30 30318c18 30618618 30618618 3ffffff8 3ffffff8 30618618 30318c18 18318c30 18318c30 1c318c70 0c318c60 07ffffc0 071999c0 03cdb780 00fffe00 007ffc00 000fe000 00000000 00000000 00000000',
+      link: '00000000 00000000 000003c0 00000fe0 00001ef0 00003838 00007038 0000e018 0001c038 00038030 00070070 000600e0 000001c0 003e0380 007f0700 00f30e00 01c3fc00 0381f800 07000000 0e01c000 1c01c000 18038000 38070000 380e0000 181c0000 1c380000 0ff00000 07e00000 01800000 00000000 00000000 00000000'
     };
+    // Said under the code while a preset sits on the grid just as it comes (and nothing more urgent is):
+    // the arXiv badge's big black square is the one some phone cameras miss in noisy, low-contrast shots of
+    // screens and slides (README, presets).
+    var PRESET_NOTES = {
+      arxiv: 'Some phone cameras struggle with this badge’s big black square on low-contrast screens and slides — ' +
+        'test the download with your phone before you use it.'
+    };
+    function presetNote() {
+      if (state.M !== 32) return '';
+      for (var name in PRESET_NOTES) {
+        if (!PRESETS[name]) continue;                           // a note whose preset was renamed or removed
+        var b = presetBits(name), same = true;
+        for (var i = 0; i < b.length && same; i++) same = b[i] === state.bits[i];
+        if (same) return PRESET_NOTES[name];
+      }
+      return '';
+    }
     function presetBits(name) {
       var out = new Uint8Array(32 * 32);
       PRESETS[name].split(' ').forEach(function (hex, y) {
@@ -635,6 +654,7 @@
       else if (state.warn === 'huge') warn = 'This link is too long for a QR code.';
       else if (state.fakes) warn = 'Part of this drawing looks like one of the code’s corner squares, which can confuse some ' +
         'scanners. Change it a little (for example, open up a ring or a filled square), and test the download with your phone.';
+      else if (res && res.art) warn = presetNote();
       els.warn.hidden = !warn;
       announce(els.warn, warn);
       els.png.disabled = els.svg.disabled = !res;
