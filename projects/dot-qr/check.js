@@ -7,7 +7,8 @@
    1) Plain symbols: per-version fingerprints of 1,920 symbols (versions 1–40 × L/M/Q/H × masks).
       Those exact symbols were compared module-for-module against node-qrcode 1.5.4 on
       2026-11-09 and were identical, so a changed fingerprint means the encoder changed.
-   2) Drawings in the middle: every preset in index.html × links × grid sizes. When a code is made,
+   2) Drawings in the middle: every preset in index.html (and a few old ones kept as fixtures) × links,
+      at the smallest version and at the page's version 18. When a code is made,
       it reads back as exactly the link, its box shows the drawing exactly (plus a light margin),
       the drawing covers no function pattern except whole alignment squares, no data modules
       form a finder look-alike, and the rendered image puts every module's colour where scanners look.
@@ -77,8 +78,9 @@ function bitsOf(hex) {
 // The JS logo (the site's favicon at 31 cells) was a preset until 2026-11-21. Two regressions below are
 // about this exact drawing, so it stays here.
 const OLD_LOGO = '00000000 07ff00c0 0fffc7f0 0fffdff0 2fffbff8 70783e78 70787878 78387070 383cf0f0 3c3cf1e0 1c1cf1e0 1e1e7880 1e1e7c00 0f0e3f00 0f0e1f80 070f0fc0 078f03e0 378701f0 7b8700f8 7bc77078 73cf783c f3cf7c3c f00e3e1c 701e0e3c 787c003c 7ff800f8 3ff003f0 1fe7ffe6 000fffc6 0007ff00 00038000 00000000';
-// The LinkedIn glyph at 22 cells (the preset until 2026-11-22, when the presets grew to 27 cells to fill
-// the white frame at 89 × 89). The frame test below is about a drawing of this size.
+// The X and LinkedIn glyphs at 24 and 22 cells (the presets until 2026-11-22, when the presets grew to 27 cells
+// to fill the white frame at 89 × 89). The tests below that are about drawings of these sizes use them.
+const OLD_X = '00000000 00000000 00000000 00000000 07ffffe0 0ffffff0 0ffffff0 0ffffff0 0f03f8f0 0f81f0f0 0fdcf1f0 0fcee3f0 0fee47f0 0fe76ff0 0ff7bff0 0ffb9ff0 0ff9dff0 0ffdeff0 0ff4eff0 0fe277f0 0fc773f0 0f8f3bf0 0f0f81f0 0f1ffff0 0ffffff0 0ffffff0 0ffffff0 07ffffe0 00000000 00000000 00000000 00000000';
 const OLD_LINKEDIN = '00000000 00000000 00000000 00000000 00000000 01ffff80 03ffffc0 07ffffe0 07cfffe0 0787ffe0 0787ffe0 07cfffe0 07ffffe0 078403e0 078401e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 078431e0 07ffffe0 07ffffe0 03ffffc0 01ffff80 00000000 00000000 00000000 00000000 00000000';
 // The page makes every code at this version (89 × 89).
 const PAGE_VERSION = DotQR.MAX_INSET_VERSION;
@@ -154,8 +156,10 @@ for (const [name, hex] of Object.entries(presets)) {
 // room for a 20×20 drawing at most; now drawings of up to 24×24 fit them at version 14 (73×73), and
 // bigger ones fit links of up to 46 characters at version 18.
 const PROFILE = ['https://www.linkedin.com/in/jasonleex1995/', 'https://www.instagram.com/jasonleex1995/?hl=ko', 'https://scholar.google.com/citations?user=abc123'];
-// The presets are 27 cells now; the old 22-cell LinkedIn glyph keeps the version-14 promise for 22×22 tested.
-for (const [name, hex] of Object.entries({ ...presets, 'linkedin at 22 cells': OLD_LINKEDIN })) for (const link of PROFILE) {
+// The presets are 27 cells now; the old ones keep these promises tested: 22×22 and 24×24 at version 14,
+// and the 31-cell JS logo at version 18 for links of up to 46 characters.
+const FIXTURES = { 'x at 24 cells': OLD_X, 'linkedin at 22 cells': OLD_LINKEDIN, 'JS logo': OLD_LOGO };
+for (const [name, hex] of Object.entries({ ...presets, ...FIXTURES })) for (const link of PROFILE) {
   const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character profile link`;
   const want = Math.max(d.w, d.h) <= 24 ? 14 : link.length <= 46 ? 18 : 0;
   if (!want) continue;                                         // a bigger drawing with a 48-character link: too big
@@ -169,9 +173,29 @@ for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0
   const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
   check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
   if (res) checkInset(res, d, bytes, tag, true);
-  // The white frame there is 33 wide for any drawing of 19–31 cells; a much smaller preset looks lost in it
+  // The white frame there is 33 wide along any side of 19–31 cells; a much smaller preset looks lost in it
   // (the 22–24-cell presets did — user, 2026-11-22). At most 3 white cells on each side.
   if (res) check(res.box.w - d.w <= 6 && res.box.h - d.h <= 6, `${tag}: a ${d.w}×${d.h} preset in a ${res.box.w}×${res.box.h} white frame — presets should fill it`);
+}
+// The quarter turns are separate sets of candidates for keeping look-alikes out of the data round the drawing,
+// but only if they differ: the texture there depends on the module, not the turn, so a drawing that looks the
+// same turned round, dead centre in its frame, gives the same codes twice over. The 27-cell X of 2026-11-22 was
+// exactly 180°-symmetric and that Instagram glyph changed in 18 cells under any turn: of 1,200 realistic links,
+// 11 and 11–14 codes kept a look-alike. With the 𝕏 and the lens half a cell off centre (70 and 46 cells), none did.
+for (const [name, hex] of Object.entries(presets)) {
+  const d = DotQR.cropDrawing(bitsOf(hex), 32), res = DotQR.makeInset(DotQR.utf8(PROFILE[0]), d, { cache: {}, version: PAGE_VERSION });
+  if (!res) continue;                                          // the loop above already failed it
+  const { x: bx, y: by, w, h } = res.box, at = (i, j) => res.modules[(by + i) * res.size + bx + j];
+  let fewest = Infinity;
+  for (const turn of w === h ? [1, 2, 3] : [2]) {               // a quarter turn of a non-square frame is another frame
+    let diff = 0;
+    for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) {
+      const [ti, tj] = turn === 1 ? [w - 1 - j, i] : turn === 2 ? [h - 1 - i, w - 1 - j] : [j, w - 1 - i];
+      if (at(i, j) !== at(ti, tj)) diff++;
+    }
+    fewest = Math.min(fewest, diff);
+  }
+  check(fewest >= 32, `${name}: its ${w}×${h} frame changes in only ${fewest} cells under a turn, so the turns give near-identical codes and fewer chances to keep look-alikes out — move a part one cell off centre`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');

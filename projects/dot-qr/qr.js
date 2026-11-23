@@ -637,7 +637,7 @@
   // smallest box first, up to 12 modules wider — until every square it touches lies wholly inside.
   // An even-sized box sits half a module off centre, so it may fit only some quarter turns; if one module
   // more fits more turns, take it: each turn is another set of candidates for avoiding look-alikes (the
-  // 22–24-cell presets at version 18 fitted one turn at 32 wide and all four at 33).
+  // 22–24-cell presets of 2026-11-21 fitted one turn at 32 wide and all four at 33).
   var GROW = [];
   for (var gx = 0; gx <= 12; gx++) for (var gy = 0; gy <= 12; gy++) GROW.push([gx, gy]);
   function insetPlan(bytes, w, h, ver, ecl, margin, rots, cache) {
