@@ -6,7 +6,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `index.html` | 화면 — 링크 입력(추적 꼬리 지우기 버튼), 그리기 격자(32 × 32), 미리보기, PNG/SVG 저장, 사진 창. 프리셋 그림(`PRESETS`)도 여기 있습니다. 모든 QR을 버전 18(89 × 89)로 만듭니다. |
+| `index.html` | 화면 — 링크 입력(추적 꼬리 지우기 버튼), 그리기 격자(32 × 32), 미리보기, PNG/SVG 저장(«Transparent background»를 켜면 검은 칸만 그리고 흰 바탕·4칸 여백은 투명 — 밝은 배경용, 어두운 배경에선 안 읽힘), 사진 창. 프리셋 그림(`PRESETS`)도 여기 있습니다. 모든 QR을 버전 18(89 × 89)로 만듭니다. |
 | `qr.js` | QR 인코더(Reed–Solomon·배치·마스크·형식 정보) + 그림을 가운데에 넣는 `makeInset` + 가짜 위치 표시 검사(`lookalikes`) + 렌더링 + 자체 판독(`verify`). 브라우저(`window.DotQR`)와 Node(`require`) 겸용. |
 | `photo.js` | 사진 → 흑백 점(페이지는 32칸, 함수는 아무 칸 수나). DOM을 안 쓰는 순수 함수라 `check.js`가 Node에서 시험합니다. 브라우저(`window.DotPhoto`)·Node 겸용. |
 | `link.js` | 링크 끝의 추적용 꼬리(`?utm_…`, `?igsh=…`, `?si=…`)를 지우는 `cleanLink`. 나머지는 쓴 그대로 둡니다. 브라우저(`window.DotLink`)·Node 겸용. |

@@ -196,7 +196,10 @@
             <div class="dq-row">
               <button class="dq-btn dq-btn--primary" type="button" id="dq-png">Download PNG</button>
               <button class="dq-btn" type="button" id="dq-svg">Download SVG</button>
+              <label class="dq-field"><input type="checkbox" id="dq-transparent" aria-describedby="dq-transparent-hint"> Transparent background</label>
             </div>
+            <p class="dq-hint" id="dq-transparent-hint" hidden>Only the black dots are drawn — put it on white or a plain light colour.
+              On a dark background, including dark-mode apps and chats, phones can’t read it.</p>
             <p class="dq-warn" id="dq-warn" role="status" hidden></p>
           </section>
         </div>
@@ -266,7 +269,7 @@
           <ul>
             <li>Every code is 89&nbsp;&times;&nbsp;89 dots with your drawing in the middle. Links up to about 45 characters hold a full 32&nbsp;&times;&nbsp;32 drawing. A link copied from an app often ends in tracking (?utm_&hellip;) &mdash; <b>Remove tracking</b> takes it off. Otherwise, a link shortener helps.</li>
             <li>Photos work best cropped tight around one simple subject.</li>
-            <li>Before printing, scan the download with your phone. Print it at least 5&nbsp;cm (2&nbsp;in) wide and keep the white border.</li>
+            <li>Before printing, scan the download with your phone. Print it at least 5&nbsp;cm (2&nbsp;in) wide and keep the white border &mdash; with a transparent background, keep the area around the code light and empty instead.</li>
           </ul>
           <p class="dq-hint">The trick behind it comes from Russ Cox&rsquo;s <a href="https://research.swtch.com/qart">QArt Codes</a>.</p>
         </div>
@@ -351,6 +354,7 @@
       cleanRow: $('dq-clean-row'), cleanText: $('dq-clean-text'), clean: $('dq-clean'),
       canvas: $('dq-canvas'), qrWrap: $('dq-qr-wrap'), qr: $('dq-qr'), qrEmpty: $('dq-qr-empty'),
       status: $('dq-status'), meta: $('dq-meta'), png: $('dq-png'), svg: $('dq-svg'),
+      transparent: $('dq-transparent'), transparentHint: $('dq-transparent-hint'),
       warn: $('dq-warn'), undo: $('dq-undo'), invert: $('dq-invert'), clear: $('dq-clear'),
       gridLive: $('dq-grid-live')
     };
@@ -615,8 +619,9 @@
     /* ============================================================
        6. QR preview + info.
        ============================================================ */
-    function paint(ctx, res, px) {
-      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, (res.size + 8) * px, (res.size + 8) * px);
+    // transparent: leave the light cells and the 4-cell margin transparent (downloads only; the preview stays on white).
+    function paint(ctx, res, px, transparent) {
+      if (!transparent) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, (res.size + 8) * px, (res.size + 8) * px); }
       ctx.fillStyle = '#000';
       Q.renderModules(res, { px: px }, function (x, y, w, h) { ctx.fillRect(x, y, w, h); });
     }
@@ -675,20 +680,26 @@
     els.png.addEventListener('click', function () {
       var res = state.res;
       if (!res) return;
-      var px = Math.max(8, Math.ceil(1200 / (res.size + 8))), c = document.createElement('canvas');
+      var px = Math.max(8, Math.ceil(1200 / (res.size + 8))), c = document.createElement('canvas'), transparent = els.transparent.checked;
       c.width = c.height = px * (res.size + 8);
-      paint(c.getContext('2d'), res, px);
-      c.toBlob(function (blob) { save(blob, 'dot-qr.png'); }, 'image/png');
+      paint(c.getContext('2d'), res, px, transparent);
+      c.toBlob(function (blob) { save(blob, transparent ? 'dot-qr-transparent.png' : 'dot-qr.png'); }, 'image/png');
     });
     els.svg.addEventListener('click', function () {
       var res = state.res;
       if (!res) return;
-      var d = [];
+      var d = [], transparent = els.transparent.checked;
       var W = Q.renderModules(res, { px: 1 }, function (x, y, w, h) { d.push('M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z'); });
       var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + W + '" width="' + W * 10 + '" height="' + W * 10 +
-        '" shape-rendering="crispEdges"><rect width="' + W + '" height="' + W + '" fill="#fff"/><path fill="#000" d="' + d.join('') + '"/></svg>';
-      save(new Blob([svg], { type: 'image/svg+xml' }), 'dot-qr.svg');
+        '" shape-rendering="crispEdges">' + (transparent ? '' : '<rect width="' + W + '" height="' + W + '" fill="#fff"/>') +
+        '<path fill="#000" d="' + d.join('') + '"/></svg>';
+      save(new Blob([svg], { type: 'image/svg+xml' }), transparent ? 'dot-qr-transparent.svg' : 'dot-qr.svg');
     });
+    // The hint follows the box. A page restored by Back (or a Firefox reload) re-ticks the box after this script
+    // has run and without a change event, so sync again when the page is shown.
+    function syncTransparentHint() { els.transparentHint.hidden = !els.transparent.checked; }
+    els.transparent.addEventListener('change', syncTransparentHint);
+    window.addEventListener('pageshow', syncTransparentHint);
 
     /* ============================================================
        8. Controls.
