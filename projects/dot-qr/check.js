@@ -178,24 +178,30 @@ for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0
   if (res) check(res.box.w - d.w <= 6 && res.box.h - d.h <= 6, `${tag}: a ${d.w}×${d.h} preset in a ${res.box.w}×${res.box.h} white frame — presets should fill it`);
 }
 // The quarter turns are separate sets of candidates for keeping look-alikes out of the data round the drawing,
-// but only if they differ: the texture there depends on the module, not the turn, so a drawing that looks the
-// same turned round, dead centre in its frame, gives the same codes twice over. The 27-cell X of 2026-11-22 was
-// exactly 180°-symmetric and that Instagram glyph changed in 18 cells under any turn: of 1,200 realistic links,
-// 11 and 11–14 codes kept a look-alike. With the 𝕏 and the lens half a cell off centre (70 and 46 cells), none did.
+// but only as far as they differ. The texture there depends on the module, not the turn, and the code is made of
+// error-correction blocks (six at version 18, L): a block whose cells in the box are the same for two turns comes
+// out the same in both candidates. So every pair of turns must differ somewhere in every block. The 27-cell X of
+// 2026-11-22 was exactly 180°-symmetric (two pairs differed nowhere) and that Instagram glyph differed only by its
+// flash dot, which reached 2–5 blocks: of 1,200 realistic links, 11 and 11–14 codes kept a look-alike. With the 𝕏
+// and the lens moved half a cell (all six blocks for every pair), none did. A small part off centre is not enough —
+// a 4×4 flash dot reaches only 3–6.
 for (const [name, hex] of Object.entries(presets)) {
   const d = DotQR.cropDrawing(bitsOf(hex), 32), res = DotQR.makeInset(DotQR.utf8(PROFILE[0]), d, { cache: {}, version: PAGE_VERSION });
   if (!res) continue;                                          // the loop above already failed it
-  const { x: bx, y: by, w, h } = res.box, at = (i, j) => res.modules[(by + i) * res.size + bx + j];
-  let fewest = Infinity;
-  for (const turn of w === h ? [1, 2, 3] : [2]) {               // a quarter turn of a non-square frame is another frame
-    let diff = 0;
-    for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) {
-      const [ti, tj] = turn === 1 ? [w - 1 - j, i] : turn === 2 ? [h - 1 - i, w - 1 - j] : [j, w - 1 - i];
-      if (at(i, j) !== at(ti, tj)) diff++;
-    }
-    fewest = Math.min(fewest, diff);
+  const { x: bx, y: by, w, h } = res.box, S = res.size;
+  if (2 * bx + w !== S || 2 * by + h !== S) continue;        // a box off the code's centre moves with each turn: the candidates differ anyway
+  const T = DotQR._template(PAGE_VERSION), L = DotQR._layout(PAGE_VERSION, res.ecl), blockOf = new Int8Array(S * S).fill(-1);
+  for (let k = 0; k < L.raw * 8; k++) blockOf[T.order[k]] = L.sBlock[k >> 3];
+  const box = (i, j) => res.modules[(by + i) * S + bx + j];
+  const turned = t => (i, j) => t === 0 ? box(i, j) : t === 1 ? box(w - 1 - j, i) : t === 2 ? box(h - 1 - i, w - 1 - j) : box(j, w - 1 - i);
+  const turns = w === h ? [0, 1, 2, 3] : [0, 2];              // a quarter turn of a non-square box is another box
+  let worst = null;
+  for (const a of turns) for (const b of turns) if (a < b) {
+    const A = turned(a), B = turned(b), hit = new Set();
+    for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) if (A(i, j) !== B(i, j) && blockOf[(by + i) * S + bx + j] >= 0) hit.add(blockOf[(by + i) * S + bx + j]);
+    if (!worst || hit.size < worst.n) worst = { n: hit.size, a, b };
   }
-  check(fewest >= 32, `${name}: its ${w}×${h} frame changes in only ${fewest} cells under a turn, so the turns give near-identical codes and fewer chances to keep look-alikes out — move a part one cell off centre`);
+  check(worst.n === L.blocks.length, `${name}: turned ${worst.a * 90}° and ${worst.b * 90}°, its box differs in only ${worst.n} of the code's ${L.blocks.length} error-correction blocks, so those turns give near-identical codes and fewer chances to keep look-alikes out — move a large part (not a small detail) half a cell off centre`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');
