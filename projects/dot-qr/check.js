@@ -127,10 +127,10 @@ function checkInset(res, d, bytes, tag, curated, outsideAllowed = 0) {
   let quiet = 0;
   for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (img[y * W + x] && (x < 4 * px || y < 4 * px || x >= W - 4 * px || y >= W - 4 * px)) quiet++;
   check(quiet === 0, `${tag}: ${quiet} dark pixels in the quiet zone`);
-  // Finder look-alikes: none outside the box (the mask and texture choice avoids them) — except in the
-  // page's 89 × 89 codes, where a short link leaves so much random-looking data that sometimes every
-  // candidate keeps one (outsideAllowed = 1; they read anyway, see README «89 × 89로 고정»); none inside
-  // the box either for the curated presets (curated = true), since there the drawing would be the culprit.
+  // Finder look-alikes: none outside the box (the mask and texture choice avoids them; `outsideAllowed` is for
+  // a case where that can't be promised — no call needs it now, the 89 × 89 presets included, see README
+  // «89 × 89로 고정»); none inside the box either for the curated presets (curated = true), since there the
+  // drawing would be the culprit.
   const all = DotQR._lookalikes(res), inBoxAt = ([x, y]) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   const outside = all.filter(p => !inBoxAt(p)), inside = curated ? all.filter(inBoxAt) : [];
   check(outside.length <= outsideAllowed && inside.length === 0,
@@ -167,8 +167,10 @@ for (const [name, hex] of Object.entries({ ...presets, ...FIXTURES })) for (cons
   check(!!res && res.version <= want, `${tag}: should fit at version ${want} or below (got ${res ? 'version ' + res.version : 'no code'})`);
   if (res) checkInset(res, d, bytes, tag, true);
 }
-// The page's fixed size: at version 18 every preset fits profile links of up to 46 characters.
-for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0], PROFILE[1], 'https://huggingface.co/jasonleex1995', 'https://x.com/jasonleex1995/status/1234567890']) {
+// The page's fixed size: at version 18 every preset fits links of up to 46 characters — profiles, a repository, a paper.
+const PAGE_LINKS = [PROFILE[0], PROFILE[1], 'https://huggingface.co/jasonleex1995', 'https://x.com/jasonleex1995/status/1234567890',
+  'https://github.com/jasonleex1995/dot-qr', 'https://arxiv.org/abs/2411.01234v2'];
+for (const [name, hex] of Object.entries(presets)) for (const link of PAGE_LINKS) {
   const bytes = DotQR.utf8(link), d = DotQR.cropDrawing(bitsOf(hex), 32), tag = `${name} / ${link.length}-character link / version ${PAGE_VERSION}`;
   const res = DotQR.makeInset(bytes, d, { cache: {}, version: PAGE_VERSION });
   check(!!res && res.version === PAGE_VERSION, `${tag}: should fit the page's 89 × 89 code`);
@@ -181,10 +183,10 @@ for (const [name, hex] of Object.entries(presets)) for (const link of [PROFILE[0
 // but only as far as they differ. The texture there depends on the module, not the turn, and the code is made of
 // error-correction blocks (six at version 18, L): a block whose cells in the box are the same for two turns comes
 // out the same in both candidates. So every pair of turns must differ somewhere in every block. The 27-cell X of
-// 2026-11-22 was exactly 180°-symmetric (two pairs differed nowhere) and that Instagram glyph differed only by its
-// flash dot, which reached 2–5 blocks: of 1,200 realistic links, 11 and 11–14 codes kept a look-alike. With the 𝕏
-// and the lens moved half a cell (all six blocks for every pair), none did. A small part off centre is not enough —
-// a 4×4 flash dot reaches only 3–6.
+// 2026-11-22 was exactly 180°-symmetric (two pairs differed nowhere) and the Instagram glyph of then (a preset until
+// 2026-11-23) differed only by its flash dot, which reached 2–5 blocks: of 1,200 realistic links, 11 and 11–14 codes
+// kept a look-alike. With the 𝕏 and the lens moved half a cell (all six blocks for every pair), none did. A small part
+// off centre is not enough — a 4×4 flash dot reaches only 3–6.
 for (const [name, hex] of Object.entries(presets)) {
   const d = DotQR.cropDrawing(bitsOf(hex), 32), res = DotQR.makeInset(DotQR.utf8(PROFILE[0]), d, { cache: {}, version: PAGE_VERSION });
   if (!res) continue;                                          // the loop above already failed it
