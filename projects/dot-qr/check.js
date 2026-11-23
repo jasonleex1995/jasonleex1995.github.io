@@ -192,16 +192,17 @@ for (const [name, hex] of Object.entries(presets)) {
   if (2 * bx + w !== S || 2 * by + h !== S) continue;        // a box off the code's centre moves with each turn: the candidates differ anyway
   const T = DotQR._template(PAGE_VERSION), L = DotQR._layout(PAGE_VERSION, res.ecl), blockOf = new Int8Array(S * S).fill(-1);
   for (let k = 0; k < L.raw * 8; k++) blockOf[T.order[k]] = L.sBlock[k >> 3];
-  const box = (i, j) => res.modules[(by + i) * S + bx + j];
-  const turned = t => (i, j) => t === 0 ? box(i, j) : t === 1 ? box(w - 1 - j, i) : t === 2 ? box(h - 1 - i, w - 1 - j) : box(j, w - 1 - i);
-  const turns = w === h ? [0, 1, 2, 3] : [0, 2];              // a quarter turn of a non-square box is another box
+  // As in the solver: with rotation r, the code's module (x, y) holds what the drawing side has at _rotIndex(r, S, x, y).
+  // Even rotations use the box as it stands, odd ones the same box on its side, so pairs whose boxes coincide are compared.
   let worst = null;
-  for (const a of turns) for (const b of turns) if (a < b) {
-    const A = turned(a), B = turned(b), hit = new Set();
-    for (let i = 0; i < h; i++) for (let j = 0; j < w; j++) if (A(i, j) !== B(i, j) && blockOf[(by + i) * S + bx + j] >= 0) hit.add(blockOf[(by + i) * S + bx + j]);
+  for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) {
+    if (w !== h && (a + b) % 2) continue;                      // a non-square box on its side is another box
+    const [x0, y0, bw, bh] = a % 2 ? [by, bx, h, w] : [bx, by, w, h], hit = new Set();
+    for (let y = y0; y < y0 + bh; y++) for (let x = x0; x < x0 + bw; x++)
+      if (res.modules[DotQR._rotIndex(a, S, x, y)] !== res.modules[DotQR._rotIndex(b, S, x, y)] && blockOf[y * S + x] >= 0) hit.add(blockOf[y * S + x]);
     if (!worst || hit.size < worst.n) worst = { n: hit.size, a, b };
   }
-  check(worst.n === L.blocks.length, `${name}: turned ${worst.a * 90}° and ${worst.b * 90}°, its box differs in only ${worst.n} of the code's ${L.blocks.length} error-correction blocks, so those turns give near-identical codes and fewer chances to keep look-alikes out — move a large part (not a small detail) half a cell off centre`);
+  check(worst.n === L.blocks.length, `${name}: with rotations ${worst.a} and ${worst.b} (makeInset's \`rotations\`), its box differs in only ${worst.n} of the code's ${L.blocks.length} error-correction blocks, so those turns give near-identical codes and fewer chances to keep look-alikes out — move a large part (not a small detail) half a cell off centre`);
 }
 check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl=k'), { cache: {}, maxSide: 32, version: PAGE_VERSION }) === 32,
   'at version 18 a 45-character link should hold a full 32×32 drawing');

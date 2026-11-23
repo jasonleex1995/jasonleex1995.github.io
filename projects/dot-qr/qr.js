@@ -827,7 +827,7 @@
     renderModules: renderModules, verify: verify,
     // exposed for tests
     _rsEncode: rsEncode, _numDataCodewords: numDataCodewords, _numRawDataModules: numRawDataModules,
-    _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits,
+    _alignmentPositions: alignmentPositions, _template: template, _layout: layout, _formatBits: formatBits, _rotIndex: rotIndex,
     // Finder look-alikes of a finished code, as display-orientation modules [x, y].
     _lookalikes: function (res) {
       var size = res.size, r = res.rotation || 0;
