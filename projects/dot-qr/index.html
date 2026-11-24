@@ -168,12 +168,14 @@
             <p class="dq-sr" id="dq-grid-live" aria-live="polite"></p>
             <div class="dq-row" role="group" aria-labelledby="dq-start-l">
               <span class="dq-hint" id="dq-start-l">Start from</span>
-              <button class="dq-btn dq-chip" type="button" data-preset="x">X</button>
-              <button class="dq-btn dq-chip" type="button" data-preset="linkedin">LinkedIn</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="project">Project page</button>
               <button class="dq-btn dq-chip" type="button" data-preset="arxiv">arXiv</button>
               <button class="dq-btn dq-chip" type="button" data-preset="github">GitHub</button>
               <button class="dq-btn dq-chip" type="button" data-preset="huggingface">Hugging Face</button>
-              <button class="dq-btn dq-chip" type="button" data-preset="project">Project page</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="linkedin">LinkedIn</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="x">X</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="home">Homepage</button>
+              <button class="dq-btn dq-chip" type="button" data-preset="email">Email</button>
               <button class="dq-btn dq-chip" type="button" data-preset="link">Link</button>
               <button class="dq-btn dq-chip" type="button" id="dq-photo-btn">Your photo&hellip;</button>
               <input type="file" id="dq-photo-file" accept="image/*" hidden>
@@ -304,11 +306,13 @@
        1. Presets — 32×32, one hex word per row (bit 31 = left). One-colour marks for the links people
           share: x, linkedin and arxiv (white mark in a black rounded square), github (the Octicons mark:
           white cat in a black disc), huggingface (the hugging face, hands in front), project (a globe,
-          for a project page — the 🌐 of research READMEs), link (a chain link, the 🔗, for any other link).
-          27 × 27 each: in the 89 × 89 code the white frame is 33 cells wide along any side of 19–31 cells
+          for a project page — the 🌐 of research READMEs), link (a chain link, the 🔗, for any other link),
+          home (the usual home icon: a thick roof over a solid house with a big door, for a personal homepage) and
+          email (a white envelope in the badge, like the macOS Mail icon). 27 × 27 each, the house 29 × 27 (its roof
+          runs past the walls): in the 89 × 89 code the white frame is 33 cells wide along any side of 19–31 cells
           (it takes in the four alignment squares round the middle), so 27 fills it with 3 white cells
-          to spare on each side. They fit any link of up to 67 bytes (past 47 with a few of the link's
-          codewords under them, which error correction puts back).
+          to spare on each side (2 beside the house's eave tips). They fit any link of up to 67 bytes
+          (past 47 with a few of the link's codewords under them, which error correction puts back).
        ============================================================ */
     var PRESETS = {
       x: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3ffffe78 3f03fc78 3f01f8f8 3fbcf1f8 3fdee3f8 3fce47f8 3fef6ff8 3fe72ff8 3ff79ff8 3ffbdff8 3ff9cff8 3ffdeff8 3fe4f7f8 3fc273f8 3f877bf8 3f8f39f8 3f1f81f8 3e3f80f8 3e7ffff8 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000',
@@ -317,7 +321,9 @@
       github: '00000000 00000000 000fe000 007ffc00 00fffe00 03ffff80 07bffbc0 079ff3c0 0f8fe3e0 1f8003f0 1f8003f0 1f8003f0 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f0001f8 3f8003f8 1fc007f0 1fe00ff0 1c783ff0 0e701fe0 07001fc0 07801fc0 03f01f80 00f01e00 00701c00 00301800 00000000 00000000 00000000',
       huggingface: '00000000 00000000 003ff800 00f83e00 01c00700 03800380 070001c0 0e0000e0 0c000060 1c200870 18701c30 18701c30 38701c38 30200818 30000018 30000018 387ffc38 187ffc30 183ff830 1c1ff070 0c0fe060 0e0000e0 01000100 1c800270 36e00ed8 367ffcd8 3f3ff9f8 1f0381f0 1e0000f0 00000000 00000000 00000000',
       project: '00000000 00000000 000fe000 007ffc00 00fffe00 03cdb780 071999c0 061998c0 0fffffe0 1c318c70 18318c30 18318c30 30318c18 30618618 30618618 3ffffff8 3ffffff8 30618618 30318c18 18318c30 18318c30 1c318c70 0c318c60 07ffffc0 071999c0 03cdb780 00fffe00 007ffc00 000fe000 00000000 00000000 00000000',
-      link: '00000000 00000000 000003c0 00000fe0 00001ef0 00003838 00007038 0000e018 0001c038 00038030 00070070 000600e0 000001c0 003e0380 007f0700 00f30e00 01c3fc00 0381f800 07000000 0e01c000 1c01c000 18038000 38070000 380e0000 181c0000 1c380000 0ff00000 07e00000 01800000 00000000 00000000 00000000'
+      link: '00000000 00000000 000003c0 00000fe0 00001ef0 00003838 00007038 0000e018 0001c038 00038030 00070070 000600e0 000001c0 003e0380 007f0700 00f30e00 01c3fc00 0381f800 07000000 0e01c000 1c01c000 18038000 38070000 380e0000 181c0000 1c380000 0ff00000 07e00000 01800000 00000000 00000000 00000000',
+      home: '00000000 00000000 00038000 0007cf80 000fef80 003eff80 007c7f80 01f11f80 03e38f80 07cfe7c0 1f1ff1f0 3e3ff8f8 7cfffe7c 71ffff1c 07ffffc0 0fffffe0 0fffffe0 0fffffe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 0fe00fe0 00000000 00000000 00000000',
+      email: '00000000 00000000 0fffffe0 1ffffff0 3ffffff8 3ffffff8 3ffffff8 3e0000f8 3f0001f8 3bc007b8 38e00e38 38701c38 38383838 381ef038 3807c038 38038038 38000038 38000038 38000038 38000038 38000038 38000038 38000038 38000038 3ffffff8 3ffffff8 3ffffff8 1ffffff0 0fffffe0 00000000 00000000 00000000'
     };
     // Said under the code while a preset sits on the grid just as it comes (and nothing more urgent is):
     // the arXiv badge's big black square is the one some phone cameras miss in noisy, low-contrast shots of
@@ -364,7 +370,7 @@
       gridLive: $('dq-grid-live')
     };
     var state = {
-      M: 32, bits: presetBits('x'), tool: 1, undo: [],
+      M: 32, bits: presetBits('project'), tool: 1, undo: [],
       link: '', bytes: null, cacheFor: null, cache: null, maxSide: 0,
       res: null, drawing: null, warn: '', fakes: 0, last: null,
       cursor: { x: 16, y: 16 }, hover: null

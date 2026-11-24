@@ -165,7 +165,7 @@ for (const [name, hex] of Object.entries(presets)) {
 // room for a 20×20 drawing at most; now drawings of up to 24×24 fit them at version 14 (73×73), and
 // bigger ones fit links of up to 46 characters at version 18.
 const PROFILE = ['https://www.linkedin.com/in/jasonleex1995/', 'https://www.instagram.com/jasonleex1995/?hl=ko', 'https://scholar.google.com/citations?user=abc123'];
-// The presets are 27 cells now; the old ones keep these promises tested: 22×22 and 24×24 at version 14,
+// The presets are 27 cells now (the house 29 × 27); the old ones keep these promises tested: 22×22 and 24×24 at version 14,
 // and the 31-cell JS logo at version 18 for links of up to 46 characters.
 const FIXTURES = { 'x at 24 cells': OLD_X, 'linkedin at 22 cells': OLD_LINKEDIN, 'JS logo': OLD_LOGO };
 for (const [name, hex] of Object.entries({ ...presets, ...FIXTURES })) for (const link of PROFILE) {
@@ -297,7 +297,7 @@ check(DotQR.maxInsetSide(DotQR.utf8('https://www.instagram.com/jasonleex1995/?hl
     check(c && c.version > PAGE_VERSION && DotQR.verify(c, new Uint8Array(800).fill(97)).ok, 'plainCode: 800 bytes should get a bigger version that reads back');
   }
   const first = buttons[0], onLoad = (html.match(/bits: presetBits\('(\w+)'\)/) || [])[1];
-  check(first === 'x' && onLoad === first, `the first preset button (${first}) should be X and be drawn on load (${onLoad})`);
+  check(first === 'project' && onLoad === first, `the first preset button (${first}) should be Project page (the order the user chose, 2026-11-23) and be drawn on load (${onLoad})`);
   check(/els\.clean\.addEventListener\('click', function \(\) \{\s*var c = DL\.cleanLink\(normalizeLink\(els\.url\.value\)\);[\s\S]{0,160}?els\.url\.value = c\.link;/.test(html),
     'Remove tracking should clean the link that is in the box now and put the result back');
 }
